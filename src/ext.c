@@ -182,7 +182,6 @@ const struct confparams *HAMLIB_API rig_ext_lookup(RIG *rig, const char *name)
     return NULL;
 }
 
-
 /**
  * \param rig
  * \param token

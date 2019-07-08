@@ -1444,7 +1444,7 @@ int win32_serial_read( int fd, void *vb, int size )
 		err = ReadFile( index->hComm, dest + total, size, &nBytes, &index->rol );
 #ifdef DEBUG_VERBOSE
         /* warning Roy Rogers! */
-        sprintf(message, " ========== ReadFile = %i %s\n",
+        sprintf(message, " ========== ReadFile = %i 0x%x\n",
                 ( int ) nBytes, *((char *) dest + total) );
         report( message );
 #endif /* DEBUG_VERBOSE */
@@ -3295,6 +3295,7 @@ int  win32_serial_select( int  n,  fd_set  *readfds,  fd_set  *writefds,
 				goto fail;
 			}
 		}
+    goto timeout;
 	}
 #endif
 	while ( wait == WAIT_TIMEOUT && index->sol.hEvent )

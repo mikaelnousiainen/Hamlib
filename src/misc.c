@@ -51,6 +51,7 @@
 #include <unistd.h>
 
 #include <hamlib/rig.h>
+#include <hamlib/amplifier.h>
 
 #include "misc.h"
 
@@ -521,6 +522,8 @@ static struct
     { RIG_FUNC_AFLT, "AFLT" },
     { RIG_FUNC_ANL, "ANL" },
     { RIG_FUNC_BC2, "BC2" },
+    { RIG_FUNC_DUAL_WATCH, "DUAL_WATCH"},
+    { RIG_FUNC_DIVERSITY, "DIVERSITY"},
     { RIG_FUNC_NONE, "" },
 };
 
@@ -625,7 +628,31 @@ static struct
     { RIG_LEVEL_SWR, "SWR" },
     { RIG_LEVEL_ALC, "ALC" },
     { RIG_LEVEL_STRENGTH, "STRENGTH" },
+    { RIG_LEVEL_RFPOWER_METER, "RFPOWER_METER" },
+    { RIG_LEVEL_COMP_METER, "COMP_METER" },
+    { RIG_LEVEL_VD_METER, "VD_METER" },
+    { RIG_LEVEL_ID_METER, "ID_METER" },
+    { RIG_LEVEL_NOTCHF_RAW, "NOTCHF_RAW" },
+    { RIG_LEVEL_MONITOR_GAIN, "MONITOR_GAIN" },
+    { RIG_LEVEL_NB, "NB" },
     { RIG_LEVEL_NONE, "" },
+};
+
+static struct
+{
+    setting_t level;
+    const char *str;
+} levelamp_str[] =
+{
+    { AMP_LEVEL_SWR, "SWR" },
+    { AMP_LEVEL_NH, "NH" },
+    { AMP_LEVEL_PF, "PF" },
+    { AMP_LEVEL_PWR_INPUT, "PWRINPUT" },
+    { AMP_LEVEL_PWR_FWD, "PWRFORWARD" },
+    { AMP_LEVEL_PWR_REFLECTED, "PWRREFLECTED" },
+    { AMP_LEVEL_PWR_PEAK, "PWRPEAK" },
+    { AMP_LEVEL_FAULT, "FAULT" },
+    { AMP_LEVEL_NONE, "" },
 };
 
 
@@ -647,6 +674,32 @@ setting_t HAMLIB_API rig_parse_level(const char *s)
         if (!strcmp(s, level_str[i].str))
         {
             return level_str[i].level;
+        }
+    }
+
+    return RIG_LEVEL_NONE;
+}
+
+/**
+ * \brief Convert alpha string to enum AMP_LEVEL_...
+ * \param s input alpha string
+ * \return AMP_LEVEL_...
+ *
+ * \sa amp_level_e()
+ */
+setting_t HAMLIB_API amp_parse_level(const char *s)
+{
+    int i;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called level=%s\n", __func__, s);
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called str=%s\n", __func__, levelamp_str[0].str);
+    for (i = 0 ; levelamp_str[i].str[0] != '\0'; i++)
+    {
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called checking=%s\n", __func__, levelamp_str[i].str);
+        if (!strcmp(s, levelamp_str[i].str))
+        {
+            return levelamp_str[i].level;
         }
     }
 
@@ -677,6 +730,35 @@ const char * HAMLIB_API rig_strlevel(setting_t level)
         if (level == level_str[i].level)
         {
             return level_str[i].str;
+        }
+    }
+
+    return "";
+}
+
+/**
+ * \brief Convert enum AMP_LEVEL_... to alpha string
+ * \param level AMP_LEVEL_...
+ * \return alpha string
+ *
+ * \sa amp_level_e()
+ */
+const char * HAMLIB_API amp_strlevel(setting_t level)
+{
+    int i;
+
+    //rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (level == AMP_LEVEL_NONE)
+    {
+        return "";
+    }
+
+    for (i = 0; levelamp_str[i].str[0] != '\0'; i++)
+    {
+        if (level == levelamp_str[i].level)
+        {
+            return levelamp_str[i].str;
         }
     }
 

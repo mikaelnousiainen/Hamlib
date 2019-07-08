@@ -33,6 +33,7 @@
 #include <unistd.h>
 
 #include <hamlib/rig.h>
+#include <hamlib/amplifier.h>
 
 #include "sprintflst.h"
 #include "misc.h"
@@ -130,6 +131,26 @@ int sprintf_mode(char *str, rmode_t mode)
 }
 
 
+int sprintf_ant(char *str, ant_t ant)
+{
+  int i, len = 0;
+
+  *str = '\0';
+
+  if (ant == RIG_ANT_NONE) {
+    return 0;
+  }
+
+  for (i = 0; i < RIG_ANT_MAX; i++) {
+    if (ant & (1UL << i)) {
+      len += sprintf(str + len, "%d ", i + 1);
+    }
+  }
+
+  return len;
+}
+
+
 int sprintf_func(char *str, setting_t func)
 {
     uint64_t i, len = 0;
@@ -173,6 +194,34 @@ int sprintf_level(char *str, setting_t level)
     for (i = 0; i < RIG_SETTING_MAX; i++)
     {
         const char *ms = rig_strlevel(level & rig_idx2setting(i));
+
+        if (!ms || !ms[0])
+        {
+            continue;    /* unknown, FIXME! */
+        }
+
+        strcat(str, ms);
+        strcat(str, " ");
+        len += strlen(ms) + 1;
+    }
+
+    return len;
+}
+
+int sprintf_level_amp(char *str, setting_t level)
+{
+    int i, len = 0;
+
+    *str = '\0';
+
+    if (level == AMP_LEVEL_NONE)
+    {
+        return 0;
+    }
+
+    for (i = 0; i < RIG_SETTING_MAX; i++)
+    {
+        const char *ms = amp_strlevel(level & rig_idx2setting(i));
 
         if (!ms || !ms[0])
         {
@@ -423,4 +472,22 @@ int sprintf_scan(char *str, scan_t rscan)
     }
 
     return len;
+}
+
+char *get_rig_conf_type(enum rig_conf_e type)
+{
+  switch (type) {
+    case RIG_CONF_STRING:
+      return "STRING";
+    case RIG_CONF_COMBO:
+      return "COMBO";
+    case RIG_CONF_NUMERIC:
+      return "NUMERIC";
+    case RIG_CONF_CHECKBUTTON:
+      return "CHECKBUTTON";
+    case RIG_CONF_BUTTON:
+      return "BUTTON";
+  }
+
+  return "UNKNOWN";
 }
