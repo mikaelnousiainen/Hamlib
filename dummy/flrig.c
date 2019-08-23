@@ -169,7 +169,7 @@ const struct rig_caps flrig_caps = {
 // Structure for mapping flrig dynmamic modes to hamlib modes
 // flrig displays modes as the rig displays them
 struct s_modeMap {
-    int mode_hamlib;
+    rmode_t mode_hamlib;
     char *mode_flrig;
 };
 
@@ -378,7 +378,6 @@ static int write_transaction(RIG *rig, char *xml, int xml_len)
 {
     int try=rig->caps->retry;
     int retval=-RIG_EPROTO;
-    char xmltmp[MAXXMLLEN];
 
     struct rig_state *rs = &rig->state;
 
@@ -386,7 +385,12 @@ static int write_transaction(RIG *rig, char *xml, int xml_len)
     // We need to avoid and empty write as rigctld replies with blank line
     if (xml_len == 0) {
         rig_debug(RIG_DEBUG_ERR,"%s: len==0??\n",__FUNCTION__);
+        return retval;
     }
+
+    // appears we can lose sync if we don't clear things out
+    // shouldn't be anything for us now anyways
+    network_flush(&rig->state.rigport);
 
     while(try-- >= 0 && retval != RIG_OK) {
             retval = write_block(&rs->rigport, xml, strlen(xml));
@@ -394,7 +398,6 @@ static int write_transaction(RIG *rig, char *xml, int xml_len)
                 return -RIG_EIO;
             }
         }
-    strcpy(xml,xmltmp);
     return retval;
 }
 
@@ -442,7 +445,7 @@ static int flrig_init(RIG *rig)
  * Assumes mode!=NULL
  * Return the string for FLRig for the given hamlib mode
  */
-static const char * modeMapGetFLRig(unsigned int modeHamlib)
+static const char * modeMapGetFLRig(rmode_t modeHamlib)
 {
     int i;
     for(i=0; modeMap[i].mode_hamlib!=0; ++i) {
@@ -459,18 +462,18 @@ static const char * modeMapGetFLRig(unsigned int modeHamlib)
  * Assumes mode!=NULL
  * Return the hamlib mode from the given FLRig string
  */
-static unsigned int modeMapGetHamlib(const char *modeFLRig)
+static rmode_t modeMapGetHamlib (const char *modeFLRig)
 {
     int i;
     char modeFLRigCheck[64];
-    snprintf(modeFLRigCheck,sizeof(modeFLRigCheck),"|%.32s|",modeFLRig);
+    snprintf(modeFLRigCheck,sizeof(modeFLRigCheck),"|%s|",modeFLRig);
     for(i=0; modeMap[i].mode_hamlib!=0; ++i) {
-        if (modeMap[i].mode_flrig) 
-        if (modeMap[i].mode_flrig && strstr(modeMap[i].mode_flrig,modeFLRigCheck)) {
+        rig_debug(RIG_DEBUG_TRACE,"%s: find '%s' in '%s'\n", __FUNCTION__, modeFLRigCheck, modeMap[i].mode_flrig);
+        if (modeMap[i].mode_flrig && strcmp(modeMap[i].mode_flrig,modeFLRigCheck)==0) {
             return modeMap[i].mode_hamlib;
         }
     }
-    rig_debug(RIG_DEBUG_ERR,"%s: Unknown mode requested: %s\n",__FUNCTION__,modeFLRig);
+    rig_debug(RIG_DEBUG_TRACE,"%s: Unknown mode requested: %s\n",__FUNCTION__,modeFLRig);
     return -RIG_EINVAL;
 }
 
@@ -479,10 +482,14 @@ static unsigned int modeMapGetHamlib(const char *modeFLRig)
  * modeMapAdd
  * Assumes modes!=NULL
  */
-static void modeMapAdd(unsigned int *modes,int mode_hamlib,char *mode_flrig)
+static void modeMapAdd(rmode_t *modes,rmode_t mode_hamlib,char *mode_flrig)
 {
     int i;
     rig_debug(RIG_DEBUG_TRACE,"%s:mode_flrig=%s\n",__FUNCTION__,mode_flrig);
+
+    // if we already have it just return
+    if (modeMapGetHamlib(mode_flrig)!=-RIG_EINVAL) return;
+
     int len1 = strlen(mode_flrig)+3; /* bytes needed for allocating */
     for(i=0; modeMap[i].mode_hamlib!=0; ++i) {
         if (modeMap[i].mode_hamlib==mode_hamlib) {
@@ -579,7 +586,7 @@ static int flrig_open(RIG *rig) {
     read_transaction(rig, xml, sizeof(xml));
     xml_parse(xml, value, sizeof(value));
     rig_debug(RIG_DEBUG_TRACE, "%s: modes=%s\n",__FUNCTION__, value);
-    unsigned int modes = 0;
+    rmode_t modes = 0;
     char *p;
     for(p=strtok(value,"|"); p!=NULL; p=strtok(NULL,"|")) {
         if (streq(p,"USB"))           modeMapAdd(&modes,RIG_MODE_USB,p);
@@ -662,6 +669,10 @@ static int flrig_cleanup(RIG *rig) {
 
     free(rig->state.priv);
     rig->state.priv = NULL;
+
+    for(int i=0; modeMap[i].mode_hamlib!=0; ++i) {
+        if (modeMap[i].mode_flrig) free(modeMap[i].mode_flrig);
+    }
 
     return RIG_OK;
 }
@@ -943,12 +954,14 @@ static int flrig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     // Set the mode
     char *ttmode = strdup(modeMapGetFLRig(mode));
-    if (ttmode[0]=='|') ttmode = &ttmode[1]; // remove first pipe symbol
-    char *p=strchr(ttmode,'|');
+    rig_debug(RIG_DEBUG_TRACE,"%s: got ttmode = %s\n",__FUNCTION__,ttmode==NULL?"NULL":ttmode);
+    char *pttmode = ttmode;
+    if (ttmode[0]=='|') pttmode = &ttmode[1]; // remove first pipe symbol
+    char *p=strchr(pttmode,'|');
     if (p) *p=0; // remove any other pipe
 
     char cmd_buf[MAXCMDLEN];
-    sprintf(cmd_buf, "<params><param><value>%s</value></param></params>", ttmode);
+    sprintf(cmd_buf, "<params><param><value>%s</value></param></params>", pttmode);
     free(ttmode);
     char xml[MAXXMLLEN];
     char *pxml=NULL;
@@ -963,11 +976,13 @@ static int flrig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         pxml = xml_build(cmd, cmd_buf, xml, sizeof(xml));
     }
 
+    rig_debug(RIG_DEBUG_TRACE,"%s: write_transaction\n",__FUNCTION__);
     retval = write_transaction(rig, pxml, strlen(pxml));
     if (retval < 0) {
         return retval;
     }
 
+    rig_debug(RIG_DEBUG_TRACE,"%s: read_transaction\n",__FUNCTION__);
     // Get the response
     read_transaction(rig, xml, sizeof(xml));
     rig_debug(RIG_DEBUG_TRACE, "%s: response=%s\n", __FUNCTION__,xml);

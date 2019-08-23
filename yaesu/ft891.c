@@ -279,16 +279,16 @@ int ft891_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
 
     switch(split) {
         case RIG_SPLIT_ON:
-            ci = '3';
+            ci = '1';
             break;
         case RIG_SPLIT_OFF:
-            ci = '2';
+            ci = '0';
             break;
         default:
             return -RIG_EINVAL;
     }
 
-    snprintf(priv->cmd_str, sizeof(priv->cmd_str), "FT%c;", ci);
+    snprintf(priv->cmd_str, sizeof(priv->cmd_str), "ST%c;", ci);
     if ( RIG_OK != (err = write_block(&state->rigport, priv->cmd_str, strlen(priv->cmd_str))))  {
       rig_debug(RIG_DEBUG_ERR, "%s: write_block err = %d\n", __func__, err);
       return err;
@@ -327,12 +327,12 @@ int ft891_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
 
     priv = (struct newcat_priv_data *)rig->state.priv;
 
-    snprintf(priv->cmd_str, sizeof(priv->cmd_str), "FT;");
+    snprintf(priv->cmd_str, sizeof(priv->cmd_str), "ST;");
     if (RIG_OK != (err = newcat_get_cmd (rig)))
         return err;
 
     // Get split mode status
-    *split = priv->ret_data[2]=='1'; // 1=VFOB TX so is in split mode
+    *split = priv->ret_data[2]!='0'; // 1=split, 2=split + 5khz
     rig_debug(RIG_DEBUG_TRACE, "%s: get split = 0x%02x\n", __func__, *split);
 
     *tx_vfo = RIG_VFO_A;
@@ -408,6 +408,7 @@ int ft891_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode, pbwidth_t tx_widt
 {
     struct newcat_priv_data *priv;
     struct rig_state *state;
+    freq_t b_freq;
     int err;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -422,6 +423,11 @@ int ft891_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode, pbwidth_t tx_widt
 
     priv = (struct newcat_priv_data *)rig->state.priv;
 
+    // Remember VFOB frequency
+    if (RIG_OK != (err = newcat_get_freq(rig,RIG_VFO_B,&b_freq))) {
+        return err;
+    }
+
     // Change mode on VFOA and make VFOB match VFOA
     if (RIG_OK != (err = newcat_set_mode(rig,RIG_VFO_A,tx_mode,tx_width))) {
         return err;
@@ -433,6 +439,11 @@ int ft891_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode, pbwidth_t tx_widt
         rig_debug(RIG_DEBUG_VERBOSE, "%s:%d write_block err = %d\n", __func__, __LINE__, err);
         return err;
       }
+
+    // Restore VFOB frequency
+    if (RIG_OK != (err = newcat_set_freq(rig,RIG_VFO_B,b_freq))) {
+        return err;
+    }
 
 #if 0
     if (RIG_OK != (err = newcat_get_cmd (rig)))
