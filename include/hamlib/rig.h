@@ -57,28 +57,6 @@
 #  define __END_DECLS        /* empty */
 #endif
 
-#ifndef thread_local
-# if __STDC_VERSION__ >= 201112 && !defined __STDC_NO_THREADS__
-#  define thread_local _Thread_local
-# elif defined _WIN32 && ( \
-       defined _MSC_VER || \
-       defined __ICL || \
-       defined __DMC__ || \
-       defined __BORLANDC__ )
-#  define thread_local __declspec(thread) 
-/* note that ICC (linux) and Clang are covered by __GNUC__ */
-# elif defined __GNUC__ || \
-       defined __SUNPRO_C || \
-       defined __xlC__
-#  define thread_local __thread
-# else
-#  warn "Please see if you can find a thread_local definition for this compiler"
-#  warn "You can comment out the error after this line but rigctld will not be thread safe for vfo_mode and ext_resp and will require up to 4 rigctld's for the 4 possible combinations of vfo_mode and ext_resp"
-#  error "Cannot define thread_local"
-#  define thread_local
-# endif
-#endif
-
 /* HAMLIB_PARAMS is a macro used to wrap function prototypes, so that compilers
  * that don't understand ANSI C prototypes still work, and ANSI C
  * compilers can issue warnings about type mismatches. */
@@ -103,11 +81,15 @@
 #ifndef SWIGLUA
 #define CONSTANT_64BIT_FLAG(BIT) (1ull << (BIT))
 #else
-/* SWIG's Lua generator doesn't grok ull due to Lua using a
+/* SWIG's older Lua generator doesn't grok ull due to Lua using a
    double-precision floating point type internally for number
    representations (max 53 bits of precision) so makes a string
    constant from a constant number literal using ull */
-#define CONSTANT_64BIT_FLAG(BIT) (1 << (BIT))
+/* #define CONSTANT_64BIT_FLAG(BIT) (1 << (BIT)) */
+/* But this appears to have been fixed so we'll use the correct one now 
+   If you have the older version of SWIG comment out this line and use
+   the one above */
+#define CONSTANT_64BIT_FLAG(BIT) (1ull << (BIT))
 #endif
 
 __BEGIN_DECLS
@@ -1019,8 +1001,8 @@ typedef uint64_t rmode_t;
  * what frequencies your rig has access to.
  */
 typedef struct freq_range_list {
-    freq_t start;       /*!< Start frequency */
-    freq_t end;         /*!< End frequency */
+    freq_t startf;      /*!< Start frequency */
+    freq_t endf;        /*!< End frequency */
     rmode_t modes;      /*!< Bit field of RIG_MODE's */
     int low_power;      /*!< Lower RF power in mW, -1 for no power (ie. rx list) */
     int high_power;     /*!< Higher RF power in mW, -1 for no power (ie. rx list) */
@@ -1029,7 +1011,7 @@ typedef struct freq_range_list {
 } freq_range_t;
 
 #define RIG_FRNG_END        {Hz(0),Hz(0),RIG_MODE_NONE,0,0,RIG_VFO_NONE}
-#define RIG_IS_FRNG_END(r)  ((r).start == Hz(0) && (r).end == Hz(0))
+#define RIG_IS_FRNG_END(r)  ((r).startf == Hz(0) && (r).endf == Hz(0))
 
 
 #define RIG_ITU_REGION1 1
@@ -1249,8 +1231,8 @@ typedef enum {
 \endcode
  */
 struct chan_list {
-    int start;          /*!< Starting memory channel \b number */
-    int end;            /*!< Ending memory channel \b number */
+    int startc;          /*!< Starting memory channel \b number */
+    int endc;            /*!< Ending memory channel \b number */
     chan_type_t type;   /*!< Memory type. see chan_type_t */
     channel_cap_t
     mem_caps;           /*!< Definition of attributes that can be stored/retrieved */

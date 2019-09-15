@@ -136,6 +136,10 @@ struct test_table
     int (*rot_routine)(ROT *,
                        FILE *,
                        int,
+                       int,
+                       char,
+                       int,
+                       char,
                        const struct test_table *,
                        const char *,
                        const char *,
@@ -158,6 +162,10 @@ struct test_table
 #define declare_proto_rot(f) static int (ACTION(f))(ROT *rot,           \
                                                     FILE *fout,         \
                                                     int interactive,    \
+                                                    int prompt,         \
+                                                    char send_cmd_term, \
+                                                    int ext_resp,       \
+                                                    char resp_sep,      \
                                                     const struct test_table *cmd, \
                                                     const char *arg1,   \
                                                     const char *arg2,   \
@@ -495,18 +503,14 @@ static int next_word(char *buffer, int argc, char *argv[], int newline)
     })
 
 
-extern thread_local int interactive;
-extern thread_local int prompt;
-extern thread_local char send_cmd_term;
-thread_local int ext_resp = 0;
-thread_local unsigned char resp_sep = '\n';      /* Default response separator */
-
-
-int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc)
+int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
+                 int interactive, int prompt, char send_cmd_term)
 {
     int retcode;            /* generic return code from functions */
     unsigned char cmd;
     struct test_table *cmd_entry;
+    int ext_resp = 0;
+    char resp_sep = '\n';
 
     char command[MAXARGSZ + 1];
     char arg1[MAXARGSZ + 1], *p1 = NULL;
@@ -1415,6 +1419,10 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc)
     retcode = (*cmd_entry->rot_routine)(my_rot,
                                         fout,
                                         interactive,
+                                        prompt,
+                                        send_cmd_term,
+                                        ext_resp,
+                                        resp_sep,
                                         cmd_entry,
                                         p1,
                                         p2 ? p2 : "",

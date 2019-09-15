@@ -191,7 +191,7 @@ static int netrigctl_open(RIG *rig)
     {
         if (buf[0]) { sscanf(buf, "CHKVFO %d", &priv->rigctld_vfo_mode); }
     }
-    else
+    else if (ret < 0)
     {
         rig_debug(RIG_DEBUG_WARN, "%s: chk_vfo error: %s\n", __FUNCTION__,
                   rigerror(ret));
@@ -243,8 +243,8 @@ static int netrigctl_open(RIG *rig)
         }
 
         ret = num_sscanf(buf, "%"SCNfreq"%"SCNfreq"%"SCNXll"%d%d%x%x",
-                         &rs->rx_range_list[i].start,
-                         &rs->rx_range_list[i].end,
+                         &rs->rx_range_list[i].startf,
+                         &rs->rx_range_list[i].endf,
                          &rs->rx_range_list[i].modes,
                          &rs->rx_range_list[i].low_power,
                          &rs->rx_range_list[i].high_power,
@@ -273,8 +273,8 @@ static int netrigctl_open(RIG *rig)
         }
 
         ret = num_sscanf(buf, "%"SCNfreq"%"SCNfreq"%"SCNXll"%d%d%x%x",
-                         &rs->tx_range_list[i].start,
-                         &rs->tx_range_list[i].end,
+                         &rs->tx_range_list[i].startf,
+                         &rs->tx_range_list[i].endf,
                          &rs->tx_range_list[i].modes,
                          &rs->tx_range_list[i].low_power,
                          &rs->tx_range_list[i].high_power,

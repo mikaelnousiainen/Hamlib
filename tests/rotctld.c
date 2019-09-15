@@ -103,13 +103,8 @@ static struct option long_options[] =
     {0, 0, 0, 0}
 };
 
-thread_local int interactive = 1;    /* no cmd because of daemon */
-thread_local int prompt = 0 ;        /* Daemon mode for rigparse return string */
-
-thread_local const char *portno = "4533";
-thread_local const char *src_addr = NULL;    /* INADDR_ANY */
-
-thread_local char send_cmd_term = '\r';      /* send_cmd termination char */
+const char *portno = "4533";
+const char *src_addr = NULL;    /* INADDR_ANY */
 
 #define MAXCONFLEN 128
 
@@ -632,7 +627,7 @@ void * handle_socket(void *arg)
 
     do
     {
-        retcode = rotctl_parse(handle_data_arg->rot, fsockin, fsockout, NULL, 0);
+      retcode = rotctl_parse(handle_data_arg->rot, fsockin, fsockout, NULL, 0, 1, 0, '\r');
 
         if (ferror(fsockin) || ferror(fsockout))
         {
