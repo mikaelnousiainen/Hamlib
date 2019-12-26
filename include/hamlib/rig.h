@@ -363,21 +363,57 @@ typedef signed long shortfreq_t;
  * Aliases may or may not be honored by a backend and are defined using
  * high significant bits, i.e. RIG_VFO_MEM, RIG_VFO_MAIN, etc.
  */
-typedef int vfo_t;
+typedef unsigned int vfo_t;
 
 /** \brief '' -- used in caps */
+
+#define RIG_VFO_N(n)        (1<<(n))
+
 #define RIG_VFO_NONE        0
 
-#define RIG_VFO_TX_FLAG     (1<<30)
+/** \brief \c VFOA -- VFO A */
+#define RIG_VFO_A           RIG_VFO_N(0)
 
-/** \brief \c currVFO -- current "tunable channel"/VFO */
-#define RIG_VFO_CURR        (1<<29)
+/** \brief \c VFOB -- VFO B */
+#define RIG_VFO_B           RIG_VFO_N(1)
 
-/** \brief \c MEM -- means Memory mode, to be used with set_vfo */
-#define RIG_VFO_MEM         (1<<28)
+/** \brief \c VFOC -- VFO C */
+#define RIG_VFO_C           RIG_VFO_N(2)
+
+// Any addition VFOS need to go from 3-20
+// To maintain backward compatibility these values cannot change
+
+/** \brief \c SubA -- alias for SUB_A */
+#define RIG_VFO_SUB_A       RIG_VFO_N(21)
+
+/** \brief \c SubB -- alias for SUB_B */
+#define RIG_VFO_SUB_B       RIG_VFO_N(22)
+
+/** \brief \c MainA -- alias for MAIN_A */
+#define RIG_VFO_MAIN_A      RIG_VFO_N(23)
+
+/** \brief \c MainB -- alias for MAIN_B */
+#define RIG_VFO_MAIN_B      RIG_VFO_N(24)
+
+/** \brief \c Sub -- alias for SUB */
+#define RIG_VFO_SUB         RIG_VFO_N(25)
+
+/** \brief \c Main -- alias for MAIN */
+#define RIG_VFO_MAIN        RIG_VFO_N(26)
 
 /** \brief \c VFO -- means (last or any)VFO mode, with set_vfo */
-#define RIG_VFO_VFO         (1<<27)
+#define RIG_VFO_VFO         RIG_VFO_N(27)
+
+/** \brief \c MEM -- means Memory mode, to be used with set_vfo */
+#define RIG_VFO_MEM         RIG_VFO_N(28)
+
+/** \brief \c currVFO -- current "tunable channel"/VFO */
+#define RIG_VFO_CURR        RIG_VFO_N(29)
+
+#define RIG_VFO_TX_FLAG     RIG_VFO_N(30)
+// we and also use RIG_VFO_N(31) if needed
+
+// Misc VFO Macros
 
 #define RIG_VFO_TX_VFO(v)   ((v)|RIG_VFO_TX_FLAG)
 
@@ -386,21 +422,6 @@ typedef int vfo_t;
 
 /** \brief \c RX -- alias for split rx or downlink */
 #define RIG_VFO_RX          RIG_VFO_CURR
-
-/** \brief \c Main -- alias for MAIN */
-#define RIG_VFO_MAIN        (1<<26)
-
-/** \brief \c Sub -- alias for SUB */
-#define RIG_VFO_SUB         (1<<25)
-
-#define RIG_VFO_N(n)        (1<<(n))
-
-/** \brief \c VFOA -- VFO A */
-#define RIG_VFO_A           RIG_VFO_N(0)
-/** \brief \c VFOB -- VFO B */
-#define RIG_VFO_B           RIG_VFO_N(1)
-/** \brief \c VFOC -- VFO C */
-#define RIG_VFO_C           RIG_VFO_N(2)
 
 
 /*
@@ -854,14 +875,14 @@ typedef uint64_t setting_t;
 #ifndef SWIGLUA
 /* Hide the top 32 bits from the Lua binding as they can't be represented */
 #define RIG_FUNC_NB2        CONSTANT_64BIT_FLAG (32)   /*!< \c NB2 -- 2nd Noise Blanker */
-#define RIG_FUNC_DSQL       CONSTANT_64BIT_FLAG (33)   /*!< \c DSQL -- DCS Squelch setting */
+#define RIG_FUNC_CSQL       CONSTANT_64BIT_FLAG (33)   /*!< \c CSQL -- DCS Squelch setting */
 #define RIG_FUNC_AFLT       CONSTANT_64BIT_FLAG (34)   /*!< \c AFLT -- AF Filter setting */
 #define RIG_FUNC_ANL        CONSTANT_64BIT_FLAG (35)   /*!< \c ANL -- Noise limiter setting */
 #define RIG_FUNC_BC2        CONSTANT_64BIT_FLAG (36)   /*!< \c BC2 -- 2nd Beat Cancel */
 #define RIG_FUNC_DUAL_WATCH CONSTANT_64BIT_FLAG (37)   /*!< \c DUAL_WATCH -- Dual Watch / Sub Receiver */
 #define RIG_FUNC_DIVERSITY  CONSTANT_64BIT_FLAG (38)   /*!< \c DIVERSITY -- Diversity receive */
-#define RIG_FUNC_BIT39      CONSTANT_64BIT_FLAG (39)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT40      CONSTANT_64BIT_FLAG (40)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_DSQL       CONSTANT_64BIT_FLAG (39)   /*!< \c DSQL -- Digital modes squelch */
+#define RIG_FUNC_SCEN       CONSTANT_64BIT_FLAG (40)   /*!< \c SCEN -- scrambler/encryption */
 #define RIG_FUNC_BIT41      CONSTANT_64BIT_FLAG (41)   /* available for future RIG_FUNC items */
 #define RIG_FUNC_BIT42      CONSTANT_64BIT_FLAG (42)   /* available for future RIG_FUNC items */
 #define RIG_FUNC_BIT43      CONSTANT_64BIT_FLAG (43)   /* available for future RIG_FUNC items */
@@ -2338,6 +2359,14 @@ rig_set_debug_time_stamp HAMLIB_PARAMS((int flag));
 extern HAMLIB_EXPORT(int)
 rig_need_debug HAMLIB_PARAMS((enum rig_debug_level_e debug_level));
 
+
+
+#ifndef __cplusplus
+#ifdef __GNUC__
+// doing the debug macro with a dummy sprintf allows gcc to check the format string
+#define rig_debug(debug_level,fmt,...) { char xxxbuf[16384];snprintf(xxxbuf,sizeof(xxxbuf),fmt,__VA_ARGS__);rig_debug(debug_level,fmt,##__VA_ARGS__); }
+#endif
+#endif
 extern HAMLIB_EXPORT(void)
 rig_debug HAMLIB_PARAMS((enum rig_debug_level_e debug_level,
                          const char *fmt, ...));

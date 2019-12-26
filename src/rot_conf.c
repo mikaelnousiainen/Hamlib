@@ -94,6 +94,11 @@ static const struct confparams rotfrontend_cfg_params[] =
         "Maximum rotator elevation in degrees",
         "90", RIG_CONF_NUMERIC, { .n = { -90, 180, .001 } }
     },
+    {
+        TOK_SOUTH_ZERO, "south_zero", "South is zero deg",
+        "Adjust azimuth 180 degrees for south oriented rotators",
+        "0", RIG_CONF_CHECKBUTTON,
+    },
 
     { RIG_CONF_END, NULL, }
 };
@@ -307,6 +312,10 @@ int frontrot_set_conf(ROT *rot, token_t token, const char *val)
         rs->max_el = atof(val);
         break;
 
+    case TOK_SOUTH_ZERO:
+        rs->south_zero = atoi(val);
+        break;
+
     default:
         return -RIG_EINVAL;
     }
@@ -476,7 +485,7 @@ int frontrot_get_conf(ROT *rot, token_t token, char *val)
  */
 int HAMLIB_API rot_token_foreach(ROT *rot,
                                  int (*cfunc)(const struct confparams *,
-                                              rig_ptr_t),
+                                         rig_ptr_t),
                                  rig_ptr_t data)
 {
     const struct confparams *cfp;
@@ -528,13 +537,13 @@ int HAMLIB_API rot_token_foreach(ROT *rot,
  * lookup backend config table first, then fall back to frontend.
  * TODO: should use Lex to speed it up, strcmp hurts!
  */
-const struct confparams * HAMLIB_API rot_confparam_lookup(ROT *rot,
-                                                          const char *name)
+const struct confparams *HAMLIB_API rot_confparam_lookup(ROT *rot,
+        const char *name)
 {
     const struct confparams *cfp;
     token_t token;
 
-    rot_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    rot_debug(RIG_DEBUG_VERBOSE, "%s called lookup=%s\n", __func__, name);
 
     if (!rot || !rot->caps)
     {
@@ -585,7 +594,7 @@ token_t HAMLIB_API rot_token_lookup(ROT *rot, const char *name)
 {
     const struct confparams *cfp;
 
-    rot_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    rot_debug(RIG_DEBUG_VERBOSE, "%s called lookup %s\n", __func__, name);
 
     cfp = rot_confparam_lookup(rot, name);
 

@@ -138,7 +138,8 @@ int alinco_transaction(RIG *rig,
             return retval;
         }
 
-        retval -= 2;
+        if (retval > 2) { retval -= 2; }
+
         echobuf[retval] = 0;
 
         if (strcmp(echobuf, "OK") == 0)
@@ -181,7 +182,9 @@ int alinco_set_vfo(RIG *rig, vfo_t vfo)
     switch (vfo)
     {
     case RIG_VFO_A: vfo_num = '1'; break;
+
     case RIG_VFO_B: vfo_num = '2'; break;
+
     case RIG_VFO_MEM:
         return alinco_transaction(rig,
                                   AL CMD_MEMMD "0" EOM,
@@ -353,14 +356,18 @@ int alinco_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     {
     /* FIXME: MD_CWL or MD_CWU? */
     case RIG_MODE_CW:       amode = MD_CWU; break;
+
     case RIG_MODE_USB:      amode = MD_USB; break;
+
     case RIG_MODE_LSB:      amode = MD_LSB; break;
+
     case RIG_MODE_FM:       amode = MD_FM; break;
+
     case RIG_MODE_AM:       amode = MD_AM; break;
+
     default:
-        rig_debug(RIG_DEBUG_ERR,
-                  "alinco_set_mode: unsupported mode %d\n",
-                  mode);
+        rig_debug(RIG_DEBUG_ERR, "alinco_set_mode: unsupported mode %s\n",
+                  rig_strrmode(mode));
 
         return -RIG_EINVAL;
     }
@@ -380,7 +387,7 @@ int alinco_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
      *          which passband is default!
      */
     if (width != RIG_PASSBAND_NORMAL
-        && width < rig_passband_normal(rig, mode))
+            && width < rig_passband_normal(rig, mode))
     {
         wide_filter = 0;
     }
@@ -418,10 +425,15 @@ int alinco_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     {
     case MD_CWL:
     case MD_CWU:      *mode = RIG_MODE_CW; break;
+
     case MD_USB:      *mode = RIG_MODE_USB; break;
+
     case MD_LSB:      *mode = RIG_MODE_LSB; break;
+
     case MD_AM:       *mode = RIG_MODE_AM; break;
+
     case MD_FM:       *mode = RIG_MODE_FM; break;
+
     default:
         rig_debug(RIG_DEBUG_ERR,
                   "alinco_get_mode: unknown mode %c%c\n",
@@ -651,7 +663,7 @@ int alinco_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         return alinco_transaction(rig, cmdbuf, cmd_len, NULL, NULL);
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "Unsupported set_func %d\n", func);
+        rig_debug(RIG_DEBUG_ERR, "Unsupported set_func %d\n", (int)func);
         return -RIG_EINVAL;
     }
 
@@ -684,7 +696,7 @@ int alinco_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
         funcbuf[2] = '\0';
         settings = strtol(funcbuf, (char **)NULL, 16);
-        *status = settings & 0x08 ? 1 : 0;
+        *status = (settings & 0x08) ? 1 : 0;
         break;
 
     case RIG_FUNC_FAGC:
@@ -697,7 +709,7 @@ int alinco_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
         funcbuf[2] = '\0';
         settings = strtol(funcbuf, (char **)NULL, 16);
-        *status = settings & 0x01 ? 1 : 0;
+        *status = (settings & 0x01) ? 1 : 0;
         break;
 
     case RIG_FUNC_NB:
@@ -710,11 +722,11 @@ int alinco_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
         funcbuf[2] = '\0';
         settings = strtol(funcbuf, (char **)NULL, 16);
-        *status = settings & 0x04 ? 1 : 0;
+        *status = (settings & 0x04) ? 1 : 0;
         break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "Unsupported get_func %d\n", func);
+        rig_debug(RIG_DEBUG_ERR, "Unsupported get_func %d\n", (int)func);
         return -RIG_EINVAL;
     }
 
@@ -741,10 +753,12 @@ int alinco_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         switch (val.i)
         {
         case 0: lvl = 0; break;
+
         case 10: lvl = 1; break;
+
         default: rig_debug(RIG_DEBUG_ERR,
-                           "Unsupported Preamp %d\n",
-                           val.i);
+                               "Unsupported Preamp %d\n",
+                               val.i);
 
             return -RIG_EINVAL;
         }
@@ -757,11 +771,14 @@ int alinco_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         switch (val.i)
         {
         case 0: lvl = 0; break;
+
         case 10: lvl = 11; break;
+
         case 20: lvl = 10; break;
+
         default: rig_debug(RIG_DEBUG_ERR,
-                           "Unsupported Att %d\n",
-                           val.i);
+                               "Unsupported Att %d\n",
+                               val.i);
 
             return -RIG_EINVAL;
         }
@@ -860,7 +877,7 @@ int alinco_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         return alinco_transaction(rig, cmdbuf, cmd_len, NULL, NULL);
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "Unsupported set_level %d\n", level);
+        rig_debug(RIG_DEBUG_ERR, "Unsupported set_level %s\n", rig_strlevel(level));
 
         return -RIG_EINVAL;
     }
@@ -922,11 +939,13 @@ int alinco_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         case '2':
         case '3':
         case '0': val->i = 0; break;
+
         case '1': val->i = 10; break;
+
         default: rig_debug(RIG_DEBUG_ERR,
-                           "Unknown RF Gain %c%c\n",
-                           lvlbuf[4],
-                           lvlbuf[5]);
+                               "Unknown RF Gain %c%c\n",
+                               lvlbuf[4],
+                               lvlbuf[5]);
         }
 
         break;
@@ -943,12 +962,15 @@ int alinco_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         {
         case '1':
         case '0': val->i = 0; break;
+
         case '2': val->i = 20; break;
+
         case '3': val->i = 10; break;
+
         default: rig_debug(RIG_DEBUG_ERR,
-                           "Unknown RF Gain %c%c\n",
-                           lvlbuf[4],
-                           lvlbuf[5]);
+                               "Unknown RF Gain %c%c\n",
+                               lvlbuf[4],
+                               lvlbuf[5]);
         }
 
         break;
@@ -979,7 +1001,7 @@ int alinco_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "Unsupported get_level %d\n", level);
+        rig_debug(RIG_DEBUG_ERR, "Unsupported get_level %s\n", rig_strlevel(level));
 
         return -RIG_EINVAL;
     }
@@ -1012,7 +1034,7 @@ int alinco_set_parm(RIG *rig, setting_t parm, value_t val)
         return alinco_transaction(rig, cmdbuf, cmd_len, NULL, NULL);
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "Unsupported set_parm %d\n", parm);
+        rig_debug(RIG_DEBUG_ERR, "Unsupported set_parm %d\n", (int)parm);
         return -RIG_EINVAL;
     }
 
@@ -1033,8 +1055,7 @@ int alinco_set_ctcss_tone(RIG *rig, vfo_t vfo, tone_t tone)
 
     caps = rig->caps;
 
-    /* TODO: replace 200 by something like RIGTONEMAX */
-    for (i = 0; caps->ctcss_list[i] != 0 && i < 200; i++)
+    for (i = 0; caps->ctcss_list[i] != 0; i++)
     {
         if (caps->ctcss_list[i] == tone)
         {
@@ -1230,8 +1251,6 @@ int alinco_get_mem(RIG *rig, vfo_t vfo, int *ch)
  */
 DECLARE_INITRIG_BACKEND(alinco)
 {
-    rig_debug(RIG_DEBUG_VERBOSE, "alinco: _init called\n");
-
     rig_register(&dx77_caps);
 
     return RIG_OK;

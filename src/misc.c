@@ -76,9 +76,9 @@
  *
  * \sa to_bcd_be()
  */
-unsigned char * HAMLIB_API to_bcd(unsigned char bcd_data[],
-                                  unsigned long long freq,
-                                  unsigned bcd_len)
+unsigned char *HAMLIB_API to_bcd(unsigned char bcd_data[],
+                                 unsigned long long freq,
+                                 unsigned bcd_len)
 {
     int i;
     unsigned char a;
@@ -161,9 +161,9 @@ unsigned long long HAMLIB_API from_bcd(const unsigned char bcd_data[],
  *
  * \sa to_bcd()
  */
-unsigned char * HAMLIB_API to_bcd_be(unsigned char bcd_data[],
-                                     unsigned long long freq,
-                                     unsigned bcd_len)
+unsigned char *HAMLIB_API to_bcd_be(unsigned char bcd_data[],
+                                    unsigned long long freq,
+                                    unsigned bcd_len)
 {
     int i;
     unsigned char a;
@@ -206,7 +206,7 @@ unsigned char * HAMLIB_API to_bcd_be(unsigned char bcd_data[],
  * \sa from_bcd()
  */
 unsigned long long HAMLIB_API from_bcd_be(const unsigned char bcd_data[],
-                                          unsigned bcd_len)
+        unsigned bcd_len)
 {
     int i;
     freq_t f = 0;
@@ -282,7 +282,7 @@ int HAMLIB_API sprintf_freq(char *str, freq_t freq)
  * \param status RIG_STATUS_??
  * \return string
  */
-const char * HAMLIB_API rig_strstatus(enum rig_status_e status)
+const char *HAMLIB_API rig_strstatus(enum rig_status_e status)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -381,11 +381,12 @@ rmode_t HAMLIB_API rig_parse_mode(const char *s)
  *
  * \sa rmode_t
  */
-const char * HAMLIB_API rig_strrmode(rmode_t mode)
+const char *HAMLIB_API rig_strrmode(rmode_t mode)
 {
     int i;
 
-    rig_debug(RIG_DEBUG_TRACE, "%s called mode=0x%"PRXll"\n", __func__, mode);
+    // only enable it needed for debugging -- too verbose otherwise
+    //rig_debug(RIG_DEBUG_TRACE, "%s called mode=0x%"PRXll"\n", __func__, mode);
 
     if (mode == RIG_MODE_NONE)
     {
@@ -419,7 +420,11 @@ static struct
     { RIG_VFO_TX, "TX" },
     { RIG_VFO_RX, "RX" },
     { RIG_VFO_MAIN, "Main" },
+    { RIG_VFO_MAIN_A, "MainA" },
+    { RIG_VFO_MAIN_B, "MainB" },
     { RIG_VFO_SUB, "Sub" },
+    { RIG_VFO_SUB_A, "SubA" },
+    { RIG_VFO_SUB_B, "SubB" },
     { RIG_VFO_NONE, "" },
 };
 
@@ -429,7 +434,7 @@ static struct
  * \param s input alpha string
  * \return RIG_VFO_...
  *
- * \sa RIG_VFO_A RIG_VFO_B RIG_VFO_C RIG_VFO_MAIN RIG_VFO_SUB RIG_VFO_VFO RIG_VFO_CURR RIG_VFO_MEM RIG_VFO_TX RIG_VFO_RX RIG_VFO_NONE
+ * \sa RIG_VFO_A RIG_VFO_B RIG_VFO_C RIG_VFO_MAIN RIG_VFO_MAIN_A RIG_VFO_MAIN_B RIG_VFO_SUB RIG_VFO_SUB_A RIG_VFO_SUB_B RIG_VFO_VFO RIG_VFO_CURR RIG_VFO_MEM RIG_VFO_TX RIG_VFO_RX RIG_VFO_NONE
  */
 vfo_t HAMLIB_API rig_parse_vfo(const char *s)
 {
@@ -456,7 +461,7 @@ vfo_t HAMLIB_API rig_parse_vfo(const char *s)
  *
  * \sa RIG_VFO_A RIG_VFO_B RIG_VFO_C RIG_VFO_MAIN RIG_VFO_SUB RIG_VFO_VFO RIG_VFO_CURR RIG_VFO_MEM RIG_VFO_TX RIG_VFO_RX RIG_VFO_NONE
  */
-const char * HAMLIB_API rig_strvfo(vfo_t vfo)
+const char *HAMLIB_API rig_strvfo(vfo_t vfo)
 {
     int i;
 
@@ -524,6 +529,8 @@ static struct
     { RIG_FUNC_BC2, "BC2" },
     { RIG_FUNC_DUAL_WATCH, "DUAL_WATCH"},
     { RIG_FUNC_DIVERSITY, "DIVERSITY"},
+    { RIG_FUNC_CSQL, "CSQL" },
+    { RIG_FUNC_SCEN, "SCEN" },
     { RIG_FUNC_NONE, "" },
 };
 
@@ -533,7 +540,7 @@ static struct
  */
 uint64_t rig_idx2setting(int i)
 {
-   return 1ULL << i;
+    return 1ULL << i;
 }
 
 /**
@@ -568,11 +575,12 @@ setting_t HAMLIB_API rig_parse_func(const char *s)
  *
  * \sa rig_func_e()
  */
-const char * HAMLIB_API rig_strfunc(setting_t func)
+const char *HAMLIB_API rig_strfunc(setting_t func)
 {
     int i;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    // too verbose to keep on unless debugging this in particular
+    //rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (func == RIG_FUNC_NONE)
     {
@@ -693,10 +701,14 @@ setting_t HAMLIB_API amp_parse_level(const char *s)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called level=%s\n", __func__, s);
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called str=%s\n", __func__, levelamp_str[0].str);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called str=%s\n", __func__,
+              levelamp_str[0].str);
+
     for (i = 0 ; levelamp_str[i].str[0] != '\0'; i++)
     {
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called checking=%s\n", __func__, levelamp_str[i].str);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s called checking=%s\n", __func__,
+                  levelamp_str[i].str);
+
         if (!strcmp(s, levelamp_str[i].str))
         {
             return levelamp_str[i].level;
@@ -714,7 +726,7 @@ setting_t HAMLIB_API amp_parse_level(const char *s)
  *
  * \sa rig_level_e()
  */
-const char * HAMLIB_API rig_strlevel(setting_t level)
+const char *HAMLIB_API rig_strlevel(setting_t level)
 {
     int i;
 
@@ -743,7 +755,7 @@ const char * HAMLIB_API rig_strlevel(setting_t level)
  *
  * \sa amp_level_e()
  */
-const char * HAMLIB_API amp_strlevel(setting_t level)
+const char *HAMLIB_API amp_strlevel(setting_t level)
 {
     int i;
 
@@ -815,7 +827,7 @@ setting_t HAMLIB_API rig_parse_parm(const char *s)
  *
  * \sa rig_parm_e()
  */
-const char * HAMLIB_API rig_strparm(setting_t parm)
+const char *HAMLIB_API rig_strparm(setting_t parm)
 {
     int i;
 
@@ -893,7 +905,7 @@ vfo_op_t HAMLIB_API rig_parse_vfo_op(const char *s)
  *
  * \sa vfo_op_t()
  */
-const char * HAMLIB_API rig_strvfop(vfo_op_t op)
+const char *HAMLIB_API rig_strvfop(vfo_op_t op)
 {
     int i;
 
@@ -905,7 +917,8 @@ const char * HAMLIB_API rig_strvfop(vfo_op_t op)
     }
 
     for (i = 0; vfo_op_str[i].str[0] != '\0'; i++)
-    {        if (op == vfo_op_str[i].vfo_op)
+    {
+        if (op == vfo_op_str[i].vfo_op)
         {
             return vfo_op_str[i].str;
         }
@@ -966,7 +979,7 @@ scan_t HAMLIB_API rig_parse_scan(const char *s)
  *
  * \sa scan_t()
  */
-const char * HAMLIB_API rig_strscan(scan_t rscan)
+const char *HAMLIB_API rig_strscan(scan_t rscan)
 {
     int i;
 
@@ -978,7 +991,8 @@ const char * HAMLIB_API rig_strscan(scan_t rscan)
     }
 
     for (i = 0; scan_str[i].str[0] != '\0'; i++)
-    {        if (rscan == scan_str[i].rscan)
+    {
+        if (rscan == scan_str[i].rscan)
         {
             return scan_str[i].str;
         }
@@ -1086,7 +1100,7 @@ chan_type_t HAMLIB_API rig_parse_mtype(const char *s)
  *
  * \sa chan_type_t()
  */
-const char * HAMLIB_API rig_strmtype(chan_type_t mtype)
+const char *HAMLIB_API rig_strmtype(chan_type_t mtype)
 {
     int i;
 

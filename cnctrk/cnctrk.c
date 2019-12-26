@@ -43,39 +43,41 @@ cnctrk_set_position(ROT *rot, azimuth_t az, elevation_t el)
 {
     int retval;
 
-    retval = system ("/usr/bin/axis-remote --ping");
+    retval = system("/usr/bin/axis-remote --ping");
+
     if (retval != 0)
+    {
         return retval;
+    }
 
     sprintf(axcmd, "/usr/bin/axis-remote --mdi 'G00 X %6.2f Y %6.2f' \n", az, el);
-    return retval = system (axcmd);
-
-    return RIG_OK;
+    return retval = system(axcmd);
 }
 
 
 /** CNCTRK implements essentially only the set position function.
     it assumes there is a LinuxCNC running with the Axis GUI */
-const struct rot_caps cnctrk_rot_caps = {
-  .rot_model =      ROT_MODEL_CNCTRK,
-  .model_name =     "CNCTRK",
-  .mfg_name =       "CNCTRK",
-  .version =        "0.1",
-  .copyright = 	    "LGPL",
-  .status =         RIG_STATUS_UNTESTED,
-  .rot_type =       ROT_TYPE_OTHER,
-  .port_type =      RIG_PORT_NONE,
-  .write_delay =  0,
-  .post_write_delay =  0,
-  .timeout =  200,
-  .retry =  3,
+const struct rot_caps cnctrk_rot_caps =
+{
+    .rot_model =      ROT_MODEL_CNCTRK,
+    .model_name =     "CNCTRK",
+    .mfg_name =       "CNCTRK",
+    .version =        "0.1",
+    .copyright =      "LGPL",
+    .status =         RIG_STATUS_UNTESTED,
+    .rot_type =       ROT_TYPE_OTHER,
+    .port_type =      RIG_PORT_NONE,
+    .write_delay =  0,
+    .post_write_delay =  0,
+    .timeout =  200,
+    .retry =  3,
 
-  .min_az = 	0,
-  .max_az =  	360,
-  .min_el = 	-20,
-  .max_el =  	180,
+    .min_az =     0,
+    .max_az =     360,
+    .min_el =     -20,
+    .max_el =     180,
 
-  .set_position =  cnctrk_set_position,
+    .set_position =  cnctrk_set_position,
 };
 
 
@@ -83,9 +85,9 @@ const struct rot_caps cnctrk_rot_caps = {
 
 DECLARE_INITROT_BACKEND(cnctrk)
 {
-	rig_debug(RIG_DEBUG_VERBOSE, "cnctrk: _init called\n");
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: _init called\n", __func__);
 
-	rot_register(&cnctrk_rot_caps);
+    rot_register(&cnctrk_rot_caps);
 
-	return RIG_OK;
+    return RIG_OK;
 }

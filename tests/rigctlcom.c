@@ -383,11 +383,8 @@ int main(int argc, char *argv[])
             break;
 
         case 'S':
-            printf("yup\n");
-
             if (!optarg)
             {
-                printf("nope\n");
                 usage();        /* wrong arg count */
                 exit(1);
             }
@@ -441,7 +438,7 @@ int main(int argc, char *argv[])
     rig_set_debug(verbose);
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s, %s\n", "rigctlcom", hamlib_version);
-    rig_debug(RIG_DEBUG_VERBOSE,
+    rig_debug(RIG_DEBUG_VERBOSE, "%s",
               "Report bugs to <hamlib-developer@lists.sourceforge.net>\n\n");
 
     if (argc == 1)
@@ -653,6 +650,10 @@ static rmode_t ts2000_get_mode()
 
     case RIG_MODE_RTTYR: mode = 9; break;
 
+    case RIG_MODE_PKTUSB: mode = 2; break; // need to change to a TS_2000 mode
+
+    case RIG_MODE_PKTLSB: mode = 1; break; // need to change to a TS_2000 mode
+
     default: mode = 0; break;
     }
 
@@ -670,7 +671,7 @@ static int write_block2(void *func,
 
     if (retval != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: %s\n", func, rigerror(retval));
+        rig_debug(RIG_DEBUG_ERR, "%s: %s\n", __func__, rigerror(retval));
     }
 
     return retval;
@@ -990,7 +991,8 @@ static int handle_ts2000(void *arg)
 
         if (n != 2)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: error parsing preamp cmd '%s'\n", __func__, arg);
+            rig_debug(RIG_DEBUG_ERR, "%s: error parsing preamp cmd '%s'\n", __func__,
+                      (char *)arg);
         }
 
         int retval = rig_set_func(my_rig, RIG_VFO_A, RIG_FUNC_AIP, valA);
@@ -1171,7 +1173,8 @@ static int handle_ts2000(void *arg)
 
         if (n != 1)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: af level cmd parse failed: %s\n", __func__, arg);
+            rig_debug(RIG_DEBUG_ERR, "%s: af level cmd parse failed: %s\n", __func__,
+                      (char *)arg);
             return -RIG_EPROTO;
         }
 
@@ -1219,7 +1222,7 @@ static int handle_ts2000(void *arg)
         if (n != 1)
         {
             rig_debug(RIG_DEBUG_ERR, "%s: speech level cmd parse failed: %s\n", __func__,
-                      arg);
+                      (char *)arg);
             return -RIG_EPROTO;
         }
 
@@ -1272,7 +1275,8 @@ static int handle_ts2000(void *arg)
 
         if (n != 1)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: AGC cmd parse failed: %s\n", __func__, arg);
+            rig_debug(RIG_DEBUG_ERR, "%s: AGC cmd parse failed: %s\n", __func__,
+                      (char *)arg);
             return -RIG_EPROTO;
         }
 
@@ -1319,7 +1323,8 @@ static int handle_ts2000(void *arg)
 
         if (n != 1)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: squelch cmd parse failed: %s\n", __func__, arg);
+            rig_debug(RIG_DEBUG_ERR, "%s: squelch cmd parse failed: %s\n", __func__,
+                      (char *)arg);
             return -RIG_EPROTO;
         }
 
@@ -1370,7 +1375,7 @@ static int handle_ts2000(void *arg)
 
         if (n != 1)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: error parsing '%s'\n", __func__, arg);
+            rig_debug(RIG_DEBUG_ERR, "%s: error parsing '%s'\n", __func__, (char *)arg);
             return -RIG_EPROTO;
         }
 
@@ -1500,7 +1505,7 @@ static int handle_ts2000(void *arg)
         rig_debug(RIG_DEBUG_ERR,
                   "*********************************\n%s: unknown cmd='%s'\n",
                   __func__,
-                  arg);
+                  (char *)arg);
         return -RIG_EINVAL;
     }
 

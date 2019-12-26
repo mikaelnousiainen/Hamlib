@@ -82,7 +82,7 @@ void usage();
  * NB: do NOT use -W since it's reserved by POSIX.
  * TODO: add an option to read from a file
  */
-#define SHORT_OPTIONS "+m:r:s:C:t:LvhVluZ"
+#define SHORT_OPTIONS "+m:r:s:C:o:O:t:LvhVluZ"
 static struct option long_options[] =
 {
     {"model",           1, 0, 'm'},
@@ -91,9 +91,11 @@ static struct option long_options[] =
     {"send-cmd-term",   1, 0, 't'},
     {"list",            0, 0, 'l'},
     {"set-conf",        1, 0, 'C'},
+    {"set-azoffset",    1, 0, 'o'},
+    {"set-eloffset",    1, 0, 'O'},
     {"show-conf",       0, 0, 'L'},
     {"dump-caps",       0, 0, 'u'},
-    {"debug-time-stamps",0,0, 'Z'},
+    {"debug-time-stamps", 0, 0, 'Z'},
 #ifdef HAVE_READLINE_HISTORY
     {"read-history",    0, 0, 'i'},
     {"save-history",    0, 0, 'I'},
@@ -110,6 +112,9 @@ static struct option long_options[] =
 #ifdef HAVE_LIBREADLINE
 static const int have_rl = 1;
 #endif
+
+double az_offset;
+double el_offset;
 
 int main(int argc, char *argv[])
 {
@@ -138,6 +143,8 @@ int main(int argc, char *argv[])
     int interactive = 1; /* if no cmd on command line, switch to interactive */
     int prompt = 1;      /* Print prompt in rotctl */
     char send_cmd_term = '\r';  /* send_cmd termination char */
+    azimuth_t az_offset = 0;
+    elevation_t el_offset = 0;
 
     while (1)
     {
@@ -227,6 +234,27 @@ int main(int argc, char *argv[])
             }
 
             break;
+
+        case 'o':
+            if (!optarg)
+            {
+                usage();    /* wrong arg count */
+                exit(1);
+            }
+
+            az_offset = atof(optarg);
+            break;
+
+        case 'O':
+            if (!optarg)
+            {
+                usage();    /* wrong arg count */
+                exit(1);
+            }
+
+            el_offset = atof(optarg);
+            break;
+
 #ifdef HAVE_READLINE_HISTORY
 
         case 'i':
@@ -268,7 +296,7 @@ int main(int argc, char *argv[])
     rig_set_debug(verbose);
 
     rig_debug(RIG_DEBUG_VERBOSE, "rotctl, %s\n", hamlib_version);
-    rig_debug(RIG_DEBUG_VERBOSE,
+    rig_debug(RIG_DEBUG_VERBOSE, "%s",
               "Report bugs to <hamlib-developer@lists.sourceforge.net>\n\n");
 
     /*
@@ -338,6 +366,9 @@ int main(int argc, char *argv[])
         exit(2);
     }
 
+    my_rot->state.az_offset = az_offset;
+    my_rot->state.el_offset = el_offset;
+
     if (verbose > 0)
     {
         printf("Opened rot model %d, '%s'\n",
@@ -368,16 +399,16 @@ int main(int argc, char *argv[])
             }
 
             if (((stat(hist_dir, &hist_dir_stat) == -1) && (errno == ENOENT))
-                || !(S_ISDIR(hist_dir_stat.st_mode)))
+                    || !(S_ISDIR(hist_dir_stat.st_mode)))
             {
 
                 fprintf(stderr, "Warning: %s is not a directory!\n", hist_dir);
             }
 
-            int hist_path_size = sizeof(char)*(strlen(hist_dir)+strlen(hist_file) + 1);
-	    hist_path = (char *)calloc(hist_path_size, sizeof(char));
+            int hist_path_size = sizeof(char) * (strlen(hist_dir) + strlen(hist_file) + 1);
+            hist_path = (char *)calloc(hist_path_size, sizeof(char));
 
-	    snprintf(hist_path, hist_path_size, "%s%s", hist_dir, hist_file);
+            snprintf(hist_path, hist_path_size, "%s%s", hist_dir, hist_file);
 
         }
 
@@ -452,6 +483,8 @@ void usage()
         "  -s, --serial-speed=BAUD       set serial speed of the serial port\n"
         "  -t, --send-cmd-term=CHAR      set send_cmd command termination char\n"
         "  -C, --set-conf=PARM=VAL       set config parameters\n"
+        "  -o, --set-azoffset==VAL       set offset for azimuth\n"
+        "  -O, --set-eloffset==VAL       set offset for elevation\n"
         "  -L, --show-conf               list all config parameters\n"
         "  -l, --list                    list all model numbers and exit\n"
         "  -u, --dump-caps               dump capabilities and exit\n"

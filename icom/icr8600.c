@@ -43,7 +43,7 @@
 
 #define ICR8600_FUNC_ALL (RIG_FUNC_NB|RIG_FUNC_ANF|RIG_FUNC_MN|RIG_FUNC_AFC|\
     RIG_FUNC_NR|RIG_FUNC_AIP|RIG_FUNC_LOCK|RIG_FUNC_VSC|RIG_FUNC_RESUME|RIG_FUNC_TSQL|\
-    RIG_FUNC_DSQL)
+    RIG_FUNC_CSQL|RIG_FUNC_DSQL)
 
 #define ICR8600_LEVEL_ALL (RIG_LEVEL_ATT|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|\
     RIG_LEVEL_NR|RIG_LEVEL_PBT_IN|RIG_LEVEL_PBT_OUT|RIG_LEVEL_CWPITCH|RIG_LEVEL_PREAMP|\
@@ -69,20 +69,21 @@
 /*
  * channel caps.
  */
-#define ICR8600_MEM_CAP {	\
-    .freq = 1,	\
-    .mode = 1,	\
-    .width = 1,	\
-    .ant = 1,	\
-    .levels = RIG_LEVEL_ATT|RIG_LEVEL_PREAMP,	\
-    .channel_desc = 1,	\
-    .flags = 1,	\
+#define ICR8600_MEM_CAP {   \
+    .freq = 1,  \
+    .mode = 1,  \
+    .width = 1, \
+    .ant = 1,   \
+    .levels = RIG_LEVEL_ATT|RIG_LEVEL_PREAMP,   \
+    .channel_desc = 1,  \
+    .flags = 1, \
 }
 
 int icr8600_set_parm(RIG *rig, setting_t parm, value_t val);
 int icr8600_get_parm(RIG *rig, setting_t parm, value_t *val);
 
-static const struct icom_priv_caps icr8600_priv_caps = {
+static const struct icom_priv_caps icr8600_priv_caps =
+{
     0x96,                       /* default address */
     0,                          /* 731 mode */
     0,                          /* no XCHG */
@@ -91,7 +92,8 @@ static const struct icom_priv_caps icr8600_priv_caps = {
     .serial_USB_echo_check = 1  /* USB CI-V may not echo */
 };
 
-const struct rig_caps icr8600_caps = {
+const struct rig_caps icr8600_caps =
+{
     .rig_model = RIG_MODEL_ICR8600,
     .model_name = "IC-R8600",
     .mfg_name = "Icom",
@@ -122,7 +124,7 @@ const struct rig_caps icr8600_caps = {
     .parm_gran = { [PARM_TIME] = { .min = { .i = 0 }, .max = { .i = 86399} } },
     .ctcss_list = common_ctcss_list,
     .dcs_list = common_dcs_list,
-    .preamp = { 20, RIG_DBLST_END, },	/* 20 on HF, 14 on VHF, UHF, same setting */
+    .preamp = { 20, RIG_DBLST_END, },   /* 20 on HF, 14 on VHF, UHF, same setting */
     .attenuator = { 10, 20, 30, RIG_DBLST_END, },
     .max_rit = Hz(0),
     .max_xit = Hz(0),
@@ -158,30 +160,30 @@ const struct rig_caps icr8600_caps = {
     .tx_range_list2 = { RIG_FRNG_END, },
 
     .tuning_steps = {
-        {ICR8600_MODES,Hz(100)},
-        {ICR8600_MODES,kHz(1)},
-        {ICR8600_MODES,kHz(2.5)},
-        {ICR8600_MODES,kHz(3.125)},
-        {ICR8600_MODES,kHz(5)},
-        {ICR8600_MODES,kHz(6.25)},
-        {ICR8600_MODES,kHz(8.33)},
-        {ICR8600_MODES,kHz(9)},
-        {ICR8600_MODES,kHz(10)},
-        {ICR8600_MODES,kHz(12.5)},
-        {ICR8600_MODES,kHz(20)},
-        {ICR8600_MODES,kHz(25)},
-        {ICR8600_MODES,kHz(100)},
+        {ICR8600_MODES, Hz(100)},
+        {ICR8600_MODES, kHz(1)},
+        {ICR8600_MODES, kHz(2.5)},
+        {ICR8600_MODES, kHz(3.125)},
+        {ICR8600_MODES, kHz(5)},
+        {ICR8600_MODES, kHz(6.25)},
+        {ICR8600_MODES, kHz(8.33)},
+        {ICR8600_MODES, kHz(9)},
+        {ICR8600_MODES, kHz(10)},
+        {ICR8600_MODES, kHz(12.5)},
+        {ICR8600_MODES, kHz(20)},
+        {ICR8600_MODES, kHz(25)},
+        {ICR8600_MODES, kHz(100)},
         RIG_TS_END,
-	},
+    },
 
-        /* mode/filter list, remember: order matters! */
+    /* mode/filter list, remember: order matters! */
     .filters = {
-        {RIG_MODE_SSB|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_RTTY|RIG_MODE_RTTYR, kHz(2.4)},
-        {RIG_MODE_SSB|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_RTTY|RIG_MODE_RTTYR, kHz(1.9)},
-        {RIG_MODE_SSB|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_RTTY|RIG_MODE_RTTYR, kHz(6)},
-        {RIG_MODE_AM|RIG_MODE_AMS, kHz(6)},
-        {RIG_MODE_AM|RIG_MODE_AMS, kHz(2.4)},
-        {RIG_MODE_AM|RIG_MODE_AMS, kHz(15)},
+        {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_CWR | RIG_MODE_RTTY | RIG_MODE_RTTYR, kHz(2.4)},
+        {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_CWR | RIG_MODE_RTTY | RIG_MODE_RTTYR, kHz(1.9)},
+        {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_CWR | RIG_MODE_RTTY | RIG_MODE_RTTYR, kHz(6)},
+        {RIG_MODE_AM | RIG_MODE_AMS, kHz(6)},
+        {RIG_MODE_AM | RIG_MODE_AMS, kHz(2.4)},
+        {RIG_MODE_AM | RIG_MODE_AMS, kHz(15)},
         {RIG_MODE_FM, kHz(15)},
         {RIG_MODE_FM, kHz(6)},
         RIG_FLT_END,
@@ -194,7 +196,7 @@ const struct rig_caps icr8600_caps = {
     .set_conf = icom_set_conf,
     .get_conf = icom_get_conf,
 
-    .priv = (void*)&icr8600_priv_caps,
+    .priv = (void *)& icr8600_priv_caps,
     .rig_init = icom_init,
     .rig_cleanup = icom_cleanup,
     .rig_open = icom_rig_open,
@@ -228,8 +230,8 @@ const struct rig_caps icr8600_caps = {
     .get_ts = icom_get_ts,
     .set_ctcss_sql = icom_set_ctcss_sql,
     .get_ctcss_sql = icom_get_ctcss_sql,
-    .set_dcs_code = icom_set_dcs_code,
-    .get_dcs_code = icom_get_dcs_code,
+    .set_dcs_sql = icom_set_dcs_sql,
+    .get_dcs_sql = icom_get_dcs_sql,
 
 };
 
@@ -239,25 +241,30 @@ int icr8600_set_parm(RIG *rig, setting_t parm, value_t val)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    switch (parm) {
-        case RIG_PARM_BEEP:
-            parmbuf[0] = 0x00;
-            parmbuf[1] = 0x38;
-            return icom_set_custom_parm(rig, 2, parmbuf, 1, val.i ? 1 : 0);
-        case RIG_PARM_BACKLIGHT:
-            parmbuf[0] = 0x01;
-            parmbuf[1] = 0x15;
-            return icom_set_custom_parm(rig, 2, parmbuf, 2, (int) (val.f * 255.0f));
-        case RIG_PARM_KEYLIGHT:
-            parmbuf[0] = 0x01;
-            parmbuf[1] = 0x16;
-            return icom_set_custom_parm(rig, 2, parmbuf, 2, val.f != 0 ? 255 : 0);
-        case RIG_PARM_TIME:
-            parmbuf[0] = 0x01;
-            parmbuf[1] = 0x32;
-            return icom_set_custom_parm_time(rig, 2, parmbuf, val.i);
-        default:
-            return icom_set_parm(rig, parm, val);
+    switch (parm)
+    {
+    case RIG_PARM_BEEP:
+        parmbuf[0] = 0x00;
+        parmbuf[1] = 0x38;
+        return icom_set_custom_parm(rig, 2, parmbuf, 1, val.i ? 1 : 0);
+
+    case RIG_PARM_BACKLIGHT:
+        parmbuf[0] = 0x01;
+        parmbuf[1] = 0x15;
+        return icom_set_custom_parm(rig, 2, parmbuf, 2, (int)(val.f * 255.0f));
+
+    case RIG_PARM_KEYLIGHT:
+        parmbuf[0] = 0x01;
+        parmbuf[1] = 0x16;
+        return icom_set_custom_parm(rig, 2, parmbuf, 2, val.f != 0 ? 255 : 0);
+
+    case RIG_PARM_TIME:
+        parmbuf[0] = 0x01;
+        parmbuf[1] = 0x32;
+        return icom_set_custom_parm_time(rig, 2, parmbuf, val.i);
+
+    default:
+        return icom_set_parm(rig, parm, val);
     }
 }
 
@@ -268,40 +275,54 @@ int icr8600_get_parm(RIG *rig, setting_t parm, value_t *val)
     int icom_val;
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    switch (parm) {
-        case RIG_PARM_BEEP:
-            parmbuf[0] = 0x00;
-            parmbuf[1] = 0x38;
-            retval = icom_get_custom_parm(rig, 2, parmbuf, &icom_val);
-            if (retval != RIG_OK) {
-                return retval;
-            }
-            val->i = icom_val ? 1 : 0;
-            break;
-        case RIG_PARM_BACKLIGHT:
-            parmbuf[0] = 0x01;
-            parmbuf[1] = 0x15;
-            retval = icom_get_custom_parm(rig, 2, parmbuf, &icom_val);
-            if (retval != RIG_OK) {
-                return retval;
-            }
-            val->f = (float) icom_val / 255.0f;
-            break;
-        case RIG_PARM_KEYLIGHT:
-            parmbuf[0] = 0x01;
-            parmbuf[1] = 0x16;
-            retval = icom_get_custom_parm(rig, 2, parmbuf, &icom_val);
-            if (retval != RIG_OK) {
-                return retval;
-            }
-            val->f = icom_val != 0;
-            break;
-        case RIG_PARM_TIME:
-            parmbuf[0] = 0x01;
-            parmbuf[1] = 0x32;
-            return icom_get_custom_parm_time(rig, 2, parmbuf, &val->i);
-        default:
-            return icom_get_parm(rig, parm, val);
+    switch (parm)
+    {
+    case RIG_PARM_BEEP:
+        parmbuf[0] = 0x00;
+        parmbuf[1] = 0x38;
+        retval = icom_get_custom_parm(rig, 2, parmbuf, &icom_val);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        val->i = icom_val ? 1 : 0;
+        break;
+
+    case RIG_PARM_BACKLIGHT:
+        parmbuf[0] = 0x01;
+        parmbuf[1] = 0x15;
+        retval = icom_get_custom_parm(rig, 2, parmbuf, &icom_val);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        val->f = (float) icom_val / 255.0f;
+        break;
+
+    case RIG_PARM_KEYLIGHT:
+        parmbuf[0] = 0x01;
+        parmbuf[1] = 0x16;
+        retval = icom_get_custom_parm(rig, 2, parmbuf, &icom_val);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        val->f = icom_val != 0;
+        break;
+
+    case RIG_PARM_TIME:
+        parmbuf[0] = 0x01;
+        parmbuf[1] = 0x32;
+        return icom_get_custom_parm_time(rig, 2, parmbuf, &val->i);
+
+    default:
+        return icom_get_parm(rig, parm, val);
     }
 
     return RIG_OK;

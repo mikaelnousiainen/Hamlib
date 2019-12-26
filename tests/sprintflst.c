@@ -53,42 +53,7 @@ int sprintf_vfo(char *str, vfo_t vfo)
         return 0;
     }
 
-    sv = rig_strvfo(vfo & RIG_VFO_CURR);
-
-    if (sv && sv[0])
-    {
-        len += sprintf(str + len, "%s ", sv);
-    }
-
-    sv = rig_strvfo(vfo & RIG_VFO_MEM);
-
-    if (sv && sv[0])
-    {
-        len += sprintf(str + len, "%s ", sv);
-    }
-
-    sv = rig_strvfo(vfo & RIG_VFO_VFO);
-
-    if (sv && sv[0])
-    {
-        len += sprintf(str + len, "%s ", sv);
-    }
-
-    sv = rig_strvfo(vfo & RIG_VFO_MAIN);
-
-    if (sv && sv[0])
-    {
-        len += sprintf(str + len, "%s ", sv);
-    }
-
-    sv = rig_strvfo(vfo & RIG_VFO_SUB);
-
-    if (sv && sv[0])
-    {
-        len += sprintf(str + len, "%s ", sv);
-    }
-
-    for (i = 0; i < 16; i++)
+    for (i = 0; i < 32; i++)
     {
         sv = rig_strvfo(vfo & RIG_VFO_N(i));
 
@@ -133,21 +98,24 @@ int sprintf_mode(char *str, rmode_t mode)
 
 int sprintf_ant(char *str, ant_t ant)
 {
-  int i, len = 0;
+    int i, len = 0;
 
-  *str = '\0';
+    *str = '\0';
 
-  if (ant == RIG_ANT_NONE) {
-    return 0;
-  }
-
-  for (i = 0; i < RIG_ANT_MAX; i++) {
-    if (ant & (1UL << i)) {
-      len += sprintf(str + len, "%d ", i + 1);
+    if (ant == RIG_ANT_NONE)
+    {
+        return 0;
     }
-  }
 
-  return len;
+    for (i = 0; i < RIG_ANT_MAX; i++)
+    {
+        if (ant & (1UL << i))
+        {
+            len += sprintf(str + len, "%d ", i + 1);
+        }
+    }
+
+    return len;
 }
 
 
@@ -476,18 +444,23 @@ int sprintf_scan(char *str, scan_t rscan)
 
 char *get_rig_conf_type(enum rig_conf_e type)
 {
-  switch (type) {
+    switch (type)
+    {
     case RIG_CONF_STRING:
-      return "STRING";
-    case RIG_CONF_COMBO:
-      return "COMBO";
-    case RIG_CONF_NUMERIC:
-      return "NUMERIC";
-    case RIG_CONF_CHECKBUTTON:
-      return "CHECKBUTTON";
-    case RIG_CONF_BUTTON:
-      return "BUTTON";
-  }
+        return "STRING";
 
-  return "UNKNOWN";
+    case RIG_CONF_COMBO:
+        return "COMBO";
+
+    case RIG_CONF_NUMERIC:
+        return "NUMERIC";
+
+    case RIG_CONF_CHECKBUTTON:
+        return "CHECKBUTTON";
+
+    case RIG_CONF_BUTTON:
+        return "BUTTON";
+    }
+
+    return "UNKNOWN";
 }

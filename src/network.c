@@ -98,7 +98,7 @@ static void handle_error(enum rig_debug_level_e lvl, const char *msg)
                       0,
                       NULL))
     {
-        rig_debug(lvl, "%s: Network error %d: %s\n", msg, e, lpMsgBuf);
+        rig_debug(lvl, "%s: Network error %d: %s\n", msg, e, (char*)lpMsgBuf);
         LocalFree(lpMsgBuf);
     }
     else
@@ -302,7 +302,7 @@ void network_flush(hamlib_port_t *rp)
 
         if (ret != 0)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: ioctl err '%s'\n", __FUNCTION__, strerror(errno));
+            rig_debug(RIG_DEBUG_ERR, "%s: ioctl err '%s'\n", __func__, strerror(errno));
             break;
         }
 
@@ -310,9 +310,9 @@ void network_flush(hamlib_port_t *rp)
         {
             int len_read = 0;
             rig_debug(RIG_DEBUG_WARN,
-                      "%s: network data clear d: ret=%d, len=%ld/0x%lx, '%s'\n",
+                      "%s: network data clear d: ret=%d, len=%d, '%s'\n",
                       __func__,
-                      ret, len, len, buffer);
+                      ret, (int)len, buffer);
             len_read = recv(rp->fd, buffer, len < NET_BUFFER_SIZE ? len : NET_BUFFER_SIZE,
                             0);
 
@@ -327,7 +327,8 @@ void network_flush(hamlib_port_t *rp)
                       __func__,
                       ret, len_read, len_read, buffer);
         }
-        else {
+        else
+        {
             break;
         }
     }
