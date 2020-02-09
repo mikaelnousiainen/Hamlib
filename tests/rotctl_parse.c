@@ -120,13 +120,10 @@ static char *input_line = (char *)NULL;
 static char *result = (char *)NULL;
 static char *parsed_input[sizeof(char *) * 7];
 static const int have_rl = 1;
+#endif
 
 #ifdef HAVE_READLINE_HISTORY
 static char *rp_hist_buf = (char *)NULL;
-#endif
-
-#else                               /* no readline */
-static const int have_rl = 0;
 #endif
 
 struct test_table
@@ -240,7 +237,7 @@ struct test_table *find_cmd_entry(int cmd)
             break;
         }
 
-    if (i >= MAXNBOPT || test_list[i].cmd == 0x00)
+    if (test_list[i].cmd == 0x00)
     {
         return NULL;
     }
@@ -347,8 +344,6 @@ static void rp_getline(const char *s)
     /* Action!  Returns typed line with newline stripped. */
     input_line = readline(s);
 }
-
-
 #endif
 
 
@@ -359,7 +354,7 @@ char parse_arg(const char *arg)
 {
     int i;
 
-    for (i = 0; i < MAXNBOPT && test_list[i].cmd != 0; i++)
+    for (i = 0; test_list[i].cmd != 0; i++)
     {
         if (!strncmp(arg, test_list[i].name, MAXNAMSIZ))
         {
@@ -376,10 +371,10 @@ char parse_arg(const char *arg)
  */
 static int scanfc(FILE *fin, const char *format, void *p)
 {
-    int ret;
-
     do
     {
+        int ret;
+
         ret = fscanf(fin, format, p);
 
         if (ret < 0)
@@ -517,15 +512,20 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
     char arg2[MAXARGSZ + 1], *p2 = NULL;
     char arg3[MAXARGSZ + 1], *p3 = NULL;
     char arg4[MAXARGSZ + 1], *p4 = NULL;
+#ifdef __USEP5P6__
     char *p5 = NULL;
     char *p6 = NULL;
-    static int last_was_ret = 1;
+#endif
 
     /* cmd, internal, rotctld */
+#ifdef HAVE_LIBREADLINE
     if (!(interactive && prompt && have_rl))
+#endif
     {
         if (interactive)
         {
+            static int last_was_ret = 1;
+
             if (prompt)
             {
                 fprintf_flush(fout, "\nRotator command: ");
@@ -893,7 +893,6 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
     }
 
 #ifdef HAVE_LIBREADLINE
-
     if (interactive && prompt && have_rl)
     {
         int j, x;
@@ -904,9 +903,6 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
          */
         rp_hist_buf = (char *)calloc(896, sizeof(char));
 #endif
-
-        rl_instream = fin;
-        rl_outstream = fout;
 
         rp_getline("\nRotator command: ");
 
@@ -1076,30 +1072,29 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
             }
             else
             {
-                x = 0;
                 char pmptstr[(strlen(cmd_entry->arg1) + 3)];
+                x = 0;
 
                 strcpy(pmptstr, cmd_entry->arg1);
                 strcat(pmptstr, ": ");
 
                 rp_getline(pmptstr);
 
+                if (input_line == NULL)
+                {
+                    fprintf_flush(fout, "\n");
+                    return 1;
+                }
                 /* Blank line entered */
-                if (!(strcmp(input_line, "")))
+                else if (!(strcmp(input_line, "")))
                 {
                     fprintf(fout, "? for help, q to quit.\n");
                     fflush(fout);
                     return 0;
                 }
-
-                if (input_line)
-                {
-                    parsed_input[x] = input_line;
-                }
                 else
                 {
-                    fprintf_flush(fout, "\n");
-                    return 1;
+                    parsed_input[x] = input_line;
                 }
             }
 
@@ -1134,8 +1129,8 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
             }
             else
             {
-                x = 0;
                 char pmptstr[(strlen(cmd_entry->arg1) + 3)];
+                x = 0;
 
                 strcpy(pmptstr, cmd_entry->arg1);
                 strcat(pmptstr, ": ");
@@ -1195,8 +1190,8 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
             }
             else
             {
-                x = 0;
                 char pmptstr[(strlen(cmd_entry->arg2) + 3)];
+                x = 0;
 
                 strcpy(pmptstr, cmd_entry->arg2);
                 strcat(pmptstr, ": ");
@@ -1256,8 +1251,8 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
             }
             else
             {
-                x = 0;
                 char pmptstr[(strlen(cmd_entry->arg3) + 3)];
+                x = 0;
 
                 strcpy(pmptstr, cmd_entry->arg3);
                 strcat(pmptstr, ": ");
@@ -1317,8 +1312,8 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
             }
             else
             {
-                x = 0;
                 char pmptstr[(strlen(cmd_entry->arg4) + 3)];
+                x = 0;
 
                 strcpy(pmptstr, cmd_entry->arg4);
                 strcat(pmptstr, ": ");
@@ -1374,9 +1369,7 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
 
 #endif
     }
-
-#endif  /* HAVE_LIBREADLINE */
-
+#endif // HAVE_LIBREADLINE
 
     /*
      * mutex locking needed because rotctld is multithreaded
@@ -1428,8 +1421,13 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
                                         p2 ? p2 : "",
                                         p3 ? p3 : "",
                                         p4 ? p4 : "",
+#ifdef __USEP5P6__
                                         p5 ? p5 : "",
                                         p6 ? p6 : "");
+#else
+                                        "",
+                                        "");
+#endif
 
 #ifdef HAVE_PTHREAD
     pthread_mutex_unlock(&rot_mutex);
@@ -1443,13 +1441,13 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
         if (interactive && !prompt)
         {
             fprintf(fout, NETROTCTL_RET "%d\n", retcode);
-            ext_resp = 0;
+            // ext_resp = 0; // not used ?
             resp_sep = '\n';
         }
         else
         {
-            if (cmd_entry != NULL && cmd_entry->name != NULL) {
-              fprintf(fout, "%s: error = %s\n", cmd_entry->name, rigerror(retcode));
+            if (cmd_entry->name != NULL) {
+                fprintf(fout, "%s: error = %s\n", cmd_entry->name, rigerror(retcode));
             }
         }
     }
@@ -1468,7 +1466,6 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
             else if (ext_resp && cmd != 0xf0)
             {
                 fprintf(fout, NETROTCTL_RET "0\n");
-                ext_resp = 0;
                 resp_sep = '\n';
             }
         }
@@ -1490,12 +1487,13 @@ void version()
 
 void usage_rot(FILE *fout)
 {
-    int i, nbspaces;
+    int i;
 
     fprintf(fout, "Commands (some may not be available for this rotator):\n");
 
     for (i = 0; test_list[i].cmd != 0; i++)
     {
+        int nbspaces;
         fprintf(fout,
                 "%c: %-12s(",
                 isprint(test_list[i].cmd) ? test_list[i].cmd : '?',
@@ -1631,28 +1629,29 @@ void list_models()
 
 int set_conf(ROT *my_rot, char *conf_parms)
 {
-    char *p, *q, *n;
-    int ret;
+    char *p;
 
     rot_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
     p = conf_parms;
 
     while (p && *p != '\0')
     {
+        int ret;
+        char *q, *n = NULL;
         /* FIXME: left hand value of = cannot be null */
         q = strchr(p, '=');
 
         if (!q)
         {
             return RIG_EINVAL;
-        }
 
-        *q++ = '\0';
-        n = strchr(q, ',');
+            *q++ = '\0';
+            n = strchr(q, ',');
 
-        if (n)
-        {
-            *n++ = '\0';
+            if (n)
+            {
+                *n++ = '\0';
+            }
         }
 
         rig_debug(RIG_DEBUG_TRACE, "%s: token=%s, val=%s\n", __func__, p, q);
@@ -1798,6 +1797,8 @@ declare_proto_rot(move)
 /* 'C' */
 declare_proto_rot(inter_set_conf)
 {
+    char buf[256];
+
     rot_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
 
     if (!arg2 || arg2[0] == '\0')
@@ -1807,7 +1808,6 @@ declare_proto_rot(inter_set_conf)
         return -RIG_EINVAL;
     }
 
-    char buf[256];
     sprintf(buf, "%s=%s", arg1, arg2);
     return set_conf(rot, buf);
 }

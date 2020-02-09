@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <sys/types.h>
 
@@ -790,7 +791,8 @@ int HAMLIB_API rig_set_trn(RIG *rig, int trn)
         {
 #ifdef HAVE_SETITIMER
 
-            retcode = remove_trn_poll_rig(rig);
+            // don't care about the return code here
+            remove_trn_poll_rig(rig);
 
             value.it_value.tv_sec = 0;
             value.it_value.tv_usec = 0;

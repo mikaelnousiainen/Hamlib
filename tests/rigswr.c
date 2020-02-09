@@ -321,7 +321,7 @@ int main(int argc, char *argv[])
         value_t swr;
 
         rig_set_ptt(rig, RIG_VFO_CURR, RIG_PTT_ON);
-        usleep(500000);
+        hl_usleep(500000);
         rig_get_level(rig, RIG_VFO_CURR, RIG_LEVEL_SWR, &swr);
         rig_set_ptt(rig, RIG_VFO_CURR, RIG_PTT_OFF);
 
@@ -369,15 +369,15 @@ void usage()
 
 int set_conf(RIG *rig, char *conf_parms)
 {
-    char *p, *q, *n;
-    int ret;
+    char *p, *n;
 
     p = conf_parms;
 
     while (p && *p != '\0')
     {
+        int ret;
         /* FIXME: left hand value of = cannot be null */
-        q = strchr(p, '=');
+        char *q = strchr(p, '=');
 
         if (!q)
         {

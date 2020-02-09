@@ -66,24 +66,6 @@ extern int read_history();
 #include "misc.h"
 #include "sprintflst.h"
 
-
-/* HAVE_SSLEEP is defined when Windows Sleep is found
- * HAVE_SLEEP is defined when POSIX sleep is found
- * _WIN32 is defined when compiling with MinGW
- *
- * When cross-compiling from POSIX to Windows using MinGW, HAVE_SLEEP
- * will often be defined by configure although it is not supported by
- * MinGW.  So substitute the sleep definition below in such a case and
- * when compiling on Windows using MinGW where HAVE_SLEEP will be
- * undefined.
- *
- * FIXME:  Needs better handling for all versions of MinGW.
- *
- */
-#if (defined(HAVE_SSLEEP) || defined(_WIN32)) && (!defined(HAVE_SLEEP))
-#  include "hl_sleep.h"
-#endif
-
 #include "ampctl_parse.h"
 
 /* Hash table implementation See:  http://uthash.sourceforge.net/ */
@@ -127,7 +109,7 @@ static const int have_rl = 1;
 static char *rp_hist_buf = (char *)NULL;
 #endif
 
-#else                               /* no readline */
+#else
 static const int have_rl = 0;
 #endif
 
@@ -211,7 +193,7 @@ struct test_table *find_cmd_entry(int cmd)
             break;
         }
 
-    if (i >= MAXNBOPT || test_list[i].cmd == 0x00)
+    if (test_list[i].cmd == 0x00)
     {
         return NULL;
     }
@@ -227,7 +209,7 @@ struct test_table *find_cmd_entry(int cmd)
  */
 struct mod_lst
 {
-    int id;                 /* caps->amp_model This is the hash key */
+    unsigned int id;        /* caps->amp_model This is the hash key */
     char mfg_name[32];      /* caps->mfg_name */
     char model_name[32];    /* caps->model_name */
     char version[32];       /* caps->version */
@@ -318,10 +300,7 @@ static void rp_getline(const char *s)
     /* Action!  Returns typed line with newline stripped. */
     input_line = readline(s);
 }
-
-
 #endif
-
 
 /*
  * TODO: use Lex?
@@ -347,11 +326,9 @@ char parse_arg(const char *arg)
  */
 static int scanfc(FILE *fin, const char *format, void *p)
 {
-    int ret;
-
     do
     {
-        ret = fscanf(fin, format, p);
+        int ret = fscanf(fin, format, p);
 
         if (ret < 0)
         {
@@ -492,15 +469,17 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
     char arg2[MAXARGSZ + 1], *p2 = NULL;
     char arg3[MAXARGSZ + 1], *p3 = NULL;
     char arg4[MAXARGSZ + 1], *p4 = NULL;
-    char *p5 = NULL;
+#ifdef __USEP5P6__ // to avoid cppcheck warning
+    char *p5 = NULL; 
     char *p6 = NULL;
-    static int last_was_ret = 1;
+#endif
 
     /* cmd, internal, ampctld */
     if (!(interactive && prompt && have_rl))
     {
         if (interactive)
         {
+            static int last_was_ret = 1;
             if (prompt)
             {
                 fprintf_flush(fout, "\nAmplifier command: ");
@@ -868,7 +847,6 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
     }
 
 #ifdef HAVE_LIBREADLINE
-
     if (interactive && prompt && have_rl)
     {
         int j, x;
@@ -879,9 +857,6 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
          */
         rp_hist_buf = (char *)calloc(896, sizeof(char));
 #endif
-
-        rl_instream = fin;
-        rl_outstream = fout;
 
         rp_getline("\nAmplifier command: ");
 
@@ -1051,8 +1026,8 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
             }
             else
             {
-                x = 0;
                 char pmptstr[(strlen(cmd_entry->arg1) + 3)];
+                x = 0;
 
                 strcpy(pmptstr, cmd_entry->arg1);
                 strcat(pmptstr, ": ");
@@ -1060,7 +1035,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
                 rp_getline(pmptstr);
 
                 /* Blank line entered */
-                if (!(strcmp(input_line, "")))
+                if (input_line && !(strcmp(input_line, "")))
                 {
                     fprintf(fout, "? for help, q to quit.\n");
                     fflush(fout);
@@ -1109,8 +1084,8 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
             }
             else
             {
-                x = 0;
                 char pmptstr[(strlen(cmd_entry->arg1) + 3)];
+                x = 0;
 
                 strcpy(pmptstr, cmd_entry->arg1);
                 strcat(pmptstr, ": ");
@@ -1170,8 +1145,8 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
             }
             else
             {
-                x = 0;
                 char pmptstr[(strlen(cmd_entry->arg2) + 3)];
+                x = 0;
 
                 strcpy(pmptstr, cmd_entry->arg2);
                 strcat(pmptstr, ": ");
@@ -1231,8 +1206,8 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
             }
             else
             {
-                x = 0;
                 char pmptstr[(strlen(cmd_entry->arg3) + 3)];
+                x = 0;
 
                 strcpy(pmptstr, cmd_entry->arg3);
                 strcat(pmptstr, ": ");
@@ -1292,8 +1267,8 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
             }
             else
             {
-                x = 0;
                 char pmptstr[(strlen(cmd_entry->arg4) + 3)];
+                x = 0;
 
                 strcpy(pmptstr, cmd_entry->arg4);
                 strcat(pmptstr, ": ");
@@ -1349,9 +1324,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
 
 #endif
     }
-
-#endif  /* HAVE_LIBREADLINE */
-
+#endif // HAVE_LIBREADLINE
 
     /*
      * mutex locking needed because ampctld is multithreaded
@@ -1399,8 +1372,13 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
                                         p2 ? p2 : "",
                                         p3 ? p3 : "",
                                         p4 ? p4 : "",
+#ifdef __USEP5P6__
                                         p5 ? p5 : "",
                                         p6 ? p6 : "");
+#else
+                                        "",
+                                        "");
+#endif
 
 #ifdef HAVE_PTHREAD
     pthread_mutex_unlock(&amp_mutex);
@@ -1459,12 +1437,13 @@ void version()
 
 void usage_amp(FILE *fout)
 {
-    int i, nbspaces;
+    int i;
 
     fprintf(fout, "Commands (some may not be available for this amplifier):\n");
 
     for (i = 0; test_list[i].cmd != 0; i++)
     {
+        int nbspaces;
         fprintf(fout,
                 "%c: %-12s(",
                 isprint(test_list[i].cmd) ? test_list[i].cmd : '?',
@@ -1569,7 +1548,7 @@ void print_model_list()
 
     for (s = models; s != NULL; s = (struct mod_lst *)(s->hh.next))
     {
-        printf("%6d  %-23s%-24s%-16s%s\n",
+        printf("%6u  %-23s%-24s%-16s%s\n",
                s->id,
                s->mfg_name,
                s->model_name,
@@ -1601,13 +1580,14 @@ void list_models()
 
 int set_conf(AMP *my_amp, char *conf_parms)
 {
-    char *p, *q, *n;
-    int ret;
+    char *p, *n;
 
     p = conf_parms;
 
     while (p && *p != '\0')
     {
+        char *q;
+        int ret;
         /* FIXME: left hand value of = cannot be null */
         q = strchr(p, '=');
 

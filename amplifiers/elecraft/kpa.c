@@ -59,8 +59,6 @@ const struct fault_list kpa_fault_list [] =
 
 int kpa_init(AMP *amp)
 {
-    struct kpa_priv_data *priv;
-
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (!amp)
@@ -68,17 +66,26 @@ int kpa_init(AMP *amp)
         return -RIG_EINVAL;
     }
 
-    priv = (struct kpa_priv_data *)
+    amp->state.priv = (struct kpa_priv_data *)
            malloc(sizeof(struct kpa_priv_data));
 
-    if (!priv)
+    if (!amp->state.priv)
     {
         return -RIG_ENOMEM;
     }
 
-    amp->state.priv = (void *)priv;
-
     amp->state.ampport.type.rig = RIG_PORT_SERIAL;
+
+    return RIG_OK;
+}
+
+int kpa_close(AMP *amp)
+{
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (amp->state.priv) { free(amp->state.priv); }
+
+    amp->state.priv = NULL;
 
     return RIG_OK;
 }
@@ -100,6 +107,7 @@ int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
     int err;
     int len = 0;
     char responsebuf[KPABUFSZ];
+    int loop;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called, cmd=%s\n", __func__, cmd);
 
@@ -109,12 +117,12 @@ int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
 
     rs = &amp->state;
 
-    int loop = 3;
+    loop = 3;
 
     do   // wake up the amp by sending ; until we receive ;
     {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s waiting for ;\n", __func__);
         char c = ';';
+        rig_debug(RIG_DEBUG_VERBOSE, "%s waiting for ;\n", __func__);
         err = write_block(&rs->ampport, &c, 1);
 
         if (err != RIG_OK) { return err; }
@@ -133,7 +141,7 @@ int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
     if (response) // if response expected get it
     {
         responsebuf[0] = 0;
-        int len = read_string(&rs->ampport, responsebuf, KPABUFSZ, ";", 1);
+        len = read_string(&rs->ampport, responsebuf, KPABUFSZ, ";", 1);
 
         if (len < 0)
         {
@@ -151,13 +159,13 @@ int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
 
         do
         {
-            rig_debug(RIG_DEBUG_VERBOSE, "%s waiting for ;\n", __func__);
             char c = ';';
+            rig_debug(RIG_DEBUG_VERBOSE, "%s waiting for ;\n", __func__);
             err = write_block(&rs->ampport, &c, 1);
 
             if (err != RIG_OK) { return err; }
 
-            int len = read_string(&rs->ampport, responsebuf, KPABUFSZ, ";", 1);
+            len = read_string(&rs->ampport, responsebuf, KPABUFSZ, ";", 1);
 
             if (len < 0) { return len; }
         }
@@ -187,17 +195,19 @@ const char *kpa_get_info(AMP *amp)
 int kpa_get_freq(AMP *amp, freq_t *freq)
 {
     char responsebuf[KPABUFSZ];
+    int retval;
+    unsigned long tfreq;
+    int nargs;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (!amp) { return -RIG_EINVAL; }
 
-    int retval = kpa_transaction(amp, "^FR;", responsebuf, sizeof(responsebuf));
+    retval = kpa_transaction(amp, "^FR;", responsebuf, sizeof(responsebuf));
 
     if (retval != RIG_OK) { return retval; }
 
-    unsigned long tfreq;
-    int nargs = sscanf(responsebuf, "^FR%lu", &tfreq);
+    nargs = sscanf(responsebuf, "^FR%lu", &tfreq);
 
     if (nargs != 1)
     {
@@ -213,19 +223,21 @@ int kpa_get_freq(AMP *amp, freq_t *freq)
 int kpa_set_freq(AMP *amp, freq_t freq)
 {
     char responsebuf[KPABUFSZ];
+    int retval;
+    unsigned long tfreq;
+    int nargs;
+    char cmd[KPABUFSZ];
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called, freq=%"PRIfreq"\n", __func__, freq);
 
     if (!amp) { return -RIG_EINVAL; }
 
-    char cmd[KPABUFSZ];
     sprintf(cmd, "^FR%05ld;", (long)freq / 1000);
-    int retval = kpa_transaction(amp, cmd, NULL, 0);
+    retval = kpa_transaction(amp, cmd, NULL, 0);
 
     if (retval != RIG_OK) { return retval; }
 
-    unsigned long tfreq;
-    int nargs = sscanf(responsebuf, "^FR%lu", &tfreq);
+    nargs = sscanf(responsebuf, "^FR%lu", &tfreq);
 
     if (nargs != 1)
     {
@@ -249,19 +261,31 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 {
     char responsebuf[KPABUFSZ];
     char *cmd;
+    int retval;
+    int fault;
+    int i;
+    int nargs;
+    int antenna;
+    int pwrpeak;
+    int pwrref;
+    int pwrfwd;
+    int pwrinput;
+    float float_value = 0;
+    int int_value = 0, int_value2 = 0;
+    struct amp_state *rs = &amp->state;
+    struct kpa_priv_data *priv = amp->state.priv;
+
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    if (!amp) { return -RIG_EINVAL; }
-
     // get the current antenna selected
     cmd = "^AE;";
-    int retval = kpa_transaction(amp, cmd, responsebuf, sizeof(responsebuf));
+    retval = kpa_transaction(amp, cmd, responsebuf, sizeof(responsebuf));
 
     if (retval != RIG_OK) { return retval; }
 
-    int antenna = 0;
-    int nargs = sscanf(responsebuf, "^AE%d", &antenna);
+    antenna = 0;
+    nargs = sscanf(responsebuf, "^AE%d", &antenna);
 
     if (nargs != 1)
     {
@@ -311,10 +335,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
     retval = kpa_transaction(amp, cmd, responsebuf, sizeof(responsebuf));
 
     if (retval != RIG_OK) { return retval; }
-
-    float float_value = 0;
-    int int_value = 0, int_value2 = 0;
-    struct amp_state *rs = &amp->state;
 
     switch (level)
     {
@@ -381,7 +401,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 
     case AMP_LEVEL_PWR_INPUT:
         cmd = "^PWI;";
-        int pwrinput;
         nargs = sscanf(responsebuf, "^SW%d", &pwrinput);
 
         if (nargs != 1)
@@ -398,7 +417,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 
     case AMP_LEVEL_PWR_FWD:
         cmd = "^PWF;";
-        int pwrfwd;
         nargs = sscanf(responsebuf, "^SW%d", &pwrfwd);
 
         if (nargs != 1)
@@ -415,7 +433,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 
     case AMP_LEVEL_PWR_REFLECTED:
         cmd = "^PWR;";
-        int pwrref;
         nargs = sscanf(responsebuf, "^SW%d", &pwrref);
 
         if (nargs != 1)
@@ -432,7 +449,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 
     case AMP_LEVEL_PWR_PEAK:
         cmd = "^PWK;";
-        int pwrpeak;
         nargs = sscanf(responsebuf, "^SW%d", &pwrpeak);
 
         if (nargs != 1)
@@ -449,7 +465,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 
     case AMP_LEVEL_FAULT:
         cmd = "^SF;";
-        int fault;
         nargs = sscanf(responsebuf, "^SW%d", &fault);
 
         if (nargs != 1)
@@ -458,8 +473,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
                       responsebuf);
             return -RIG_EPROTO;
         }
-
-        int i;
 
         for (i = 0; kpa_fault_list[i].errmsg != NULL; ++i)
         {
@@ -471,7 +484,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
         }
 
         rig_debug(RIG_DEBUG_ERR, "%s unknown fault from %s\n", __func__, responsebuf);
-        struct kpa_priv_data *priv = amp->state.priv;
         sprintf(priv->tmpbuf, "Unknown fault code=0x%02x", fault);
         val->s = priv->tmpbuf;
         return RIG_OK;
@@ -490,6 +502,11 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 int kpa_get_powerstat(AMP *amp, powerstat_t *status)
 {
     char responsebuf[KPABUFSZ];
+    int retval;
+    int operate;
+    int ampon;
+    int nargs = sscanf(responsebuf, "^ON%d", &ampon);
+
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -497,12 +514,9 @@ int kpa_get_powerstat(AMP *amp, powerstat_t *status)
 
     if (!amp) { return -RIG_EINVAL; }
 
-    int retval = kpa_transaction(amp, "^ON;", responsebuf, sizeof(responsebuf));
+    retval = kpa_transaction(amp, "^ON;", responsebuf, sizeof(responsebuf));
 
     if (retval != RIG_OK) { return retval; }
-
-    int ampon;
-    int nargs = sscanf(responsebuf, "^ON%d", &ampon);
 
     if (nargs != 1)
     {
@@ -527,7 +541,6 @@ int kpa_get_powerstat(AMP *amp, powerstat_t *status)
 
     if (retval != RIG_OK) { return retval; }
 
-    int operate;
     nargs = sscanf(responsebuf, "^ON%d", &operate);
 
     if (nargs != 1)
@@ -544,11 +557,12 @@ int kpa_get_powerstat(AMP *amp, powerstat_t *status)
 
 int kpa_set_powerstat(AMP *amp, powerstat_t status)
 {
+    int retval;
+    char *cmd = NULL;
+
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (!amp) { return -RIG_EINVAL; }
-
-    char *cmd = NULL;
 
     switch (status)
     {
@@ -568,7 +582,7 @@ int kpa_set_powerstat(AMP *amp, powerstat_t status)
 
     }
 
-    int retval = kpa_transaction(amp, cmd, NULL, 0);
+    retval = kpa_transaction(amp, cmd, NULL, 0);
 
     if (retval != RIG_OK) { return retval; }
 
@@ -577,10 +591,12 @@ int kpa_set_powerstat(AMP *amp, powerstat_t status)
 
 int kpa_reset(AMP *amp, amp_reset_t reset)
 {
+    int retval;
+
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     // toggling from standby to operate supposed to reset
-    int retval = kpa_set_powerstat(amp, RIG_POWER_STANDBY);
+    retval = kpa_set_powerstat(amp, RIG_POWER_STANDBY);
 
     if (retval != RIG_OK)
     {

@@ -53,6 +53,7 @@
 #include "usb_port.h"
 #include "network.h"
 #include "cm108.h"
+#include "gpio.h"
 
 /**
  * \brief Open a hamlib_port based on its rig port type
@@ -109,7 +110,7 @@ int HAMLIB_API port_open(hamlib_port_t *p)
          */
         if (want_state_delay)
         {
-            usleep(100 * 1000);
+            hl_usleep(100 * 1000);
         }
 
         break;
@@ -184,8 +185,6 @@ int HAMLIB_API port_open(hamlib_port_t *p)
  * \param p rig port descriptor
  * \param port_type equivalent rig port type
  * \return status
- *
- * This function may also be used with ptt and dcd ports.
  */
 int HAMLIB_API port_close(hamlib_port_t *p, rig_port_t port_type)
 {
@@ -199,14 +198,6 @@ int HAMLIB_API port_close(hamlib_port_t *p, rig_port_t port_type)
         {
         case RIG_PORT_SERIAL:
             ret = ser_close(p);
-            break;
-
-        case RIG_PORT_PARALLEL:
-            ret = par_close(p);
-            break;
-
-        case RIG_PORT_CM108:
-            ret = cm108_close(p);
             break;
 
         case RIG_PORT_USB:
@@ -369,16 +360,15 @@ static int port_select(hamlib_port_t *p,
 
 static ssize_t port_read(hamlib_port_t *p, void *buf, size_t count)
 {
-    int i;
-    ssize_t ret;
-
     if (p->type.rig == RIG_PORT_SERIAL && p->parm.serial.data_bits == 7)
     {
         unsigned char *pbuf = buf;
 
-        ret = read(p->fd, buf, count);
+        int ret = read(p->fd, buf, count);
 
         /* clear MSB */
+        int i;
+
         for (i = 0; i < ret; i++)
         {
             pbuf[i] &= ~0x80;
@@ -428,7 +418,7 @@ static ssize_t port_read(hamlib_port_t *p, void *buf, size_t count)
 
 int HAMLIB_API write_block(hamlib_port_t *p, const char *txbuffer, size_t count)
 {
-    int i, ret;
+    int ret;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -450,7 +440,7 @@ int HAMLIB_API write_block(hamlib_port_t *p, const char *txbuffer, size_t count)
             /*
              * optional delay after last write
              */
-            usleep(date_delay);
+            hl_sleep(date_delay);
         }
 
         p->post_write_date.tv_sec = 0;
@@ -460,6 +450,8 @@ int HAMLIB_API write_block(hamlib_port_t *p, const char *txbuffer, size_t count)
 
     if (p->write_delay > 0)
     {
+        int i;
+
         for (i = 0; i < count; i++)
         {
             ret = port_write(p, txbuffer + i, 1);
@@ -476,7 +468,7 @@ int HAMLIB_API write_block(hamlib_port_t *p, const char *txbuffer, size_t count)
                 return -RIG_EIO;
             }
 
-            usleep(p->write_delay * 1000);
+            hl_usleep(p->write_delay * 1000);
         }
     }
     else
@@ -510,7 +502,7 @@ int HAMLIB_API write_block(hamlib_port_t *p, const char *txbuffer, size_t count)
         }
         else
 #endif
-            usleep(p->post_write_delay * 1000); /* optional delay after last write */
+            hl_usleep(p->post_write_delay * 1000); /* optional delay after last write */
 
         /* otherwise some yaesu rigs get confused */
         /* with sequential fast writes*/
@@ -545,8 +537,7 @@ int HAMLIB_API read_block(hamlib_port_t *p, char *rxbuffer, size_t count)
 {
     fd_set rfds, efds;
     struct timeval tv, tv_timeout, start_time, end_time, elapsed_time;
-    int rd_count, total_count = 0;
-    int retval;
+    int total_count = 0;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -561,6 +552,8 @@ int HAMLIB_API read_block(hamlib_port_t *p, char *rxbuffer, size_t count)
 
     while (count > 0)
     {
+        int retval;
+        int rd_count;
         tv = tv_timeout;    /* select may have updated it */
 
         FD_ZERO(&rfds);
@@ -668,8 +661,7 @@ int HAMLIB_API read_string(hamlib_port_t *p,
 {
     fd_set rfds, efds;
     struct timeval tv, tv_timeout, start_time, end_time, elapsed_time;
-    int rd_count, total_count = 0;
-    int retval;
+    int total_count = 0;
 
     rig_debug(RIG_DEBUG_TRACE, "%s called\n", __func__);
 
@@ -696,6 +688,8 @@ int HAMLIB_API read_string(hamlib_port_t *p,
 
     while (total_count < rxmax - 1)
     {
+        int rd_count;
+        int retval;
         tv = tv_timeout;    /* select may have updated it */
 
         FD_ZERO(&rfds);

@@ -406,7 +406,6 @@ static int numcontrolbytes = 0;
 
 static void parseFrame(unsigned char *frame)
 {
-    int i;
     unsigned char byte;
     FRAME("RCV frame %02x %02x %02x %02x\n", frame[0], frame[1], frame[2],
           frame[3]);
@@ -478,6 +477,7 @@ static void parseFrame(unsigned char *frame)
 
             if ((frame[0] & 0x08) == 0 && incontrol)
             {
+                int i;
                 // end of a control sequence
                 controlstring[numcontrolbytes++] = byte;
                 DEBUG("%10d:FromControl:", TIME);
@@ -522,7 +522,7 @@ static void parseFrame(unsigned char *frame)
 static void writeRadio(unsigned char *bytes, int len)
 {
     unsigned char seq[4];
-    int i, ret;
+    int i;
 
     DEBUG("%10d:Send radio data: ", TIME);
 
@@ -534,6 +534,8 @@ static void writeRadio(unsigned char *bytes, int len)
 
     for (i = 0; i < len; i++)
     {
+        int ret;
+
         seq[0] = 0x28;
         seq[1] = 0x80 | bytes[i];
         seq[2] = 0x80;
@@ -607,7 +609,7 @@ static void writeFlags()
 static void writeWkey(unsigned char *bytes, int len)
 {
     unsigned char seq[12];
-    int i, ret;
+    int i;
     DEBUG("%10d:Send WinKey data: ", TIME);
 
     for (i = 0; i < len; i++) { DEBUG(" %02x", (int) bytes[i]); }
@@ -619,6 +621,8 @@ static void writeWkey(unsigned char *bytes, int len)
 
     for (i = 0; i < len; i++)
     {
+        int ret;
+
         seq[ 0] = 0x08;
         seq[ 1] = 0x80;
         seq[ 2] = 0x80;
@@ -663,7 +667,7 @@ static void writeWkey(unsigned char *bytes, int len)
 //
 static void writeControl(unsigned char *data, int len)
 {
-    int i, ret;
+    int i;
     unsigned char seq[8];
 
     DEBUG("%10d:WriteControl:", TIME);
@@ -678,6 +682,8 @@ static void writeControl(unsigned char *data, int len)
 
     for (i = 0; i < len; i++)
     {
+        int ret;
+
         // encode statusbyte in first frame
         seq[0] = 0x08;
         seq[1] = 0x80;
@@ -747,12 +753,9 @@ static void *read_device(void *p)
 {
     unsigned char frame[4];
     int framepos = 0;
-    int ret;
     unsigned char buf[2];
     fd_set fds;
     struct timeval tv;
-    int maxdev;
-
 
     // the bytes from the microHam decive come in "frames"
     // a frame is a four-byte sequence. The first byte has the MSB unset,
@@ -761,6 +764,8 @@ static void *read_device(void *p)
     // terminates if the device is closed.
     for (;;)
     {
+        int ret;
+        int maxdev;
         //
         // setting uh_is_initialized to zero in the main thread
         // tells this one that it is all over now
@@ -1116,7 +1121,6 @@ void uh_close_radio()
     }
 }
 
-
 void uh_close_wkey()
 {
     uh_wkey_in_use = 0;
@@ -1127,35 +1131,32 @@ void uh_close_wkey()
     }
 }
 
-
 int uh_open_ptt()
 {
     if (!uh_is_initialized)
     {
         start_thread();
-    }
-
-    if (!uh_is_initialized)
-    {
-        return -1;
+        if (!uh_is_initialized)
+        {
+            return -1;
+        }
     }
 
     uh_ptt_in_use = 1;
     return uh_ptt_pair[1];
 }
 
-
 int uh_open_wkey()
 {
     if (!uh_is_initialized)
     {
         start_thread();
+        if (!uh_is_initialized)
+        {
+            return -1;
+        }
     }
 
-    if (!uh_is_initialized)
-    {
-        return -1;
-    }
 
     uh_wkey_in_use = 1;
     return uh_wkey_pair[1];
@@ -1176,11 +1177,10 @@ int uh_open_radio(int baud, int databits, int stopbits, int rtscts)
     if (!uh_is_initialized)
     {
         start_thread();
-    }
-
-    if (!uh_is_initialized)
-    {
-        return -1;
+        if (!uh_is_initialized)
+        {
+            return -1;
+        }
     }
 
     baudrateConst = 11059200 / baud ;

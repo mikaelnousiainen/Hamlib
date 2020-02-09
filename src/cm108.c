@@ -77,37 +77,37 @@
  * \param port
  * \return file descriptor
  */
-int cm108_open(hamlib_port_t *port)
+int cm108_open(hamlib_port_t *p)
 {
     int fd;
+#ifdef HAVE_LINUX_HIDRAW_H
+    struct hidraw_devinfo hiddevinfo;
+#endif
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    if (!port->pathname[0])
+    if (!p->pathname[0])
     {
         return -RIG_EINVAL;
     }
 
-    fd = open(port->pathname, O_RDWR);
+    fd = open(p->pathname, O_RDWR);
 
     if (fd < 0)
     {
         rig_debug(RIG_DEBUG_ERR,
                   "%s: opening device \"%s\": %s\n",
                   __func__,
-                  port->pathname,
+                  p->pathname,
                   strerror(errno));
         return -RIG_EIO;
     }
 
 #ifdef HAVE_LINUX_HIDRAW_H
     // CM108 detection copied from Thomas Sailer's soundmodem code
-
     rig_debug(RIG_DEBUG_VERBOSE,
               "%s: checking for cm108 (or compatible) device\n",
               __func__);
-
-    struct hidraw_devinfo hiddevinfo;
 
     if (!ioctl(fd, HIDIOCGRAWINFO, &hiddevinfo)
             && ((hiddevinfo.vendor == 0x0d8c
@@ -138,7 +138,7 @@ int cm108_open(hamlib_port_t *port)
 
 #endif
 
-    port->fd = fd;
+    p->fd = fd;
     return fd;
 }
 
@@ -147,11 +147,11 @@ int cm108_open(hamlib_port_t *port)
  * \brief Close CM108 HID port
  * \param port
  */
-int cm108_close(hamlib_port_t *port)
+int cm108_close(hamlib_port_t *p)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    return close(port->fd);
+    return close(p->fd);
 }
 
 
@@ -174,8 +174,19 @@ int cm108_ptt_set(hamlib_port_t *p, ptt_t pttx)
 
     switch (p->type.ptt)
     {
+
     case RIG_PTT_CM108:
     {
+        ssize_t nw;
+        char out_rep[] =
+        {
+            0x00, // report number
+            // HID output report
+            0x00,
+            (pttx == RIG_PTT_ON) ? (1 << p->parm.cm108.ptt_bitnum) : 0, // set GPIO
+            1 << p->parm.cm108.ptt_bitnum, // Data direction register (1=output)
+              0x00
+        };
 
         // Build a packet for CM108 HID to turn GPIO bit on or off.
         // Packet is 4 bytes, preceded by a 'report number' byte
@@ -191,18 +202,6 @@ int cm108_ptt_set(hamlib_port_t *p, ptt_t pttx)
                   __func__,
                   p->parm.cm108.ptt_bitnum,
                   (pttx == RIG_PTT_ON) ? 1 : 0);
-
-        char out_rep[] =
-        {
-            0x00, // report number
-            // HID output report
-            0x00,
-            (pttx == RIG_PTT_ON) ? (1 << p->parm.cm108.ptt_bitnum) : 0, // set GPIO
-            1 << p->parm.cm108.ptt_bitnum, // Data direction register (1=output)
-              0x00
-        };
-
-        ssize_t nw;
 
         if (p->fd == -1)
         {
@@ -246,9 +245,7 @@ int cm108_ptt_get(hamlib_port_t *p, ptt_t *pttx)
     {
     case RIG_PTT_CM108:
     {
-        int status;
         return -RIG_ENIMPL;
-        return status;
     }
 
     default:
@@ -262,6 +259,8 @@ int cm108_ptt_get(hamlib_port_t *p, ptt_t *pttx)
     return RIG_OK;
 }
 
+#ifdef XXREMOVEXX
+// Not referenced anywhere
 /**
  * \brief get Data Carrier Detect (squelch) from CM108 GPIO
  * \param p
@@ -281,9 +280,7 @@ int cm108_dcd_get(hamlib_port_t *p, dcd_t *dcdx)
     {
     case RIG_DCD_CM108:
     {
-        int status;
         return -RIG_ENIMPL;
-        return status;
     }
 
     default:
@@ -296,5 +293,6 @@ int cm108_dcd_get(hamlib_port_t *p, dcd_t *dcdx)
 
     return RIG_OK;
 }
+#endif
 
 /** @} */

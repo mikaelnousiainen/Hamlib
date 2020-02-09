@@ -113,9 +113,6 @@ static struct option long_options[] =
 static const int have_rl = 1;
 #endif
 
-double az_offset;
-double el_offset;
-
 int main(int argc, char *argv[])
 {
     ROT *my_rot;        /* handle to rot (instance) */
@@ -134,7 +131,6 @@ int main(int argc, char *argv[])
     const char *hist_dir = NULL;
     const char hist_file[] = "/.rotctl_history";
     char *hist_path = NULL;
-    struct stat hist_dir_stat;
 #endif  /* HAVE_READLINE_HISTORY */
 
     const char *rot_file = NULL;
@@ -393,6 +389,9 @@ int main(int argc, char *argv[])
 
         if (rd_hist || sv_hist)
         {
+            int hist_path_size;
+            struct stat hist_dir_stat;
+
             if (!(hist_dir = getenv("ROTCTL_HIST_DIR")))
             {
                 hist_dir = getenv("HOME");
@@ -405,7 +404,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Warning: %s is not a directory!\n", hist_dir);
             }
 
-            int hist_path_size = sizeof(char) * (strlen(hist_dir) + strlen(hist_file) + 1);
+            hist_path_size = sizeof(char) * (strlen(hist_dir) + strlen(hist_file) + 1);
             hist_path = (char *)calloc(hist_path_size, sizeof(char));
 
             snprintf(hist_path, hist_path_size, "%s%s", hist_dir, hist_file);

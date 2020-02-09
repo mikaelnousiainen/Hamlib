@@ -111,7 +111,7 @@ Use
 of Push-To-Talk device.
 .IP
 Supported types are \(oqRIG\(cq (CAT command), \(oqDTR\(cq, \(oqRTS\(cq,
-\(oqPARALLEL\(cq, \(oqNONE\(cq, overriding PTT type defined in the rig's
+\(oqPARALLEL\(cq, \(oqCM108\(cq, \(oqGPIO\(cq, \(oqGPION\(cq, \(oqNONE\(cq, overriding PTT type defined in the rig's
 backend.
 .IP
 Some side effects of this command are that when type is set to DTR, read
@@ -127,7 +127,7 @@ Use
 of Data Carrier Detect device.
 .IP
 Supported types are \(oqRIG\(cq (CAT command), \(oqDSR\(cq, \(oqCTS\(cq,
-\(oqCD\(cq, \(oqPARALLEL\(cq, \(oqNONE\(cq.
+\(oqCD\(cq, \(oqPARALLEL\(cq, \(oqCM108\(cq, \(oqGPIO\(cq, \(oqGPION\(cq, \(oqNONE\(cq.
 .
 .TP
 .BR \-s ", " \-\-serial\-speed = \fIbaud\fP
@@ -1065,6 +1065,25 @@ Send a raw command string to the radio.
 This is useful for testing and troubleshooting radio commands and responses when
 developing a backend.
 .IP
+For binary protocols enter values as \\0xAA\\0xBB.  Expect a
+.RI \(aq Reply \(aq
+from the radio which will likely be a binary block or an ASCII string
+depending on the radio's protocol (see your radio's computer control
+documentation).
+.IP
+The command terminator, set by the
+.B send-cmd-term
+option above, will terminate each command string sent to the radio.  This
+character should not be a part of the input string.
+.
+.TP
+.BR W ", " send_cmd_rx " \(aq" \fICmd\fP \(aq
+Send a raw command string to the radio and expect a number of bytes returned.
+.IP
+This is useful for testing and troubleshooting radio commands and responses when
+developing a backend.  If the # of bytes requested is <= the number actually returnead no timeout will occur.
+.IP
+The command argument can have no spaces in it.
 For binary protocols enter values as \\0xAA\\0xBB.  Expect a
 .RI \(aq Reply \(aq
 from the radio which will likely be a binary block or an ASCII string
