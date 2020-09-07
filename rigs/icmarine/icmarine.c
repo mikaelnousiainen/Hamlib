@@ -136,7 +136,8 @@ int icmarine_init(RIG *rig)
 
     priv_caps = (const struct icmarine_priv_caps *) caps->priv;
 
-    rig->state.priv = (struct icmarine_priv_data *)malloc(sizeof(struct icmarine_priv_data));
+    rig->state.priv = (struct icmarine_priv_data *)malloc(sizeof(
+                          struct icmarine_priv_data));
 
     if (!rig->state.priv)
     {
@@ -233,7 +234,7 @@ int icmarine_get_conf(RIG *rig, token_t token, char *val)
  * We assume that rig!=NULL, rig->state!= NULL, data!=NULL, data_len!=NULL
  *
  * cmd: mandatory
- * param: only 1 optional NMEA paramter, NULL for none (=query)
+ * param: only 1 optional NMEA parameter, NULL for none (=query)
  * response: optional (holding BUFSZ bytes)
  */
 int icmarine_transaction(RIG *rig, const char *cmd, const char *param,
@@ -249,14 +250,15 @@ int icmarine_transaction(RIG *rig, const char *cmd, const char *param,
     int cmd_len = 0;
     unsigned csum = 0;
 
-    rig_debug(RIG_DEBUG_TRACE, "%s: cmd='%s', param=%s\n", __func__, cmd, param);
+    rig_debug(RIG_DEBUG_TRACE, "%s: cmd='%s', param=%s\n", __func__, cmd,
+              param == NULL ? "NULL" : param);
 
     rs = &rig->state;
     priv = (struct icmarine_priv_data *)rs->priv;
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
-    /* command formating */
+    /* command formatting */
     cmd_len = snprintf(cmdbuf, BUFSZ, "$PICOA,%02d,%02u,%s",
                        CONTROLLER_ID,
                        priv->remote_id,
@@ -347,7 +349,7 @@ int icmarine_transaction(RIG *rig, const char *cmd, const char *param,
     }
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: returning response='%s'\n", __func__,
-              response);
+              response == NULL ? "NULL" : response);
     return RIG_OK;
 }
 
@@ -578,7 +580,7 @@ int icmarine_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
     rig_debug(RIG_DEBUG_TRACE, "%s:\n", __func__);
 
     retval = icmarine_transaction(rig, CMD_PTT,
-                                      ptt == RIG_PTT_ON ? "TX" : "RX", NULL);
+                                  ptt == RIG_PTT_ON ? "TX" : "RX", NULL);
 
     if (retval != RIG_OK)
     {
@@ -840,6 +842,7 @@ DECLARE_INITRIG_BACKEND(icmarine)
     rig_register(&icm700pro_caps);
     rig_register(&icm710_caps);
     rig_register(&icm802_caps);
+    rig_register(&icm803_caps);
 
     return RIG_OK;
 }

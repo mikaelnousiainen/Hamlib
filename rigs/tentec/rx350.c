@@ -56,14 +56,14 @@
  *      http://www.rfsquared.com/
  *
  * Only set_freq is supposed to work.
- * This is a skelton.
+ * This is a skeleton.
  */
 const struct rig_caps rx350_caps =
 {
-    .rig_model =  RIG_MODEL_RX350,
+    RIG_MODEL(RIG_MODEL_RX350),
     .model_name = "RX-350",
     .mfg_name =  "Ten-Tec",
-    .version =  "0.1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_UNTESTED,
     .rig_type =  RIG_TYPE_RECEIVER,

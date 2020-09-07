@@ -24,10 +24,15 @@
 #include "config.h"
 #endif
 
+// cppcheck-suppress *
 #include <stdio.h>
+// cppcheck-suppress *
 #include <stdlib.h>
+// cppcheck-suppress *
 #include <string.h>   /* String function definitions */
+// cppcheck-suppress *
 #include <unistd.h>   /* UNIX standard function definitions */
+// cppcheck-suppress *
 #include <math.h>
 
 #include "hamlib/rotator.h"
@@ -52,8 +57,8 @@
  *            a large enough buffer for all possible replies for a command.
  *
  * returns:
- *   RIG_OK  -  if no error occured.
- *   RIG_EIO  -  if an I/O error occured while sending/receiving data.
+ *   RIG_OK  -  if no error occurred.
+ *   RIG_EIO  -  if an I/O error occurred while sending/receiving data.
  *   RIG_ETIMEOUT  -  if timeout expires without any characters received.
  *   RIG_REJECTED  -  if a negative acknowledge was received or command not
  *                    recognized by rig.
@@ -65,13 +70,12 @@ gs232b_transaction(ROT *rot, const char *cmdstr,
     struct rot_state *rs;
     int retval;
     int retry_read = 0;
-    char replybuf[BUFSZ];
 
     rs = &rot->state;
 
 transaction_write:
 
-    serial_flush(&rs->rotport);
+    rig_flush(&rs->rotport);
 
     if (cmdstr)
     {
@@ -90,10 +94,10 @@ transaction_write:
 
     if (no_reply) { return RIG_OK; } // nothing expected so return
 
-    /* Always read the reply to know whether the cmd went OK */
+    /* If no data requested just return */
     if (!data)
     {
-        data = replybuf;
+        return RIG_OK;
     }
 
     if (!data_len)
@@ -136,16 +140,21 @@ transaction_write:
 
 #endif
 
+#if 0
+https://github.com/Hamlib/Hamlib/issues/272
+
     // If asked for we will check for connection
     // we don't expect a reply...just a prompt return
     // Seems some GS232B's only echo the CR
-    if (data == replybuf && (strncmp(data, "?>", 2) != 0) && data[0] != 0x0d)
+    if ((strncmp(data, "?>", 2) != 0) && data[0] != 0x0d)
     {
         rig_debug(RIG_DEBUG_VERBOSE,
                   "%s: Expected '?>' but got '%s' from cmd '%s'\n",
                   __func__, data, cmdstr);
         return -RIG_EPROTO;
     }
+
+#endif
 
     if (data[0] == '?')
     {
@@ -165,7 +174,6 @@ transaction_quit:
 static int
 gs232b_rot_set_position(ROT *rot, azimuth_t az, elevation_t el)
 {
-    char buf[32];
     char cmdstr[64];
     int retval;
     unsigned u_az, u_el;
@@ -182,12 +190,17 @@ gs232b_rot_set_position(ROT *rot, azimuth_t az, elevation_t el)
     u_el = (unsigned) rint(el);
 
     sprintf(cmdstr, "W%03u %03u" EOM, u_az, u_el);
+#if 0 // do any GS232B models need a reply to the W command?
     retval = gs232b_transaction(rot, cmdstr, buf, sizeof(buf), 0);
+#else
+    retval = gs232b_transaction(rot, cmdstr, NULL, 0, 0);
 
     if (retval != RIG_OK)
     {
         return retval;
     }
+
+#endif
 
     return RIG_OK;
 }
@@ -196,7 +209,7 @@ static int
 gs232b_rot_get_position(ROT *rot, azimuth_t *az, elevation_t *el)
 {
     char posbuf[32];
-    int retval, int_az, int_el;
+    int retval, int_az = 0, int_el = 0;
 
     rig_debug(RIG_DEBUG_TRACE, "%s called\n", __func__);
 
@@ -212,9 +225,12 @@ gs232b_rot_get_position(ROT *rot, azimuth_t *az, elevation_t *el)
     /* With the format string containing a space character as one of the
      * directives, any amount of space is matched, including none in the input.
      */
-    if (sscanf(posbuf, "AZ=%d EL=%d", &int_az, &int_el) != 2)
+    // There's a 12PR1A rotor  that only returns AZ so we may only get AZ=xxx
+    if (sscanf(posbuf, "AZ=%d EL=%d", &int_az, &int_el) == 0)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: wrong reply '%s'\n", __func__,
+        // only give error if we didn't parse anything
+        rig_debug(RIG_DEBUG_ERR, "%s: wrong reply '%s', expected AZ=xxx EL=xxx\n",
+                  __func__,
                   posbuf);
         return -RIG_EPROTO;
     }
@@ -310,10 +326,10 @@ gs232b_rot_move(ROT *rot, int direction, int speed)
 
 const struct rot_caps gs232b_rot_caps =
 {
-    .rot_model = ROT_MODEL_GS232B,
+    ROT_MODEL(ROT_MODEL_GS232B),
     .model_name = "GS-232B",
     .mfg_name = "Yaesu",
-    .version = "0.5",
+    .version = "20200617.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rot_type = ROT_TYPE_OTHER,

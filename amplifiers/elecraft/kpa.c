@@ -67,7 +67,7 @@ int kpa_init(AMP *amp)
     }
 
     amp->state.priv = (struct kpa_priv_data *)
-           malloc(sizeof(struct kpa_priv_data));
+                      malloc(sizeof(struct kpa_priv_data));
 
     if (!amp->state.priv)
     {
@@ -98,7 +98,7 @@ int kpa_flushbuffer(AMP *amp)
 
     rs = &amp->state;
 
-    return serial_flush(&rs->ampport);
+    return rig_flush(&rs->ampport);
 }
 
 int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
@@ -249,7 +249,7 @@ int kpa_set_freq(AMP *amp, freq_t freq)
     if (tfreq * 1000 != freq)
     {
         rig_debug(RIG_DEBUG_ERR,
-                  "%s Error setting freq: ^FR freq!=freq2, %f=%ld '%s'\n", __func__,
+                  "%s Error setting freq: ^FR freq!=freq2, %f=%lu '%s'\n", __func__,
                   freq, tfreq * 1000, responsebuf);
         return -RIG_EPROTO;
     }

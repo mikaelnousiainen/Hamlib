@@ -67,9 +67,10 @@
 #define ID51_PARM_ALL RIG_PARM_NONE
 
 int id51_tokens[] = { TOK_DSTAR_DSQL, TOK_DSTAR_CALL_SIGN, TOK_DSTAR_MESSAGE, TOK_DSTAR_STATUS,
-    TOK_DSTAR_GPS_DATA, TOK_DSTAR_GPS_MESS, TOK_DSTAR_CODE, TOK_DSTAR_TX_DATA,
-    TOK_DSTAR_MY_CS, TOK_DSTAR_TX_CS, TOK_DSTAR_TX_MESS,
-    TOK_BACKEND_NONE };
+                      TOK_DSTAR_GPS_DATA, TOK_DSTAR_GPS_MESS, TOK_DSTAR_CODE, TOK_DSTAR_TX_DATA,
+                      TOK_DSTAR_MY_CS, TOK_DSTAR_TX_CS, TOK_DSTAR_TX_MESS,
+                      TOK_BACKEND_NONE
+                    };
 
 /*
  * FIXME: real measurement
@@ -89,7 +90,7 @@ static struct icom_priv_caps id51_priv_caps =
 
 const struct rig_caps id51_caps =
 {
-    .rig_model =  RIG_MODEL_ID51,
+    RIG_MODEL(RIG_MODEL_ID51),
     .model_name = "ID-51",
     .mfg_name =  "Icom",
     .version =  BACKEND_VER ".0",
@@ -183,7 +184,7 @@ const struct rig_caps id51_caps =
     .rig_init =   icom_init,
     .rig_cleanup =   icom_cleanup,
     .rig_open =  icom_rig_open,
-    .rig_close =  icom_rig_open,
+    .rig_close =  icom_rig_close,
     .set_powerstat =  icom_set_powerstat,
     .get_powerstat =  icom_get_powerstat,
 

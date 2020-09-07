@@ -65,7 +65,7 @@ static struct option long_options[] =
     {0, 0, 0, 0}
 };
 
-#define MAXCONFLEN 128
+#define MAXCONFLEN 1024
 
 
 int main(int argc, char *argv[])
@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
     {
         int c;
         int option_index = 0;
+        char dummy[2];
 
         c = getopt_long(argc, argv, SHORT_OPTIONS, long_options, &option_index);
 
@@ -144,7 +145,12 @@ int main(int argc, char *argv[])
                 exit(1);
             }
 
-            serial_rate = atoi(optarg);
+            if (sscanf(optarg, "%d%1s", &serial_rate, dummy) != 1)
+            {
+                fprintf(stderr, "Invalid baud rate of %s\n", optarg);
+                exit(1);
+            }
+
             break;
 
         case 'C':
@@ -157,6 +163,13 @@ int main(int argc, char *argv[])
             if (*conf_parms != '\0')
             {
                 strcat(conf_parms, ",");
+            }
+
+            if (strlen(conf_parms) + strlen(optarg) > MAXCONFLEN - 24)
+            {
+                printf("Length of conf_parms exceeds internal maximum of %d\n",
+                       MAXCONFLEN - 24);
+                return 1;
             }
 
             strncat(conf_parms, optarg, MAXCONFLEN - strlen(conf_parms));
@@ -233,7 +246,7 @@ int main(int argc, char *argv[])
     if (!rig)
     {
         fprintf(stderr,
-                "Unknown rig num %d, or initialization error.\n",
+                "Unknown rig num %u, or initialization error.\n",
                 my_model);
 
         fprintf(stderr, "Please check with --list option.\n");
@@ -281,7 +294,7 @@ int main(int argc, char *argv[])
 
         fprintf(stderr,
                 "rig backend for %s could not get SWR"
-                "or has unsufficient capability\nSorry\n",
+                "or has insufficient capability\nSorry\n",
                 rig->caps->model_name);
 
         exit(3);
@@ -297,7 +310,7 @@ int main(int argc, char *argv[])
 
     if (verbose > 0)
     {
-        printf("Opened rig model %d, '%s'\n",
+        printf("Opened rig model %u, '%s'\n",
                rig->caps->rig_model,
                rig->caps->model_name);
     }

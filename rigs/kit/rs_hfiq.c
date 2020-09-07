@@ -20,7 +20,7 @@
  */
 /*
  *
- * For informations about the controls see
+ * For information about the controls see
  * https://sites.google.com/site/rshfiqtransceiver/home/technical-data/interface-commands
  *
  */
@@ -79,7 +79,7 @@ static int rshfiq_open(RIG *rig)
         }
     }
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     snprintf(versionstr, sizeof(versionstr), "*w\r");
     rig_debug(RIG_DEBUG_TRACE, "%s: cmdstr = %s\n", __func__, versionstr);
@@ -132,7 +132,7 @@ static int rshfiq_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     rig_debug(RIG_DEBUG_TRACE, "%s called: %s %s\n", __func__,
               rig_strvfo(vfo), fstr);
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     snprintf(cmdstr, sizeof(cmdstr), "*f%lu\r", (unsigned long int)(freq));
 
@@ -150,7 +150,7 @@ static int rshfiq_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     char cmdstr[15];
     char stopset[2];
     int retval;
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     stopset[0] = '\r';
     stopset[1] = '\n';
@@ -211,10 +211,10 @@ static int rshfiq_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 
 const struct rig_caps rshfiq_caps =
 {
-    .rig_model =      RIG_MODEL_RSHFIQ,
+    RIG_MODEL(RIG_MODEL_RSHFIQ),
     .model_name =     "RS-HFIQ",
     .mfg_name =       "HobbyPCB",
-    .version =        "0.1",
+    .version =        "20191209.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_BETA,
     .rig_type =       RIG_TYPE_TRANSCEIVER,

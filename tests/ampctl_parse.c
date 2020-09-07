@@ -204,7 +204,7 @@ struct test_table *find_cmd_entry(int cmd)
 
 /* Structure for hash table provided by uthash.h
  *
- * Structure and hash funtions patterned after/copied from example.c
+ * Structure and hash functions patterned after/copied from example.c
  * distributed with the uthash package. See:  http://uthash.sourceforge.net/
  */
 struct mod_lst
@@ -214,6 +214,7 @@ struct mod_lst
     char model_name[32];    /* caps->model_name */
     char version[32];       /* caps->version */
     char status[32];        /* caps->status */
+    char macro_name[32];    /* caps->macro_name */
     UT_hash_handle hh;      /* makes this structure hashable */
 };
 
@@ -226,7 +227,8 @@ void hash_add_model(int id,
                     const char *mfg_name,
                     const char *model_name,
                     const char *version,
-                    const char *status)
+                    const char *status,
+                    const char *macro_name)
 {
     struct mod_lst *s;
 
@@ -237,6 +239,7 @@ void hash_add_model(int id,
     snprintf(s->model_name, sizeof(s->model_name), "%s", model_name);
     snprintf(s->version, sizeof(s->version), "%s", version);
     snprintf(s->status, sizeof(s->status), "%s", status);
+    snprintf(s->macro_name, sizeof(s->macro_name), "%s", macro_name);
 
     HASH_ADD_INT(models, id, s);    /* id: name of key field */
 }
@@ -470,7 +473,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
     char arg3[MAXARGSZ + 1], *p3 = NULL;
     char arg4[MAXARGSZ + 1], *p4 = NULL;
 #ifdef __USEP5P6__ // to avoid cppcheck warning
-    char *p5 = NULL; 
+    char *p5 = NULL;
     char *p6 = NULL;
 #endif
 
@@ -480,6 +483,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
         if (interactive)
         {
             static int last_was_ret = 1;
+
             if (prompt)
             {
                 fprintf_flush(fout, "\nAmplifier command: ");
@@ -847,6 +851,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
     }
 
 #ifdef HAVE_LIBREADLINE
+
     if (interactive && prompt && have_rl)
     {
         int j, x;
@@ -966,14 +971,14 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
             snprintf(cmd_name, sizeof(cmd_name), "%s", parsed_input[0] + 1);
 
             /* Sanity check as valid multiple character commands consist of
-             * alpha-numeric characters and the underscore ('_') character.
+             * alphanumeric characters and the underscore ('_') character.
              */
             for (j = 0; cmd_name[j] != '\0'; j++)
             {
                 if (!(isalnum((int)cmd_name[j]) || cmd_name[j] == '_'))
                 {
                     fprintf(stderr,
-                            "Valid multiple character command names contain alpha-numeric characters plus '_'\n");
+                            "Valid multiple character command names contain alphanumeric characters plus '_'\n");
                     return 0;
                 }
             }
@@ -1324,6 +1329,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
 
 #endif
     }
+
 #endif // HAVE_LIBREADLINE
 
     /*
@@ -1537,7 +1543,8 @@ static int hash_model_list(const struct amp_caps *caps, void *data)
                    caps->mfg_name,
                    caps->model_name,
                    caps->version,
-                   rig_strstatus(caps->status));
+                   rig_strstatus(caps->status),
+                   caps->macro_name);
 
     return 1;  /* !=0, we want them all ! */
 }
@@ -1548,12 +1555,13 @@ void print_model_list()
 
     for (s = models; s != NULL; s = (struct mod_lst *)(s->hh.next))
     {
-        printf("%6u  %-23s%-24s%-16s%s\n",
+        printf("%6u  %-23s%-24s%-16s%-14s%s\n",
                s->id,
                s->mfg_name,
                s->model_name,
                s->version,
-               s->status);
+               s->status,
+               s->macro_name);
     }
 }
 
@@ -1564,7 +1572,7 @@ void list_models()
 
     amp_load_all_backends();
 
-    printf(" Amp #  Mfg                    Model                   Version         Status\n");
+    printf(" Amp #  Mfg                    Model                   Version         Status        Macro\n");
     status = amp_list_foreach(hash_model_list, NULL);
 
     if (status != RIG_OK)
@@ -1627,6 +1635,8 @@ declare_proto_amp(get_freq)
 {
     int status;
     freq_t freq;
+    // cppcheck-suppress *
+    char *fmt = "%"PRIll"%c";
 
     status = amp_get_freq(amp, &freq);
 
@@ -1640,7 +1650,7 @@ declare_proto_amp(get_freq)
         fprintf(fout, "%s: ", cmd->arg1);    /* i.e. "Frequency" */
     }
 
-    fprintf(fout, "%"PRIll"%c", (int64_t)freq, resp_sep);
+    fprintf(fout, fmt, (int64_t)freq, resp_sep);
 
     return status;
 }
@@ -1927,7 +1937,7 @@ declare_proto_amp(send_cmd)
 
     rs = &amp->state;
 
-    serial_flush(&rs->ampport);
+    rig_flush(&rs->ampport);
 
     retval = write_block(&rs->ampport, bufcmd, cmd_len);
 

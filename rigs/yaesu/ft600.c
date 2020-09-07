@@ -133,10 +133,10 @@ static const yaesu_cmd_set_t ncmd[] =
 
 const struct rig_caps ft600_caps =
 {
-    .rig_model =      RIG_MODEL_FT600,
+    RIG_MODEL(RIG_MODEL_FT600),
     .model_name =     "FT-600",
     .mfg_name =       "Yaesu",
-    .version =        "0.2",
+    .version =        "20200113.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_BETA,
     .rig_type =       RIG_TYPE_TRANSCEIVER,
@@ -244,7 +244,8 @@ int ft600_init(RIG *rig)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    rig->state.priv = (struct ft600_priv_data *) calloc(1, sizeof(struct ft600_priv_data));
+    rig->state.priv = (struct ft600_priv_data *) calloc(1,
+                      sizeof(struct ft600_priv_data));
 
     if (!rig->state.priv) { return -RIG_ENOMEM; }
 
@@ -312,7 +313,7 @@ static int ft600_read_status(RIG *rig)
 
     priv = (struct ft600_priv_data *)rig->state.priv;
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     ret = ft600_send_priv_cmd(rig, FT600_NATIVE_CAT_READ_STATUS);
 

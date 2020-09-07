@@ -119,10 +119,10 @@ static int thf6a_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op);
  */
 const struct rig_caps thf6a_caps =
 {
-    .rig_model =  RIG_MODEL_THF6A,
+    RIG_MODEL(RIG_MODEL_THF6A),
     .model_name = "TH-F6A",
     .mfg_name =  "Kenwood",
-    .version =  TH_VER,
+    .version =  TH_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_HANDHELD,
@@ -282,20 +282,11 @@ const struct rig_caps thf6a_caps =
 
 int thf6a_init(RIG *rig)
 {
-    rig->state.itu_region = RIG_ITU_REGION2;
     return kenwood_init(rig);
 }
 
 int thf6a_open(RIG *rig)
 {
-    /* TH-F7E is Region 1 only.
-     * Region 2 is supported by TH-F6A
-     */
-    if (rig->state.itu_region != RIG_ITU_REGION2)
-    {
-        return -RIG_ECONF;
-    }
-
     return kenwood_open(rig);
 }
 

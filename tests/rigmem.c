@@ -90,7 +90,7 @@ static struct option long_options[] =
     {0, 0, 0, 0}
 };
 
-#define MAXCONFLEN 128
+#define MAXCONFLEN 1024
 
 int all;
 
@@ -115,6 +115,7 @@ int main(int argc, char *argv[])
     {
         int c;
         int option_index = 0;
+        char dummy[2];
 
         c = getopt_long(argc, argv, SHORT_OPTIONS, long_options, &option_index);
 
@@ -170,7 +171,12 @@ int main(int argc, char *argv[])
                 exit(1);
             }
 
-            serial_rate = atoi(optarg);
+            if (sscanf(optarg, "%d%1s", &serial_rate, dummy) != 1)
+            {
+                fprintf(stderr, "Invalid baud rate of %s\n", optarg);
+                exit(1);
+            }
+
             break;
 
         case 'C':
@@ -183,6 +189,13 @@ int main(int argc, char *argv[])
             if (*conf_parms != '\0')
             {
                 strcat(conf_parms, ",");
+            }
+
+            if (strlen(conf_parms) + strlen(optarg) > MAXCONFLEN - 24)
+            {
+                printf("Length of conf_parms exceeds internal maximum of %d\n",
+                       MAXCONFLEN - 24);
+                return 1;
             }
 
             strncat(conf_parms, optarg, MAXCONFLEN - strlen(conf_parms));
@@ -236,7 +249,7 @@ int main(int argc, char *argv[])
     if (!rig)
     {
         fprintf(stderr,
-                "Unknown rig num %d, or initialization error.\n",
+                "Unknown rig num %u, or initialization error.\n",
                 my_model);
 
         fprintf(stderr, "Please check with --list option.\n");
@@ -260,7 +273,7 @@ int main(int argc, char *argv[])
     {
 
         fprintf(stderr,
-                "Error: rig num %d has no memory support implemented/available.\n",
+                "Error: rig num %u has no memory support implemented/available.\n",
                 my_model);
         exit(3);
     }
@@ -268,7 +281,7 @@ int main(int argc, char *argv[])
     /* check channel description */
     if (rig->caps->chan_list[0].type == 0)
     {
-        fprintf(stderr, "Error: rig num %d has no channel list.\n",
+        fprintf(stderr, "Error: rig num %u has no channel list.\n",
                 my_model);
         exit(3);
     }
@@ -299,7 +312,7 @@ int main(int argc, char *argv[])
 
     if (verbose > 0)
     {
-        printf("Opened rig model %d, '%s'\n",
+        printf("Opened rig model %u, '%s'\n",
                rig->caps->rig_model,
                rig->caps->model_name);
     }
@@ -315,6 +328,7 @@ int main(int argc, char *argv[])
     if (!strcmp(argv[optind], "save"))
     {
 #ifdef HAVE_XML2
+
         if (xml)
         {
             retcode = xml_save(rig, argv[optind + 1]);
@@ -328,6 +342,7 @@ int main(int argc, char *argv[])
     else if (!strcmp(argv[optind], "load"))
     {
 #ifdef HAVE_XML2
+
         if (xml)
         {
             retcode = xml_load(rig, argv[optind + 1]);
@@ -341,6 +356,7 @@ int main(int argc, char *argv[])
     else if (!strcmp(argv[optind], "save_parm"))
     {
 #ifdef HAVE_XML2
+
         if (xml)
         {
             retcode = xml_parm_save(rig, argv[optind + 1]);
@@ -354,6 +370,7 @@ int main(int argc, char *argv[])
     else if (!strcmp(argv[optind], "load_parm"))
     {
 #ifdef HAVE_XML2
+
         if (xml)
         {
             retcode = xml_parm_load(rig, argv[optind + 1]);

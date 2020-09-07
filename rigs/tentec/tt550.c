@@ -84,7 +84,7 @@ tt550_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
      */
     Hold_Decode(rig);
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     retval = write_block(&rs->rigport, cmd, cmd_len);
 
@@ -367,7 +367,8 @@ tt550_init(RIG *rig)
 {
     struct tt550_priv_data *priv;
 
-    rig->state.priv = (struct tt550_priv_data *) malloc(sizeof(struct tt550_priv_data));
+    rig->state.priv = (struct tt550_priv_data *) malloc(sizeof(
+                          struct tt550_priv_data));
 
     if (!rig->state.priv)
     {
@@ -1136,7 +1137,7 @@ tt550_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
         return retval;
 
-    case RIG_LEVEL_VOX:
+    case RIG_LEVEL_VOXDELAY:
         cmd_len = sprintf(cmdbuf, "UH%c" EOM, (int)(val.f * 255));
         retval = write_block(&rs->rigport, cmdbuf, cmd_len);
 
@@ -1312,7 +1313,7 @@ tt550_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         val->f = priv->voxgain;
         break;
 
-    case RIG_LEVEL_VOX:
+    case RIG_LEVEL_VOXDELAY:
         val->f = priv->voxdelay;
         break;
 
@@ -1412,7 +1413,7 @@ tt550_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
     }
 
     /*
-     * buf should contain either Sxx for Receive Signal strenth
+     * buf should contain either Sxx for Receive Signal strength
      * or Txx for Transmit power/reflected power
      */
 

@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     if (argc < 2)
     {
         hamlib_port_t myport;
-        /* may be overriden by backend probe */
+        /* may be overridden by backend probe */
         myport.type.rig = RIG_PORT_SERIAL;
         myport.parm.serial.rate = 9600;
         myport.parm.serial.data_bits = 8;
@@ -54,12 +54,12 @@ int main(int argc, char *argv[])
 
     if (!my_rig)
     {
-        fprintf(stderr, "Unknown rig num: %d\n", myrig_model);
+        fprintf(stderr, "Unknown rig num: %u\n", myrig_model);
         fprintf(stderr, "Please check riglist.h\n");
         exit(1);    /* whoops! something went wrong (mem alloc?) */
     }
 
-    printf("Opened rig model %d, '%s'\n",
+    printf("Opened rig model %u, '%s'\n",
            my_rig->caps->rig_model,
            my_rig->caps->model_name);
 

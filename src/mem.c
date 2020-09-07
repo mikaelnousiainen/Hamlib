@@ -63,8 +63,8 @@
  *  It is not mandatory for the radio to be in memory mode. Actually
  *  it depends on rigs. YMMV.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_get_mem()
@@ -126,8 +126,8 @@ int HAMLIB_API rig_set_mem(RIG *rig, vfo_t vfo, int ch)
  *  It is not mandatory for the radio to be in memory mode. Actually
  *  it depends on rigs. YMMV.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_set_mem()
@@ -189,8 +189,8 @@ int HAMLIB_API rig_get_mem(RIG *rig, vfo_t vfo, int *ch)
  *  It is not mandatory for the radio to be in memory mode. Actually
  *  it depends on rigs. YMMV.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_set_mem()
@@ -363,7 +363,7 @@ static int generic_save_channel(RIG *rig, channel_t *chan)
     vfo_t vfo;
     setting_t setting;
     const channel_cap_t *mem_cap = NULL;
-    value_t vdummy;
+    value_t vdummy = {0};
 
     chan_num = chan->channel_num;
     vfo = chan->vfo;
@@ -447,7 +447,9 @@ static int generic_save_channel(RIG *rig, channel_t *chan)
 
     if (mem_cap->ant)
     {
-        rig_get_ant(rig, RIG_VFO_CURR, RIG_ANT_CURR, &chan->ant, &vdummy);
+        ant_t ant_tx, ant_rx;
+        rig_get_ant(rig, RIG_VFO_CURR, RIG_ANT_CURR, &vdummy, &chan->ant, &ant_tx,
+                    &ant_rx);
     }
 
     if (mem_cap->tuning_step)
@@ -530,7 +532,7 @@ static int generic_restore_channel(RIG *rig, const channel_t *chan)
     struct ext_list *p;
     setting_t setting;
     const channel_cap_t *mem_cap = NULL;
-    value_t vdummy;
+    value_t vdummy = {0};
 
     if (chan->vfo == RIG_VFO_MEM)
     {
@@ -677,8 +679,8 @@ static int generic_restore_channel(RIG *rig, const channel_t *chan)
  *  and memory number selected. Depending on backend and rig capabilities,
  *  the chan struct may not be set completely.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_get_channel()
@@ -691,9 +693,6 @@ int HAMLIB_API rig_set_channel(RIG *rig, const channel_t *chan)
     vfo_t vfo; /* requested vfo */
     int retcode;
     int can_emulate_by_vfo_mem, can_emulate_by_vfo_op;
-#ifdef PARANOID_CHANNEL_HANDLING
-    channel_t curr_chan;
-#endif
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -743,10 +742,6 @@ int HAMLIB_API rig_set_channel(RIG *rig, const channel_t *chan)
     }
 
     curr_vfo = rig->state.current_vfo;
-    /* may be needed if the restore_channel has some side effects */
-#ifdef PARANOID_CHANNEL_HANDLING
-    generic_save_channel(rig, &curr_chan);
-#endif
 
     if (vfo == RIG_VFO_MEM)
     {
@@ -791,9 +786,6 @@ int HAMLIB_API rig_set_channel(RIG *rig, const channel_t *chan)
         rig_set_vfo(rig, curr_vfo);
     }
 
-#ifdef PARANOID_CHANNEL_HANDLING
-    generic_restore_channel(rig, &curr_chan);
-#endif
     return retcode;
 }
 
@@ -802,6 +794,7 @@ int HAMLIB_API rig_set_channel(RIG *rig, const channel_t *chan)
  * \brief get channel data
  * \param rig   The rig handle
  * \param chan  The location where to store the channel data
+ * \param read_only  if true chan info will be filled but rig will not change, if false rig will update to chan info
  *
  *  Retrieves the data associated with a channel. This channel can either
  *  be the state of a VFO specified by \a chan->vfo, or a memory channel
@@ -815,6 +808,7 @@ int HAMLIB_API rig_set_channel(RIG *rig, const channel_t *chan)
 
   chan->vfo = RIG_VFO_MEM;
   chan->channel_num = 10;
+  char->read_only = 1;
   err = rig_get_channel(rig, &chan);
   if (err != RIG_OK)
     error("get_channel failed: %s", rigerror(err));
@@ -826,26 +820,23 @@ int HAMLIB_API rig_set_channel(RIG *rig, const channel_t *chan)
  *  the chan struct may not be filled in completely.
  *
  *  Note: chan->ext_levels is a pointer to a newly mallocated memory.
- *  This is the responsability of the caller to manage and eventually
+ *  This is the responsibility of the caller to manage and eventually
  *  free it.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_set_channel()
  */
-int HAMLIB_API rig_get_channel(RIG *rig, channel_t *chan)
+int HAMLIB_API rig_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     struct rig_caps *rc;
     int curr_chan_num, get_mem_status = RIG_OK;
     vfo_t curr_vfo;
     vfo_t vfo;  /* requested vfo */
-    int retcode;
+    int retcode = RIG_OK;
     int can_emulate_by_vfo_mem, can_emulate_by_vfo_op;
-#ifdef PARANOID_CHANNEL_HANDLING
-    channel_t curr_chan;
-#endif
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -862,7 +853,7 @@ int HAMLIB_API rig_get_channel(RIG *rig, channel_t *chan)
 
     if (rc->get_channel)
     {
-        return rc->get_channel(rig, chan);
+        return rc->get_channel(rig, chan, 0);
     }
 
     /*
@@ -895,57 +886,54 @@ int HAMLIB_API rig_get_channel(RIG *rig, channel_t *chan)
     }
 
     curr_vfo = rig->state.current_vfo;
-    /* may be needed if the restore_channel has some side effects */
-#ifdef PARANOID_CHANNEL_HANDLING
-    generic_save_channel(rig, &curr_chan);
-#endif
 
     if (vfo == RIG_VFO_MEM)
     {
         get_mem_status = rig_get_mem(rig, RIG_VFO_CURR, &curr_chan_num);
     }
 
-    if (can_emulate_by_vfo_mem && curr_vfo != vfo)
+    if (!read_only)
     {
-        retcode = rig_set_vfo(rig, vfo);
-
-        if (retcode != RIG_OK)
+        if (can_emulate_by_vfo_mem && curr_vfo != vfo)
         {
-            return retcode;
+            retcode = rig_set_vfo(rig, vfo);
+
+            if (retcode != RIG_OK)
+            {
+                return retcode;
+            }
         }
-    }
 
-    if (vfo == RIG_VFO_MEM)
-    {
-        rig_set_mem(rig, RIG_VFO_CURR, chan->channel_num);
-    }
-
-    if (!can_emulate_by_vfo_mem && can_emulate_by_vfo_op)
-    {
-        retcode = rig_vfo_op(rig, RIG_VFO_CURR, RIG_OP_TO_VFO);
-
-        if (retcode != RIG_OK)
+        if (vfo == RIG_VFO_MEM)
         {
-            return retcode;
+            rig_set_mem(rig, RIG_VFO_CURR, chan->channel_num);
         }
+
+        if (!can_emulate_by_vfo_mem && can_emulate_by_vfo_op)
+        {
+            retcode = rig_vfo_op(rig, RIG_VFO_CURR, RIG_OP_TO_VFO);
+
+            if (retcode != RIG_OK)
+            {
+                return retcode;
+            }
+        }
+
+        retcode = generic_save_channel(rig, chan);
+
+        /* restore current memory number */
+        if (vfo == RIG_VFO_MEM && get_mem_status == RIG_OK)
+        {
+            rig_set_mem(rig, RIG_VFO_CURR, curr_chan_num);
+        }
+
+        if (can_emulate_by_vfo_mem)
+        {
+            rig_set_vfo(rig, curr_vfo);
+        }
+
     }
 
-    retcode = generic_save_channel(rig, chan);
-
-    /* restore current memory number */
-    if (vfo == RIG_VFO_MEM && get_mem_status == RIG_OK)
-    {
-        rig_set_mem(rig, RIG_VFO_CURR, curr_chan_num);
-    }
-
-    if (can_emulate_by_vfo_mem)
-    {
-        rig_set_vfo(rig, curr_vfo);
-    }
-
-#ifdef PARANOID_CHANNEL_HANDLING
-    generic_restore_channel(rig, &curr_chan);
-#endif
     return retcode;
 }
 
@@ -989,7 +977,7 @@ int get_chan_all_cb_generic(RIG *rig, chan_cb_t chan_cb, rig_ptr_t arg)
             /*
              * TODO: if doesn't have rc->get_channel, special generic
              */
-            retval = rig_get_channel(rig, chan);
+            retval = rig_get_channel(rig, chan, 1);
 
             if (retval == -RIG_ENAVAIL)
             {
@@ -1082,8 +1070,8 @@ static int map_chan(RIG *rig,
  *  Write the data associated with a all the memory channels.
  *  This is the preferred method to support clonable rigs.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_set_chan_all(), rig_get_chan_all_cb()
@@ -1128,8 +1116,8 @@ int HAMLIB_API rig_set_chan_all_cb(RIG *rig, chan_cb_t chan_cb, rig_ptr_t arg)
  *  future data for channel channel_num. If channel_num == chan->channel_num,
  *  the application does not need to provide a new allocated structure.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_get_chan_all(), rig_set_chan_all_cb()
@@ -1168,8 +1156,8 @@ int HAMLIB_API rig_get_chan_all_cb(RIG *rig, chan_cb_t chan_cb, rig_ptr_t arg)
  *
  * Write the data associated with all the memory channels.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_set_chan_all_cb(), rig_get_chan_all()
@@ -1210,8 +1198,8 @@ int HAMLIB_API rig_set_chan_all(RIG *rig, const channel_t chans[])
  *
  * Retrieves the data associated with all the memory channels.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_get_chan_all_cb(), rig_set_chan_all()
@@ -1248,6 +1236,20 @@ int HAMLIB_API rig_get_chan_all(RIG *rig, channel_t chans[])
 }
 
 
+/**
+ * \brief copy channel structure to another channel structure
+ * \param rig   The rig handle
+ * \param dest The destination location
+ * \param src The source location
+ *
+ * Copies the data associated with one channel structure to another
+ *
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
+ * set appropriately).
+ *
+ * \sa rig_get_chan_all_cb(), rig_set_chan_all()
+ */
 int HAMLIB_API rig_copy_channel(RIG *rig,
                                 channel_t *dest,
                                 const channel_t *src)
@@ -1308,8 +1310,8 @@ int set_parm_all_cb_generic(RIG *rig, confval_cb_t parm_cb, rig_ptr_t cfgps,
  * and rigs memory parameters, by callback.
  * This is the preferred method to support clonable rigs.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_get_mem_all_cb(), rig_set_mem_all()
@@ -1373,8 +1375,8 @@ int HAMLIB_API rig_set_mem_all_cb(RIG *rig,
  * and rigs memory parameters, by callback.
  * This is the preferred method to support clonable rigs.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_get_mem_all_cb(), rig_set_mem_all()
@@ -1438,8 +1440,8 @@ int HAMLIB_API rig_get_mem_all_cb(RIG *rig,
  * Writes the data associated with all the memory channels,
  * and rigs memory parameters.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_get_mem_all(), rig_set_mem_all_cb()
@@ -1507,8 +1509,8 @@ int HAMLIB_API rig_set_mem_all(RIG *rig,
  * and rigs memory parameters.
  * This is the preferred method to support clonable rigs.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa rig_get_mem_all(), rig_set_mem_all_cb()
@@ -1568,7 +1570,7 @@ int HAMLIB_API rig_get_mem_all(RIG *rig,
  *  If \a ch equals RIG_MEM_CAPS_ALL, then a union of all the mem_caps sets
  *  is returned (pointer to static memory).
  *
- * \return a pointer to a chan_t structure if the operation has been sucessful,
+ * \return a pointer to a chan_t structure if the operation has been successful,
  * otherwise a NULL pointer, most probably because of incorrect channel number
  * or buggy backend.
  */
@@ -1604,6 +1606,7 @@ const chan_t *HAMLIB_API rig_lookup_mem_caps(RIG *rig, int ch)
              */
             for (j = 0; j < sizeof(channel_cap_t); j++)
             {
+                // cppcheck-suppress *
                 p1[j] |= p2[j];
             }
 

@@ -24,7 +24,7 @@
 
 #include <hamlib/rig.h>
 
-#define BACKEND_VER "0.5"
+#define BACKEND_VER "20200319"
 
 struct drake_priv_data {
 	int curr_ch;
@@ -39,11 +39,11 @@ int drake_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width);
 int drake_init(RIG *rig);
 int drake_cleanup(RIG *rig);
 int drake_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option);
-int drake_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option);
+int drake_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option, ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx);
 int drake_set_mem(RIG *rig, vfo_t vfo, int ch);
 int drake_get_mem(RIG *rig, vfo_t vfo, int *ch);
 int drake_set_chan(RIG *rig, const channel_t *chan);
-int drake_get_chan(RIG *rig, channel_t *chan);
+int drake_get_chan(RIG *rig, channel_t *chan, int read_only);
 int drake_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op);
 int drake_set_func(RIG *rig, vfo_t vfo, setting_t func, int status);
 int drake_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status);

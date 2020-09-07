@@ -23,6 +23,7 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+#include "hamlibdatetime.h"
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
@@ -104,6 +105,7 @@ static struct option long_options[] =
     {"dump-caps",       0, 0, 'u'},
     {"vfo",             0, 0, 'o'},
     {"no-restore-ai",   0, 0, 'n'},
+    {"ignore rig open error", 0, 0, 'Y'},
     {"debug-time-stamps", 0, 0, 'Z'},
 #ifdef HAVE_READLINE_HISTORY
     {"read-history",    0, 0, 'i'},
@@ -116,7 +118,7 @@ static struct option long_options[] =
 
 };
 
-#define MAXCONFLEN 128
+#define MAXCONFLEN 1024
 
 int main(int argc, char *argv[])
 {
@@ -129,6 +131,7 @@ int main(int argc, char *argv[])
     int verbose = 0;
     int show_conf = 0;
     int dump_caps_opt = 0;
+    int ignore_rig_open_error = 0;
 
 #ifdef HAVE_READLINE_HISTORY
     int rd_hist = 0;
@@ -146,16 +149,16 @@ int main(int argc, char *argv[])
     char conf_parms[MAXCONFLEN] = "";
     int interactive;    /* if no cmd on command line, switch to interactive */
     int prompt = 1;         /* Print prompt in rigctl */
-    int vfo_mode = 0;       /* vfo_mode = 0 means target VFO is 'currVFO' */
+    int vfo_opt = 0;       /* vfo_opt = 0 means target VFO is 'currVFO' */
     char send_cmd_term = '\r';  /* send_cmd termination char */
     int ext_resp = 0;
     char resp_sep = '\n';
-    int i;
 
     while (1)
     {
         int c;
         int option_index = 0;
+        char dummy[2];
 
         c = getopt_long(argc,
                         argv,
@@ -351,7 +354,12 @@ int main(int argc, char *argv[])
                 exit(1);
             }
 
-            serial_rate = atoi(optarg);
+            if (sscanf(optarg, "%d%1s", &serial_rate, dummy) != 1)
+            {
+                fprintf(stderr, "Invalid baud rate of %s\n", optarg);
+                exit(1);
+            }
+
             break;
 
         case 'C':
@@ -366,11 +374,18 @@ int main(int argc, char *argv[])
                 strcat(conf_parms, ",");
             }
 
+            if (strlen(conf_parms) + strlen(optarg) > MAXCONFLEN - 24)
+            {
+                printf("Length of conf_parms exceeds internal maximum of %d\n",
+                       MAXCONFLEN - 24);
+                return 1;
+            }
+
             strncat(conf_parms, optarg, MAXCONFLEN - strlen(conf_parms));
             break;
 
         case 'o':
-            vfo_mode++;
+            vfo_opt = 1;
             break;
 
         case 'n':
@@ -404,6 +419,9 @@ int main(int argc, char *argv[])
             dump_caps_opt++;
             break;
 
+        case 'Y':
+            ignore_rig_open_error = 1;
+
         case 'Z':
             rig_set_debug_time_stamp(1);
             break;
@@ -416,7 +434,8 @@ int main(int argc, char *argv[])
 
     rig_set_debug(verbose);
 
-    rig_debug(RIG_DEBUG_VERBOSE, "rigctl, %s\n", hamlib_version);
+    rig_debug(RIG_DEBUG_VERBOSE, "rigctl %s\nLast commit was %s\n", hamlib_version,
+              HAMLIBDATETIME);
     rig_debug(RIG_DEBUG_VERBOSE, "%s",
               "Report bugs to <hamlib-developer@lists.sourceforge.net>\n\n");
 
@@ -428,7 +447,8 @@ int main(int argc, char *argv[])
     {
         interactive = 0;
     }
-    else {
+    else
+    {
         interactive = 1;
     }
 
@@ -437,7 +457,7 @@ int main(int argc, char *argv[])
     if (!my_rig)
     {
         fprintf(stderr,
-                "Unknown rig num %d, or initialization error.\n",
+                "Unknown rig num %u, or initialization error.\n",
                 my_model);
         fprintf(stderr, "Please check with --list option.\n");
         exit(2);
@@ -509,24 +529,18 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    i=0;
-    do { // we'll try 5 times and sleep 200ms between tries
-        retcode = rig_open(my_rig);
-        if (retcode != RIG_OK) {
-            hl_usleep(200000);
-            rig_debug(RIG_DEBUG_TRACE, "%s: error opening rig, try#%d\n", __func__, i+1);
-        }
-    } while (retcode != RIG_OK && ++i < 5);
+    retcode = rig_open(my_rig);
 
     if (retcode != RIG_OK)
     {
         fprintf(stderr, "rig_open: error = %s \n", rigerror(retcode));
-//        exit(2);
+
+        if (!ignore_rig_open_error) { exit(2); }
     }
 
     if (verbose > 0)
     {
-        printf("Opened rig model %d, '%s'\n",
+        printf("Opened rig model %u, '%s'\n",
                my_rig->caps->rig_model,
                my_rig->caps->model_name);
     }
@@ -534,25 +548,9 @@ int main(int argc, char *argv[])
     if (my_rig->caps->rig_model == RIG_MODEL_NETRIGCTL)
     {
         /* We automatically detect if we need to be in vfo mode or not */
-        int rigctld_vfo_mode = netrigctl_get_vfo_mode(my_rig);
-
-        if (rigctld_vfo_mode && !vfo_mode)
-        {
-            fprintf(stderr,
-                    "Looks like rigctld is using vfo mode so we're switching to vfo mode\n");
-            vfo_mode = rigctld_vfo_mode;
-        }
-        else if (!rigctld_vfo_mode && vfo_mode)
-        {
-            fprintf(stderr,
-                    "Looks like rigctld is not using vfo mode so we're switching vfo mode off\n");
-            vfo_mode = rigctld_vfo_mode;
-        }
-        else if (vfo_mode && my_rig->caps->rig_model != RIG_MODEL_NETRIGCTL)
-        {
-            fprintf(stderr, "vfo mode doesn't make sense for any rig other than rig#2\n");
-            fprintf(stderr, "But we'll let you run this way if you want\n");
-        }
+        int rigctld_vfo_opt = netrigctl_get_vfo_mode(my_rig);
+        vfo_opt = my_rig->state.vfo_opt = rigctld_vfo_opt;
+        rig_debug(RIG_DEBUG_TRACE, "%s vfo_opt=%d\n", __func__, vfo_opt);
     }
 
     rig_debug(RIG_DEBUG_VERBOSE,
@@ -611,7 +609,7 @@ int main(int argc, char *argv[])
     do
     {
         retcode = rigctl_parse(my_rig, stdin, stdout, argv, argc, NULL,
-                               interactive, prompt, vfo_mode, send_cmd_term,
+                               interactive, prompt, &vfo_opt, send_cmd_term,
                                &ext_resp, &resp_sep);
 
         if (retcode == 2)
@@ -678,6 +676,7 @@ void usage(void)
         "  -I, --save-history            save current interactive session history\n"
 #endif
         "  -v, --verbose                 set verbose mode, cumulative (-v to -vvvvv)\n"
+        "  -Y, --ignore_err              ignore rig_open errors\n"
         "  -Z, --debug-time-stamps       enable time stamps for debug messages\n"
         "  -h, --help                    display this help and exit\n"
         "  -V, --version                 output version information and exit\n\n"

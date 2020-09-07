@@ -81,12 +81,12 @@ static struct kenwood_priv_caps  ts940_priv_caps  =
  */
 const struct rig_caps ts940_caps =
 {
-    .rig_model =  RIG_MODEL_TS940,
+    RIG_MODEL(RIG_MODEL_TS940),
     .model_name = "TS-940S",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER ".7",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_ALPHA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_NONE,
@@ -166,6 +166,8 @@ const struct rig_caps ts940_caps =
     .priv = (void *)& ts940_priv_caps,
 
     .rig_init = kenwood_init,
+    .rig_open = kenwood_open,
+    .rig_close = kenwood_close,
     .rig_cleanup = kenwood_cleanup,
     .set_freq =  kenwood_set_freq,
     .get_freq =  kenwood_get_freq,
@@ -189,7 +191,6 @@ const struct rig_caps ts940_caps =
     .scan =  kenwood_scan,
     .set_channel = kenwood_set_channel,
     .get_channel = kenwood_get_channel,
-    /* .decode_event = ic10_decode_event, */
 
 };
 

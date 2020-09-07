@@ -49,10 +49,10 @@
 
 const struct rig_caps ft1200_caps =
 {
-    .rig_model =          RIG_MODEL_FT1200,
+    RIG_MODEL(RIG_MODEL_FT1200),
     .model_name =         "FT-1200",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".1",
+    .version =            NEWCAT_VER ".0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -87,7 +87,7 @@ const struct rig_caps ft1200_caps =
     .max_xit =            Hz(9999),
     .max_ifshift =        Hz(1000),
     .vfo_ops =            FT1200_VFO_OPS,
-    .targetable_vfo =     RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE,
+    .targetable_vfo =     RIG_TARGETABLE_FREQ,
     .transceive =         RIG_TRN_OFF,        /* May enable later as the 1200 has an Auto Info command */
     .bank_qty =           0,
     .chan_desc_sz =       0,

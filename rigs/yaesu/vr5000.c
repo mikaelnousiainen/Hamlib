@@ -42,10 +42,10 @@
  * The vr5000 has no CAT commands for reading the frequency, ts nor mode.
  * These function are emulated, because the vr5000 thunkates the input
  * frequency. Secondly when changing the mode, ts will change, and since
- * ts it the one that desides how the frequency is thunkated, the frequency
+ * ts it the one that decides how the frequency is thunkated, the frequency
  * will change.
  *
- * True reciever range was not specified correctly in manual. No all
+ * True receiver range was not specified correctly in manual. No all
  * mode allow to go down to 100 Khz. Therefore the minimum frequency
  * which will be allowed is 101.5 kKz. Maximum is 2599.99 Mhz.
  *
@@ -58,8 +58,11 @@
 #include "config.h"
 #endif
 
+// cppcheck-suppress *
 #include <stdlib.h>
+// cppcheck-suppress *
 #include <string.h>  /* String function definitions */
+// cppcheck-suppress *
 #include <unistd.h>  /* UNIX standard function definitions */
 
 #include "hamlib/rig.h"
@@ -129,10 +132,10 @@ static int  check_tuning_step(RIG *rig, vfo_t vfo, rmode_t mode,
 
 const struct rig_caps vr5000_caps =
 {
-    .rig_model =          RIG_MODEL_VR5000,
+    RIG_MODEL(RIG_MODEL_VR5000),
     .model_name =         "VR-5000",
     .mfg_name =           "Yaesu",
-    .version =            "0.3",
+    .version =            "20200505.0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_ALPHA,
     .rig_type =           RIG_TYPE_RECEIVER,
@@ -247,7 +250,8 @@ struct vr5000_priv_data
 
 int vr5000_init(RIG *rig)
 {
-    rig->state.priv = (struct vr5000_priv_data *) calloc(1, sizeof(struct vr5000_priv_data));
+    rig->state.priv = (struct vr5000_priv_data *) calloc(1,
+                      sizeof(struct vr5000_priv_data));
 
     if (!rig->state.priv) { return -RIG_ENOMEM; }
 
@@ -408,7 +412,7 @@ int vr5000_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         return -RIG_EINVAL;
     }
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     /* send READ STATUS(Meter only) cmd to rig  */
     retval = write_block(&rig->state.rigport, (char *) cmd, YAESU_CMD_LENGTH);
@@ -442,7 +446,7 @@ int vr5000_get_dcd(RIG *rig, vfo_t vfo, dcd_t *dcd)
     unsigned char cmd[YAESU_CMD_LENGTH] = { 0x00, 0x00, 0x00, 0x00, 0xe7};
     int retval;
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     /* send READ STATUS(Meter only) cmd to rig  */
     retval = write_block(&rig->state.rigport, (char *) cmd, YAESU_CMD_LENGTH);
@@ -471,13 +475,7 @@ int vr5000_get_dcd(RIG *rig, vfo_t vfo, dcd_t *dcd)
 
 int mode2rig(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
-    struct vr5000_priv_data *priv = rig->state.priv;
     int md;
-
-    if (priv->curr_vfo == RIG_VFO_CURR)
-    {
-        vfo = priv->curr_vfo;
-    }
 
     /*
      * translate mode from generic to vr5000 specific
@@ -571,7 +569,7 @@ void correct_frequency(RIG *rig, vfo_t vfo, freq_t curr_freq, freq_t *freq)
 
 /*
  * Set mode and ts, then frequency. Both mode/ts and frequency are set
- * everytime one of them changes.
+ * every time one of them changes.
  */
 int set_vr5000(RIG *rig, vfo_t vfo, freq_t freq, rmode_t mode, pbwidth_t width,
                shortfreq_t ts)
@@ -603,7 +601,7 @@ int set_vr5000(RIG *rig, vfo_t vfo, freq_t freq, rmode_t mode, pbwidth_t width,
     /* fill in m1 */
     cmd_mode_ts[0] = retval;
 
-    for (i = 0; i < TSLSTSIZ; i++)
+    for (i = 0; i < sizeof(steps); i++)
     {
         if (rig->caps->tuning_steps[i].ts == ts)
         {
@@ -611,7 +609,7 @@ int set_vr5000(RIG *rig, vfo_t vfo, freq_t freq, rmode_t mode, pbwidth_t width,
         }
     }
 
-    if (i >= TSLSTSIZ)
+    if (i >= sizeof(steps))
     {
         return -RIG_EINVAL;     /* not found, unsupported */
     }

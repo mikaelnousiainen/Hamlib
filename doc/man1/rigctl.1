@@ -27,6 +27,7 @@ rigctl \- control radio transceivers and receivers
 .OP \-c id
 .OP \-t char
 .OP \-C parm=val
+.RG \-Y
 .RB [ \-v [ \-Z ]]
 .RB [ command | \- ]
 .YS
@@ -281,6 +282,9 @@ is used.
 Set verbose mode, cumulative (see
 .B DIAGNOSTICS
 below).
+.TP
+.BR \-Y "," \-\-\ignore\-err
+Ignores rig open errors 
 .
 .TP
 .BR \-Z ", " \-\-debug\-time\-stamps
@@ -447,7 +451,9 @@ Get
 .RI \(aq Frequency \(aq,
 in Hz.
 .IP
-Returns an integer value.
+Returns an integer value and the VFO hamlib thinks is active.
+Note that some rigs (e.g. all Icoms) cannot track current VFO so hamlib can
+get out of sync with the rig if the user presses rig buttons like the VFO.
 .
 .TP
 .BR M ", " set_mode " \(aq" \fIMode\fP "\(aq \(aq" \fIPassband\fP \(aq
@@ -653,16 +659,28 @@ Returns TX Mode as a token and TX Passband in Hz as in
 above.
 .
 .TP
-.BR Y ", " set_ant " \(aq" \fIAntenna\fP \(aq
+.BR Y ", " set_ant " \(aq" \fIAntenna\fP "\(aq \(aq" \fIOption\fP \(aq
 Set
 .RI \(aq Antenna \(aq
-number (\(oq0\(cq, \(oq1\(cq, \(oq2\(cq, ...).
+and
+.RI \(aq Option \(aq.
+.IP
+Number is 1-based antenna# (\(oq1\(cq, \(oq2\(cq, \(oq3\(cq, ...).
+.IP
+Option depends on rig..for Icom it probably sets the RX only flag. See your manual for specific option values.
 .
 .TP
-.BR y ", " get_ant
+.BR y ", " get_ant " \(aq" \fIAntenna\fP \(aq
 Get
 .RI \(aq Antenna \(aq
-number (\(oq0\(cq, \(oq1\(cq, \(oq2\(cq, ...).
+.IP
+A value of 0 for Antenna will return the current TX antenna
+.IP
+> 0 is 1-based antenna# (\(oq1\(cq, \(oq2\(cq, \(oq3\(cq, ...).
+
+
+.IP
+Option returned depends on rig..for Icom is likely the RX only flag.
 .
 .TP
 .BR b ", " send_morse " \(aq" \fIMorse\fP \(aq
@@ -925,7 +943,7 @@ Set memory
 .RI \(aq Channel \(aq
 data.
 .IP
-Not implemented yet.
+Sets memory channel information
 .
 .TP
 .BR h ", " get_channel
@@ -933,7 +951,7 @@ Get memory
 .RI \(aq Channel \(aq
 data.
 .IP
-Not implemented yet.
+Returns programmed channel information for specified channel
 .
 .TP
 .BR A ", " set_trn " \(aq" \fITransceive\fP \(aq
@@ -1081,7 +1099,7 @@ character should not be a part of the input string.
 Send a raw command string to the radio and expect a number of bytes returned.
 .IP
 This is useful for testing and troubleshooting radio commands and responses when
-developing a backend.  If the # of bytes requested is <= the number actually returnead no timeout will occur.
+developing a backend.  If the # of bytes requested is <= the number actually returned no timeout will occur.
 .IP
 The command argument can have no spaces in it.
 For binary protocols enter values as \\0xAA\\0xBB.  Expect a
@@ -1094,6 +1112,24 @@ The command terminator, set by the
 .B send-cmd-term
 option above, will terminate each command string sent to the radio.  This
 character should not be a part of the input string.
+.
+.TP
+.BR chk_vfo
+Get
+.RI \(aq Status \(aq
+.IP
+Returns Status as 1 if vfo option is on and 0 if vfo option is off.
+This command reflects the -o switch for rigctl and ritctld and can be dynamically changed by 
+.B set_vfo_opt.
+.
+.TP
+.BR set_vfo_opt " \(aq" \fIStatus\fP \(aq
+Set
+.RI \(aq Status \(aq
+.IP
+Set vfo option Status 1=on or 0=off
+This is the same as using the -o switch for rigctl and ritctld. 
+This can be dyamically changed while running.
 .
 .TP
 .BR pause " \(aq" \fISeconds\fP \(aq

@@ -39,6 +39,8 @@
 
 #include "kit.h"
 
+#define BACKEND_VER "20200112"
+
 /*
  * Compile this model only if libusb is available
  */
@@ -98,12 +100,12 @@ struct funcube_priv_data
 
 const struct rig_caps funcube_caps =
 {
-    .rig_model =        RIG_MODEL_FUNCUBEDONGLE,
+    RIG_MODEL(RIG_MODEL_FUNCUBEDONGLE),
     .model_name =       "FUNcube Dongle",
     .mfg_name =     "AMSAT-UK",
-    .version =      "0.3",
+    .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
-    .status =       RIG_STATUS_BETA,
+    .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TUNER,
     .ptt_type =     RIG_PTT_RIG,
     .dcd_type =     RIG_DCD_NONE,
@@ -161,12 +163,12 @@ const struct rig_caps funcube_caps =
 
 const struct rig_caps funcubeplus_caps =
 {
-    .rig_model =        RIG_MODEL_FUNCUBEDONGLEPLUS,
+    RIG_MODEL(RIG_MODEL_FUNCUBEDONGLEPLUS),
     .model_name =       "FUNcube Dongle Pro+",
     .mfg_name =     "AMSAT-UK",
-    .version =      "0.4",
+    .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
-    .status =       RIG_STATUS_BETA,
+    .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TUNER,
     .ptt_type =     RIG_PTT_RIG,
     .dcd_type =     RIG_DCD_NONE,
@@ -233,7 +235,8 @@ int funcube_init(RIG *rig)
     hamlib_port_t *rp = &rig->state.rigport;
     struct funcube_priv_data *priv;
 
-    rig->state.priv = (struct funcube_priv_data *)calloc(sizeof(struct funcube_priv_data), 1);
+    rig->state.priv = (struct funcube_priv_data *)calloc(sizeof(
+                          struct funcube_priv_data), 1);
 
     if (!rig->state.priv)
     {
@@ -262,7 +265,8 @@ int funcubeplus_init(RIG *rig)
     hamlib_port_t *rp = &rig->state.rigport;
     struct funcube_priv_data *priv;
 
-    rig->state.priv = (struct funcube_priv_data *)calloc(sizeof(struct funcube_priv_data), 1);
+    rig->state.priv = (struct funcube_priv_data *)calloc(sizeof(
+                          struct funcube_priv_data), 1);
 
     if (!rig->state.priv)
     {

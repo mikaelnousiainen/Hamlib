@@ -26,6 +26,7 @@
 
 
 
+//! @cond Doxygen_Suppress
 class BACKEND_IMPEXP Amplifier
 {
 private:
@@ -33,7 +34,7 @@ private:
 
 protected:
 public:
-    Amplifier(amp_model_t amp_model);
+    explicit Amplifier(amp_model_t amp_model);
 
     virtual ~Amplifier();
 
@@ -56,6 +57,7 @@ public:
 
     void reset(amp_reset_t reset);
 };
+//! @endcond
 
 
 

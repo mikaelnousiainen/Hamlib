@@ -68,7 +68,12 @@ int verify_flexradio_id(RIG *rig, char *id)
         idptr++;
     }
 
-    if (strcmp("904", idptr) == 0)
+    if (strcmp("900", idptr) == 0)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: Rig ID is %s (PowerSDR compatible)\n",
+                  __func__, id);
+    }
+    else if (strcmp("904", idptr) == 0)
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: Rig ID is %s (Flex 6700)\n", __func__, id);
     }
@@ -131,8 +136,11 @@ int flexradio_open(RIG *rig)
     case RIG_MODEL_F6K:
         break;
 
+    case RIG_MODEL_POWERSDR:
+        break;
+
     default:
-        rig_debug(RIG_DEBUG_WARN, "%s: unrecognized rig model %d\n",
+        rig_debug(RIG_DEBUG_WARN, "%s: unrecognized rig model %u\n",
                   __func__, rig->caps->rig_model);
         return -RIG_EINVAL;
     }

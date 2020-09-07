@@ -99,10 +99,10 @@ static const tone_t ft736_ctcss_list[] =
 
 const struct rig_caps ft736_caps =
 {
-    .rig_model =          RIG_MODEL_FT736R,
+    RIG_MODEL(RIG_MODEL_FT736R),
     .model_name =         "FT-736R",
     .mfg_name =           "Yaesu",
-    .version =            "0.3",
+    .version =            "20200113.0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -225,12 +225,14 @@ int ft736_open(RIG *rig)
 
     rig_debug(RIG_DEBUG_TRACE, "%s called\n", __func__);
 
-    rig->state.priv = (struct ft736_priv_data *) calloc(1, sizeof(struct ft736_priv_data));
+    rig->state.priv = (struct ft736_priv_data *) calloc(1,
+                      sizeof(struct ft736_priv_data));
 
     if (!rig->state.priv)
     {
         return -RIG_ENOMEM;
     }
+
     priv = rig->state.priv;
 
     priv->split = RIG_SPLIT_OFF;
@@ -438,7 +440,7 @@ int ft736_get_dcd(RIG *rig, vfo_t vfo, dcd_t *dcd)
     unsigned char cmd[YAESU_CMD_LENGTH] = { 0x00, 0x00, 0x00, 0x00, 0xe7};
     int retval;
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     retval = write_block(&rig->state.rigport, (char *) cmd, YAESU_CMD_LENGTH);
 
@@ -473,7 +475,7 @@ int ft736_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         return -RIG_EINVAL;
     }
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     /* send Test S-meter cmd to rig  */
     retval = write_block(&rig->state.rigport, (char *) cmd, YAESU_CMD_LENGTH);

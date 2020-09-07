@@ -129,10 +129,10 @@ static int tt538_set_func(RIG *rig, vfo_t vfo, setting_t func, int status);
  */
 const struct rig_caps tt538_caps =
 {
-    .rig_model =  RIG_MODEL_TT538,
+    RIG_MODEL(RIG_MODEL_TT538),
     .model_name = "TT-538 Jupiter",
     .mfg_name =  "Ten-Tec",
-    .version =  "0.7",
+    .version =  "20191209.0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -294,13 +294,15 @@ int tt538_init(RIG *rig)
 {
     struct tt538_priv_data *priv;
 
-    rig->state.priv = (struct tt538_priv_data *) malloc(sizeof(struct tt538_priv_data));
+    rig->state.priv = (struct tt538_priv_data *) malloc(sizeof(
+                          struct tt538_priv_data));
 
     if (!rig->state.priv)
     {
         /* whoops! memory shortage! */
         return -RIG_ENOMEM;
     }
+
     priv = rig->state.priv;
 
     memset(priv, 0, sizeof(struct tt538_priv_data));
@@ -816,7 +818,7 @@ int tt538_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         that integer (S units * 256) */
         {
             char hex[5];
-            int i; 
+            int i;
             unsigned int ival;
 
             for (i = 0; i < 4; i++) { hex[i] = lvlbuf[i + 1]; }
@@ -1101,7 +1103,7 @@ int tt538_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
          * |__|__|__| (a 3 bit value, 0 - 7 indicating NB "strength"
          *  4  2  1
          *
-         * Apparently the "ON" / "OFF" state ot the NB is NOT available for reading.  This
+         * Apparently the "ON" / "OFF" state of the NB is NOT available for reading.  This
          * state is visible in the Jupiter's menu.  Hamlib does not support a "level" for
          * NB.  We only recognize zero (off) or non-zero (on) for this function on read.
          */

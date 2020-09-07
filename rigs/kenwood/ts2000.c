@@ -33,9 +33,9 @@
 #define TS2000_OTHER_TX_MODES (RIG_MODE_CW|RIG_MODE_SSB|RIG_MODE_FM|RIG_MODE_RTTY)
 #define TS2000_AM_TX_MODES RIG_MODE_AM
 
-#define TS2000_FUNC_ALL (RIG_FUNC_TONE|RIG_FUNC_TSQL|RIG_FUNC_BC|RIG_FUNC_NB|RIG_FUNC_NR|RIG_FUNC_ANF|RIG_FUNC_COMP)
+#define TS2000_FUNC_ALL (RIG_FUNC_TONE|RIG_FUNC_TSQL|RIG_FUNC_BC|RIG_FUNC_NB|RIG_FUNC_NR|RIG_FUNC_ANF|RIG_FUNC_COMP|RIG_FUNC_RIT|RIG_FUNC_XIT)
 
-#define TS2000_LEVEL_ALL (RIG_LEVEL_PREAMP|RIG_LEVEL_ATT|RIG_LEVEL_VOX|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_CWPITCH|RIG_LEVEL_RFPOWER|RIG_LEVEL_MICGAIN|RIG_LEVEL_KEYSPD|RIG_LEVEL_COMP|RIG_LEVEL_AGC|RIG_LEVEL_BKINDL|RIG_LEVEL_METER|RIG_LEVEL_VOXGAIN|RIG_LEVEL_ANTIVOX|RIG_LEVEL_RAWSTR|RIG_LEVEL_STRENGTH)
+#define TS2000_LEVEL_ALL (RIG_LEVEL_PREAMP|RIG_LEVEL_ATT|RIG_LEVEL_VOXDELAY|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_CWPITCH|RIG_LEVEL_RFPOWER|RIG_LEVEL_MICGAIN|RIG_LEVEL_KEYSPD|RIG_LEVEL_COMP|RIG_LEVEL_AGC|RIG_LEVEL_BKINDL|RIG_LEVEL_METER|RIG_LEVEL_VOXGAIN|RIG_LEVEL_ANTIVOX|RIG_LEVEL_RAWSTR|RIG_LEVEL_STRENGTH)
 
 #define TS2000_MAINVFO (RIG_VFO_A|RIG_VFO_B)
 #define TS2000_SUBVFO (RIG_VFO_C)
@@ -58,7 +58,7 @@
 
 /* prototypes */
 static int ts2000_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
-static int ts2000_get_channel(RIG *rig, channel_t *chan);
+static int ts2000_get_channel(RIG *rig, channel_t *chan, int read_only);
 static int ts2000_set_channel(RIG *rig, const channel_t *chan);
 
 /*
@@ -125,10 +125,10 @@ static struct kenwood_priv_caps  ts2000_priv_caps  =
  */
 const struct rig_caps ts2000_caps =
 {
-    .rig_model =  RIG_MODEL_TS2000,
+    RIG_MODEL(RIG_MODEL_TS2000),
     .model_name = "TS-2000",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER ".4",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -368,7 +368,7 @@ const struct rig_caps ts2000_caps =
 
  */
 
-int ts2000_get_channel(RIG *rig, channel_t *chan)
+int ts2000_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     int err;
     int tmp;
@@ -415,7 +415,7 @@ int ts2000_get_channel(RIG *rig, channel_t *chan)
 
     /* Memory group no */
     chan->scan_group = buf[ 40 ] - '0';
-    /* Fileds 38-39 contain tuning step as a number 00 - 09.
+    /* Fields 38-39 contain tuning step as a number 00 - 09.
        Tuning step depends on this number and the mode,
        just save it for now */
     buf[ 40 ] = '\0';
@@ -593,6 +593,16 @@ int ts2000_get_channel(RIG *rig, channel_t *chan)
         chan->split = RIG_SPLIT_ON;
     }
 
+    if (!read_only)
+    {
+        // Set rig to channel values
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: need to know if rig updates when channel read or not\n", __func__);
+        return -RIG_ENIMPL;
+    }
+
     return RIG_OK;
 }
 
@@ -655,7 +665,7 @@ int ts2000_set_channel(RIG *rig, const channel_t *chan)
     }
     else
     {
-        tone = -1; /* -1 because we will add 1 when outputing; this is necessary as CTCSS codes are numbered from 1 */
+        tone = -1; /* -1 because we will add 1 when outputting; this is necessary as CTCSS codes are numbered from 1 */
     }
 
     /* find CTCSS code */
@@ -878,7 +888,7 @@ int ts2000_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         break;
 
-    case RIG_LEVEL_VOX:
+    case RIG_LEVEL_VOXDELAY:
         retval = kenwood_transaction(rig, "VD", lvlbuf, sizeof(lvlbuf));
 
         if (retval != RIG_OK)

@@ -88,8 +88,8 @@ static int ft897_set_freq(RIG *rig, vfo_t vfo, freq_t freq);
 static int ft897_get_freq(RIG *rig, vfo_t vfo, freq_t *freq);
 static int ft897_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width);
 static int ft897_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width);
-// static int ft897_set_vfo(RIG *rig, vfo_t vfo);
-// static int ft897_get_vfo(RIG *rig, vfo_t *vfo);
+extern int ft857_set_vfo(RIG *rig, vfo_t vfo);
+extern int ft857_get_vfo(RIG *rig, vfo_t *vfo);
 static int ft897_set_split_vfo(RIG *rig, vfo_t vfo, split_t split,
                                vfo_t tx_vfo);
 static int ft897_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split,
@@ -111,7 +111,8 @@ static int ft897_set_rptr_shift(RIG *rig, vfo_t vfo, rptr_shift_t rptr_shift);
 static int ft897_set_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t offs);
 static int ft897_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit);
 static int ft897_get_dcd(RIG *rig, vfo_t vfo, dcd_t *dcd);
-// static int ft897_set_powerstat(RIG *rig, powerstat_t status);
+extern int ft817_read_ack(RIG *rig);
+extern int ft817_set_powerstat(RIG *rig, powerstat_t status);
 
 /* Native ft897 cmd set prototypes. These are READ ONLY as each */
 /* rig instance will copy from these and modify if required . */
@@ -157,7 +158,7 @@ static const yaesu_cmd_set_t ncmd[] =
     { 1, { 0x00, 0x00, 0x00, 0x00, 0xe7 } }, /* get RX status  */
     { 1, { 0x00, 0x00, 0x00, 0x00, 0xf7 } }, /* get TX status  */
     { 1, { 0x00, 0x00, 0x00, 0x00, 0x03 } }, /* get FREQ and MODE status */
-    { 1, { 0x00, 0x00, 0x00, 0x00, 0x00 } }, /* pwr wakeup sequence */
+    { 1, { 0xff, 0xff, 0xff, 0xff, 0xff } }, /* pwr wakeup sequence */
     { 1, { 0x00, 0x00, 0x00, 0x00, 0x0f } }, /* pwr on */
     { 1, { 0x00, 0x00, 0x00, 0x00, 0x8f } }, /* pwr off */
     { 0, { 0x00, 0x00, 0x00, 0x00, 0xbb } }, /* eeprom read */
@@ -187,12 +188,12 @@ enum ft897_digi
 
 const struct rig_caps ft897_caps =
 {
-    .rig_model =      RIG_MODEL_FT897,
+    RIG_MODEL(RIG_MODEL_FT897),
     .model_name =     "FT-897",
     .mfg_name =       "Yaesu",
-    .version =        "0.3.3",
+    .version =        "20200903.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_BETA,
+    .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_TRANSCEIVER,
     .ptt_type =       RIG_PTT_RIG,
     .dcd_type =       RIG_DCD_RIG,
@@ -238,8 +239,11 @@ const struct rig_caps ft897_caps =
     },
     .tx_range_list1 =  {
         FRQ_RNG_HF(1, FT897_OTHER_TX_MODES, W(10), W(100), FT897_VFO_ALL, FT897_ANTS),
+        FRQ_RNG_6m(1, FT897_OTHER_TX_MODES, W(10), W(100), FT897_VFO_ALL, FT897_ANTS),
+
         /* AM class */
         FRQ_RNG_HF(1, FT897_AM_TX_MODES, W(2.5), W(25), FT897_VFO_ALL, FT897_ANTS),
+        FRQ_RNG_6m(1, FT897_AM_TX_MODES, W(2.5), W(25), FT897_VFO_ALL, FT897_ANTS),
         FRQ_RNG_2m(1, FT897_OTHER_TX_MODES, W(5), W(50), FT897_VFO_ALL, FT897_ANTS),
         /* AM class */
         FRQ_RNG_2m(1, FT897_AM_TX_MODES, W(2.5), W(25), FT897_VFO_ALL, FT897_ANTS),
@@ -299,6 +303,8 @@ const struct rig_caps ft897_caps =
     .rig_cleanup =    ft897_cleanup,
     .rig_open =       ft897_open,
     .rig_close =      ft897_close,
+    .get_vfo =        ft857_get_vfo,
+    .set_vfo =        ft857_set_vfo,
     .set_freq =       ft897_set_freq,
     .get_freq =       ft897_get_freq,
     .set_mode =       ft897_set_mode,
@@ -315,6 +321,7 @@ const struct rig_caps ft897_caps =
     .set_ctcss_tone =     ft897_set_ctcss_tone,
     .set_dcs_sql =    ft897_set_dcs_sql,
     .set_ctcss_sql =  ft897_set_ctcss_sql,
+    .set_powerstat =    ft817_set_powerstat,
     .get_level =      ft897_get_level,
     .set_func =       ft897_set_func,
     .vfo_op =     ft897_vfo_op,
@@ -412,6 +419,7 @@ static int ft897_read_eeprom(RIG *rig, unsigned short addr, unsigned char *out)
     unsigned char data[YAESU_CMD_LENGTH];
     int n;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
     memcpy(data, (char *)p->pcs[FT897_NATIVE_CAT_EEPROM_READ].nseq,
            YAESU_CMD_LENGTH);
 
@@ -443,6 +451,8 @@ static int ft897_get_status(RIG *rig, int status)
     int len;
     int n;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     switch (status)
     {
     case FT897_NATIVE_CAT_GET_FREQ_MODE_STATUS:
@@ -468,7 +478,7 @@ static int ft897_get_status(RIG *rig, int status)
         return -RIG_EINTERNAL;
     }
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     write_block(&rig->state.rigport, (char *) p->pcs[status].nseq,
                 YAESU_CMD_LENGTH);
@@ -504,6 +514,8 @@ int ft897_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 {
     struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
@@ -527,6 +539,8 @@ int ft897_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 int ft897_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 {
     struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (vfo != RIG_VFO_CURR)
     {
@@ -615,14 +629,17 @@ int ft897_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
 {
     struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
     }
 
     if (check_cache_timeout(&p->tx_status_tv))
-    { 
+    {
         int n;
+
         if ((n = ft897_get_status(rig, FT897_NATIVE_CAT_GET_TX_STATUS)) < 0)
         {
             return n;
@@ -637,6 +654,8 @@ int ft897_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
 static int ft897_get_pometer_level(RIG *rig, value_t *val)
 {
     struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (check_cache_timeout(&p->tx_status_tv))
     {
@@ -664,6 +683,8 @@ static int ft897_get_pometer_level(RIG *rig, value_t *val)
 static int ft897_get_swr_level(RIG *rig, value_t *val)
 {
     struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (check_cache_timeout(&p->tx_status_tv))
     {
@@ -693,6 +714,8 @@ static int ft897_get_smeter_level(RIG *rig, value_t *val)
     struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
     int n;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (check_cache_timeout(&p->rx_status_tv))
         if ((n = ft897_get_status(rig, FT897_NATIVE_CAT_GET_RX_STATUS)) < 0)
         {
@@ -709,6 +732,8 @@ static int ft897_get_smeter_level(RIG *rig, value_t *val)
 static int ft897_get_rawstr_level(RIG *rig, value_t *val)
 {
     struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (check_cache_timeout(&p->rx_status_tv))
     {
@@ -727,6 +752,8 @@ static int ft897_get_rawstr_level(RIG *rig, value_t *val)
 
 int ft897_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 {
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
@@ -757,6 +784,8 @@ int ft897_get_dcd(RIG *rig, vfo_t vfo, dcd_t *dcd)
 {
     struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
@@ -785,32 +814,6 @@ int ft897_get_dcd(RIG *rig, vfo_t vfo, dcd_t *dcd)
     return RIG_OK;
 }
 
-/* ---------------------------------------------------------------------- */
-
-static int ft897_read_ack(RIG *rig)
-{
-#if (FT897_POST_WRITE_DELAY == 0)
-    char dummy;
-    int n;
-
-    if ((n = read_block(&rig->state.rigport, &dummy, 1)) < 0)
-    {
-        rig_debug(RIG_DEBUG_ERR, "%s: error reading ack\n", __func__);
-        return n;
-    }
-
-    rig_debug(RIG_DEBUG_TRACE, "%s: ack received (%d)\n", __func__, dummy);
-
-    if (dummy != 0)
-    {
-        return -RIG_ERJCTED;
-    }
-
-#endif
-
-    return RIG_OK;
-}
-
 /*
  * private helper function to send a private command sequence.
  * Must only be complete sequences.
@@ -819,6 +822,8 @@ static int ft897_send_cmd(RIG *rig, int index)
 {
     struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (p->pcs[index].ncomp == 0)
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: incomplete sequence\n", __func__);
@@ -826,7 +831,7 @@ static int ft897_send_cmd(RIG *rig, int index)
     }
 
     write_block(&rig->state.rigport, (char *) p->pcs[index].nseq, YAESU_CMD_LENGTH);
-    return ft897_read_ack(rig);
+    return ft817_read_ack(rig);
 }
 
 /*
@@ -836,6 +841,8 @@ static int ft897_send_icmd(RIG *rig, int index, unsigned char *data)
 {
     struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
     unsigned char cmd[YAESU_CMD_LENGTH];
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (p->pcs[index].ncomp == 1)
     {
@@ -847,7 +854,7 @@ static int ft897_send_icmd(RIG *rig, int index, unsigned char *data)
     memcpy(cmd, data, YAESU_CMD_LENGTH - 1);
 
     write_block(&rig->state.rigport, (char *) cmd, YAESU_CMD_LENGTH);
-    return ft897_read_ack(rig);
+    return ft817_read_ack(rig);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -855,6 +862,8 @@ static int ft897_send_icmd(RIG *rig, int index, unsigned char *data)
 int ft897_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
     unsigned char data[YAESU_CMD_LENGTH - 1];
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (vfo != RIG_VFO_CURR)
     {
@@ -877,6 +886,8 @@ int ft897_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 int ft897_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
     int index;    /* index of sequence to send */
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (vfo != RIG_VFO_CURR)
     {
@@ -941,6 +952,8 @@ int ft897_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 {
     int index, n;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
@@ -979,6 +992,8 @@ int ft897_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
 {
     int index, n;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
@@ -1011,6 +1026,8 @@ int ft897_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
 int ft897_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
 {
     int index, n;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (vfo != RIG_VFO_CURR)
     {
@@ -1051,6 +1068,8 @@ int ft897_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
     struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
     int n;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
@@ -1084,6 +1103,8 @@ int ft897_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
 
 int ft897_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 {
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
@@ -1155,12 +1176,14 @@ int ft897_set_dcs_code(RIG *rig, vfo_t vfo, tone_t code)
     unsigned char data[YAESU_CMD_LENGTH - 1];
     int n;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
     }
 
-    rig_debug(RIG_DEBUG_VERBOSE, "ft897: set DCS code (%d)\n", code);
+    rig_debug(RIG_DEBUG_VERBOSE, "ft897: set DCS code (%u)\n", code);
 
     if (code == 0)
     {
@@ -1183,6 +1206,8 @@ int ft897_set_ctcss_tone(RIG *rig, vfo_t vfo, tone_t tone)
 {
     unsigned char data[YAESU_CMD_LENGTH - 1];
     int n;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (vfo != RIG_VFO_CURR)
     {
@@ -1213,12 +1238,14 @@ int ft897_set_dcs_sql(RIG *rig, vfo_t vfo, tone_t code)
     unsigned char data[YAESU_CMD_LENGTH - 1];
     int n;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
     }
 
-    rig_debug(RIG_DEBUG_VERBOSE, "ft897: set DCS sql (%d)\n", code);
+    rig_debug(RIG_DEBUG_VERBOSE, "ft897: set DCS sql (%u)\n", code);
 
     if (code == 0)
     {
@@ -1241,6 +1268,8 @@ int ft897_set_ctcss_sql(RIG *rig, vfo_t vfo, tone_t tone)
 {
     unsigned char data[YAESU_CMD_LENGTH - 1];
     int n;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (vfo != RIG_VFO_CURR)
     {
@@ -1268,6 +1297,8 @@ int ft897_set_ctcss_sql(RIG *rig, vfo_t vfo, tone_t tone)
 
 int ft897_set_rptr_shift(RIG *rig, vfo_t vfo, rptr_shift_t shift)
 {
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
@@ -1294,6 +1325,8 @@ int ft897_set_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t offs)
 {
     unsigned char data[YAESU_CMD_LENGTH - 1];
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
     if (vfo != RIG_VFO_CURR)
     {
         return -RIG_ENTARGET;
@@ -1311,6 +1344,8 @@ int ft897_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
 {
     unsigned char data[YAESU_CMD_LENGTH - 1];
     int n;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (vfo != RIG_VFO_CURR)
     {
@@ -1341,27 +1376,6 @@ int ft897_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
 
     return RIG_OK;
 }
-
-#if 0
-/*
- * This doesn't seem to work on FT897. It might work with FT817 though.
- */
-int ft897_set_powerstat(RIG *rig, powerstat_t status)
-{
-    switch (status)
-    {
-    case RIG_POWER_OFF:
-        return ft897_send_cmd(rig, FT897_NATIVE_CAT_PWR_OFF);
-
-    case RIG_POWER_ON:
-        return ft897_send_cmd(rig, FT897_NATIVE_CAT_PWR_ON);
-
-    case RIG_POWER_STANDBY:
-    default:
-        return -RIG_EINVAL;
-    }
-}
-#endif
 
 /* ---------------------------------------------------------------------- */
 

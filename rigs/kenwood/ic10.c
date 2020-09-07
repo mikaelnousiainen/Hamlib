@@ -79,11 +79,17 @@ int ic10_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
                      int *data_len)
 {
     int retval;
+    int retry_cmd = 0;
     struct rig_state *rs;
+
+    rig_debug(RIG_DEBUG_TRACE,
+              "%s: called cmd='%s', len=%d, data=%p, data_len=%p\n", __func__, cmd, cmd_len,
+              data, data_len);
 
     rs = &rig->state;
 
-    serial_flush(&rs->rigport);
+transaction:
+    rig_flush(&rs->rigport);
 
     retval = write_block(&rs->rigport, cmd, cmd_len);
 
@@ -92,9 +98,35 @@ int ic10_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
         return retval;
     }
 
-    if (!data || !data_len)
+    if (!data)
     {
-        return 0;
+        char buffer[50];
+        struct kenwood_priv_data *priv = rig->state.priv;
+
+        if (RIG_OK != (retval = write_block(&rs->rigport, priv->verify_cmd
+                                            , strlen(priv->verify_cmd))))
+        {
+            return retval;
+        }
+
+        // this should be the ID response
+        retval = read_string(&rs->rigport, buffer, sizeof(buffer), ";", 1);
+
+        // might be ?; too
+        if (buffer[0] == '?' && retry_cmd++ < rs->rigport.retry)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: retrying cmd #%d\n", __func__, retry_cmd);
+            goto transaction;
+        }
+
+        if (strncmp("ID", buffer, 2))
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: expected ID response and got %s\n", __func__,
+                      buffer);
+            return retval;
+        }
+
+        return RIG_OK;
     }
 
     retval = read_string(&rs->rigport, data, 50, ";", 1);
@@ -115,12 +147,14 @@ int ic10_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 }
 
 /*
- * Get the anwser of IF command, with retry handling
+ * Get the answer of IF command, with retry handling
  */
 static int get_ic10_if(RIG *rig, char *data)
 {
     struct kenwood_priv_caps *priv = (struct kenwood_priv_caps *)rig->caps->priv;
-    int i, data_len, retval = !RIG_OK;
+    int i, data_len, retval = RIG_EINVAL;
+
+    rig_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
 
     for (i = 0; retval != RIG_OK && i < rig->caps->retry; i++)
     {
@@ -152,15 +186,17 @@ static int get_ic10_if(RIG *rig, char *data)
  */
 int ic10_set_vfo(RIG *rig, vfo_t vfo)
 {
-    char ackbuf[16], cmdbuf[6];
-    int cmd_len, retval, ack_len;
+    char cmdbuf[6];
+    int cmd_len, retval;
     char vfo_function;
 
     switch (vfo)
     {
     case RIG_VFO_VFO:
+    case RIG_VFO_MAIN:
     case RIG_VFO_A: vfo_function = '0'; break;
 
+    case RIG_VFO_SUB:
     case RIG_VFO_B: vfo_function = '1'; break;
 
     case RIG_VFO_MEM: vfo_function = '2'; break;
@@ -168,14 +204,14 @@ int ic10_set_vfo(RIG *rig, vfo_t vfo)
     case RIG_VFO_CURR: return RIG_OK;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n",
-                  __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n",
+                  __func__, rig_strvfo(vfo));
         return -RIG_EINVAL;
     }
 
     cmd_len = sprintf(cmdbuf, "FN%c;", vfo_function);
 
-    retval = ic10_transaction(rig, cmdbuf, cmd_len, ackbuf, &ack_len);
+    retval = ic10_transaction(rig, cmdbuf, cmd_len, NULL, 0);
     return retval;
 }
 
@@ -191,6 +227,7 @@ int ic10_get_vfo(RIG *rig, vfo_t *vfo)
     unsigned char c;
     int retval, iflen;
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     /* query RX VFO */
     retval = get_ic10_if(rig, vfobuf);
@@ -222,17 +259,31 @@ int ic10_get_vfo(RIG *rig, vfo_t *vfo)
         return -RIG_EPROTO;
     }
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: returning VFO=%s\n", __func__,
+              rig_strvfo(*vfo));
+
     return RIG_OK;
 }
 
 
+int ic10_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
+{
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called vfo=%s tx_freq=%.0f\n", __func__,
+              rig_strvfo(vfo), tx_freq);
+    return ic10_set_freq(rig, RIG_VFO_B, tx_freq);
+}
+
+int ic10_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq)
+{
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called vfo=%s\n", __func__, rig_strvfo(vfo));
+    return ic10_get_freq(rig, RIG_VFO_B, tx_freq);
+}
+
 int ic10_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
 {
-    char ackbuf[16];
-    int ack_len;
-
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
     return ic10_transaction(rig, split == RIG_SPLIT_ON ? "SP1;" : "SP0;", 4,
-                            ackbuf, &ack_len);
+                            NULL, 0);
 }
 
 
@@ -322,8 +373,8 @@ int ic10_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
  */
 int ic10_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
-    char modebuf[6], ackbuf[16];
-    int mode_len, ack_len, retval;
+    char modebuf[6];
+    int mode_len, retval;
     char mode_letter;
 
     switch (mode)
@@ -347,7 +398,7 @@ int ic10_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     }
 
     mode_len = sprintf(modebuf, "MD%c;", mode_letter);
-    retval = ic10_transaction(rig, modebuf, mode_len, ackbuf, &ack_len);
+    retval = ic10_transaction(rig, modebuf, mode_len, NULL, 0);
 
     return retval;
 }
@@ -391,8 +442,8 @@ int ic10_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
  */
 int ic10_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
-    char freqbuf[16], ackbuf[16];
-    int freq_len, ack_len, retval;
+    char freqbuf[64];
+    int freq_len, retval;
     unsigned char vfo_letter;
     vfo_t   tvfo;
 
@@ -407,18 +458,21 @@ int ic10_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     switch (tvfo)
     {
-    case RIG_VFO_A: vfo_letter = 'A'; break;
+    case RIG_VFO_A:
+    case RIG_VFO_MAIN: vfo_letter = 'A'; break;
 
-    case RIG_VFO_B: vfo_letter = 'B'; break;
+    case RIG_VFO_B:
+    case RIG_VFO_SUB: vfo_letter = 'B'; break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n",
-                  __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n",
+                  __func__, rig_strvfo(vfo));
         return -RIG_EINVAL;
     }
 
+    // cppcheck-suppress *
     freq_len = sprintf(freqbuf, "F%c%011"PRIll";", vfo_letter, (int64_t)freq);
-    retval = ic10_transaction(rig, freqbuf, freq_len, ackbuf, &ack_len);
+    retval = ic10_transaction(rig, freqbuf, freq_len, NULL, 0);
 
     return retval;
 }
@@ -430,7 +484,7 @@ int ic10_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
  */
 int ic10_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
 {
-    char buf[6], ackbuf[16];
+    char buf[6], ackbuf[64];
     int len, ack_len, retval;
 
     len = sprintf(buf, "AN%c;", ant == RIG_ANT_1 ? '1' : '2');
@@ -445,11 +499,13 @@ int ic10_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
  * ic10_get_ant
  * Assumes rig!=NULL, ptt!=NULL
  */
-int ic10_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option)
+int ic10_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
+                 ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx)
 {
     char infobuf[50];
     int info_len, retval;
 
+    *ant_tx = *ant_rx = RIG_ANT_UNKNOWN;
     info_len = 4;
     retval = ic10_transaction(rig, "AN;", 3, infobuf, &info_len);
 
@@ -465,7 +521,7 @@ int ic10_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option)
         return -RIG_ERJCTED;
     }
 
-    *ant = infobuf[2] == '1' ? RIG_ANT_1 : RIG_ANT_2;
+    *ant_curr = infobuf[2] == '1' ? RIG_ANT_1 : RIG_ANT_2;
 
     return RIG_OK;
 }
@@ -500,7 +556,6 @@ int ic10_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
 }
 
 
-#ifdef XXREMOVEDXX
 // Not referenced anywhere
 /*
  * ic10_set_ptt
@@ -508,9 +563,11 @@ int ic10_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
  */
 int ic10_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 {
-    char pttbuf[4], ackbuf[16];
-    int ptt_len, ack_len, retval;
+    char pttbuf[4];
+    int ptt_len, retval;
     unsigned char ptt_letter;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     switch (ptt)
     {
@@ -525,11 +582,10 @@ int ic10_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
     }
 
     ptt_len = sprintf(pttbuf, "%cX;", ptt_letter);
-    retval = ic10_transaction(rig, pttbuf, ptt_len, ackbuf, &ack_len);
+    retval = ic10_transaction(rig, pttbuf, ptt_len, NULL, 0);
 
     return retval;
 }
-#endif
 
 
 /*
@@ -567,10 +623,10 @@ int ic10_get_mem(RIG *rig, vfo_t vfo, int *ch)
  */
 int ic10_set_mem(RIG *rig, vfo_t vfo, int ch)
 {
-    char membuf[8], ackbuf[16];
+    char membuf[8], ackbuf[64];
     int mem_len, ack_len, retval;
 
-    mem_len = sprintf(membuf, "MC %02d;", ch);
+    mem_len = sprintf(membuf, "MC%02d;", ch);
 
     retval = ic10_transaction(rig, membuf, mem_len, ackbuf, &ack_len);
 
@@ -578,21 +634,22 @@ int ic10_set_mem(RIG *rig, vfo_t vfo, int ch)
 }
 
 
-int ic10_get_channel(RIG *rig, channel_t *chan)
+int ic10_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     char membuf[16], infobuf[32];
     int retval, info_len, len;
 
-    len = sprintf(membuf, "MR0 %02d;", chan->channel_num);
+    len = sprintf(membuf, "MR00%02d;", chan->channel_num);
     info_len = 24;
     retval = ic10_transaction(rig, membuf, len, infobuf, &info_len);
 
-    if (retval != RIG_OK && info_len > 17)
+    if (retval != RIG_OK)
     {
         return retval;
     }
 
-    /* MRn rrggmmmkkkhhhdz    ; */
+    /* MRs-ccfffffffffffml----; */
+    /* 012345678901234567890123 */
     switch (infobuf[17])
     {
     case MD_CW  :   chan->mode = RIG_MODE_CW; break;
@@ -617,48 +674,57 @@ int ic10_get_channel(RIG *rig, channel_t *chan)
 
     chan->width = rig_passband_normal(rig, chan->mode);
 
-    /*  infobuf[17] = ' '; */
-    infobuf[17] = '\0';
     sscanf(infobuf + 6, "%011"SCNfreq, &chan->freq);
     chan->vfo = RIG_VFO_MEM;
 
-    /* TX VFO (Split channel only) */
-    len = sprintf(membuf, "MR1 %02d;", chan->channel_num);
-    info_len = 24;
-    retval = ic10_transaction(rig, membuf, len, infobuf, &info_len);
-
-    if (retval == RIG_OK && info_len > 17)
+    if (chan->channel_num >= 90)
     {
+        chan->split = 1;
+        /* TX VFO (Split channel only) */
+        len = sprintf(membuf, "MR10%02d;", chan->channel_num);
+        info_len = 24;
+        retval = ic10_transaction(rig, membuf, len, infobuf, &info_len);
 
-        /* MRn rrggmmmkkkhhhdz    ; */
-        switch (infobuf[17])
+        if (retval == RIG_OK && info_len > 17)
         {
-        case MD_CW  :   chan->tx_mode = RIG_MODE_CW; break;
 
-        case MD_USB :   chan->tx_mode = RIG_MODE_USB; break;
+            /* MRn rrggmmmkkkhhhdz    ; */
+            switch (infobuf[17])
+            {
+            case MD_CW  :   chan->tx_mode = RIG_MODE_CW; break;
 
-        case MD_LSB :   chan->tx_mode = RIG_MODE_LSB; break;
+            case MD_USB :   chan->tx_mode = RIG_MODE_USB; break;
 
-        case MD_FM  :   chan->tx_mode = RIG_MODE_FM; break;
+            case MD_LSB :   chan->tx_mode = RIG_MODE_LSB; break;
 
-        case MD_AM  :   chan->tx_mode = RIG_MODE_AM; break;
+            case MD_FM  :   chan->tx_mode = RIG_MODE_FM; break;
 
-        case MD_FSK :   chan->tx_mode = RIG_MODE_RTTY; break;
+            case MD_AM  :   chan->tx_mode = RIG_MODE_AM; break;
 
-        case MD_NONE:   chan->tx_mode = RIG_MODE_NONE; break;
+            case MD_FSK :   chan->tx_mode = RIG_MODE_RTTY; break;
 
-        default:
-            rig_debug(RIG_DEBUG_ERR, "%s: unsupported mode '%c'\n",
-                      __func__, infobuf[17]);
-            return -RIG_EINVAL;
+            case MD_NONE:   chan->tx_mode = RIG_MODE_NONE; break;
+
+            default:
+                rig_debug(RIG_DEBUG_ERR, "%s: unsupported mode '%c'\n",
+                          __func__, infobuf[17]);
+                return -RIG_EINVAL;
+            }
+
+            chan->tx_width = rig_passband_normal(rig, chan->tx_mode);
+
+            sscanf(infobuf + 6, "%011"SCNfreq, &chan->tx_freq);
         }
+    }
 
-        chan->tx_width = rig_passband_normal(rig, chan->tx_mode);
-
-        /*  infobuf[17] = ' '; */
-        infobuf[17] = '\0';
-
-        sscanf(infobuf + 6, "%011"SCNfreq, &chan->tx_freq);
+    if (!read_only)
+    {
+        // Set rig to channel values
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: need to know if rig updates when channel read or not\n", __func__);
+        return -RIG_ENIMPL;
     }
 
     return RIG_OK;
@@ -667,11 +733,18 @@ int ic10_get_channel(RIG *rig, channel_t *chan)
 
 int ic10_set_channel(RIG *rig, const channel_t *chan)
 {
-    char membuf[32], ackbuf[32];
-    int retval, ack_len, len, md;
+    char membuf[64];
+    int retval, len, md;
     int64_t freq;
 
     freq = (int64_t) chan->freq;
+
+    if (chan->channel_num < 90 &&  chan->tx_freq != 0)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: Transmit/split can only be on channels 90-99\n",
+                  __func__);
+        return -RIG_EINVAL;
+    }
 
     switch (chan->mode)
     {
@@ -701,7 +774,7 @@ int ic10_set_channel(RIG *rig, const channel_t *chan)
                   freq,
                   md
                  );
-    retval = ic10_transaction(rig, membuf, len, ackbuf, &ack_len);
+    retval = ic10_transaction(rig, membuf, len, NULL, 0);
 
     if (retval != RIG_OK)
     {
@@ -733,18 +806,24 @@ int ic10_set_channel(RIG *rig, const channel_t *chan)
         return -RIG_EINVAL;
     }
 
-    /* MWnxrrggmmmkkkhhhdzxxxx; */
-    len = sprintf(membuf, "MW1 %02d%011"PRIll"%c0    ;",
-                  chan->channel_num,
-                  freq,
-                  md
-                 );
-    retval = ic10_transaction(rig, membuf, len, ackbuf, &ack_len);
-    // I assume we need to check the retval here -- W9MDB
-    // This was found from cppcheck
-    if (retval != RIG_OK) {
-        rig_debug(RIG_DEBUG_ERR,"%s: transaction failed: %s\n", __func__, strerror(retval));
-        return retval;
+    if (chan->channel_num >= 90)
+    {
+        /* MWnxrrggmmmkkkhhhdzxxxx; */
+        len = sprintf(membuf, "MW1 %02d%011"PRIll"%c0    ;",
+                      chan->channel_num,
+                      freq,
+                      md
+                     );
+        retval = ic10_transaction(rig, membuf, len, NULL, 0);
+
+        // I assume we need to check the retval here -- W9MDB
+        // This was found from cppcheck
+        if (retval != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: transaction failed: %s\n", __func__,
+                      rigerror(retval));
+            return retval;
+        }
     }
 
     return RIG_OK;
@@ -798,7 +877,7 @@ int ic10_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
  */
 int ic10_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 {
-    char cmdbuf[4], fctbuf[16], ackbuf[16];
+    char cmdbuf[4], fctbuf[16], ackbuf[64];
     int cmdlen, fct_len, ack_len;
 
     switch (func)
@@ -918,7 +997,7 @@ int ic10_get_parm(RIG *rig, setting_t parm, value_t *val)
  */
 int ic10_set_powerstat(RIG *rig, powerstat_t status)
 {
-    char pwrbuf[16], ackbuf[16];
+    char pwrbuf[16], ackbuf[64];
     int pwr_len, ack_len;
 
     pwr_len = sprintf(pwrbuf, "PS%c;", status == RIG_POWER_ON ? '1' : '0');
@@ -963,7 +1042,7 @@ int ic10_get_powerstat(RIG *rig, powerstat_t *status)
  */
 int ic10_set_trn(RIG *rig, int trn)
 {
-    char trnbuf[16], ackbuf[16];
+    char trnbuf[16], ackbuf[64];
     int trn_len, ack_len;
 
     trn_len = sprintf(trnbuf, "AI%c;", trn == RIG_TRN_RIG ? '1' : '0');
@@ -1008,7 +1087,7 @@ int ic10_get_trn(RIG *rig, int *trn)
  */
 int ic10_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
 {
-    char *cmd, ackbuf[16];
+    char *cmd, ackbuf[64];
     int ack_len;
 
     switch (op)
@@ -1033,7 +1112,7 @@ int ic10_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
  */
 int ic10_scan(RIG *rig, vfo_t vfo, scan_t scan, int ch)
 {
-    char ackbuf[16];
+    char ackbuf[64];
     int ack_len;
 
     return ic10_transaction(rig, scan == RIG_SCAN_STOP ? "SC0;" : "SC1;", 4,

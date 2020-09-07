@@ -108,10 +108,10 @@ const struct confparams hiqsdr_cfg_params[] =
 
 const struct rig_caps hiqsdr_caps =
 {
-    .rig_model =      RIG_MODEL_HIQSDR,
+    RIG_MODEL(RIG_MODEL_HIQSDR),
     .model_name =     "HiQSDR",
     .mfg_name =       "N2ADR",
-    .version =        "0.1",
+    .version =        "20200323.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_UNTESTED,
     .rig_type =       RIG_TYPE_TUNER,
@@ -294,7 +294,8 @@ int hiqsdr_init(RIG *rig)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    rig->state.priv = (struct hiqsdr_priv_data *)malloc(sizeof(struct hiqsdr_priv_data));
+    rig->state.priv = (struct hiqsdr_priv_data *)malloc(sizeof(
+                          struct hiqsdr_priv_data));
 
     if (!rig->state.priv)
     {
@@ -507,7 +508,7 @@ int hiqsdr_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
     struct hiqsdr_priv_data *priv = (struct hiqsdr_priv_data *)rig->state.priv;
     int ret = RIG_OK;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %d\n",
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %u\n",
               __func__, ant);
 
     if (ant == RIG_ANT_2)

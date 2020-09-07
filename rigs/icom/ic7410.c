@@ -112,10 +112,10 @@ static const struct icom_priv_caps ic7410_priv_caps =
 
 const struct rig_caps ic7410_caps =
 {
-    .rig_model =  RIG_MODEL_IC7410,
+    RIG_MODEL(RIG_MODEL_IC7410),
     .model_name = "IC-7410",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_UNTESTED,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -238,8 +238,6 @@ const struct rig_caps ic7410_caps =
     .set_vfo =  icom_set_vfo,
     .set_ant =  icom_set_ant,
     .get_ant =  icom_get_ant,
-
-    .set_rit =  icom_set_rit,
 
     .decode_event =  icom_decode_event,
     .set_level =  ic7410_set_level,

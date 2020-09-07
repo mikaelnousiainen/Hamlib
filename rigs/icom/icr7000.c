@@ -61,7 +61,7 @@ static struct icom_priv_caps icr7000_priv_caps =
  */
 const struct rig_caps icr7000_caps =
 {
-    .rig_model =  RIG_MODEL_ICR7000,
+    RIG_MODEL(RIG_MODEL_ICR7000),
     .model_name = "IC-R7000",
     .mfg_name =  "Icom",
     .version =  BACKEND_VER ".0",
@@ -176,7 +176,7 @@ static struct icom_priv_caps icr7100_priv_caps =
  */
 const struct rig_caps icr7100_caps =
 {
-    .rig_model =  RIG_MODEL_ICR7100,
+    RIG_MODEL(RIG_MODEL_ICR7100),
     .model_name = "IC-R7100",
     .mfg_name =  "Icom",
     .version =  BACKEND_VER ".0",
@@ -309,7 +309,7 @@ static int r7000_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     long long f = (long long)freq;
 
     /*
-     * The R7000 cannot set freqencies higher than 1GHz,
+     * The R7000 cannot set frequencies higher than 1GHz,
      * this is done by flipping a switch on the front panel and
      * stripping the most significant digit.
      * This is the only change with the common icom_set_freq

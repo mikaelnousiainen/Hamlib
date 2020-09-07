@@ -26,6 +26,8 @@
 #include "config.h"
 #endif
 
+#define BACKEND_VER "20200112"
+
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
@@ -155,10 +157,10 @@ struct si570xxxusb_priv_data
 
 const struct rig_caps si570avrusb_caps =
 {
-    .rig_model =        RIG_MODEL_SI570AVRUSB,
+    RIG_MODEL(RIG_MODEL_SI570AVRUSB),
     .model_name =       "Si570 AVR-USB",
     .mfg_name =     "SoftRock",
-    .version =      "0.3",
+    .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_BETA,
     .rig_type =     RIG_TYPE_TUNER,
@@ -232,10 +234,10 @@ const struct rig_caps si570avrusb_caps =
  */
 const struct rig_caps si570peaberry1_caps =
 {
-    .rig_model =        RIG_MODEL_SI570PEABERRY1,
+    RIG_MODEL(RIG_MODEL_SI570PEABERRY1),
     .model_name =       "Si570 Peaberry V1",
     .mfg_name =     "AE9RB",
-    .version =      "0.3",
+    .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_BETA,
     .rig_type =     RIG_TYPE_TUNER,
@@ -309,10 +311,10 @@ const struct rig_caps si570peaberry1_caps =
  */
 const struct rig_caps si570peaberry2_caps =
 {
-    .rig_model =        RIG_MODEL_SI570PEABERRY2,
+    RIG_MODEL(RIG_MODEL_SI570PEABERRY2),
     .model_name =       "Si570 Peaberry V2",
     .mfg_name =     "AE9RB",
-    .version =      "0.2",
+    .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_BETA,
     .rig_type =     RIG_TYPE_TUNER,
@@ -391,10 +393,10 @@ const struct rig_caps si570peaberry2_caps =
  */
 const struct rig_caps si570picusb_caps =
 {
-    .rig_model =        RIG_MODEL_SI570PICUSB,
+    RIG_MODEL(RIG_MODEL_SI570PICUSB),
     .model_name =       "Si570 PIC-USB",
     .mfg_name =     "KTH-SDR kit",
-    .version =      "0.3",
+    .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_BETA,
     .rig_type =     RIG_TYPE_TUNER,
@@ -472,10 +474,10 @@ const struct rig_caps si570picusb_caps =
 
 const struct rig_caps fasdr_caps =
 {
-    .rig_model =        RIG_MODEL_FASDR,
+    RIG_MODEL(RIG_MODEL_FASDR),
     .model_name =       "FA-SDR",
-    .mfg_name =     "Funkamatuer",
-    .version =      "0.2",
+    .mfg_name =     "Funkamateur",
+    .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_ALPHA,
     .rig_type =     RIG_FLAG_TUNER | RIG_FLAG_TRANSMITTER,
@@ -572,7 +574,7 @@ int si570avrusb_init(RIG *rig)
     struct si570xxxusb_priv_data *priv;
 
     rig->state.priv = (struct si570xxxusb_priv_data *)calloc(sizeof(struct
-            si570xxxusb_priv_data), 1);
+                      si570xxxusb_priv_data), 1);
 
     if (!rig->state.priv)
     {
@@ -613,7 +615,7 @@ int si570peaberry1_init(RIG *rig)
     struct si570xxxusb_priv_data *priv;
 
     rig->state.priv = (struct si570xxxusb_priv_data *)calloc(sizeof(struct
-            si570xxxusb_priv_data), 1);
+                      si570xxxusb_priv_data), 1);
 
     if (!rig->state.priv)
     {
@@ -654,7 +656,7 @@ int si570peaberry2_init(RIG *rig)
     struct si570xxxusb_priv_data *priv;
 
     rig->state.priv = (struct si570xxxusb_priv_data *)calloc(sizeof(struct
-            si570xxxusb_priv_data), 1);
+                      si570xxxusb_priv_data), 1);
 
     if (!rig->state.priv)
     {
@@ -695,7 +697,7 @@ int si570picusb_init(RIG *rig)
     struct si570xxxusb_priv_data *priv;
 
     rig->state.priv = (struct si570xxxusb_priv_data *)calloc(sizeof(struct
-            si570xxxusb_priv_data), 1);
+                      si570xxxusb_priv_data), 1);
 
     if (!rig->state.priv)
     {
@@ -736,7 +738,7 @@ int fasdr_init(RIG *rig)
     struct si570xxxusb_priv_data *priv;
 
     rig->state.priv = (struct si570xxxusb_priv_data *)calloc(sizeof(struct
-            si570xxxusb_priv_data), 1);
+                      si570xxxusb_priv_data), 1);
 
     if (!rig->state.priv)
     {
@@ -966,7 +968,7 @@ static int setBPF(RIG *rig, int enable)
     unsigned short FilterCrossOver[16];
     int nBytes;
 
-    // Does FilterCrossOver needs endianess ordering ?
+    // Does FilterCrossOver needs endianness ordering ?
 
     // first find out how may cross over points there are for the 1st bank, use 255 for index
     nBytes = libusb_control_transfer(udh, REQUEST_TYPE_IN,
@@ -983,14 +985,15 @@ static int setBPF(RIG *rig, int enable)
     {
         int i;
         int retval = libusb_control_transfer(udh, REQUEST_TYPE_IN,
-                                         REQUEST_FILTERS, enable, (nBytes / 2) - 1,
-                                         (unsigned char *) FilterCrossOver, sizeof(FilterCrossOver),
-                                         rig->state.rigport.timeout);
+                                             REQUEST_FILTERS, enable, (nBytes / 2) - 1,
+                                             (unsigned char *) FilterCrossOver, sizeof(FilterCrossOver),
+                                             rig->state.rigport.timeout);
 
         if (retval < 2)
         {
             return -RIG_EIO;
         }
+
         nBytes = retval;
 
         rig_debug(RIG_DEBUG_TRACE, "%s: Filter Bank 1:\n", __func__);
@@ -1378,7 +1381,7 @@ int si570xxxusb_get_freq_by_value(RIG *rig, vfo_t vfo, freq_t *freq)
 
     iFreq = getLongWord(buffer);
     rig_debug(RIG_DEBUG_VERBOSE,
-              "%s: Freq raw: %02x%02x%02x%02x endian converted: %d\n",
+              "%s: Freq raw: %02x%02x%02x%02x endian converted: %u\n",
               __func__, buffer[0], buffer[1], buffer[2], buffer[3], iFreq);
     *freq = (((double)iFreq / (1UL << 21)) / priv->multiplier) * 1e6;
 

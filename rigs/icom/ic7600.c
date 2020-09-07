@@ -53,16 +53,13 @@
 
 #define IC7600_ANTS (RIG_ANT_1|RIG_ANT_2)
 
-struct cmdparams ic7600_rigparms[] = {
-    { {.s=RIG_PARM_BEEP}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x59}, CMD_DAT_BOL, 1 },
-    { {.s=RIG_PARM_BACKLIGHT}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x38}, CMD_DAT_LVL, 2 },
-    { {.s=RIG_PARM_TIME}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x54}, CMD_DAT_TIM, 2 },
-    { {.s=RIG_PARM_NONE} }
-};
-
-struct cmdparams ic7600_riglevels[] = {
-    { {.s=RIG_LEVEL_VOXDELAY}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x67}, CMD_DAT_INT, 1 },
-    { {.s=RIG_LEVEL_NONE} }
+struct cmdparams ic7600_extcmds[] =
+{
+    { {.s = RIG_PARM_BEEP}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x59}, CMD_DAT_BOL, 1 },
+    { {.s = RIG_PARM_BACKLIGHT}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x38}, CMD_DAT_LVL, 2 },
+    { {.s = RIG_PARM_TIME}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x54}, CMD_DAT_TIM, 2 },
+    { {.s = RIG_LEVEL_VOXDELAY}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x67}, CMD_DAT_INT, 1 },
+    { {.s = RIG_PARM_NONE} }
 };
 
 /*
@@ -152,8 +149,7 @@ static const struct icom_priv_caps ic7600_priv_caps =
         { .level = RIG_AGC_SLOW, .icom_level = 3 },
         { .level = -1, .icom_level = 0 },
     },
-    .rigparms = ic7600_rigparms,   /* Custom parm parameters */
-    .riglevels = ic7600_riglevels,   /* Custom level parameters */
+    .extcmds = ic7600_extcmds,   /* Custom op parameters */
 };
 
 const struct confparams ic7600_ext_levels[] =
@@ -167,12 +163,12 @@ const struct confparams ic7600_ext_levels[] =
 
 const struct rig_caps ic7600_caps =
 {
-    .rig_model =  RIG_MODEL_IC7600,
+    RIG_MODEL(RIG_MODEL_IC7600),
     .model_name = "IC-7600",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_BETA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,

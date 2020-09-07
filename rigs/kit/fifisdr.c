@@ -128,10 +128,10 @@ struct fifisdr_priv_instance_data
 /** FiFi-SDR receiver description. */
 const struct rig_caps fifisdr_caps =
 {
-    .rig_model = RIG_MODEL_FIFISDR,
+    RIG_MODEL(RIG_MODEL_FIFISDR),
     .model_name = "FiFi-SDR",
     .mfg_name = "FiFi",
-    .version = "0.6",
+    .version = "20200112.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_BETA,
 
@@ -333,7 +333,7 @@ int fifisdr_init(RIG *rig)
     struct fifisdr_priv_instance_data *priv;
 
     rig->state.priv = (struct fifisdr_priv_instance_data *)calloc(sizeof(
-                struct fifisdr_priv_instance_data), 1);
+                          struct fifisdr_priv_instance_data), 1);
 
     if (!rig->state.priv)
     {

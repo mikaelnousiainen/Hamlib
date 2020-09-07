@@ -74,12 +74,12 @@ static struct kenwood_priv_caps  ts690_priv_caps  =
  */
 const struct rig_caps ts690s_caps =
 {
-    .rig_model =  RIG_MODEL_TS690S,
+    RIG_MODEL(RIG_MODEL_TS690S),
     .model_name = "TS-690S",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_BETA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,

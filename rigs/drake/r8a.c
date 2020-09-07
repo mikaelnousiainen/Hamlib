@@ -84,10 +84,10 @@
 
 const struct rig_caps r8a_caps =
 {
-    .rig_model =  RIG_MODEL_DKR8A,
+    RIG_MODEL(RIG_MODEL_DKR8A),
     .model_name = "R-8A",
     .mfg_name =  "Drake",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_RECEIVER,
@@ -121,7 +121,7 @@ const struct rig_caps r8a_caps =
     .max_xit =  Hz(0),
     .max_ifshift =  Hz(0),
     .targetable_vfo =  0,
-    .transceive =  RIG_TRN_OFF, /* TODO: acutally has RIG_TRN_RIG */
+    .transceive =  RIG_TRN_OFF, /* TODO: actually has RIG_TRN_RIG */
     .bank_qty =   0,
     .chan_desc_sz =  7,
     .vfo_ops =  R8A_VFO_OPS,

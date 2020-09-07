@@ -28,7 +28,7 @@
 #include <string.h>
 #include "token.h"
 
-#define BACKEND_VER "1.0"
+#define BACKEND_VER "20200117"
 
 #define EOM_KEN ';'
 #define EOM_TH '\r'
@@ -77,7 +77,7 @@ struct elad_priv_data {
     int k2_md_rtty;   /* K2 RTTY mode available flag, 1 = RTTY, 0 = N/A */
     char *fw_rev;   /* firmware revision level */
     int trn_state;  /* AI state discovered at startup */
-    unsigned fw_rev_uint; /* firmware revison as a number 1.07 -> 107 */
+    unsigned fw_rev_uint; /* firmware revision as a number 1.07 -> 107 */
     char verify_cmd[4];   /* command used to verify set commands */
     int is_emulation;     /* flag for TS-2000 emulations */
     void * data;          /* model specific data */
@@ -140,7 +140,7 @@ int elad_reset(RIG *rig, reset_t reset);
 int elad_send_morse(RIG *rig, vfo_t vfo, const char *msg);
 int elad_set_ant (RIG * rig, vfo_t vfo, ant_t ant, value_t option);
 int elad_set_ant_no_ack(RIG * rig, vfo_t vfo, ant_t ant);
-int elad_get_ant (RIG * rig, vfo_t vfo, ant_t dummy, ant_t * ant, value_t *option);
+int elad_get_ant (RIG * rig, vfo_t vfo, ant_t dummy, value_t *option, ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx);
 int elad_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt);
 int elad_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt);
 int elad_set_ptt_safe(RIG *rig, vfo_t vfo, ptt_t ptt);

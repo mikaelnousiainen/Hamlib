@@ -38,8 +38,9 @@
 #define TOK_EL_MAGICCOMBO  TOKEN_BACKEND(5)
 
 
-extern const struct rig_caps dummy_caps;
-extern const struct rig_caps netrigctl_caps;
+extern struct rig_caps dummy_caps;
+extern struct rig_caps dummy_no_vfo_caps;
+extern struct rig_caps netrigctl_caps;
 extern const struct rig_caps flrig_caps;
 extern const struct rig_caps trxmanager_caps;
 

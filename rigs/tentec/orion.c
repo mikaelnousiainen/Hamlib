@@ -130,7 +130,7 @@ static int tt565_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
     {
         int retval;
         rs = &rig->state;
-        serial_flush(&rs->rigport); /* discard pending i/p */
+        rig_flush(&rs->rigport); /* discard pending i/p */
         retval = write_block(&rs->rigport, cmd, cmd_len);
 
         if (retval != RIG_OK)
@@ -182,7 +182,7 @@ static int tt565_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
         }
         else                            // Yes, it was a 'read', phew!
         {
-            if (!strncmp(data + 1, cmd + 1, cmd_len - 2)) //reponse matches cmd?
+            if (!strncmp(data + 1, cmd + 1, cmd_len - 2)) //response matches cmd?
             {
                 return RIG_OK;  // all is well, normal exit
             }
@@ -229,9 +229,11 @@ static int tt565_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 int tt565_init(RIG *rig)
 {
     struct tt565_priv_data *priv;
-    rig->state.priv = (struct tt565_priv_data *)malloc(sizeof(struct tt565_priv_data));
+    rig->state.priv = (struct tt565_priv_data *)malloc(sizeof(
+                          struct tt565_priv_data));
 
     if (!rig->state.priv) { return -RIG_ENOMEM; } /* no memory available */
+
     priv = rig->state.priv;
 
     memset(priv, 0, sizeof(struct tt565_priv_data));
@@ -399,6 +401,7 @@ int tt565_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
 #ifdef TT565_ASCII_FREQ
     /*  Use ASCII mode to set frequencies */
+    // cppcheck-suppress *
     cmd_len = sprintf(cmdbuf, "*%cF%"PRIll EOM,
                       which_vfo(rig, vfo),
                       (int64_t)freq);
@@ -1060,7 +1063,7 @@ const char *tt565_get_info(RIG *rig)
  * \n  -RIG_LEVEL_CWPITCH, int Hz
  * \n  -RIG_LEVEL_KEYSPD, int wpm
  * \n  -RIG_LEVEL_NR, noise reduction/blank, float 0.0 - 1.0
- * \n  -RIG_LEVEL_VOX, vox delay, float x 1/10 second
+ * \n  -RIG_LEVEL_VOXDELAY, vox delay, float x 1/10 second
  * \n  -RIG_LEVEL_VOXGAIN, float 0.0 - 1.0
  * \n  -RIG_LEVEL_ANTIVOX, float 0.0 - 1.0
  *
@@ -1203,7 +1206,7 @@ int tt565_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
                           (int)(val.f * 9));
         break;
 
-    case RIG_LEVEL_VOX:
+    case RIG_LEVEL_VOXDELAY:
         /* VOX delay, float tenths of seconds */
         cmd_len = sprintf(cmdbuf, "*TH%4.2f" EOM, 0.1 * val.f);
         break;
@@ -1646,7 +1649,7 @@ int tt565_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         val->f = atof(lvlbuf + 5) / 9.0; /* Note 0-9 -> 0.0 - 1.0 */
         break;
 
-    case RIG_LEVEL_VOX: /* =VOXDELAY, tenths of secs. */
+    case RIG_LEVEL_VOXDELAY: /* =VOXDELAY, tenths of secs. */
         lvl_len = sizeof(lvlbuf);
         retval = tt565_transaction(rig, "?TH" EOM, 4, lvlbuf, &lvl_len);
 
@@ -2116,10 +2119,13 @@ int tt565_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
  *
  * \sa tt565_set_ant
  */
-int tt565_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option)
+int tt565_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
+                  ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx)
 {
     char respbuf[TT565_BUFSIZE];
     int resp_len, retval;
+
+    *ant_tx = *ant_rx = RIG_ANT_UNKNOWN;
 
     resp_len = sizeof(respbuf);
     retval = tt565_transaction(rig, "?KA" EOM, 4, respbuf, &resp_len);
@@ -2139,17 +2145,17 @@ int tt565_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option)
     /* Look for first occurrence of M or S in ant 1, 2, 3 characters */
     if (respbuf[3] == which_receiver(rig, vfo) || respbuf[3] == 'B')
     {
-        *ant = RIG_ANT_1;
+        *ant_curr = RIG_ANT_1;
         return RIG_OK;
     }
 
     if (respbuf[4] == which_receiver(rig, vfo) || respbuf[4] == 'B')
     {
-        *ant = RIG_ANT_2;
+        *ant_curr = RIG_ANT_2;
         return RIG_OK;
     }
 
-    *ant = RIG_ANT_NONE;    /* ignore possible RIG_ANT_3 = rx only ant */
+    *ant_curr = RIG_ANT_NONE;    /* ignore possible RIG_ANT_3 = rx only ant */
     return RIG_OK;
 }
 /* End of orion.c */

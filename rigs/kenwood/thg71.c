@@ -38,6 +38,9 @@
 #define RIG_ASSERT(x)
 #endif
 
+#define THG71_VFO (RIG_VFO_A)
+#define THG71_MODES (RIG_MODE_FM)
+
 #define THG71_FUNC_ALL (\
                        RIG_FUNC_TBURST \
                        )
@@ -84,10 +87,10 @@ static int thg71_set_func(RIG *rig, vfo_t vfo, setting_t func, int status);
  */
 const struct rig_caps thg71_caps =
 {
-    .rig_model =  RIG_MODEL_THG71,
+    RIG_MODEL(RIG_MODEL_THG71),
     .model_name = "TH-G71",
     .mfg_name =  "Kenwood",
-    .version =  TH_VER,
+    .version =  TH_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_HANDHELD,
@@ -139,6 +142,19 @@ const struct rig_caps thg71_caps =
     },
 
     /* no rx/tx_range_list */
+    .rx_range_list1 =  { RIG_FRNG_END, },    /* FIXME: enter region 1 setting */
+    .tx_range_list1 =  { RIG_FRNG_END, },
+    .rx_range_list2 =  {
+        {MHz(118), MHz(174), THG71_MODES, -1, -1, THG71_VFO},
+        {MHz(400), MHz(470), THG71_MODES, -1, -1, THG71_VFO},
+        RIG_FRNG_END,
+    },
+    .tx_range_list2 =  {
+        {MHz(144), MHz(148), THG71_MODES, W(0.05), W(5), THG71_VFO},
+        {MHz(430), MHz(450), THG71_MODES, W(0.05), W(5), THG71_VFO},
+        RIG_FRNG_END,
+    },
+
     /* computed in thg71_open */
 
     .tuning_steps =  {
@@ -300,7 +316,7 @@ int thg71_decode_event(RIG *rig)
 
         vfo_t bandmode;
 
-        retval = sscanf(asyncbuf, "VMC 0,%d", &bandmode);
+        retval = sscanf(asyncbuf, "VMC 0,%u", &bandmode);
 
         if (retval != 1)
         {
@@ -319,7 +335,7 @@ int thg71_decode_event(RIG *rig)
         default:    bandmode = RIG_VFO_CURR; break;
         }
 
-        rig_debug(RIG_DEBUG_TRACE, "%s: Mode of Band event -  %d\n", __func__,
+        rig_debug(RIG_DEBUG_TRACE, "%s: Mode of Band event -  %u\n", __func__,
                   bandmode);
 
         /* TODO: This event does not have a callback! */
@@ -354,7 +370,7 @@ int thg71_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     case RIG_VFO_A: break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO %s\n", __func__, rig_strvfo(vfo));
         return -RIG_EVFO;
     }
 
@@ -402,7 +418,7 @@ int thg71_set_vfo(RIG *rig, vfo_t vfo)
         break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO %s\n", __func__, rig_strvfo(vfo));
         return -RIG_EVFO;
     }
 
@@ -505,10 +521,10 @@ int thg71_open(RIG *rig)
 
     strtok(ackbuf, " ");
 
-    for (i = 0; i < FRQRANGESIZ; i++)
+    for (i = 0; i < FRQRANGESIZ - 1; i++)
     {
         freq_range_t frng;
-        char *strl,*stru;
+        char *strl, *stru;
 
         strl = strtok(NULL, ",");
         stru = strtok(NULL, ",");
@@ -534,6 +550,7 @@ int thg71_open(RIG *rig)
 
         frng.high_power = -1;
         frng.low_power = -1;
+        frng.label = "";
         rig->state.rx_range_list[i] = frng;
 
         if (frng.startf > MHz(200))

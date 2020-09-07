@@ -48,10 +48,10 @@
 
 const struct rig_caps ft2000_caps =
 {
-    .rig_model =          RIG_MODEL_FT2000,
+    RIG_MODEL(RIG_MODEL_FT2000),
     .model_name =         "FT-2000",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".1",
+    .version =            NEWCAT_VER ".0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,

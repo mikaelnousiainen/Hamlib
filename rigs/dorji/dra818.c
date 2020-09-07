@@ -80,7 +80,7 @@ static void dra818_subaudio(RIG *rig, char *subaudio, tone_t tone, tone_t code)
 {
     if (code)
     {
-        sprintf(subaudio, "%03dI", code);
+        sprintf(subaudio, "%03uI", code);
         return;
     }
     else if (tone)
@@ -524,10 +524,10 @@ int dra818_get_ctcss_tone(RIG *rig, vfo_t vfo, tone_t *tone)
 
 const struct rig_caps dra818u_caps =
 {
-    .rig_model =        RIG_MODEL_DORJI_DRA818U,
+    RIG_MODEL(RIG_MODEL_DORJI_DRA818U),
     .model_name =       "DRA818U",
     .mfg_name =     "Dorji",
-    .version =      "0.1",
+    .version =      "20191209.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_UNTESTED,
     .rig_type =     RIG_TYPE_TRANSCEIVER,
@@ -627,10 +627,10 @@ const struct rig_caps dra818u_caps =
 
 const struct rig_caps dra818v_caps =
 {
-    .rig_model =        RIG_MODEL_DORJI_DRA818V,
+    RIG_MODEL(RIG_MODEL_DORJI_DRA818V),
     .model_name =       "DRA818V",
     .mfg_name =     "Dorji",
-    .version =      "0.1",
+    .version =      "20191209.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_UNTESTED,
     .rig_type =     RIG_TYPE_TRANSCEIVER,

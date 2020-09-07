@@ -384,7 +384,7 @@ pcr_transaction(RIG *rig, const char *cmd)
 
     if (!priv->auto_update)
     {
-        serial_flush(&rs->rigport);
+        rig_flush(&rs->rigport);
     }
 
     pcr_send(rig, cmd);
@@ -582,7 +582,7 @@ pcr_open(RIG *rig)
 
     /* let the pcr settle and flush any remaining data*/
     hl_usleep(100 * 1000);
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     /* try powering on twice, sometimes the pcr answers H100 (off) */
     pcr_send(rig, "H101");
@@ -591,7 +591,7 @@ pcr_open(RIG *rig)
     pcr_send(rig, "H101");
     hl_usleep(100 * 250);
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     /* return RIG_ERJCTED if power is off */
     err = pcr_transaction(rig, "H1?");
@@ -762,6 +762,7 @@ pcr_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     priv = (struct pcr_priv_data *) rig->state.priv;
     rcvr = is_sub_rcvr(rig, vfo) ? &priv->sub_rcvr : &priv->main_rcvr;
 
+    // cppcheck-suppress *
     freq_len = sprintf((char *) buf, "K%c%010" PRIll "0%c0%c00",
                        is_sub_rcvr(rig, vfo) ? '1' : '0',
                        (int64_t) freq,
@@ -862,6 +863,7 @@ pcr_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     if (width != RIG_PASSBAND_NOCHANGE)
     {
         int pcrfilter;
+
         if (width == RIG_PASSBAND_NORMAL)
         {
             width = rig_passband_normal(rig, mode);

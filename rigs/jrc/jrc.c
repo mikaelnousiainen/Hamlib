@@ -75,7 +75,7 @@ static int jrc_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 
     rs = &rig->state;
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     Hold_Decode(rig);
 
@@ -297,6 +297,8 @@ int jrc_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         return -RIG_EINVAL;
     }
 
+    // cppcheck-suppress *
+    // suppressing bogus cppcheck error in ver 1.90
     freq_len = sprintf(freqbuf, "F%0*"PRIll EOM, priv->max_freq_len, (int64_t)freq);
 
     return jrc_transaction(rig, freqbuf, freq_len, NULL, NULL);
@@ -372,8 +374,8 @@ int jrc_set_vfo(RIG *rig, vfo_t vfo)
     case RIG_VFO_MEM: vfo_function = 'C'; break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "jrc_set_vfo: unsupported VFO %d\n",
-                  vfo);
+        rig_debug(RIG_DEBUG_ERR, "jrc_set_vfo: unsupported VFO %s\n",
+                  rig_strvfo(vfo));
         return -RIG_EINVAL;
     }
 
@@ -1355,7 +1357,7 @@ int jrc_set_mem(RIG *rig, vfo_t vfo, int ch)
 
     cmd_len = sprintf(cmdbuf, "C%03d" EOM, ch);
 
-    /* don't care about the Automatic reponse from receiver */
+    /* don't care about the Automatic response from receiver */
 
     return jrc_transaction(rig, cmdbuf, cmd_len, membuf, &mem_len);
 }
@@ -1411,7 +1413,7 @@ int jrc_set_chan(RIG *rig, const channel_t *chan)
     /* read first to get current values */
     current.channel_num = chan->channel_num;
 
-    if ((retval = jrc_get_chan(rig, &current)) != RIG_OK) { return retval; }
+    if ((retval = jrc_get_chan(rig, &current, 1)) != RIG_OK) { return retval; }
 
     sprintf(cmdbuf, "K%03d000", chan->channel_num);
 
@@ -1463,7 +1465,7 @@ int jrc_set_chan(RIG *rig, const channel_t *chan)
  * jrc_get_chan
  * Assumes rig!=NULL
  */
-int jrc_get_chan(RIG *rig, channel_t *chan)
+int jrc_get_chan(RIG *rig, channel_t *chan, int read_only)
 {
     struct jrc_priv_caps *priv = (struct jrc_priv_caps *)rig->caps->priv;
     char    membuf[BUFSZ], cmdbuf[BUFSZ];

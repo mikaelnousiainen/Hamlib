@@ -71,10 +71,10 @@ static const char *barrett_get_info(RIG *rig);
 
 const struct rig_caps barrett_caps =
 {
-    .rig_model =        RIG_MODEL_BARRETT_2050,
+    RIG_MODEL(RIG_MODEL_BARRETT_2050),
     .model_name =       "2050",
     .mfg_name =         "Barrett",
-    .version =          BACKEND_VER ".1",
+    .version =          BACKEND_VER ".0",
     .copyright =        "LGPL",
     .status =           RIG_STATUS_BETA,
     .rig_type =         RIG_TYPE_TRANSCEIVER,
@@ -231,7 +231,7 @@ int barrett_transaction(RIG *rig, char *cmd, int expected, char **result)
 
     cmd_len = snprintf(cmd_buf, sizeof(cmd_buf), "%s%s", cmd, EOM);
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
     retval = write_block(&rs->rigport, cmd_buf, cmd_len);
 
     if (retval < 0)
@@ -429,7 +429,7 @@ int barrett_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: vfo=%s freq=%.0f\n", __func__,
               rig_strvfo(vfo), freq);
 
-    // If we are not explicity asking for VFO_B then we'll set the receive side also
+    // If we are not explicitly asking for VFO_B then we'll set the receive side also
     if (vfo != RIG_VFO_B)
     {
         char *response = NULL;
@@ -765,7 +765,7 @@ int barrett_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
         else
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: unable to parse STRENGHT from %s\n",
+            rig_debug(RIG_DEBUG_ERR, "%s: unable to parse STRENGTH from %s\n",
                       __func__, response);
             return -RIG_EPROTO;
         }

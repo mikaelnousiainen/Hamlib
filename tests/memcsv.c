@@ -25,13 +25,20 @@
 #  include "config.h"
 #endif
 
+// cppcheck-suppress *
 #include <stdio.h>
+// cppcheck-suppress *
 #include <stdlib.h>
+// cppcheck-suppress *
 #include <string.h>
+// cppcheck-suppress *
 #include <unistd.h>
+// cppcheck-suppress *
 #include <ctype.h>
+// cppcheck-suppress *
 #include <errno.h>
 
+// cppcheck-suppress *
 #include <getopt.h>
 
 #include <hamlib/rig.h>
@@ -197,7 +204,7 @@ int csv_load(RIG *rig, const char *infilename)
     \param line (input) - a line to be tokenized, the line will be modified!
     \param token_list (output) - a resulting table containing pointers to
          tokens, or NULLs (the table will be initially nulled )
-         all the pointers schould point to addresses within the line
+         all the pointers should point to addresses within the line
     \param siz (input) - size of the table
     \param delim (input) - delimiter character
     \return number of tokens on success, 0 if \param token_list is too small to contain all the tokens,
@@ -283,7 +290,7 @@ static char *mystrtok(char *s, char delim)
     {
     }
 
-    if (str[ pos + 1 ] == '\0')
+    if (str && str[ pos + 1 ] == '\0')
     {
         return NULL;
     }
@@ -304,6 +311,7 @@ static char *mystrtok(char *s, char delim)
         }
     }
 
+    // cppcheck-suppress *
     return str + ent_pos;
 }
 
@@ -351,7 +359,7 @@ int csv_parm_save(RIG *rig, const char *outfilename)
 {
     int i, ret;
     FILE *f;
-    setting_t parm, get_parm = all ? 0x7fffffff : rig->state.has_get_parm;
+    setting_t get_parm = all ? 0x7fffffff : rig->state.has_get_parm;
 
     f = fopen(outfilename, "w");
 
@@ -379,6 +387,7 @@ int csv_parm_save(RIG *rig, const char *outfilename)
     {
         const char *ms;
         value_t val;
+        setting_t parm;
 
         parm = get_parm & rig_idx2setting(i);
         ms = rig_strparm(parm);
@@ -600,7 +609,7 @@ int dump_csv_chan(RIG *rig,
 
     if (mem_caps->ant)
     {
-        fprintf(f, "%d%c", chan.ant, csv_sep);
+        fprintf(f, "%u%c", chan.ant, csv_sep);
     }
 
     if (mem_caps->freq)
@@ -675,22 +684,22 @@ int dump_csv_chan(RIG *rig,
 
     if (mem_caps->ctcss_tone)
     {
-        fprintf(f, "%d%c", chan.ctcss_tone, csv_sep);
+        fprintf(f, "%u%c", chan.ctcss_tone, csv_sep);
     }
 
     if (mem_caps->ctcss_sql)
     {
-        fprintf(f, "%d%c", chan.ctcss_sql, csv_sep);
+        fprintf(f, "%u%c", chan.ctcss_sql, csv_sep);
     }
 
     if (mem_caps->dcs_code)
     {
-        fprintf(f, "%d%c", chan.dcs_code, csv_sep);
+        fprintf(f, "%u%c", chan.dcs_code, csv_sep);
     }
 
     if (mem_caps->dcs_sql)
     {
-        fprintf(f, "%d%c", chan.dcs_sql, csv_sep);
+        fprintf(f, "%u%c", chan.dcs_sql, csv_sep);
     }
 
     if (mem_caps->scan_group)
@@ -745,13 +754,18 @@ int set_channel_data(RIG *rig,
 
     n = chan->channel_num = atoi(line_data_list[ i ]);
 
-    /* find chanel caps of appropriate memory group? */
+    /* find channel caps of appropriate memory group? */
     for (j = 0; j < CHANLSTSIZ; j++)
     {
         if (rig->state.chan_list[j].startc <= n && rig->state.chan_list[j].endc >= n)
         {
             break;
         }
+    }
+
+    if (j == CHANLSTSIZ)
+    {
+        return -RIG_EINVAL;
     }
 
     printf("Requested channel number %d, list number %d\n", n, j);
@@ -1025,6 +1039,11 @@ int find_on_list(char **list, char *what)
         return -1;
     }
 
+    if (!list[i])
+    {
+        return -1;
+    }
+
     while (list[i] != NULL)
     {
         if (strcmp(list[i], what) == 0)
@@ -1037,12 +1056,5 @@ int find_on_list(char **list, char *what)
         }
     }
 
-    if (!list[i])
-    {
-        return -1;
-    }
-    else
-    {
-        return i;
-    }
+    return i;
 }

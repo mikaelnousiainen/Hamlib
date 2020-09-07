@@ -196,7 +196,7 @@ int gnuradio_get_conf(RIG *rig, token_t token, char *val)
 
 	switch(token) {
 	case TOK_TUNER_MODEL:
-		sprintf(val, "%d", priv->tuner_model);
+		sprintf(val, "%u", priv->tuner_model);
 		break;
 	default:
 		/* if it's not for the gnuradio backend, maybe it's for the tuner */
@@ -220,7 +220,7 @@ static void *gnuradio_process(void *arg)
 
 	priv = (struct gnuradio_priv_data*)rig->state.priv;
 
-	/* the mutex lock is not to gurantee reentrancy of rig_debug,
+	/* the mutex lock is not to guarantee reentrancy of rig_debug,
 	 * this is just to know when backend want us start running
 	 */
 	pthread_mutex_lock(&priv->mutex_process);
@@ -872,6 +872,7 @@ int gnuradio_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
   return ret;
 }
 
+// cppcheck-suppress *
 DECLARE_INITRIG_BACKEND(gnuradio)
 {
 	rig_debug(RIG_DEBUG_VERBOSE, "gnuradio: _init called\n");

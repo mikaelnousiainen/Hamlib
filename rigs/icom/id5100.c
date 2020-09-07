@@ -86,7 +86,7 @@ static struct icom_priv_caps id5100_priv_caps =
 
 const struct rig_caps id5100_caps =
 {
-    .rig_model =  RIG_MODEL_ID5100,
+    RIG_MODEL(RIG_MODEL_ID5100),
     .model_name = "ID-5100",
     .mfg_name =  "Icom",
     .version =  BACKEND_VER ".0",
@@ -199,7 +199,7 @@ const struct rig_caps id5100_caps =
     .get_parm =  icom_get_parm,
     .set_ext_parm =  icom_set_ext_parm,
     .get_ext_parm =  icom_get_ext_parm,
- 
+
     .set_ptt =  icom_set_ptt,
     .get_ptt =  icom_get_ptt,
     .get_dcd =  icom_get_dcd,

@@ -85,10 +85,10 @@ static const char *rx340_get_info(RIG *rig);
  */
 const struct rig_caps rx340_caps =
 {
-    .rig_model =  RIG_MODEL_RX340,
+    RIG_MODEL(RIG_MODEL_RX340),
     .model_name = "RX-340",
     .mfg_name =  "Ten-Tec",
-    .version =  "0.3",
+    .version =  "20160409.0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_UNTESTED,
     .rig_type =  RIG_TYPE_RECEIVER,
@@ -204,7 +204,7 @@ static int rx340_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 
     rs = &rig->state;
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     retval = write_block(&rs->rigport, cmd, cmd_len);
 
@@ -316,7 +316,7 @@ int rx340_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 int rx340_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 {
     char buf[BUFSZ];
-    int buf_len;
+    int buf_len = 0;
     int retval;
     double f;
 
@@ -406,7 +406,7 @@ int rx340_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 int rx340_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 {
     char buf[BUFSZ];
-    int buf_len;
+    int buf_len = 0;
     int retval;
     double f;
 
@@ -580,7 +580,7 @@ int rx340_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 const char *rx340_get_info(RIG *rig)
 {
     static char buf[BUFSZ]; /* FIXME: reentrancy */
-    int firmware_len, retval;
+    int firmware_len = 0, retval;
 
 #define REPORT_FIRM "V"EOM
     retval = rx340_transaction(rig, REPORT_FIRM, strlen(REPORT_FIRM), buf,

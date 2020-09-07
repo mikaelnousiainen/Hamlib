@@ -165,10 +165,10 @@ static const struct hamlib_vs_dttsp
 
 const struct rig_caps dttsp_rig_caps =
 {
-    .rig_model =      RIG_MODEL_DTTSP,
+    RIG_MODEL(RIG_MODEL_DTTSP),
     .model_name =     "DttSP IPC",
     .mfg_name =       "DTTS Microwave Society",
-    .version =        "0.2",
+    .version =        "20200319.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_ALPHA,
     .rig_type =       RIG_TYPE_COMPUTER,
@@ -192,7 +192,7 @@ const struct rig_caps dttsp_rig_caps =
     .transceive =     RIG_TRN_OFF,
     .attenuator =     { RIG_DBLST_END, },
     .preamp =      { RIG_DBLST_END, },
-    /* In fact, RX and TX ranges are dependant on the tuner */
+    /* In fact, RX and TX ranges are dependent on the tuner */
     .rx_range_list1 =  { {
             .startf = kHz(150), .endf = MHz(1500), .modes = DTTSP_MODES,
             .low_power = -1, .high_power = -1, DTTSP_VFO
@@ -250,10 +250,10 @@ const struct rig_caps dttsp_rig_caps =
  */
 const struct rig_caps dttsp_udp_rig_caps =
 {
-    .rig_model =      RIG_MODEL_DTTSP_UDP,
+    RIG_MODEL(RIG_MODEL_DTTSP_UDP),
     .model_name =     "DttSP UDP",
     .mfg_name =       "DTTS Microwave Society",
-    .version =        "0.2",
+    .version =        "20200319.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_ALPHA,
     .rig_type =       RIG_TYPE_COMPUTER,
@@ -276,7 +276,7 @@ const struct rig_caps dttsp_udp_rig_caps =
     .transceive =     RIG_TRN_OFF,
     .attenuator =     { RIG_DBLST_END, },
     .preamp =      { RIG_DBLST_END, },
-    /* In fact, RX and TX ranges are dependant on the tuner */
+    /* In fact, RX and TX ranges are dependent on the tuner */
     .rx_range_list1 =  { {
             .startf = kHz(150), .endf = MHz(1500), .modes = DTTSP_MODES,
             .low_power = -1, .high_power = -1, DTTSP_VFO
@@ -378,11 +378,15 @@ static int fetch_meter(RIG *rig, int *label, float *data, int npts)
         }
 
         buf_len = sizeof(float) * npts;
-        if (sizeof(float)!=4) {
-            rig_debug(RIG_DEBUG_ERR,"%s: sizeof(float)!=4, instead = %d\n",__func__, (int)sizeof(float));
+
+        if (sizeof(float) != 4)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: sizeof(float)!=4, instead = %d\n", __func__,
+                      (int)sizeof(float));
             return -RIG_EINTERNAL;
         }
-        ret = read_block(&priv->meter_port, (char *)(void*)data, buf_len);
+
+        ret = read_block(&priv->meter_port, (char *)(void *)data, buf_len);
 
         if (ret != buf_len)
         {
@@ -452,7 +456,7 @@ int dttsp_get_conf(RIG *rig, token_t token, char *val)
     switch (token)
     {
     case TOK_TUNER_MODEL:
-        sprintf(val, "%d", priv->tuner_model);
+        sprintf(val, "%u", priv->tuner_model);
         break;
 
     case TOK_SAMPLE_RATE:
@@ -483,7 +487,8 @@ int dttsp_init(RIG *rig)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    rig->state.priv = (struct dttsp_priv_data *)calloc(1, sizeof(struct dttsp_priv_data));
+    rig->state.priv = (struct dttsp_priv_data *)calloc(1,
+                      sizeof(struct dttsp_priv_data));
 
     if (!rig->state.priv)
     {
@@ -996,7 +1001,7 @@ int dttsp_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
 {
     struct dttsp_priv_data *priv = (struct dttsp_priv_data *)rig->state.priv;
 
-    rig_debug(RIG_DEBUG_TRACE, "%s: ant %d, try tuner\n",
+    rig_debug(RIG_DEBUG_TRACE, "%s: ant %u, try tuner\n",
               __func__, ant);
 
     return rig_set_ant(priv->tuner, vfo, ant, option);

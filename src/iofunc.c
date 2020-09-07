@@ -382,8 +382,10 @@ static ssize_t port_read(hamlib_port_t *p, void *buf, size_t count)
     }
 }
 
+//! @cond Doxygen_Suppress
 #define port_write(p,b,c) write((p)->fd,(b),(c))
 #define port_select(p,n,r,w,e,t) select((n),(r),(w),(e),(t))
+//! @endcond
 
 #endif
 
@@ -564,7 +566,7 @@ int HAMLIB_API read_block(hamlib_port_t *p, char *rxbuffer, size_t count)
 
         if (retval == 0)
         {
-            /* Record timeout time and caculate elapsed time */
+            /* Record timeout time and calculate elapsed time */
             gettimeofday(&end_time, NULL);
             timersub(&end_time, &start_time, &elapsed_time);
 
@@ -635,8 +637,8 @@ int HAMLIB_API read_block(hamlib_port_t *p, char *rxbuffer, size_t count)
  * \param rxmax maximum string size + 1
  * \param stopset string of recognized end of string characters
  * \param stopset_len length of stopset
- * \return number of characters read if the operation has been sucessful,
- * otherwise a negative value if an error occured (in which case, cause is
+ * \return number of characters read if the operation has been successful,
+ * otherwise a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * Read a string from "fd" and put result into
@@ -667,11 +669,14 @@ int HAMLIB_API read_string(hamlib_port_t *p,
 
     if (!p || !rxbuffer)
     {
+        rig_debug(RIG_DEBUG_ERR, "%s: error p=%p, rxbuffer=%p\n", __func__, p,
+                  rxbuffer);
         return -RIG_EINVAL;
     }
 
     if (rxmax < 1)
     {
+        rig_debug(RIG_DEBUG_ERR, "%s: error rxmax=%ld\n", __func__, (long)rxmax);
         return 0;
     }
 
@@ -702,7 +707,7 @@ int HAMLIB_API read_string(hamlib_port_t *p,
         {
             if (0 == total_count)
             {
-                /* Record timeout time and caculate elapsed time */
+                /* Record timeout time and calculate elapsed time */
                 gettimeofday(&end_time, NULL);
                 timersub(&end_time, &start_time, &elapsed_time);
 
@@ -770,7 +775,7 @@ int HAMLIB_API read_string(hamlib_port_t *p,
 
     /*
      * Doesn't hurt anyway. But be aware, some binary protocols may have
-     * null chars within th received buffer.
+     * null chars within the received buffer.
      */
     rxbuffer[total_count] = '\000';
 

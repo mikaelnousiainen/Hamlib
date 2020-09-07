@@ -96,10 +96,10 @@ static const char *rx331_get_info(RIG *rig);
  */
 const struct rig_caps rx331_caps =
 {
-    .rig_model =  RIG_MODEL_RX331,
+    RIG_MODEL(RIG_MODEL_RX331),
     .model_name = "RX-331",
     .mfg_name =  "Ten-Tec",
-    .version =  "0.1",
+    .version =  "20200323.0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_RECEIVER,
@@ -253,9 +253,9 @@ static int rx331_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 
     rs = &rig->state;
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
-    num_snprintf(str, BUFSZ, "$%i%s", priv->receiver_id, cmd);
+    num_snprintf(str, BUFSZ, "$%u%s", priv->receiver_id, cmd);
     retval = write_block(&rs->rigport, str, strlen(str));
 
     if (retval != RIG_OK)
@@ -276,7 +276,7 @@ static int rx331_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
         return retval;
     }
 
-    snprintf(fmt,sizeof(fmt)-1,"%%i%%%ds",BUFSZ);
+    snprintf(fmt, sizeof(fmt) - 1, "%%i%%%ds", BUFSZ);
     sscanf(data + 1, fmt, &rig_id, data);
 
     if (rig_id != priv->receiver_id)
@@ -297,13 +297,15 @@ int rx331_init(RIG *rig)
 {
     struct rx331_priv_data *priv;
 
-    rig->state.priv = (struct rx331_priv_data *)malloc(sizeof(struct rx331_priv_data));
+    rig->state.priv = (struct rx331_priv_data *)malloc(sizeof(
+                          struct rx331_priv_data));
 
     if (!rig->state.priv)
     {
         /* whoops! memory shortage! */
         return -RIG_ENOMEM;
     }
+
     priv = rig->state.priv;
 
     memset(priv, 0, sizeof(struct rx331_priv_data));
@@ -396,7 +398,7 @@ int rx331_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     int freq_len, retval;
     char freqbuf[16];
 
-    freq_len = num_sprintf(freqbuf, "$%iF%.6f" EOM,
+    freq_len = num_sprintf(freqbuf, "$%uF%.6f" EOM,
                            priv->receiver_id, freq / 1e6);
 
     retval = write_block(&rs->rigport, freqbuf, freq_len);
@@ -478,7 +480,7 @@ int rx331_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         /*
          * Set DETECTION MODE and IF FILTER
          */
-        mdbuf_len = num_sprintf(mdbuf,  "$%iD%cI%.02f" EOM, priv->receiver_id,
+        mdbuf_len = num_sprintf(mdbuf,  "$%uD%cI%.02f" EOM, priv->receiver_id,
                                 dmode, (float)width / 1e3);
     }
     else
@@ -486,7 +488,7 @@ int rx331_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         /*
          * Set DETECTION MODE
          */
-        mdbuf_len = num_sprintf(mdbuf,  "$%iD%c" EOM, priv->receiver_id, dmode);
+        mdbuf_len = num_sprintf(mdbuf,  "$%uD%c" EOM, priv->receiver_id, dmode);
     }
 
     retval = write_block(&rs->rigport, mdbuf, mdbuf_len);
@@ -611,18 +613,18 @@ int rx331_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         break;
 
     case RIG_LEVEL_NOTCHF:
-        cmd_len = num_sprintf(cmdbuf, "$%iN%f" EOM, priv->receiver_id,
+        cmd_len = num_sprintf(cmdbuf, "$%uN%f" EOM, priv->receiver_id,
                               ((float)val.i) / 1e3);
         break;
 
     case RIG_LEVEL_IF:
-        cmd_len = num_sprintf(cmdbuf, "$%iP%f" EOM, priv->receiver_id,
+        cmd_len = num_sprintf(cmdbuf, "$%uP%f" EOM, priv->receiver_id,
                               ((float)val.i) / 1e3);
         break;
 
     case RIG_LEVEL_CWPITCH:
         /* only in CW mode */
-        cmd_len = num_sprintf(cmdbuf, "$%iB%f" EOM, priv->receiver_id,
+        cmd_len = num_sprintf(cmdbuf, "$%uB%f" EOM, priv->receiver_id,
                               ((float)val.i) / 1e3);
         break;
 
@@ -907,7 +909,7 @@ int rx331_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
 const char *rx331_get_info(RIG *rig)
 {
     static char buf[BUFSZ]; /* FIXME: reentrancy */
-    int firmware_len, retval;
+    int firmware_len = sizeof(buf), retval;
 
     retval = rx331_transaction(rig, REPORT_FIRM, strlen(REPORT_FIRM),
                                buf, &firmware_len);

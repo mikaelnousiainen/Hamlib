@@ -126,10 +126,10 @@ static int tt588_set_ant(RIG *rig, vfo_t vfo, ant_t ant);
  */
 const struct rig_caps tt588_caps =
 {
-    .rig_model =  RIG_MODEL_TT588,
+    RIG_MODEL(RIG_MODEL_TT588),
     .model_name = "TT-588 Omni VII",
     .mfg_name =  "Ten-Tec",
-    .version =  "0.5",
+    .version =  "20200113.0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -268,10 +268,10 @@ static int tt588_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
     for (i = 0; i < 3; ++i) // We'll try 3 times
     {
         char xxbuf[32];
-        serial_flush(&rs->rigport);
+        rig_flush(&rs->rigport);
 
         // We add 1 to data_len here for the null byte inserted by read_string eventually
-        // That way all the callers can use the expected response length for the cmd_len paramter here
+        // That way all the callers can use the expected response length for the cmd_len parameter here
         // Callers all need to ensure they have enough room in data for this
         retval = write_block(&rs->rigport, cmd, cmd_len);
 
@@ -330,13 +330,15 @@ int tt588_init(RIG *rig)
     struct tt588_priv_data *priv;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s:\n", __func__);
-    rig->state.priv = (struct tt588_priv_data *) malloc(sizeof(struct tt588_priv_data));
+    rig->state.priv = (struct tt588_priv_data *) malloc(sizeof(
+                          struct tt588_priv_data));
 
     if (!rig->state.priv)
     {
         /* whoops! memory shortage! */
         return -RIG_ENOMEM;
     }
+
     priv = rig->state.priv;
 
     memset(priv, 0, sizeof(struct tt588_priv_data));
@@ -1431,11 +1433,10 @@ int tt588_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 const char *tt588_get_info(RIG *rig)
 {
     static char cmdbuf[16], firmware[64];
-    int cmd_len, firmware_len, retval;
+    int cmd_len, firmware_len = sizeof(firmware), retval;
 
     cmd_len = sprintf(cmdbuf, "?V" EOM);
     memset(firmware, 0, sizeof(firmware));
-    firmware_len = sizeof(firmware);
     rig_debug(RIG_DEBUG_VERBOSE, "%s: firmware_len=%d\n", __func__, firmware_len);
     retval = tt588_transaction(rig, cmdbuf, cmd_len, firmware, &firmware_len);
 

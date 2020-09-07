@@ -71,10 +71,10 @@ static int ar3k_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
  */
 const struct rig_caps ar3000a_caps =
 {
-    .rig_model =  RIG_MODEL_AR3000A,
+    RIG_MODEL(RIG_MODEL_AR3000A),
     .model_name = "AR3000A",
     .mfg_name =  "AOR",
-    .version =  "0.5",
+    .version =  "20061007.0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_SCANNER,
@@ -196,7 +196,7 @@ static int ar3k_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 
     rs = &rig->state;
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     retval = write_block(&rs->rigport, cmd, cmd_len);
 

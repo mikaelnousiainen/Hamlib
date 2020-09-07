@@ -29,6 +29,7 @@
 
 #include "kit.h"
 
+#define BACKEND_VER "20200112"
 
 /*
  * Compile only this model if libusb is available
@@ -148,10 +149,10 @@ static const char *dwtdll_get_info(RIG *rig);
 
 const struct rig_caps dwt_caps =
 {
-    .rig_model =        RIG_MODEL_DWT,
+    RIG_MODEL(RIG_MODEL_DWT),
     .model_name =       "Digital World Traveller",
     .mfg_name =     "Coding Technologies",
-    .version =      "0.1.1",
+    .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_PCRECEIVER,
@@ -229,7 +230,8 @@ int dwtdll_init(RIG *rig)
 {
     struct dwtdll_priv_data *priv;
 
-    rig->state.priv = (struct dwtdll_priv_data *)malloc(sizeof(struct dwtdll_priv_data));
+    rig->state.priv = (struct dwtdll_priv_data *)malloc(sizeof(
+                          struct dwtdll_priv_data));
 
     if (!rig->state.priv)
     {
@@ -546,10 +548,10 @@ static const char *dwt_get_info(RIG *rig);
 
 const struct rig_caps dwt_caps =
 {
-    .rig_model =        RIG_MODEL_DWT,
+    RIG_MODEL(RIG_MODEL_DWT),
     .model_name =       "Digital World Traveller",
     .mfg_name =     "Coding Technologies",
-    .version =      "0.2",
+    .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_UNTESTED,
     .rig_type =     RIG_TYPE_TUNER,

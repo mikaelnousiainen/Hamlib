@@ -150,12 +150,12 @@ static const struct icom_priv_caps ic706_priv_caps =
 
 const struct rig_caps ic706_caps =
 {
-    .rig_model =  RIG_MODEL_IC706,
+    RIG_MODEL(RIG_MODEL_IC706),
     .model_name = "IC-706",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_UNTESTED,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_MOBILE,
     .ptt_type =  RIG_PTT_NONE,
     .dcd_type =  RIG_DCD_NONE,
@@ -238,11 +238,11 @@ const struct rig_caps ic706_caps =
 
     /* mode/filter list, remember: order matters! */
     .filters =  {
-        {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_RTTY, kHz(2.4)}, /* bultin FL-272 */
-        {RIG_MODE_AM, kHz(8)},      /* mid w/ bultin FL-94 */
-        {RIG_MODE_AM, kHz(2.4)},    /* narrow w/ bultin FL-272 */
-        {RIG_MODE_FM, kHz(15)},     /* ?? TBC, mid w/ bultin FL-23+SFPC455E */
-        {RIG_MODE_FM, kHz(8)},      /* narrow w/ bultin FL-94 */
+        {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_RTTY, kHz(2.4)}, /* builtin FL-272 */
+        {RIG_MODE_AM, kHz(8)},      /* mid w/ builtin FL-94 */
+        {RIG_MODE_AM, kHz(2.4)},    /* narrow w/ builtin FL-272 */
+        {RIG_MODE_FM, kHz(15)},     /* ?? TBC, mid w/ builtin FL-23+SFPC455E */
+        {RIG_MODE_FM, kHz(8)},      /* narrow w/ builtin FL-94 */
         {RIG_MODE_WFM, kHz(230)},   /* WideFM, filter FL?? */
         RIG_FLT_END,
     },
@@ -288,12 +288,12 @@ static const struct icom_priv_caps ic706mkii_priv_caps =
 
 const struct rig_caps ic706mkii_caps =
 {
-    .rig_model =  RIG_MODEL_IC706MKII,
+    RIG_MODEL(RIG_MODEL_IC706MKII),
     .model_name = "IC-706MkII",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_UNTESTED,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_MOBILE,
     .ptt_type =  RIG_PTT_NONE,
     .dcd_type =  RIG_DCD_NONE,
@@ -379,11 +379,11 @@ const struct rig_caps ic706mkii_caps =
 
     /* mode/filter list, remember: order matters! */
     .filters =  {
-        {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_RTTY, kHz(2.4)}, /* bultin FL-272 */
-        {RIG_MODE_AM, kHz(8)},      /* mid w/ bultin FL-94 */
-        {RIG_MODE_AM, kHz(2.4)},    /* narrow w/ bultin FL-272 */
-        {RIG_MODE_FM, kHz(15)},     /* ?? TBC, mid w/ bultin FL-23+SFPC455E */
-        {RIG_MODE_FM, kHz(8)},      /* narrow w/ bultin FL-94 */
+        {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_RTTY, kHz(2.4)}, /* builtin FL-272 */
+        {RIG_MODE_AM, kHz(8)},      /* mid w/ builtin FL-94 */
+        {RIG_MODE_AM, kHz(2.4)},    /* narrow w/ builtin FL-272 */
+        {RIG_MODE_FM, kHz(15)},     /* ?? TBC, mid w/ builtin FL-23+SFPC455E */
+        {RIG_MODE_FM, kHz(8)},      /* narrow w/ builtin FL-94 */
         {RIG_MODE_WFM, kHz(230)},   /* WideFM, filter FL?? */
         RIG_FLT_END,
     },
@@ -450,10 +450,10 @@ static const struct icom_priv_caps ic706mkiig_priv_caps =
 
 const struct rig_caps ic706mkiig_caps =
 {
-    .rig_model =  RIG_MODEL_IC706MKIIG,
+    RIG_MODEL(RIG_MODEL_IC706MKIIG),
     .model_name = "IC-706MkIIG",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".3",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_MOBILE,
@@ -565,11 +565,11 @@ const struct rig_caps ic706mkiig_caps =
     },
     /* mode/filter list, remember: order matters! */
     .filters =  {
-        {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_RTTY, kHz(2.4)}, /* bultin FL-272 */
-        {RIG_MODE_AM, kHz(8)},      /* mid w/ bultin FL-94 */
-        {RIG_MODE_AM, kHz(2.4)},    /* narrow w/ bultin FL-272 */
-        {RIG_MODE_FM, kHz(15)},     /* ?? TBC, mid w/ bultin FL-23+SFPC455E */
-        {RIG_MODE_FM, kHz(8)},      /* narrow w/ bultin FL-94 */
+        {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_RTTY, kHz(2.4)}, /* builtin FL-272 */
+        {RIG_MODE_AM, kHz(8)},      /* mid w/ builtin FL-94 */
+        {RIG_MODE_AM, kHz(2.4)},    /* narrow w/ builtin FL-272 */
+        {RIG_MODE_FM, kHz(15)},     /* ?? TBC, mid w/ builtin FL-23+SFPC455E */
+        {RIG_MODE_FM, kHz(8)},      /* narrow w/ builtin FL-94 */
         {RIG_MODE_WFM, kHz(230)},   /* WideFM, filter FL?? */
         RIG_FLT_END,
     },

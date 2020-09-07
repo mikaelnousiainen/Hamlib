@@ -153,10 +153,10 @@ struct ft890_priv_data
 
 const struct rig_caps ft890_caps =
 {
-    .rig_model =          RIG_MODEL_FT890,
+    RIG_MODEL(RIG_MODEL_FT890),
     .model_name =         "FT-890",
     .mfg_name =           "Yaesu",
-    .version =            "0.1",
+    .version =            "20200323.0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -292,12 +292,14 @@ static int ft890_init(RIG *rig)
         return -RIG_EINVAL;
     }
 
-    rig->state.priv = (struct ft890_priv_data *) calloc(1, sizeof(struct ft890_priv_data));
+    rig->state.priv = (struct ft890_priv_data *) calloc(1,
+                      sizeof(struct ft890_priv_data));
 
     if (!rig->state.priv)                       /* whoops! memory shortage! */
     {
         return -RIG_ENOMEM;
     }
+
     priv = rig->state.priv;
 
     /*
@@ -1307,9 +1309,13 @@ static int ft890_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
     {
         err = ft890_send_dynamic_cmd(rig, FT890_NATIVE_CLARIFIER_OPS,
                                      CLAR_RX_OFF, 0, 0, 0);
-        if (err != RIG_OK) {
-            rig_debug(RIG_DEBUG_ERR,"%s: clarifier off error: %s\n", __func__, strerror(err));
+
+        if (err != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: clarifier off error: %s\n", __func__,
+                      rigerror(err));
         }
+
         return err;
     }
 
@@ -1799,6 +1805,8 @@ static int ft890_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     struct rig_state *rig_s;
     struct ft890_priv_data *priv;
     int err;
+    // cppcheck-suppress *
+    char *fmt = "%s: requested freq after conversion = %"PRIll" Hz\n";
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -1827,9 +1835,8 @@ static int ft890_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     /* store bcd format in in p_cmd */
     to_bcd(priv->p_cmd, freq / 10, FT890_BCD_DIAL);
 
-    rig_debug(RIG_DEBUG_TRACE,
-              "%s: requested freq after conversion = %"PRIll" Hz\n",
-              __func__, (int64_t)from_bcd(priv->p_cmd, FT890_BCD_DIAL) * 10);
+    rig_debug(RIG_DEBUG_TRACE, fmt, __func__, (int64_t)from_bcd(priv->p_cmd,
+              FT890_BCD_DIAL) * 10);
 
     err = write_block(&rig_s->rigport, (char *) &priv->p_cmd,
                       YAESU_CMD_LENGTH);

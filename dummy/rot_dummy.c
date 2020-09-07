@@ -56,7 +56,7 @@ static int dummy_rot_init(ROT *rot)
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     rot->state.priv = (struct dummy_rot_priv_data *)
-           malloc(sizeof(struct dummy_rot_priv_data));
+                      malloc(sizeof(struct dummy_rot_priv_data));
 
     if (!rot->state.priv)
     {
@@ -272,12 +272,12 @@ static const char *dummy_rot_get_info(ROT *rot)
 
 const struct rot_caps dummy_rot_caps =
 {
-    .rot_model =      ROT_MODEL_DUMMY,
+    ROT_MODEL(ROT_MODEL_DUMMY),
     .model_name =     "Dummy",
     .mfg_name =       "Hamlib",
-    .version =        "0.2",
+    .version =        "20200310.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_BETA,
+    .status =         RIG_STATUS_STABLE,
     .rot_type =       ROT_TYPE_AZEL,
     .port_type =      RIG_PORT_NONE,
 
@@ -292,6 +292,9 @@ const struct rot_caps dummy_rot_caps =
     .rot_cleanup =  dummy_rot_cleanup,
     .rot_open =     dummy_rot_open,
     .rot_close =    dummy_rot_close,
+
+    .set_conf =     rot_set_conf,
+    .get_conf =     rot_get_conf,
 
     .set_position =     dummy_rot_set_position,
     .get_position =     dummy_rot_get_position,

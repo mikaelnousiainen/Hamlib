@@ -83,12 +83,12 @@ static struct kenwood_priv_caps  thd7_priv_caps  =
  */
 const struct rig_caps thd7a_caps =
 {
-    .rig_model =  RIG_MODEL_THD7A,
+    RIG_MODEL(RIG_MODEL_THD7A),
     .model_name = "TH-D7A",
     .mfg_name =  "Kenwood",
-    .version =  TH_VER,
+    .version =  TH_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_ALPHA,
+    .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_HANDHELD | RIG_FLAG_APRS | RIG_FLAG_TNC | RIG_FLAG_DXCLUSTER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,
@@ -170,6 +170,8 @@ const struct rig_caps thd7a_caps =
     .priv = (void *)& thd7_priv_caps,
 
     .rig_init = kenwood_init,
+    .rig_open = kenwood_open,
+    .rig_close = kenwood_close,
     .rig_cleanup = kenwood_cleanup,
     .set_freq =  th_set_freq,
     .get_freq =  th_get_freq,
@@ -193,7 +195,7 @@ const struct rig_caps thd7a_caps =
     .get_parm =  th_get_parm,
     .get_info =  th_get_info,
 
-    .get_dcd =  kenwood_get_dcd,
+    .get_dcd =  th_get_dcd,
 
     .decode_event =  th_decode_event,
 };

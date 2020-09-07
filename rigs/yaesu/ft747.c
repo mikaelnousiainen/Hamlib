@@ -164,10 +164,10 @@ struct ft747_priv_data
 
 const struct rig_caps ft747_caps =
 {
-    .rig_model =        RIG_MODEL_FT747,
+    RIG_MODEL(RIG_MODEL_FT747),
     .model_name =       "FT-747GX",
     .mfg_name =         "Yaesu",
-    .version =           "0.4.1",
+    .version =           "20200323.0",
     .copyright =         "LGPL",
     .status =            RIG_STATUS_BETA,
     .rig_type =          RIG_TYPE_MOBILE,
@@ -306,7 +306,8 @@ const struct rig_caps ft747_caps =
 
 int ft747_init(RIG *rig)
 {
-    rig->state.priv = (struct ft747_priv_data *) calloc(1, sizeof(struct ft747_priv_data));
+    rig->state.priv = (struct ft747_priv_data *) calloc(1,
+                      sizeof(struct ft747_priv_data));
 
     if (!rig->state.priv)           /* whoops! memory shortage! */
     {
@@ -409,6 +410,8 @@ int ft747_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     struct rig_state *rig_s;
     struct ft747_priv_data *p;
     unsigned char *cmd;       /* points to sequence to send */
+    // cppcheck-suppress *
+    char *fmt = "%s: requested freq after conversion = %"PRIll" Hz \n";
 
     p = (struct ft747_priv_data *)rig->state.priv;
 
@@ -426,9 +429,8 @@ int ft747_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
        though the rig will internally then round to 25 Hz steps */
     to_bcd(p->p_cmd, (freq + 5) / 10, 8);
 
-    rig_debug(RIG_DEBUG_VERBOSE,
-              "%s: requested freq after conversion = %"PRIll" Hz \n", __func__,
-              (int64_t)from_bcd(p->p_cmd, 8) * 10);
+    rig_debug(RIG_DEBUG_VERBOSE, fmt, __func__, (int64_t)from_bcd(p->p_cmd,
+              8) * 10);
 
     rig_force_cache_timeout(&p->status_tv);
 
@@ -480,7 +482,7 @@ int ft747_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     rig_debug(RIG_DEBUG_VERBOSE, "ft747:  freq = %"PRIfreq" Hz  for VFO = %s\n",
               f, rig_strvfo(vfo));
 
-    (*freq) = f;          /* return diplayed frequency */
+    (*freq) = f;          /* return displayed frequency */
 
     return RIG_OK;
 }
@@ -867,9 +869,9 @@ static int ft747_get_update_data(RIG *rig)
     {
         int ret;
         int port_timeout;
-        serial_flush(rigport);
+        rig_flush(rigport);
 
-        /* send UPDATE comand to fetch data*/
+        /* send UPDATE command to fetch data*/
 
         ret = ft747_send_priv_cmd(rig, FT_747_NATIVE_UPDATE);
 

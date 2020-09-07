@@ -70,7 +70,7 @@ int tentec_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 
     rs = &rig->state;
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     retval = write_block(&rs->rigport, cmd, cmd_len);
 
@@ -111,7 +111,8 @@ int tentec_init(RIG *rig)
 {
     struct tentec_priv_data *priv;
 
-    rig->state.priv = (struct tentec_priv_data *)malloc(sizeof(struct tentec_priv_data));
+    rig->state.priv = (struct tentec_priv_data *)malloc(sizeof(
+                          struct tentec_priv_data));
 
     if (!rig->state.priv)
     {

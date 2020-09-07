@@ -131,10 +131,10 @@ static const struct confparams rotorez_cfg_params[] =
 
 const struct rot_caps rotorez_rot_caps =
 {
-    .rot_model =        ROT_MODEL_ROTOREZ,
+    ROT_MODEL(ROT_MODEL_ROTOREZ),
     .model_name =       "Rotor-EZ",
     .mfg_name =         "Idiom Press",
-    .version =          "2010-02-14",
+    .version =          "20100214.0",
     .copyright =        "LGPL",
     .status =           RIG_STATUS_BETA,
     .rot_type =         ROT_TYPE_OTHER,
@@ -176,10 +176,10 @@ const struct rot_caps rotorez_rot_caps =
 
 const struct rot_caps rotorcard_rot_caps =
 {
-    .rot_model =        ROT_MODEL_ROTORCARD,
+    ROT_MODEL(ROT_MODEL_ROTORCARD),
     .model_name =       "RotorCard",
     .mfg_name =         "Idiom Press",
-    .version =          "2010-02-14",
+    .version =          "20100214.0",
     .copyright =        "LGPL",
     .status =           RIG_STATUS_UNTESTED,
     .rot_type =         ROT_TYPE_OTHER,
@@ -220,12 +220,12 @@ const struct rot_caps rotorcard_rot_caps =
 
 const struct rot_caps dcu_rot_caps =
 {
-    .rot_model =        ROT_MODEL_DCU,
+    ROT_MODEL(ROT_MODEL_DCU),
     .model_name =       "DCU-1/DCU-1X",
     .mfg_name =         "Hy-Gain",
-    .version =          "2010-08-23",
+    .version =          "20100823.0",
     .copyright =        "LGPL",
-    .status =           RIG_STATUS_UNTESTED,
+    .status =           RIG_STATUS_STABLE,
     .rot_type =         ROT_TYPE_OTHER,
     .port_type =        RIG_PORT_SERIAL,
     .serial_rate_min =  4800,
@@ -264,10 +264,10 @@ const struct rot_caps dcu_rot_caps =
 
 const struct rot_caps erc_rot_caps =
 {
-    .rot_model =        ROT_MODEL_ERC,
+    ROT_MODEL(ROT_MODEL_ERC),
     .model_name =       "ERC",
     .mfg_name =         "DF9GR",
-    .version =          "2010-08-23b",      /* second revision on 23 Aug 2010 */
+    .version =          "20100823.2",      /* second revision on 23 Aug 2010 */
     .copyright =        "LGPL",
     .status =           RIG_STATUS_ALPHA,
     .rot_type =         ROT_TYPE_OTHER,
@@ -306,10 +306,10 @@ const struct rot_caps erc_rot_caps =
 
 const struct rot_caps rt21_rot_caps =
 {
-    .rot_model =        ROT_MODEL_RT21,
+    ROT_MODEL(ROT_MODEL_RT21),
     .model_name =       "RT-21",
     .mfg_name =     "Green Heron",
-    .version =      "2014-09-14",
+    .version =      "20140914.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_ALPHA,
     .rot_type =     ROT_TYPE_OTHER,
@@ -366,7 +366,7 @@ static int rotorez_rot_init(ROT *rot)
     }
 
     rot->state.priv = (struct rotorez_rot_priv_data *)
-           malloc(sizeof(struct rotorez_rot_priv_data));
+                      malloc(sizeof(struct rotorez_rot_priv_data));
 
     if (!rot->state.priv)
     {
@@ -375,7 +375,7 @@ static int rotorez_rot_init(ROT *rot)
 
     rot->state.rotport.type.rig = RIG_PORT_SERIAL;
 
-    ((struct rotorez_rot_priv_data*)rot->state.priv)->az = 0;
+    ((struct rotorez_rot_priv_data *)rot->state.priv)->az = 0;
 
     return RIG_OK;
 }
@@ -552,7 +552,7 @@ static int rotorez_rot_get_position(ROT *rot, azimuth_t *azimuth,
                 err = -RIG_EINVAL;
             }
         }
-        else if (err == AZ_READ_LEN && az[0] == ';')
+        else if (err == AZ_READ_LEN)
         {
             /* Check if remaining chars are digits if az[0] == ';' */
             for (p = az + 1; p < az + 4; p++)
@@ -728,7 +728,6 @@ static int rt21_rot_get_position(ROT *rot, azimuth_t *azimuth,
 {
     struct rot_state *rs;
     char az[8];     /* read azimuth string */
-    azimuth_t tmp;
     int err;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -767,7 +766,7 @@ static int rt21_rot_get_position(ROT *rot, azimuth_t *azimuth,
      */
     if ((isdigit(az[0])) || (isspace(az[0])))
     {
-        tmp = strtof(az, NULL);
+        azimuth_t tmp = strtof(az, NULL);
         rig_debug(RIG_DEBUG_TRACE, "%s: \"%s\" after conversion = %.1f\n",
                   __func__, az, tmp);
 
@@ -1010,7 +1009,7 @@ static int rotorez_send_priv_cmd(ROT *rot, const char *cmdstr)
  *
  * If the RotorEZ should receive an invalid command, such as an the ';'
  * character while the rotor is not in motion, as sent by the rotorez_rot_stop
- * function or the 'S' command from `rotctl', it will output the following
+ * function or the 'S' command from 'rotctl', it will output the following
  * string, "C2000 IDIOM V1.4S " into the input buffer.  This function flushes
  * the buffer by reading it until a timeout occurs.  Once the timeout occurs,
  * this function returns and the buffer is presumed to be empty.

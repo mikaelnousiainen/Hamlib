@@ -181,7 +181,7 @@ the hamlib-developer mailing list.  See section 8.3.
 One of the most powerful features of Git is its ability to make working with
 branches easy.  It also allows the developers to "cherry pick" patches from
 the master development branch into stable release branches.  In this manner
-we can accomodate patches submitted against a stable release and merge them
+we can accommodate patches submitted against a stable release and merge them
 into master as well.  Such parallel development is a new feature for our
 project and there will be a learning curve!
 
@@ -314,7 +314,7 @@ optional as shown using the square brackets..
 This will keep the binary output files separate from the source tree and aid
 in development by reducing clutter in the source tree.
 
-Once you've run `bootstrap', make sure you've got some recent config.guess
+Once you've run 'bootstrap', make sure you've got some recent config.guess
 and config.sub (needed to guess your system type).  Anything of at least
 year 2004 should be fine, unless you run some exotic hardware/software system
 (modern Linux distributions and Cygwin keep these up to date):
@@ -322,7 +322,7 @@ year 2004 should be fine, unless you run some exotic hardware/software system
     ./config.guess --version
     ./config.sub --version
 
-The '--prefix' option to `configure' is optional and not shown as it defaults
+The '--prefix' option to 'configure' is optional and not shown as it defaults
 to /usr/local.  Convention is that locally built packages be installed in
 /usr/local away from distribution installed packages.  The 'CFLAGS="-g -O0"'
 environment variable generates less optimized binaries with the '-O0'  while the
@@ -361,8 +361,8 @@ for this target as neither the bindings or old documentation are generated
 in a default build.
 
 NOTE!  If Hamlib has not been previously installed as a locally built
-package you will need to make sure that `ldconfig' is configured correctly
-and run periodically after `make install'.  Most modern distributions have
+package you will need to make sure that 'ldconfig' is configured correctly
+and run periodically after 'make install'.  Most modern distributions have
 an /etc/ld.so.conf.d/ directory where local configuration can be made.
 Later versions of Debian and derivatives have a file named 'libc.conf' in
 this directory.  The contents of libc.conf are:
@@ -371,7 +371,7 @@ this directory.  The contents of libc.conf are:
 /usr/local/lib
 
 If your system does not have such a file, one will need to be created and
-then `ldconfig' will need to be run as the root user so that applications
+then 'ldconfig' will need to be run as the root user so that applications
 using the Hamlib libraries can find them.
 
 
@@ -409,6 +409,8 @@ So far, Hamlib has been tested successfully under the following systems:
     The rule is one backend per protocol family.
     Try to share code between rigs of the same family, if applicable.
     The steps in Section 3 below will need to be followed as well.
+    Version numbers used are in the form YYYYMMDD.N where the .N is
+    intended for multiple versions in one day....so typically would be .0
 
     2.1. mkdir mybackend
          Create a new subdir, of the name of the protocol backend.
@@ -469,8 +471,8 @@ So far, Hamlib has been tested successfully under the following systems:
 
          $ git commit -m "Initial release" Makefile.am mybackend.c mybackend.h
 
-         Note: The `-m' switch passes a short message to the Git repository
-         upon a commit.  If a longer message is desired, do not use the `-m'
+         Note: The '-m' switch passes a short message to the Git repository
+         upon a commit.  If a longer message is desired, do not use the '-m'
          option.  The editor specified in the EDITOR or VISUAL environment
          variables will be started where a more detailed message may be
          composed.
@@ -496,12 +498,12 @@ So far, Hamlib has been tested successfully under the following systems:
     3.6. In initrigs_<mybackend> of mybackend.c,
          add "rig_register(&<mymodel>_caps);"
 
-    3.7. Run `make' if you have dependencies, or the following to regenerate
+    3.7. Run 'make' if you have dependencies, or the following to regenerate
          the makefile:
             $ automake mybackend/Makefile
             $ CONFIG_HEADERS= CONFIG_LINKS= CONFIG_FILES=mybackend/Makefile ./config.status
 
-            Run `make' in topdir to rebuild all.
+            Run 'make' in topdir to rebuild all.
 
     3.8. Commit your work (once tests are satisfactory):
          $ git add .
@@ -511,11 +513,11 @@ So far, Hamlib has been tested successfully under the following systems:
          Note:  The '.' character is a Git wildcard that includes all new and
                 modified files in your working tree.
 
-                The '-m' option may be ommitted, in which case Git will start
+                The '-m' option may be omitted, in which case Git will start
                 your default editor for a longer commit message.  Commit
                 messages generally have the form of a short subject line, then
                 a blank line, and then as much text (broken into paragraphs as
-                needed) as needed for a good decription of the commit.
+                needed) as needed for a good description of the commit.
 
                 Assuming your working tree was cloned from the SF.net repository
                 or N0NB's GitHub repository, you can now issue a pull request
@@ -720,7 +722,7 @@ the rules hereunder:
     * Touching the frontend (files in src/ and include/hamlib) always
       requires discussion beforehand on the hamlib-developer list.
     * Announce on the hamlib-developer list if you're about to do serious
-      maintainance work
+      maintenance work
 
 Thanks for contributing and have fun!
 

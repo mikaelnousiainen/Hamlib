@@ -22,18 +22,20 @@
 #ifndef _IC10_H
 #define _IC10_H 1
 
-#define IC10_VER	"0.6.1"
+#define IC10_VER	"20200407"
 
 int ic10_cmd_trim (char *data, int data_len);
 int ic10_transaction (RIG *rig, const char *cmd, int cmd_len, char *data, int *data_len);
 int ic10_set_vfo(RIG *rig, vfo_t vfo);
 int ic10_get_vfo(RIG *rig, vfo_t *vfo);
+int ic10_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq);
+int ic10_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq);
 int ic10_set_split_vfo(RIG *rig, vfo_t vfo , split_t split, vfo_t txvfo);
 int ic10_get_split_vfo(RIG *rig, vfo_t vfo , split_t *split, vfo_t *txvfo);
 int ic10_get_freq(RIG *rig, vfo_t vfo, freq_t *freq);
 int ic10_set_freq(RIG *rig, vfo_t vfo, freq_t freq);
 int ic10_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option);
-int ic10_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option);
+int ic10_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option, ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx);
 int ic10_set_func(RIG *rig, vfo_t vfo, setting_t func, int status);
 int ic10_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status);
 int ic10_set_parm(RIG *rig, setting_t parm, value_t val);
@@ -45,7 +47,7 @@ int ic10_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt);
 int ic10_set_mem(RIG *rig, vfo_t vfo, int ch);
 int ic10_get_mem(RIG *rig, vfo_t vfo, int *ch);
 int ic10_set_channel(RIG *rig, const channel_t *chan);
-int ic10_get_channel(RIG *rig, channel_t *chan);
+int ic10_get_channel(RIG *rig, channel_t *chan, int read_only);
 int ic10_set_powerstat(RIG *rig, powerstat_t status);
 int ic10_get_powerstat(RIG *rig, powerstat_t *status);
 int ic10_set_trn(RIG *rig, int trn);

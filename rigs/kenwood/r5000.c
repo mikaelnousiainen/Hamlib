@@ -59,10 +59,10 @@ static struct kenwood_priv_caps  r5000_priv_caps  =
  */
 const struct rig_caps r5000_caps =
 {
-    .rig_model =  RIG_MODEL_R5000,
+    RIG_MODEL(RIG_MODEL_R5000),
     .model_name = "R-5000",
     .mfg_name =  "Kenwood",
-    .version =  IC10_VER,
+    .version =  IC10_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_RECEIVER,
@@ -74,7 +74,7 @@ const struct rig_caps r5000_caps =
     .serial_data_bits =  8,
     .serial_stop_bits =  2,
     .serial_parity =  RIG_PARITY_NONE,
-    .serial_handshake =  RIG_HANDSHAKE_HARDWARE,
+    .serial_handshake =  RIG_HANDSHAKE_NONE,
     .write_delay =  0,
     .post_write_delay =  2,
     .timeout =  400,
@@ -133,6 +133,8 @@ const struct rig_caps r5000_caps =
     .priv = (void *)& r5000_priv_caps,
 
     .rig_init = kenwood_init,
+    .rig_open = kenwood_open,
+    .rig_close = kenwood_close,
     .rig_cleanup = kenwood_cleanup,
     .set_freq =  ic10_set_freq,
     .get_freq =  ic10_get_freq,

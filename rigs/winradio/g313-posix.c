@@ -196,7 +196,7 @@ int g313_open(RIG *rig)
         return -RIG_EIO;    /* huh! */
     }
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: Openned G313\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: Opened G313\n", __func__);
 
     /* Make sure the receiver is switched on */
     SetPower(priv->hRadio, 1);
@@ -438,7 +438,7 @@ int g313_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     {
     case RIG_LEVEL_ATT:
         ret = GetAttenuator(priv->hRadio, &value);
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: ret: %d Attenuator: %u\n", __func__, ret,
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: ret: %d Attenuator: %d\n", __func__, ret,
                   value);
 
         if (ret)
@@ -451,7 +451,7 @@ int g313_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     case RIG_LEVEL_AGC:
         ret = GetAGC(priv->hRadio, &value);
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: ret: %d AGC: %u\n", __func__, ret, value);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: ret: %d AGC: %d\n", __func__, ret, value);
 
         if (ret)
         {
@@ -649,10 +649,10 @@ static void  g313_spectrum_callback(float *buffer, int count, void *arg)
 
 const struct rig_caps g313_caps =
 {
-    .rig_model =      RIG_MODEL_G313,
+    RIG_MODEL(RIG_MODEL_G313),
     .model_name =     "WR-G313",
     .mfg_name =       "Winradio",
-    .version =        "0.1",
+    .version =        "20191224.0",
     .copyright =        "LGPL", /* This wrapper, not the G313 shared library or driver */
     .status =         RIG_STATUS_ALPHA,
     .rig_type =       RIG_TYPE_PCRECEIVER,

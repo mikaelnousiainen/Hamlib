@@ -382,7 +382,7 @@ static void finddevices()
 
                     TRACE("SerialPort opened: %s fd=%d\n", uh_device_path, fd);
                     uh_device_fd = fd;
-                    // The first time we were successfull, we skip all what might come
+                    // The first time we were successful, we skip all what might come
                     return;
                 }
             }
@@ -766,6 +766,7 @@ static void *read_device(void *p)
     {
         int ret;
         int maxdev;
+
         //
         // setting uh_is_initialized to zero in the main thread
         // tells this one that it is all over now
@@ -1136,6 +1137,7 @@ int uh_open_ptt()
     if (!uh_is_initialized)
     {
         start_thread();
+
         if (!uh_is_initialized)
         {
             return -1;
@@ -1151,6 +1153,7 @@ int uh_open_wkey()
     if (!uh_is_initialized)
     {
         start_thread();
+
         if (!uh_is_initialized)
         {
             return -1;
@@ -1167,7 +1170,7 @@ int uh_open_wkey()
 // Number of stop bits must be 1 or 2.
 // Number of data bits can be 5,6,7,8
 // Hardware handshake (rtscts) can be on of off.
-// microHam devices ALWAY use "no parity".
+// microHam devices ALWAYS use "no parity".
 //
 int uh_open_radio(int baud, int databits, int stopbits, int rtscts)
 {
@@ -1177,6 +1180,7 @@ int uh_open_radio(int baud, int databits, int stopbits, int rtscts)
     if (!uh_is_initialized)
     {
         start_thread();
+
         if (!uh_is_initialized)
         {
             return -1;

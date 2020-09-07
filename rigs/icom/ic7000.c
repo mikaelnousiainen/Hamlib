@@ -152,10 +152,10 @@ static const struct icom_priv_caps IC7000_priv_caps =
 
 const struct rig_caps ic7000_caps =
 {
-    .rig_model =  RIG_MODEL_IC7000,
+    RIG_MODEL(RIG_MODEL_IC7000),
     .model_name = "IC-7000",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,

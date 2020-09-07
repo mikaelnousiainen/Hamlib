@@ -95,10 +95,10 @@ static int drt1_get_conf(RIG *rig, token_t token, char *val);
 
 const struct rig_caps drt1_caps =
 {
-    .rig_model =  RIG_MODEL_DRT1,
+    RIG_MODEL(RIG_MODEL_DRT1),
     .model_name = "DRT1",
     .mfg_name =  "SAT-Schneider",
-    .version =  "0.2",
+    .version =  "20200112.0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_TUNER,
@@ -172,7 +172,8 @@ int drt1_init(RIG *rig)
 {
     struct drt1_priv_data *priv;
 
-    rig->state.priv = (struct drt1_priv_data *)malloc(sizeof(struct drt1_priv_data));
+    rig->state.priv = (struct drt1_priv_data *)malloc(sizeof(
+                          struct drt1_priv_data));
 
     if (!rig->state.priv)
     {
@@ -414,7 +415,7 @@ int drt1_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     priv = (struct drt1_priv_data *)rig->state.priv;
 
-    serial_flush(port);
+    rig_flush(port);
 
     /* Initialization */
     ad_ioupd(port, 0);

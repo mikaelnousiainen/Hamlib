@@ -45,6 +45,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #ifdef HAVE_SYS_IOCTL_H
 #  include <sys/ioctl.h>
@@ -66,6 +67,7 @@
 #  endif
 #endif
 
+//! @cond Doxygen_Suppress
 #if defined(WIN32) && !defined(HAVE_TERMIOS_H)
 #  include "win32termios.h"
 #  define HAVE_TERMIOS_H  1   /* we have replacement */
@@ -74,6 +76,7 @@
 #  define CLOSE close
 #  define IOCTL ioctl
 #endif
+//! @endcond
 
 #include <hamlib/rig.h>
 #include "serial.h"
@@ -88,6 +91,7 @@
 static int uh_ptt_fd   = -1;
 static int uh_radio_fd = -1;
 
+//! @cond Doxygen_Suppress
 typedef struct term_options_backup
 {
     int fd;
@@ -100,6 +104,7 @@ typedef struct term_options_backup
 #endif
     struct term_options_backup *next;
 } term_options_backup_t;
+//! @endcond
 static term_options_backup_t *term_options_backup_head = NULL;
 
 
@@ -110,6 +115,7 @@ static term_options_backup_t *term_options_backup_head = NULL;
  * This function is only used in the WIN32 case and implements access "from
  * outside" to uh_radio_fd.
  */
+//! @cond Doxygen_Suppress
 int is_uh_radio_fd(int fd)
 {
     if (uh_radio_fd >= 0 && uh_radio_fd == fd)
@@ -121,6 +127,7 @@ int is_uh_radio_fd(int fd)
         return 0;
     }
 }
+//! @endcond
 
 
 /**
@@ -220,6 +227,7 @@ int HAMLIB_API serial_open(hamlib_port_t *rp)
     }
 
     serial_flush(rp); // ensure nothing is there when we open
+    hl_usleep(50 * 1000); // give a little time for MicroKeyer to finish
 
     return RIG_OK;
 }
@@ -259,18 +267,22 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
      * Get the current options for the port...
      */
 #if defined(HAVE_TERMIOS_H)
+    rig_debug(RIG_DEBUG_TRACE, "%s: tcgetattr\n", __func__);
     tcgetattr(fd, &options);
     memcpy(&orig_options, &options, sizeof(orig_options));
 #elif defined(HAVE_TERMIO_H)
+    rig_debug(RIG_DEBUG_TRACE, "%s: IOCTL TCGETA\n", __func__);
     IOCTL(fd, TCGETA, &options);
     memcpy(&orig_options, &options, sizeof(orig_options));
 #else   /* sgtty */
+    rig_debug(RIG_DEBUG_TRACE, "%s: IOCTL TIOCGETP\n", __func__);
     IOCTL(fd, TIOCGETP, &sg);
     memcpy(&orig_sg, &sg, sizeof(orig_sg));
 #endif
 
 #ifdef HAVE_CFMAKERAW
     /* Set serial port to RAW mode by default. */
+    rig_debug(RIG_DEBUG_TRACE, "%s: cfmakeraw\n", __func__);
     cfmakeraw(&options);
 #endif
 
@@ -323,6 +335,13 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
         speed = B115200;    /* awesome! */
         break;
 
+#ifdef B230400
+
+    case 230400:
+        speed = B230400;    /* super awesome! */
+        break;
+#endif
+
     default:
         rig_debug(RIG_DEBUG_ERR,
                   "%s: unsupported rate specified: %d\n",
@@ -334,7 +353,11 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
     }
 
     /* TODO */
+    rig_debug(RIG_DEBUG_TRACE, "%s: cfsetispeed=%d,0x%04x\n", __func__,
+              rp->parm.serial.rate, speed);
     cfsetispeed(&options, speed);
+    rig_debug(RIG_DEBUG_TRACE, "%s: cfsetospeed=%d,0x%04x\n", __func__,
+              rp->parm.serial.rate, speed);
     cfsetospeed(&options, speed);
 
     /*
@@ -351,6 +374,9 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
      * Set data to requested values.
      *
      */
+    rig_debug(RIG_DEBUG_TRACE, "%s: data_bits=%d\n", __func__,
+              rp->parm.serial.data_bits);
+
     switch (rp->parm.serial.data_bits)
     {
     case 7:
@@ -403,6 +429,8 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
      * Set parity to requested values.
      *
      */
+    rig_debug(RIG_DEBUG_TRACE, "%s: parity=%d\n", __func__, rp->parm.serial.parity);
+
     switch (rp->parm.serial.parity)
     {
     case RIG_PARITY_NONE:
@@ -492,7 +520,7 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
 #endif
 
     /*
-     * VTIME in deciseconds, rp->timeout in miliseconds
+     * VTIME in deciseconds, rp->timeout in milliseconds
      */
     options.c_cc[VTIME] = (rp->timeout + 99) / 100;
     options.c_cc[VMIN] = 1;
@@ -507,6 +535,8 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
      */
 #if defined(HAVE_TERMIOS_H)
 
+    rig_debug(RIG_DEBUG_TRACE, "%s: tcsetattr TCSANOW\n", __func__);
+
     if (tcsetattr(fd, TCSANOW, &options) == -1)
     {
         rig_debug(RIG_DEBUG_ERR,
@@ -520,6 +550,8 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
 
 #elif defined(HAVE_TERMIO_H)
 
+    rig_debug(RIG_DEBUG_TRACE, "%s: IOCTL TCSETA\n", __func__);
+
     if (IOCTL(fd, TCSETA, &options) == -1)
     {
         rig_debug(RIG_DEBUG_ERR,
@@ -532,6 +564,8 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
     }
 
 #else
+
+    rig_debug(RIG_DEBUG_TRACE, "%s: IOCTL TIOCSETP\n", __func__);
 
     /* sgtty */
     if (IOCTL(fd, TIOCSETP, &sg) == -1)
@@ -575,7 +609,7 @@ int HAMLIB_API serial_flush(hamlib_port_t *p)
 
     if (p->fd == uh_ptt_fd || p->fd == uh_radio_fd)
     {
-        char buf[32];
+        unsigned char buf[32];
         /*
          * Catch microHam case:
          * if fd corresponds to a microHam device drain the line
@@ -583,11 +617,17 @@ int HAMLIB_API serial_flush(hamlib_port_t *p)
          */
         int n;
 
+        rig_debug(RIG_DEBUG_TRACE, "%s: flushing: ", __func__);
+
         while ((n = read(p->fd, buf, 32)) > 0)
         {
-            rig_debug(RIG_DEBUG_VERBOSE, "%s: flushed %d bytes\n", __func__, n);
+            //int i;
+
+            //for (i = 0; i < n; ++i) { printf("0x%02x(%c) ", buf[i], isprint(buf[i]) ? buf[i] : '~'); }
+
             /* do nothing */
         }
+
 
         return RIG_OK;
     }

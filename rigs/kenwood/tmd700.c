@@ -97,10 +97,10 @@ static struct kenwood_priv_caps  tmd700_priv_caps  =
  */
 const struct rig_caps tmd700_caps =
 {
-    .rig_model =  RIG_MODEL_TMD700,
+    RIG_MODEL(RIG_MODEL_TMD700),
     .model_name = "TM-D700",
     .mfg_name =  "Kenwood",
-    .version =  TH_VER,
+    .version =  TH_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_MOBILE | RIG_FLAG_APRS | RIG_FLAG_TNC,
@@ -202,6 +202,8 @@ const struct rig_caps tmd700_caps =
     .priv = (void *)& tmd700_priv_caps,
 
     .rig_init = kenwood_init,
+    .rig_open = kenwood_open,
+    .rig_close = kenwood_close,
     .rig_cleanup = kenwood_cleanup,
     .set_freq =  th_set_freq,
     .get_freq =  th_get_freq,

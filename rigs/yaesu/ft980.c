@@ -157,10 +157,10 @@ static int ft980_set_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t offs);
 
 const struct rig_caps ft980_caps =
 {
-    .rig_model =          RIG_MODEL_FT980,
+    RIG_MODEL(RIG_MODEL_FT980),
     .model_name =         "FT-980",
     .mfg_name =           "Yaesu",
-    .version =            "0.1",
+    .version =            "20200114.0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_ALPHA,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -635,7 +635,7 @@ int ft980_transaction(RIG *rig, const unsigned char *cmd, unsigned char *data,
     int retval;
     char echo_back[YAESU_CMD_LENGTH];
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     retval = write_block(&rig->state.rigport, (const char *)cmd, YAESU_CMD_LENGTH);
 
@@ -737,7 +737,7 @@ int ft980_open(RIG *rig)
         do
         {
             write_block(&rig->state.rigport, (char *) cmd_ON_OFF,
-                                 YAESU_CMD_LENGTH);
+                        YAESU_CMD_LENGTH);
             retval = read_block(&rig->state.rigport, (char *) echo_back, YAESU_CMD_LENGTH);
         }
         while (retval != 5 && retry_count2++ < rig->state.rigport.retry);
@@ -766,7 +766,7 @@ int ft980_close(RIG *rig)
         do
         {
             write_block(&rig->state.rigport, (char *) cmd_ON_OFF,
-                                 YAESU_CMD_LENGTH);
+                        YAESU_CMD_LENGTH);
             retval = read_block(&rig->state.rigport, (char *) echo_back, YAESU_CMD_LENGTH);
         }
         while (retval != 5 && retry_count2++ < rig->state.rigport.retry);

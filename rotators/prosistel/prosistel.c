@@ -44,6 +44,7 @@
 #define STX "\x02"
 
 
+#if 0
 struct prosistel_rot_priv_data
 {
     azimuth_t az;
@@ -52,6 +53,7 @@ struct prosistel_rot_priv_data
     azimuth_t target_az;
     elevation_t target_el;
 };
+#endif
 
 
 
@@ -81,7 +83,7 @@ static int prosistel_transaction(ROT *rot, const char *cmdstr,
 
 transaction_write:
 
-    serial_flush(&rs->rotport);
+    rig_flush(&rs->rotport);
 
     if (cmdstr)
     {
@@ -118,7 +120,7 @@ transaction_write:
     }
 
     //check if reply match issued command
-    if ( cmdstr && data[0] == 0x02 && data[3] == cmdstr[2])
+    if (cmdstr && data[0] == 0x02 && data[3] == cmdstr[2])
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s Command %c reply received\n", __func__,
                   data[3]);
@@ -256,10 +258,10 @@ static int prosistel_rot_get_position(ROT *rot, azimuth_t *az, elevation_t *el)
 
 const struct rot_caps prosistel_rot_caps =
 {
-    .rot_model =      ROT_MODEL_PROSISTEL,
+    ROT_MODEL(ROT_MODEL_PROSISTEL),
     .model_name =     "Prosistel D",
     .mfg_name =       "Prosistel",
-    .version =        "0.5",
+    .version =        "20191219.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rot_type =       ROT_TYPE_AZIMUTH,

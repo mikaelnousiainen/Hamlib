@@ -58,10 +58,10 @@ static struct icom_priv_caps icr6_priv_caps =
 
 const struct rig_caps icr6_caps =
 {
-    .rig_model =  RIG_MODEL_ICR6,
+    RIG_MODEL(RIG_MODEL_ICR6),
     .model_name = "IC-R6",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_RECEIVER | RIG_FLAG_HANDHELD,

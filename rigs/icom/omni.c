@@ -65,10 +65,10 @@ static struct icom_priv_caps omnivip_priv_caps =
 
 const struct rig_caps omnivip_caps =
 {
-    .rig_model =  RIG_MODEL_OMNIVIP,
+    RIG_MODEL(RIG_MODEL_OMNIVIP),
     .model_name = "Omni VI Plus",
     .mfg_name =  "Ten-Tec",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,

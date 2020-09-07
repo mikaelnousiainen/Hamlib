@@ -71,6 +71,7 @@
 #endif
 
 #include <hamlib/rig.h>
+#include "hamlibdatetime.h"
 #include "misc.h"
 #include "iofunc.h"
 #include "serial.h"
@@ -85,7 +86,7 @@
  * NB: do NOT use -W since it's reserved by POSIX.
  * TODO: add an option to read from a file
  */
-#define SHORT_OPTIONS "m:r:p:d:P:D:s:c:T:t:C:lLuovhVZ"
+#define SHORT_OPTIONS "m:r:p:d:P:D:s:c:T:t:C:X:lLuovhVZ"
 static struct option long_options[] =
 {
     {"model",           1, 0, 'm'},
@@ -106,6 +107,7 @@ static struct option long_options[] =
     {"verbose",         0, 0, 'v'},
     {"help",            0, 0, 'h'},
     {"version",         0, 0, 'V'},
+    {"twiddle_timeout", 1, 0, 'X'},
     {"debug-time-stamps", 0, 0, 'Z'},
     {0, 0, 0, 0}
 };
@@ -141,7 +143,7 @@ static int volatile ctrl_c;
 const char *portno = "4532";
 const char *src_addr = NULL; /* INADDR_ANY */
 
-#define MAXCONFLEN 128
+#define MAXCONFLEN 1024
 
 static void sync_callback(int lock)
 {
@@ -244,8 +246,8 @@ int main(int argc, char *argv[])
 
     struct addrinfo hints, *result, *saved_result;
     int sock_listen;
-    int sockopt;
     int reuseaddr = 1;
+    int twiddle = 0;
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
 #if HAVE_SIGACTION
@@ -263,6 +265,7 @@ int main(int argc, char *argv[])
     {
         int c;
         int option_index = 0;
+        char dummy[2];
 
         c = getopt_long(argc,
                         argv,
@@ -440,7 +443,12 @@ int main(int argc, char *argv[])
                 exit(1);
             }
 
-            serial_rate = atoi(optarg);
+            if (sscanf(optarg, "%d%1s", &serial_rate, dummy) != 1)
+            {
+                fprintf(stderr, "Invalid baud rate of %s\n", optarg);
+                exit(1);
+            }
+
             break;
 
         case 'C':
@@ -453,6 +461,13 @@ int main(int argc, char *argv[])
             if (*conf_parms != '\0')
             {
                 strcat(conf_parms, ",");
+            }
+
+            if (strlen(conf_parms) + strlen(optarg) > MAXCONFLEN - 24)
+            {
+                printf("Length of conf_parms exceeds internal maximum of %d\n",
+                       MAXCONFLEN - 24);
+                return 1;
             }
 
             strncat(conf_parms, optarg, MAXCONFLEN - strlen(conf_parms));
@@ -480,6 +495,7 @@ int main(int argc, char *argv[])
 
         case 'o':
             vfo_mode++;
+            rig_debug(RIG_DEBUG_ERR, "%s: #0 vfo_mode=%d\n", __func__, vfo_mode);
             break;
 
         case 'v':
@@ -498,6 +514,16 @@ int main(int argc, char *argv[])
             dump_caps_opt++;
             break;
 
+        case 'X':
+            if (!optarg)
+            {
+                usage();    /* wrong arg count */
+                exit(1);
+            }
+
+            twiddle = atoi(optarg);
+            break;
+
         case 'Z':
             rig_set_debug_time_stamp(1);
             break;
@@ -510,13 +536,14 @@ int main(int argc, char *argv[])
 
     if (!vfo_mode)
     {
-        printf("Recommend using --vfo switch for rigctld\n");
+        printf("Recommend using --vfo switch for rigctld if client supports it\n");
         printf("rigctl and netrigctl will automatically detect vfo mode\n");
     }
 
     rig_set_debug(verbose);
 
-    rig_debug(RIG_DEBUG_VERBOSE, "rigctld, %s\n", hamlib_version);
+    rig_debug(RIG_DEBUG_VERBOSE, "rigctld %s\nLast commit was %s\n", hamlib_version,
+              HAMLIBDATETIME);
     rig_debug(RIG_DEBUG_VERBOSE, "%s",
               "Report bugs to <hamlib-developer@lists.sourceforge.net>\n\n");
 
@@ -525,7 +552,7 @@ int main(int argc, char *argv[])
     if (!my_rig)
     {
         fprintf(stderr,
-                "Unknown rig num %d, or initialization error.\n",
+                "Unknown rig num %u, or initialization error.\n",
                 my_model);
 
         fprintf(stderr, "Please check with --list option.\n");
@@ -544,6 +571,8 @@ int main(int argc, char *argv[])
     {
         strncpy(my_rig->state.rigport.pathname, rig_file, FILPATHLEN - 1);
     }
+
+    my_rig->state.twiddle_timeout = twiddle;
 
     /*
      * ex: RIG_PTT_PARALLEL and /dev/parport0
@@ -609,7 +638,7 @@ int main(int argc, char *argv[])
 
     if (verbose > RIG_DEBUG_ERR)
     {
-        printf("Opened rig model %d, '%s'\n",
+        printf("Opened rig model %u, '%s'\n",
                my_rig->caps->rig_model,
                my_rig->caps->model_name);
     }
@@ -617,6 +646,7 @@ int main(int argc, char *argv[])
     rig_debug(RIG_DEBUG_VERBOSE, "Backend version: %s, Status: %s\n",
               my_rig->caps->version, rig_strstatus(my_rig->caps->status));
 
+#if 0
     rig_close(my_rig);          /* we will reopen for clients */
 
     if (verbose > RIG_DEBUG_ERR)
@@ -625,6 +655,8 @@ int main(int argc, char *argv[])
                my_rig->caps->rig_model,
                my_rig->caps->model_name);
     }
+
+#endif
 
 #ifdef __MINGW32__
 #  ifndef SO_OPENTYPE
@@ -645,9 +677,12 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    sockopt = SO_SYNCHRONOUS_NONALERT;
-    setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (char *)&sockopt,
-               sizeof(sockopt));
+    {
+        int sockopt = SO_SYNCHRONOUS_NONALERT;
+        setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (char *)&sockopt,
+                   sizeof(sockopt));
+    }
+
 #endif
 
     /*
@@ -661,7 +696,15 @@ int main(int argc, char *argv[])
 
     retcode = getaddrinfo(src_addr, portno, &hints, &result);
 
-    if (retcode != 0)
+    if (retcode == 0 && result->ai_family == AF_INET6)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: Using IPV6\n", __func__);
+    }
+    else if (retcode == 0)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: Using IPV4\n", __func__);
+    }
+    else
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(retcode));
         exit(2);
@@ -701,7 +744,7 @@ int main(int argc, char *argv[])
         {
             /* allow IPv4 mapped to IPv6 clients Windows and BSD default
                this to 1 (i.e. disallowed) and we prefer it off */
-            sockopt = 0;
+            int sockopt = 0;
 
             if (setsockopt(sock_listen,
                            IPPROTO_IPV6,
@@ -893,7 +936,7 @@ int main(int argc, char *argv[])
 
     if (client_count)
     {
-        rig_debug(RIG_DEBUG_WARN, "%d outstanding client(s)\n", client_count);
+        rig_debug(RIG_DEBUG_WARN, "%u outstanding client(s)\n", client_count);
     }
 
     rig_close(my_rig);
@@ -942,7 +985,8 @@ void *handle_socket(void *arg)
 
     if (!fsockin)
     {
-        rig_debug(RIG_DEBUG_ERR, "fdopen in: %s\n", strerror(errno));
+        rig_debug(RIG_DEBUG_ERR, "fdopen(0x%d) in: %s\n", handle_data_arg->sock,
+                  strerror(errno));
         goto handle_exit;
     }
 
@@ -963,6 +1007,9 @@ void *handle_socket(void *arg)
 #ifdef HAVE_PTHREAD
     sync_callback(1);
 
+//    ++client_count;
+#if 0
+
     if (!client_count++)
     {
         retcode = rig_open(my_rig);
@@ -974,6 +1021,8 @@ void *handle_socket(void *arg)
                    my_rig->caps->model_name);
         }
     }
+
+#endif
 
     sync_callback(0);
 #else
@@ -990,23 +1039,36 @@ void *handle_socket(void *arg)
 
     do
     {
+        rig_debug(RIG_DEBUG_TRACE, "%s: vfo_mode=%d\n", __func__,
+                  handle_data_arg->vfo_mode);
         retcode = rigctl_parse(handle_data_arg->rig, fsockin, fsockout, NULL, 0,
                                sync_callback,
-                               1, 0, handle_data_arg->vfo_mode, send_cmd_term, &ext_resp, &resp_sep);
+                               1, 0, &handle_data_arg->vfo_mode, send_cmd_term, &ext_resp, &resp_sep);
+
+        if (retcode != 0) { rig_debug(RIG_DEBUG_ERR, "%s: rigctl_parse retcode=%d\n", __func__, retcode); }
+
+        if (retcode == -1)
+        {
+            sleep(1);
+            continue;
+        }
 
         if (ferror(fsockin) || ferror(fsockout))
         {
-            retcode = 1;
-        }
+            rig_debug(RIG_DEBUG_ERR, "%s: socket error in=%d, out=%d\n", __func__,
+                      ferror(fsockin), ferror(fsockout));
 
-        if (retcode == 1)
-        {
+            retcode = rig_close(my_rig);
+            rig_debug(RIG_DEBUG_ERR, "%s: rig_close retcode=%d\n", __func__, retcode);
             retcode = rig_open(my_rig);
+            rig_debug(RIG_DEBUG_ERR, "%s: rig_open retcode=%d\n", __func__, retcode);
         }
     }
+
     while (retcode == 0 || retcode == 2 || retcode == -RIG_ENAVAIL);
 
 #ifdef HAVE_PTHREAD
+#if 0
     sync_callback(1);
 
     /* Release rig if there are no clients */
@@ -1023,6 +1085,7 @@ void *handle_socket(void *arg)
     }
 
     sync_callback(0);
+#endif
 #else
     rig_close(my_rig);
 
@@ -1069,7 +1132,7 @@ handle_exit:
 #ifndef __MINGW32__
     retcode = close(handle_data_arg->sock);
 
-    if (retcode != 0) { rig_debug(RIG_DEBUG_ERR, "%s: close(handle_data_arg->sock) %s\n", __func__, strerror(retcode)); }
+    if (retcode != 0 && errno != EBADF) { rig_debug(RIG_DEBUG_ERR, "%s: close(handle_data_arg->sock) %s\n", __func__, strerror(errno)); }
 
 #endif
 
@@ -1105,6 +1168,7 @@ void usage(void)
         "  -u, --dump-caps               dump capabilities and exit\n"
         "  -o, --vfo                     do not default to VFO_CURR, require extra vfo arg\n"
         "  -v, --verbose                 set verbose mode, cumulative (-v to -vvvvv)\n"
+        "  -W, --twiddle_timeout         timeout after detecting vfo manual change\n"
         "  -Z, --debug-time-stamps       enable time stamps for debug messages\n"
         "  -h, --help                    display this help and exit\n"
         "  -V, --version                 output version information and exit\n\n",

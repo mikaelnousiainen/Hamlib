@@ -51,8 +51,8 @@
  *            a large enough buffer for all possible replies for a command.
  *
  * returns:
- *   RIG_OK  -  if no error occured.
- *   RIG_EIO  -  if an I/O error occured while sending/receiving data.
+ *   RIG_OK  -  if no error occurred.
+ *   RIG_EIO  -  if an I/O error occurred while sending/receiving data.
  *   RIG_ETIMEOUT  -  if timeout expires without any characters received.
  *   RIG_REJECTED  -  if a negative acknowledge was received or command not
  *                    recognized by rig.
@@ -64,13 +64,12 @@ gs232_transaction(ROT *rot, const char *cmdstr,
     struct rot_state *rs;
     int retval;
     int retry_read = 0;
-    char replybuf[BUFSZ];
 
     rs = &rot->state;
 
 transaction_write:
 
-    serial_flush(&rs->rotport);
+    rig_flush(&rs->rotport);
 
     if (cmdstr)
     {
@@ -85,7 +84,7 @@ transaction_write:
     /* Always read the reply to know whether the cmd went OK */
     if (!data)
     {
-        data = replybuf;
+        return RIG_OK;
     }
 
     if (!data_len)
@@ -236,15 +235,15 @@ gs232_rot_stop(ROT *rot)
 
 /* ************************************************************************* */
 /*
- * Generic GS232 Protocol (including those not correctly implmented) rotator capabilities.
+ * Generic GS232 Protocol (including those not correctly implemented) rotator capabilities.
  */
 
 const struct rot_caps gs232_generic_rot_caps =
 {
-    .rot_model =      ROT_MODEL_GS232_GENERIC,
+    ROT_MODEL(ROT_MODEL_GS232_GENERIC),
     .model_name =     "GS-232 Generic",
     .mfg_name =       "Various",
-    .version =        "0.3",
+    .version =        "20200424.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_BETA,
     .rot_type =       ROT_TYPE_AZEL,
@@ -277,10 +276,10 @@ const struct rot_caps gs232_generic_rot_caps =
 
 const struct rot_caps amsat_lvb_rot_caps =
 {
-    .rot_model =      ROT_MODEL_LVB,
+    ROT_MODEL(ROT_MODEL_LVB),
     .model_name =     "LVB Tracker",
     .mfg_name =       "AMSAT",
-    .version =        "0.1",
+    .version =        "20200424.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_ALPHA,
     .rot_type =       ROT_TYPE_AZEL,
@@ -314,10 +313,10 @@ const struct rot_caps amsat_lvb_rot_caps =
 
 const struct rot_caps st2_rot_caps =
 {
-    .rot_model =      ROT_MODEL_ST2,
+    ROT_MODEL(ROT_MODEL_ST2),
     .model_name =     "GS232/ST2",
     .mfg_name =       "FoxDelta",
-    .version =        "0.1",
+    .version =        "20200424.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_ALPHA,
     .rot_type =       ROT_TYPE_AZEL,
@@ -352,10 +351,10 @@ const struct rot_caps st2_rot_caps =
 
 const struct rot_caps f1tetracker_rot_caps =
 {
-    .rot_model =      ROT_MODEL_F1TETRACKER,
+    ROT_MODEL(ROT_MODEL_F1TETRACKER),
     .model_name =     "GS232/F1TE Tracker",
     .mfg_name =       "F1TE",
-    .version =        "0.1",
+    .version =        "20200424.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_BETA,
     .rot_type =       ROT_TYPE_AZEL,
@@ -378,7 +377,7 @@ const struct rot_caps f1tetracker_rot_caps =
 
     .get_position =  NULL,    /* no position feedback available */
     .set_position =  gs232_rot_set_position,
-#ifdef XXREMOVEDXX 
+#ifdef XXREMOVEDXX
     .stop =          gs232_rot_stop,
 #endif
 };

@@ -124,8 +124,8 @@ static struct icom_priv_caps ic785x_priv_caps =
     0,    /* 731 mode */
     0,    /* no XCHG */
     ic756pro_ts_sc_list,
-    .antack_len = 3,        
-    .ant_count = 4,       
+    .antack_len = 3,
+    .ant_count = 4,
     .agc_levels_present = 1,
     .agc_levels = {
         { .level = RIG_AGC_OFF, .icom_level = 0 },
@@ -155,10 +155,10 @@ const struct confparams ic785x_ext_levels[] =
 
 const struct rig_caps ic785x_caps =
 {
-    .rig_model =  RIG_MODEL_IC785x,
+    RIG_MODEL(RIG_MODEL_IC785x),
     .model_name = "IC-785x",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,

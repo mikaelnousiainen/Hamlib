@@ -21,8 +21,8 @@ char *dr_page;
 double el, az;
 
 /*Calculate the adc value corresponding to 0V*/
-//val1 is the ADC val coresponding to 0.833V
-//val2 is the ADC val corresponging to 2.5V
+//val1 is the ADC val corresponding to 0.833V
+//val2 is the ADC val corresponding to 2.5V
 int calcZeroVal(int val1, int val2)
 {
     val2 += 0x10000;
@@ -48,6 +48,7 @@ int read_calibration(int buf[NUM_CHANNELS][2])
     if (fread(cal, NUM_CHANNELS * 4, 1, f) == 1)
     {
         fclose(f);
+
         for (j = 0; j < 2; j++)
             for (i = 0; i < NUM_CHANNELS; i++)
             {

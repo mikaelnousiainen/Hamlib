@@ -78,12 +78,12 @@ static const struct icom_priv_caps IC718_priv_caps =
 
 const struct rig_caps ic718_caps =
 {
-    .rig_model =  RIG_MODEL_IC718,
+    RIG_MODEL(RIG_MODEL_IC718),
     .model_name = "IC-718",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_BETA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =   RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_NONE,
     .dcd_type =  RIG_DCD_RIG,
@@ -160,13 +160,13 @@ const struct rig_caps ic718_caps =
     },
     /* mode/filter list, remember: order matters! */
     .filters =  {
-        {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_RTTY, kHz(2.1)}, /* bultin */
+        {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_RTTY, kHz(2.1)}, /* builtin */
         {RIG_MODE_CW | RIG_MODE_RTTY, Hz(500)},         /* FL-52A */
         {RIG_MODE_CW | RIG_MODE_RTTY, Hz(250)},         /* FL-53A */
         {RIG_MODE_SSB, kHz(2.8)},               /* FL-96  */
         {RIG_MODE_SSB | RIG_MODE_CW | RIG_MODE_CWR | RIG_MODE_RTTY | RIG_MODE_RTTYR, kHz(1.8)}, /* FL-222 */
-        {RIG_MODE_AM, kHz(6)},                  /* mid w/ bultin FL-94 */
-        {RIG_MODE_AM, kHz(2.4)},                /* narrow w/ bultin FL-272 */
+        {RIG_MODE_AM, kHz(6)},                  /* mid w/ builtin FL-94 */
+        {RIG_MODE_AM, kHz(2.4)},                /* narrow w/ builtin FL-272 */
         RIG_FLT_END,
     },
 

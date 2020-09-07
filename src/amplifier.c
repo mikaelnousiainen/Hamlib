@@ -62,16 +62,20 @@
 #include "amp_conf.h"
 #include "token.h"
 
+//! @cond Doxygen_Suppress
 #define CHECK_AMP_ARG(r) (!(r) || !(r)->caps || !(r)->state.comm_state)
+//! @endcond
 
 /*
  * Data structure to track the opened amp (by amp_open)
  */
+//! @cond Doxygen_Suppress
 struct opened_amp_l
 {
     AMP *amp;
     struct opened_amp_l *next;
 };
+//! @endcond
 static struct opened_amp_l *opened_amp_list = { NULL };
 
 
@@ -133,7 +137,7 @@ static int remove_opened_amp(AMP *amp)
  *
  *  Calls cfunc() function for each opened amp.  The contents of the opened
  *  amp table is processed in random order according to a function pointed to
- *  by \a cfunc, whic is called with two arguments, the first pointing to the
+ *  by \a cfunc, which is called with two arguments, the first pointing to the
  *  #AMP handle, the second to a data pointer \a data.
  *
  *  If \a data is not needed, then it can be set to NULL.  The processing of
@@ -278,12 +282,11 @@ AMP *HAMLIB_API amp_init(amp_model_t amp_model)
  * Opens communication to a amplifier which \a AMP handle has been passed
  * by argument.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
- * \retval RIG_EINVAL   \a amp is NULL or unconsistent.
- * \retval RIG_ENIMPL   port type communication is not implemented yet.
+ * \retval RIG_EINVAL   \a amp is NULL or inconsistent.
  *
  * \sa amp_init(), amp_close()
  */
@@ -292,6 +295,7 @@ int HAMLIB_API amp_open(AMP *amp)
     const struct amp_caps *caps;
     struct amp_state *rs;
     int status;
+    int net1, net2, net3, net4, port;
 
     amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -309,6 +313,15 @@ int HAMLIB_API amp_open(AMP *amp)
     }
 
     rs->ampport.fd = -1;
+
+    // determine if we have a network address
+    if (sscanf(rs->ampport.pathname, "%d.%d.%d.%d:%d", &net1, &net2, &net3, &net4,
+               &port) == 5)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: using network address %s\n", __func__,
+                  rs->ampport.pathname);
+        rs->ampport.type.rig = RIG_PORT_NETWORK;
+    }
 
     switch (rs->ampport.type.rig)
     {
@@ -403,8 +416,8 @@ int HAMLIB_API amp_open(AMP *amp)
  * Closes communication to a amplifier which \a AMP handle has been passed
  * by argument that was previously open with amp_open().
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa amp_cleanup(), amp_open()
@@ -479,11 +492,11 @@ int HAMLIB_API amp_close(AMP *amp)
  * \brief release a amp handle and free associated memory
  * \param amp   The #AMP handle of the radio to be closed
  *
- * Releases a amp struct which port has eventualy been closed already
+ * Releases a amp struct which port has eventually been closed already
  * with amp_close().
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa amp_init(), amp_close()
@@ -525,8 +538,8 @@ int HAMLIB_API amp_cleanup(AMP *amp)
  *
  *  Resets the amplifier.
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  */
@@ -550,7 +563,9 @@ int HAMLIB_API amp_reset(AMP *amp, amp_reset_t reset)
 
     return caps->reset(amp, reset);
 }
+//! @endcond
 
+//! @cond Doxygen_Suppress
 int HAMLIB_API amp_get_freq(AMP *amp, freq_t *freq)
 {
     const struct amp_caps *caps;
@@ -571,7 +586,9 @@ int HAMLIB_API amp_get_freq(AMP *amp, freq_t *freq)
 
     return caps->get_freq(amp, freq);
 }
+//! @endcond
 
+//! @cond Doxygen_Suppress
 int HAMLIB_API amp_set_freq(AMP *amp, freq_t freq)
 {
     const struct amp_caps *caps;
@@ -592,6 +609,7 @@ int HAMLIB_API amp_set_freq(AMP *amp, freq_t freq)
 
     return caps->set_freq(amp, freq);
 }
+//! @endcond
 
 /**
  * \brief get general information from the amplifier
@@ -601,7 +619,7 @@ int HAMLIB_API amp_set_freq(AMP *amp, freq_t freq)
  * This can include firmware revision, exact model name, or just nothing.
  *
  * \return a pointer to static memory containing the ASCIIZ string
- * if the operation has been sucessful, otherwise NULL if an error occured
+ * if the operation has been successful, otherwise NULL if an error occurred
  * or get_info not part of capabilities.
  */
 const char *HAMLIB_API amp_get_info(AMP *amp)
@@ -621,6 +639,7 @@ const char *HAMLIB_API amp_get_info(AMP *amp)
     return amp->caps->get_info(amp);
 }
 
+//! @cond Doxygen_Suppress
 int HAMLIB_API amp_get_level(AMP *amp, setting_t level, value_t *val)
 {
     amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -632,12 +651,14 @@ int HAMLIB_API amp_get_level(AMP *amp, setting_t level, value_t *val)
 
     if (amp->caps->get_level == NULL)
     {
-        return -RIG_ENIMPL;
+        return -RIG_ENAVAIL;
     }
 
     return amp->caps->get_level(amp, level, val);
 }
+//! @endcond
 
+//! @cond Doxygen_Suppress
 int HAMLIB_API amp_get_ext_level(AMP *amp, token_t level, value_t *val)
 {
     amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -649,11 +670,12 @@ int HAMLIB_API amp_get_ext_level(AMP *amp, token_t level, value_t *val)
 
     if (amp->caps->get_ext_level == NULL)
     {
-        return -RIG_ENIMPL;
+        return -RIG_ENAVAIL;
     }
 
     return amp->caps->get_ext_level(amp, level, val);
 }
+//! @endcond
 
 /**
  * \brief turn on/off the amplifier or standby/operate toggle
@@ -664,8 +686,8 @@ int HAMLIB_API amp_get_ext_level(AMP *amp, token_t level, value_t *val)
  * See #RIG_POWER_ON, #RIG_POWER_OFF and #RIG_POWER_STANDBY #RIG_POWER_OPERATE defines
  * for the \a status.
  *
- * \return RIG_OK if the operation has been sucessful, ortherwise
- * a negative value if an error occured (in which case, cause is
+ * \return RIG_OK if the operation has been successful, ortherwise
+ * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
  * \sa amp_get_powerstat()
@@ -682,12 +704,13 @@ int HAMLIB_API amp_set_powerstat(AMP *amp, powerstat_t status)
 
     if (amp->caps->set_powerstat == NULL)
     {
-        return -RIG_ENIMPL;
+        return -RIG_ENAVAIL;
     }
 
     return amp->caps->set_powerstat(amp, status);
 }
 
+//! @cond Doxygen_Suppress
 int HAMLIB_API amp_get_powerstat(AMP *amp, powerstat_t *status)
 {
     amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -699,11 +722,12 @@ int HAMLIB_API amp_get_powerstat(AMP *amp, powerstat_t *status)
 
     if (amp->caps->get_powerstat == NULL)
     {
-        return -RIG_ENIMPL;
+        return -RIG_ENAVAIL;
     }
 
     return amp->caps->get_powerstat(amp, status);
 }
+//! @endcond
 
 
 /*! @} */

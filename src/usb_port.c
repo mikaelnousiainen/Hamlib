@@ -184,7 +184,7 @@ static libusb_device_handle *find_and_open_device(const hamlib_port_t *port)
                      */
                     if (strncasecmp(string,
                                     port->parm.usb.product,
-                                    sizeof(port->parm.usb.product)-1) != 0)
+                                    sizeof(port->parm.usb.product) - 1) != 0)
                     {
 
                         rig_debug(RIG_DEBUG_WARN,
@@ -227,7 +227,7 @@ int usb_port_open(hamlib_port_t *port)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    /* init defaut libusb-1.0 library contexte, if needed */
+    /* init default libusb-1.0 library contexte, if needed */
     r = libusb_init(NULL);
 
     if (r < 0)
@@ -391,20 +391,24 @@ int usb_port_close(hamlib_port_t *port)
 
 #else
 
+//! @cond Doxygen_Suppress
 int usb_port_open(hamlib_port_t *port)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     return -RIG_ENAVAIL;
 }
+//! @endcond
 
 
+//! @cond Doxygen_Suppress
 int usb_port_close(hamlib_port_t *port)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     return -RIG_ENAVAIL;
 }
+//! @endcond
 
 #endif  /* defined(HAVE_LIBUSB) && defined(HAVE_LIBUSB_H) */
 

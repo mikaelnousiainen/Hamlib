@@ -54,7 +54,8 @@ static int elektor507_set_level(RIG *rig, vfo_t vfo, setting_t level,
 static int elektor507_get_level(RIG *rig, vfo_t vfo, setting_t level,
                                 value_t *val);
 static int elektor507_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option);
-static int elektor507_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option);
+static int elektor507_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
+                              ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx);
 static int elektor507_set_conf(RIG *rig, token_t token, const char *val);
 static int elektor507_get_conf(RIG *rig, token_t token, char *val);
 
@@ -380,7 +381,7 @@ int elektor507_init(RIG *rig)
     struct elektor507_priv_data *priv;
 
     rig->state.priv = (struct elektor507_priv_data *)calloc(sizeof(struct
-            elektor507_priv_data), 1);
+                      elektor507_priv_data), 1);
 
     if (!rig->state.priv)
     {
@@ -549,7 +550,7 @@ int elektor507_ftdi_write_data(RIG *rig, void *FTOutBuf,
  * This kit is a QSD based on a CY27EE16ZE PLL.
  * The receiver is controlled via USB (through FTDI FT232R).
  *
- * Original artical:
+ * Original article:
  * http://www.elektor.com/magazines/2007/may/software-defined-radio.91527.lynkx
  *
  * Author (Burkhard Kainka) page, in german:
@@ -558,10 +559,10 @@ int elektor507_ftdi_write_data(RIG *rig, void *FTOutBuf,
 
 const struct rig_caps elektor507_caps =
 {
-    .rig_model =        RIG_MODEL_ELEKTOR507,
+    RIG_MODEL(RIG_MODEL_ELEKTOR507),
     .model_name =       "Elektor SDR-USB",
     .mfg_name =     "Elektor",
-    .version =      "0.3.2",
+    .version =      "20200112.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TUNER,
@@ -1191,12 +1192,13 @@ int elektor507_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
     return (ret != 0) ? -RIG_EIO : RIG_OK;
 }
 
-int elektor507_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option)
+int elektor507_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
+                       ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx)
 {
     struct elektor507_priv_data *priv = (struct elektor507_priv_data *)
                                         rig->state.priv;
 
-    *ant = priv->ant;
+    *ant_curr = priv->ant;
 
     return RIG_OK;
 }

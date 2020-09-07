@@ -62,10 +62,10 @@ static const struct icom_priv_caps ic737_priv_caps =
 
 const struct rig_caps ic737_caps =
 {
-    .rig_model =  RIG_MODEL_IC737,
+    RIG_MODEL(RIG_MODEL_IC737),
     .model_name = "IC-737",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_UNTESTED,
     .rig_type =  RIG_TYPE_TRANSCEIVER,

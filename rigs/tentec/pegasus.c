@@ -39,7 +39,7 @@
 
 
 #define TT550_LEVELS (RIG_LEVEL_AGC|RIG_LEVEL_AF|RIG_LEVEL_RAWSTR|RIG_LEVEL_STRENGTH| \
-                                RIG_LEVEL_RF|RIG_LEVEL_COMP|RIG_LEVEL_VOX|RIG_LEVEL_SQL| \
+                                RIG_LEVEL_RF|RIG_LEVEL_COMP|RIG_LEVEL_VOXDELAY|RIG_LEVEL_SQL| \
                                 RIG_LEVEL_RFPOWER|RIG_LEVEL_MICGAIN|RIG_LEVEL_KEYSPD| \
                                 RIG_LEVEL_SWR|RIG_LEVEL_ATT|RIG_LEVEL_NR|RIG_LEVEL_IF| \
                                 RIG_LEVEL_VOXGAIN|RIG_LEVEL_ANTIVOX)
@@ -67,10 +67,10 @@
  */
 const struct rig_caps tt550_caps =
 {
-    .rig_model = RIG_MODEL_TT550,
+    RIG_MODEL(RIG_MODEL_TT550),
     .model_name = "TT-550",
     .mfg_name = "Ten-Tec",
-    .version = "0.3",
+    .version = "20190817.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_COMPUTER,

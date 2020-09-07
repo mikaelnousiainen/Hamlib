@@ -67,7 +67,7 @@
 #define FLRIG_MODE_PKTFM   'E'
 #define FLRIG_MODE_PKTAM   'F'
 // Hamlib doesn't support D2/D3 modes in hamlib yet
-// So we define them here but they aren't implmented
+// So we define them here but they aren't implemented
 #define FLRIG_MODE_PKTLSB2 'G'
 #define FLRIG_MODE_PKTUSB2 'H'
 #define FLRIG_MODE_PKTFM2  'I'
@@ -116,10 +116,10 @@ struct trxmanager_priv_data
 
 struct rig_caps trxmanager_caps =
 {
-    .rig_model = RIG_MODEL_TRXMANAGER_RIG,
+    RIG_MODEL(RIG_MODEL_TRXMANAGER_RIG),
     .model_name = "5.7.630+",
     .mfg_name = "TRXManager",
-    .version = BACKEND_VER,
+    .version = BACKEND_VER ".0",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -265,7 +265,8 @@ static int trxmanager_init(RIG *rig)
     rig_debug(RIG_DEBUG_TRACE, "%s version %s\n", __func__, BACKEND_VER);
 
     rig->state.priv = (struct trxmanager_priv_data *)malloc(
-                                            sizeof(struct trxmanager_priv_data));
+                          sizeof(struct trxmanager_priv_data));
+
     if (!rig->state.priv)
     {
         return -RIG_ENOMEM;
@@ -1048,11 +1049,6 @@ static int trxmanager_set_split_vfo(RIG *rig, vfo_t vfo, split_t split,
 
     rig_debug(RIG_DEBUG_TRACE, "%s: tx_vfo=%s\n", __func__,
               rig_strvfo(tx_vfo));
-
-    if (tx_vfo == RIG_VFO_SUB || tx_vfo == RIG_VFO_TX)
-    {
-        tx_vfo = RIG_VFO_B;
-    }
 
 #if 0
 

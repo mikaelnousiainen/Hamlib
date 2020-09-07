@@ -69,10 +69,10 @@ static const struct icm710_priv_caps icm710_priv_caps =
 
 const struct rig_caps icm710_caps =
 {
-    .rig_model =  RIG_MODEL_IC_M710,
+    RIG_MODEL(RIG_MODEL_IC_M710),
     .model_name = "IC-M710",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =   RIG_TYPE_TRANSCEIVER,
@@ -276,7 +276,8 @@ int icm710_init(RIG *rig)
 
     priv_caps = (const struct icm710_priv_caps *) caps->priv;
 
-    rig->state.priv = (struct icm710_priv_data *)calloc(1, sizeof(struct icm710_priv_data));
+    rig->state.priv = (struct icm710_priv_data *)calloc(1,
+                      sizeof(struct icm710_priv_data));
 
     if (!rig->state.priv)
     {

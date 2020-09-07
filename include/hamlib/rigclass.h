@@ -26,6 +26,7 @@
 #include <iostream>
 
 
+//! @cond Doxygen_Suppress
 class BACKEND_IMPEXP Rig
 {
 private:
@@ -33,7 +34,7 @@ private:
 
 protected:
 public:
-    Rig(rig_model_t rig_model);
+    explicit Rig(rig_model_t rig_model);
 
     virtual ~Rig();
 
@@ -126,7 +127,7 @@ public:
     int getMem(vfo_t vfo = RIG_VFO_CURR);
 
     void setChannel(const channel_t *chan);
-    void getChannel(channel_t *chan);
+    void getChannel(channel_t *chan, int readOnly);
 
     void setPowerStat(powerstat_t status);
     powerstat_t getPowerStat(void);
@@ -157,7 +158,7 @@ public:
     shortfreq_t getXit(vfo_t vfo = RIG_VFO_CURR);
 
     void setAnt(value_t option, ant_t ant, vfo_t vfo = RIG_VFO_CURR);
-    ant_t getAnt(value_t &option, ant_t ant, ant_t &ant_curr, vfo_t vfo = RIG_VFO_CURR);
+    ant_t getAnt(ant_t &ant_rx, ant_t &ant_tx, ant_t ant, value_t &option, ant_t &ant_curr, vfo_t vfo = RIG_VFO_CURR);
 
     void sendDtmf(const char *digits, vfo_t vfo = RIG_VFO_CURR);
     int recvDtmf(char *digits, vfo_t vfo = RIG_VFO_CURR);
@@ -189,6 +190,7 @@ public:
         return RIG_OK;
     }
 };
+//! @endcond
 
 
 #ifdef __GNUG__
@@ -242,23 +244,23 @@ extern "C" void exit(int);
 #endif
 
 
+//! @cond Doxygen_Suppress
 // Forward Declarations
-
 class BACKEND_IMPEXP RigException
 {
 public:
     const char *message;
     int errorno;
 
-    RigException(const char *msg, int err)
+    explicit RigException(const char *msg, int err)
         : message(msg), errorno(err)
     {};
 
-    RigException(int err)
+    explicit RigException(int err)
         : message(rigerror(err)), errorno(err)
     {};
 
-    RigException(const char *msg)
+    explicit RigException(const char *msg)
         : message(msg), errorno(-RIG_EINTERNAL)
     {};
 
@@ -274,6 +276,7 @@ public:
         return "Rig";
     }
 };
+//! @endcond
 
 
 inline void THROW(const RigException *e)

@@ -348,7 +348,8 @@ ts570_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         {
             sprintf(levelbuf, "PA0");
         }
-        else {
+        else
+        {
             int i;
 
             for (i = 0; i < MAXDBLSTSIZ; i++)
@@ -575,8 +576,8 @@ int ts570_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
         case RIG_VFO_MEM: vfo_function = '2'; break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "ts570_set_split_vfo: unsupported VFO %d\n",
-                      vfo);
+            rig_debug(RIG_DEBUG_ERR, "ts570_set_split_vfo: unsupported VFO %s\n",
+                      rig_strvfo(vfo));
             return -RIG_EINVAL;
         }
 
@@ -622,7 +623,8 @@ int ts570_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
             break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "ts570_set_split_vfo: unsupported VFO %d\n", txvfo);
+            rig_debug(RIG_DEBUG_ERR, "ts570_set_split_vfo: unsupported VFO %s\n",
+                      rig_strvfo(txvfo));
             return -RIG_EINVAL;
         }
 
@@ -935,10 +937,10 @@ int ts570_set_xit(RIG *rig, vfo_t vfo, shortfreq_t rit)
  */
 const struct rig_caps ts570s_caps =
 {
-    .rig_model =  RIG_MODEL_TS570S,
+    RIG_MODEL(RIG_MODEL_TS570S),
     .model_name = "TS-570S",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -1116,10 +1118,10 @@ const struct rig_caps ts570s_caps =
  */
 const struct rig_caps ts570d_caps =
 {
-    .rig_model =  RIG_MODEL_TS570D,
+    RIG_MODEL(RIG_MODEL_TS570D),
     .model_name = "TS-570D",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,

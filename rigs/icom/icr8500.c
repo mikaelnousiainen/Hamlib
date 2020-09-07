@@ -76,10 +76,10 @@ static struct icom_priv_caps icr8500_priv_caps =
  */
 const struct rig_caps icr8500_caps =
 {
-    .rig_model =  RIG_MODEL_ICR8500,
+    RIG_MODEL(RIG_MODEL_ICR8500),
     .model_name = "ICR-8500",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_RECEIVER,

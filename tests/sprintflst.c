@@ -43,8 +43,9 @@
 
 int sprintf_vfo(char *str, vfo_t vfo)
 {
-    int i, len = 0;
+    unsigned int i, len = 0;
 
+    rig_debug(RIG_DEBUG_TRACE, "%s: vfo=%s\n", __func__, rig_strvfo(vfo));
     *str = '\0';
 
     if (vfo == RIG_VFO_NONE)
@@ -57,7 +58,7 @@ int sprintf_vfo(char *str, vfo_t vfo)
         const char *sv;
         sv = rig_strvfo(vfo & RIG_VFO_N(i));
 
-        if (sv && sv[0])
+        if (sv && sv[0] && (strstr(sv, "None") == 0))
         {
             len += sprintf(str + len, "%s ", sv);
         }
@@ -99,11 +100,13 @@ int sprintf_mode(char *str, rmode_t mode)
 int sprintf_ant(char *str, ant_t ant)
 {
     int i, len = 0;
+    char *ant_name;
 
     *str = '\0';
 
     if (ant == RIG_ANT_NONE)
     {
+        sprintf(str, "ANT_NONE");
         return 0;
     }
 
@@ -111,7 +114,29 @@ int sprintf_ant(char *str, ant_t ant)
     {
         if (ant & (1UL << i))
         {
-            len += sprintf(str + len, "%d ", i + 1);
+            switch (i)
+            {
+            case 0: ant_name = "ANT1"; break;
+
+            case 1: ant_name = "ANT2"; break;
+
+            case 2: ant_name = "ANT3"; break;
+
+            case 3: ant_name = "ANT4"; break;
+
+            case 4: ant_name = "ANT5"; break;
+
+            case 30: ant_name = "ANT_UNKNOWN"; break;
+
+            case 31: ant_name = "ANT_CURR"; break;
+
+            default:
+                ant_name = "ANT_UNK";
+                rig_debug(RIG_DEBUG_ERR, "%s: unknown ant=%d\n", __func__, i);
+                break;
+            }
+
+            len += sprintf(str + len, "%s ", ant_name);
         }
     }
 

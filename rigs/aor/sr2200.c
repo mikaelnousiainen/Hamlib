@@ -127,10 +127,10 @@ static const struct aor_priv_caps sr2200_priv_caps =
  */
 const struct rig_caps sr2200_caps =
 {
-    .rig_model =  RIG_MODEL_SR2200,
+    RIG_MODEL(RIG_MODEL_SR2200),
     .model_name = "SR2200",
     .mfg_name =  "AOR",
-    .version =  "0.2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_SCANNER,
@@ -285,7 +285,7 @@ static int sr2200_transaction(RIG *rig, const char *cmd, int cmd_len,
 
     rs = &rig->state;
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     retval = write_block(&rs->rigport, cmd, cmd_len);
 
@@ -538,8 +538,8 @@ int sr2200_set_vfo(RIG *rig, vfo_t vfo)
     case RIG_VFO_N(9): vfocmd = "VJ" EOM; break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "aor_set_vfo: unsupported vfo %d\n",
-                  vfo);
+        rig_debug(RIG_DEBUG_ERR, "aor_set_vfo: unsupported vfo %s\n",
+                  rig_strvfo(vfo));
         return -RIG_EINVAL;
     }
 
@@ -729,7 +729,8 @@ int sr2200_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     switch (level)
     {
-    float tmp;
+        float tmp;
+
     case RIG_LEVEL_STRENGTH:
         if (ack_len < 7 || ackbuf[0] != 'L' || ackbuf[1] != 'B')
         {
@@ -760,7 +761,7 @@ int sr2200_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         if (att > MAXDBLSTSIZ || rs->attenuator[att - 1] == 0)
         {
-            rig_debug(RIG_DEBUG_ERR, "Unsupported att %s %d\n",
+            rig_debug(RIG_DEBUG_ERR, "Unsupported att %s %u\n",
                       __func__, att);
             return -RIG_EPROTO;
         }

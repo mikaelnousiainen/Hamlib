@@ -119,10 +119,10 @@ int k2_pop_fw_lst(RIG *rig, const char *cmd);
  */
 const struct rig_caps k2_caps =
 {
-    .rig_model =        RIG_MODEL_K2,
+    RIG_MODEL(RIG_MODEL_K2),
     .model_name =       "K2",
     .mfg_name =     "Elecraft",
-    .version =      "20200107",
+    .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_BETA,
     .rig_type =     RIG_TYPE_TRANSCEIVER,
@@ -293,7 +293,6 @@ int k2_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     char f;
     struct k2_filt_lst_s *flt;
     struct kenwood_priv_data *priv = rig->state.priv;
-    shortfreq_t freq = 0;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -329,6 +328,8 @@ int k2_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     if (width != RIG_PASSBAND_NOCHANGE)
     {
+        shortfreq_t freq = 0;
+
         if (width < 0)
         {
             width = labs(width);

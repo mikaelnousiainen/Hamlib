@@ -106,14 +106,18 @@ static int netampctl_open(AMP *amp)
     {
         ret = read_string(&amp->state.ampport, buf, BUF_MAX, "\n", sizeof("\n"));
 
-        if (ret <= 0)
+        if (ret > 0)
         {
-            return (ret < 0) ? ret : -RIG_EPROTO;
+            rig_debug(RIG_DEBUG_VERBOSE, "%s called, string=%s\n", __func__, buf);
         }
-
-        rig_debug(RIG_DEBUG_VERBOSE, "%s called, string=%s\n", __func__, buf);
     }
     while (ret > 0);
+
+    if (ret < 0)
+    {
+        return -RIG_EPROTO;
+    }
+
 
     return RIG_OK;
 }
@@ -195,12 +199,12 @@ static const char *netampctl_get_info(AMP *amp)
 
 const struct amp_caps netampctl_caps =
 {
-    .amp_model =      AMP_MODEL_NETAMPCTL,
+    AMP_MODEL(AMP_MODEL_NETAMPCTL),
     .model_name =     "NET ampctl",
     .mfg_name =       "Hamlib",
-    .version =        "0.1",
+    .version =        "20200112.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_STABLE,
     .amp_type =       AMP_TYPE_OTHER,
     .port_type =      RIG_PORT_NETWORK,
     .timeout = 2000,

@@ -456,6 +456,7 @@ static int thd72_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: tsindex=%d, stepsize=%d\n", __func__, tsindex,
               (int)ts);
     freq = roundl(freq / ts) * ts;
+    // cppcheck-suppress *
     sprintf(fbuf, "%010"PRIll, (int64_t)freq);
     memcpy(buf + 5, fbuf, 10);
     retval = kenwood_simple_transaction(rig, buf, 52);
@@ -1357,7 +1358,7 @@ static int thd72_parse_channel(int kind, const char *buf, channel_t *chan)
     return RIG_OK;
 }
 
-static int thd72_get_channel(RIG *rig, channel_t *chan)
+static int thd72_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     int retval;
     char buf[72];
@@ -1404,6 +1405,16 @@ static int thd72_get_channel(RIG *rig, channel_t *chan)
         }
 
         return thd72_parse_channel(0, buf, chan);
+    }
+
+    if (!read_only)
+    {
+        // Set rig to channel values
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: need to know if rig updates when channel read or not\n", __func__);
+        return -RIG_ENIMPL;
     }
 
     return RIG_OK;
@@ -1503,7 +1514,7 @@ int thd72_get_chan_all_cb(RIG *rig, chan_cb_t chan_cb, rig_ptr_t arg)
 
 
     hl_usleep(100 * 1000); /* let the pcr settle */
-    serial_flush(rp); /* flush any remaining data */
+    rig_flush(rp); /* flush any remaining data */
     ret = ser_set_rts(rp, 1); /* setRTS or Hardware flow control? */
 
     if (ret != RIG_OK)
@@ -1615,10 +1626,10 @@ int thd72_get_chan_all_cb(RIG *rig, chan_cb_t chan_cb, rig_ptr_t arg)
  */
 const struct rig_caps thd72a_caps =
 {
-    .rig_model =  RIG_MODEL_THD72A,
+    RIG_MODEL(RIG_MODEL_THD72A),
     .model_name = "TH-D72A",
     .mfg_name =  "Kenwood",
-    .version =  TH_VER ".4",
+    .version =  TH_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_HANDHELD | RIG_FLAG_APRS | RIG_FLAG_TNC | RIG_FLAG_DXCLUSTER,

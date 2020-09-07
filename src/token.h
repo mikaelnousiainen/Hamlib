@@ -98,8 +98,16 @@
 #define TOK_POLL_INTERVAL   TOKEN_FRONTEND(111)
 /** \brief rig: lo frequency of any transverters */
 #define TOK_LO_FREQ         TOKEN_FRONTEND(112)
-/** \brief rig: International Telecommunications Union region no. */
-#define TOK_ITU_REGION  TOKEN_FRONTEND(120)
+/** \brief rig: Range index 1-5 */
+#define TOK_RANGE_SELECTED  TOKEN_FRONTEND(121)
+/** \brief rig: Range Name */
+#define TOK_RANGE_NAME  TOKEN_FRONTEND(122)
+/** \brief rig: Cache timeout */
+#define TOK_CACHE_TIMEOUT  TOKEN_FRONTEND(123)
+/** \brief rig: Auto power on rig_open when supported */
+#define TOK_AUTO_POWER_ON  TOKEN_FRONTEND(124)
+/** \brief rig: Auto disable screensaver */
+#define TOK_AUTO_DISABLE_SCREENSAVER  TOKEN_FRONTEND(125)
 /*
  * rotator specific tokens
  * (strictly, should be documented as rotator_internal)

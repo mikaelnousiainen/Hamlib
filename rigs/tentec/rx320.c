@@ -72,10 +72,10 @@
  */
 const struct rig_caps rx320_caps =
 {
-    .rig_model =  RIG_MODEL_RX320,
+    RIG_MODEL(RIG_MODEL_RX320),
     .model_name = "RX-320",
     .mfg_name =  "Ten-Tec",
-    .version =  "0.6",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_PCRECEIVER,

@@ -40,7 +40,7 @@
 
 #define TRC80_LEVEL_ALL (RIG_LEVEL_STRENGTH|RIG_LEVEL_AF|RIG_LEVEL_MICGAIN|\
         RIG_LEVEL_RFPOWER|RIG_LEVEL_CWPITCH|RIG_LEVEL_BKIN_DLYMS|\
-        RIG_LEVEL_SQL|RIG_LEVEL_VOX)
+        RIG_LEVEL_SQL|RIG_LEVEL_VOXDELAY)
 
 #define TRC80_PARMS (RIG_PARM_NONE)
 
@@ -69,10 +69,10 @@ static struct kenwood_priv_caps trc80_priv_caps  =
  */
 const struct rig_caps trc80_caps =
 {
-    .rig_model =  RIG_MODEL_TRC80,
+    RIG_MODEL(RIG_MODEL_TRC80),
     .model_name = "TRC-80",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER,
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -150,6 +150,8 @@ const struct rig_caps trc80_caps =
     .priv = (void *)& trc80_priv_caps,
 
     .rig_init    = kenwood_init,
+    .rig_open = kenwood_open,
+    .rig_close = kenwood_close,
     .rig_cleanup = kenwood_cleanup,
 
 #ifdef XXREMOVEDXX

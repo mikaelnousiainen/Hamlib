@@ -56,7 +56,7 @@ static int ts7400_rot_init(ROT *rot)
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     rot->state.priv = (struct ts7400_rot_priv_data *)
-           malloc(sizeof(struct ts7400_rot_priv_data));
+                      malloc(sizeof(struct ts7400_rot_priv_data));
 
     if (!rot->state.priv)
     {
@@ -272,10 +272,10 @@ static const char *ts7400_rot_get_info(ROT *rot)
 
 const struct rot_caps ts7400_rot_caps =
 {
-    .rot_model =      ROT_MODEL_TS7400,
+    ROT_MODEL(ROT_MODEL_TS7400),
     .model_name =     "ts7400",
     .mfg_name =       "LA7LKA",
-    .version =        "0.1",
+    .version =        "20200113.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_BETA,
     .rot_type =       ROT_TYPE_AZEL,

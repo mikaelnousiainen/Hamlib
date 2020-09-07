@@ -32,6 +32,8 @@
 #include "hamlib/rotator.h"
 #include "iofunc.h"
 #include "misc.h"
+#include "network.h"
+#include "serial.h"
 
 #include "rot_dummy.h"
 
@@ -44,6 +46,9 @@
 static int netrotctl_transaction(ROT *rot, char *cmd, int len, char *buf)
 {
     int ret;
+
+    /* flush anything in the read buffer before command is sent */
+    rig_flush(&rot->state.rotport);
 
     ret = write_block(&rot->state.rotport, cmd, len);
 
@@ -325,12 +330,12 @@ static const char *netrotctl_get_info(ROT *rot)
 
 const struct rot_caps netrotctl_caps =
 {
-    .rot_model =      ROT_MODEL_NETROTCTL,
+    ROT_MODEL(ROT_MODEL_NETROTCTL),
     .model_name =     "NET rotctl",
     .mfg_name =       "Hamlib",
-    .version =        "0.3",
+    .version =        "20200528.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_BETA,
+    .status =         RIG_STATUS_STABLE,
     .rot_type =       ROT_TYPE_OTHER,
     .port_type =      RIG_PORT_NETWORK,
     .timeout = 2000,

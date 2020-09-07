@@ -113,10 +113,10 @@ pcrotor_move(ROT *rot, int direction, int speed)
  */
 const struct rot_caps pcrotor_caps =
 {
-    .rot_model =      ROT_MODEL_PCROTOR,
+    ROT_MODEL(ROT_MODEL_PCROTOR),
     .model_name =     "PcRotor",
     .mfg_name =       "WA6UFQ",
-    .version =        "0.1",
+    .version =        "20081013.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_UNTESTED,
     .rot_type =       ROT_TYPE_OTHER,

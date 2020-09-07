@@ -87,7 +87,7 @@ static int tmv7_decode_event(RIG *rig);
 static int tmv7_set_vfo(RIG *rig, vfo_t vfo);
 static int tmv7_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width);
 static int tmv7_get_powerstat(RIG *rig, powerstat_t *status);
-static int tmv7_get_channel(RIG *rig, channel_t *chan);
+static int tmv7_get_channel(RIG *rig, channel_t *chan, int read_only);
 static int tmv7_set_channel(RIG *rig, const channel_t *chan);
 
 /*
@@ -95,10 +95,10 @@ static int tmv7_set_channel(RIG *rig, const channel_t *chan);
  */
 const struct rig_caps tmv7_caps =
 {
-    .rig_model =  RIG_MODEL_TMV7,
+    RIG_MODEL(RIG_MODEL_TMV7),
     .model_name = "TM-V7",
     .mfg_name =  "Kenwood",
-    .version =  TH_VER,
+    .version =  TH_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_MOBILE,
@@ -330,7 +330,7 @@ int tmv7_decode_event(RIG *rig)
 
         vfo_t bandmode;
 
-        retval = sscanf(asyncbuf, "VMC 0,%d", &bandmode);
+        retval = sscanf(asyncbuf, "VMC 0,%u", &bandmode);
 
         if (retval != 1)
         {
@@ -349,7 +349,7 @@ int tmv7_decode_event(RIG *rig)
         default:    bandmode = RIG_VFO_CURR; break;
         }
 
-        rig_debug(RIG_DEBUG_TRACE, "%s: Mode of Band event -  %d\n", __func__,
+        rig_debug(RIG_DEBUG_TRACE, "%s: Mode of Band event -  %u\n", __func__,
                   bandmode);
 
         /* TODO: This event does not have a callback! */
@@ -374,7 +374,7 @@ int tmv7_set_vfo(RIG *rig, vfo_t vfo)
     char vfobuf[16], ackbuf[ACKBUF_LEN];
     int retval;
 
-    rig_debug(RIG_DEBUG_TRACE, "%s: called %d\n", __func__, vfo);
+    rig_debug(RIG_DEBUG_TRACE, "%s: called %s\n", __func__, rig_strvfo(vfo));
 
     switch (vfo)
     {
@@ -397,7 +397,8 @@ int tmv7_set_vfo(RIG *rig, vfo_t vfo)
         break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO %s\n", __func__,
+                  rig_strvfo(vfo));
         return -RIG_EVFO;
     }
 
@@ -409,7 +410,7 @@ int tmv7_set_vfo(RIG *rig, vfo_t vfo)
         return retval;
     }
 
-    rig_debug(RIG_DEBUG_TRACE, "%s: next %d\n", __func__, vfo);
+    rig_debug(RIG_DEBUG_TRACE, "%s: next %s\n", __func__, rig_strvfo(vfo));
 
     switch (vfo)
     {
@@ -457,7 +458,7 @@ int tmv7_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     case RIG_VFO_A: break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO %s\n", __func__, rig_strvfo(vfo));
         return -RIG_EVFO;
     }
 
@@ -495,7 +496,7 @@ int tmv7_get_powerstat(RIG *rig, powerstat_t *status)
 
 
 /* --------------------------------------------------------------------- */
-int tmv7_get_channel(RIG *rig, channel_t *chan)
+int tmv7_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     char membuf[64], ackbuf[ACKBUF_LEN];
     int retval;
@@ -648,6 +649,16 @@ int tmv7_get_channel(RIG *rig, channel_t *chan)
         memcpy(chan->channel_desc, &ackbuf[10], 7);
     }
 
+    if (!read_only)
+    {
+        // Set rig to channel values
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: need to know if rig updates when channel read or not\n", __func__);
+        return -RIG_ENIMPL;
+    }
+
     return RIG_OK;
 }
 /* --------------------------------------------------------------------- */
@@ -781,6 +792,7 @@ int tmv7_set_channel(RIG *rig, const channel_t *chan)
     if (chan->tx_freq != RIG_FREQ_NONE)
     {
         req[5] = '1';
+        // cppcheck-suppress *
         sprintf(membuf, "%s,%011"PRIll",%01d", req, (int64_t)chan->tx_freq, step);
         retval = kenwood_transaction(rig, membuf, NULL, 0);
 

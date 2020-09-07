@@ -198,7 +198,6 @@ static int ts870s_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
     char buf[16];
     int kmode, retval;
-    pbwidth_t mode_default_hpf;
 
     switch (mode)
     {
@@ -236,6 +235,8 @@ static int ts870s_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         {
             if (RIG_MODE_USB == mode || RIG_MODE_LSB == mode || RIG_MODE_AM == mode)
             {
+                pbwidth_t mode_default_hpf;
+
                 /* we assume the HPF is set to default and set the LPF to
                      give the best approximaation of the requested width */
                 if (RIG_MODE_AM == mode)
@@ -537,12 +538,12 @@ static int ts870s_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
  */
 const struct rig_caps ts870s_caps =
 {
-    .rig_model =  RIG_MODEL_TS870S,
+    RIG_MODEL(RIG_MODEL_TS870S),
     .model_name = "TS-870S",
     .mfg_name =  "Kenwood",
     .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_BETA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,

@@ -45,7 +45,7 @@ static int ar3030_set_mem(RIG *rig, vfo_t vfo, int ch);
 static int ar3030_get_mem(RIG *rig, vfo_t vfo, int *ch);
 static int ar3030_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val);
 static int ar3030_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
-static int ar3030_get_channel(RIG *rig, channel_t *chan);
+static int ar3030_get_channel(RIG *rig, channel_t *chan, int read_only);
 static int ar3030_init(RIG *rig);
 static int ar3030_cleanup(RIG *rig);
 static int ar3030_close(RIG *rig);
@@ -99,10 +99,10 @@ struct ar3030_priv_data
  */
 const struct rig_caps ar3030_caps =
 {
-    .rig_model =  RIG_MODEL_AR3030,
+    RIG_MODEL(RIG_MODEL_AR3030),
     .model_name = "AR3030",
     .mfg_name =  "AOR",
-    .version =  "1.0",
+    .version =  "20200113.0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_RECEIVER,
@@ -231,7 +231,7 @@ static int ar3030_transaction(RIG *rig, const char *cmd, int cmd_len,
         data = tmpdata;
     }
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     do
     {
@@ -315,7 +315,7 @@ int ar3030_close(RIG *rig)
     rig_debug(RIG_DEBUG_TRACE, "%s:\n", __func__);
 
     rs = &rig->state;
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     retval = ar3030_transaction(rig, "Q" CR, strlen("Q" CR), NULL, NULL);
     rig_debug(RIG_DEBUG_TRACE, "%s: retval=%d\n", __func__, retval);
@@ -721,7 +721,7 @@ int ar3030_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     return RIG_OK;
 }
 
-int ar3030_get_channel(RIG *rig, channel_t *chan)
+int ar3030_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     struct ar3030_priv_data *priv = (struct ar3030_priv_data *)rig->state.priv;
     char cmdbuf[BUFSZ], infobuf[BUFSZ];
@@ -804,6 +804,16 @@ int ar3030_get_channel(RIG *rig, channel_t *chan)
 
     chan->levels[LVL_AGC].i = infobuf[8] == '0' ? RIG_AGC_SLOW : RIG_AGC_FAST;
     chan->flags = infobuf[4] == '1' ? RIG_CHFLAG_SKIP : RIG_CHFLAG_NONE;
+
+    if (!read_only)
+    {
+        // Set rig to channel values
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: need to know if rig updates when channel read or not\n", __func__);
+        return -RIG_ENIMPL;
+    }
 
     return RIG_OK;
 }

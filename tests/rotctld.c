@@ -110,7 +110,7 @@ const char *src_addr = NULL;    /* INADDR_ANY */
 azimuth_t az_offset;
 elevation_t el_offset;
 
-#define MAXCONFLEN 128
+#define MAXCONFLEN 1024
 
 
 static void handle_error(enum rig_debug_level_e lvl, const char *msg)
@@ -134,7 +134,7 @@ static void handle_error(enum rig_debug_level_e lvl, const char *msg)
                       NULL))
     {
 
-        rig_debug(lvl, "%s: Network error %d: %s\n", msg, e, (char*)lpMsgBuf);
+        rig_debug(lvl, "%s: Network error %d: %s\n", msg, e, (char *)lpMsgBuf);
         LocalFree(lpMsgBuf);
     }
     else
@@ -166,7 +166,6 @@ int main(int argc, char *argv[])
     struct addrinfo hints, *result, *saved_result;
     int sock_listen;
     int reuseaddr = 1;
-    int sockopt;
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
 
@@ -175,14 +174,12 @@ int main(int argc, char *argv[])
     pthread_attr_t attr;
 #endif
     struct handle_data *arg;
-#if HAVE_SIGACTION
-    struct sigaction act;
-#endif
 
     while (1)
     {
         int c;
         int option_index = 0;
+        char dummy[2];
 
         c = getopt_long(argc, argv, SHORT_OPTIONS, long_options, &option_index);
 
@@ -228,7 +225,12 @@ int main(int argc, char *argv[])
                 exit(1);
             }
 
-            serial_rate = atoi(optarg);
+            if (sscanf(optarg, "%d%1s", &serial_rate, dummy) != 1)
+            {
+                fprintf(stderr, "Invalid baud rate of %s\n", optarg);
+                exit(1);
+            }
+
             break;
 
         case 'C':
@@ -241,6 +243,13 @@ int main(int argc, char *argv[])
             if (*conf_parms != '\0')
             {
                 strcat(conf_parms, ",");
+            }
+
+            if (strlen(conf_parms) + strlen(optarg) > MAXCONFLEN - 24)
+            {
+                printf("Length of conf_parms exceeds internal maximum of %d\n",
+                       MAXCONFLEN - 24);
+                return 1;
             }
 
             strncat(conf_parms, optarg, MAXCONFLEN - strlen(conf_parms));
@@ -409,12 +418,16 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    sockopt = SO_SYNCHRONOUS_NONALERT;
-    setsockopt(INVALID_SOCKET,
-               SOL_SOCKET,
-               SO_OPENTYPE,
-               (char *)&sockopt,
-               sizeof(sockopt));
+    {
+        // braced to prevent cppcheck warning
+        int sockopt = SO_SYNCHRONOUS_NONALERT;
+        setsockopt(INVALID_SOCKET,
+                   SOL_SOCKET,
+                   SO_OPENTYPE,
+                   (char *)&sockopt,
+                   sizeof(sockopt));
+    }
+
 #endif
 
     /*
@@ -464,7 +477,7 @@ int main(int argc, char *argv[])
         {
             /* allow IPv4 mapped to IPv6 clients, MS & BSD default this
                to 1 i.e. disallowed */
-            sockopt = 0;
+            int sockopt = 0;
 
             if (setsockopt(sock_listen,
                            IPPROTO_IPV6,
@@ -515,13 +528,16 @@ int main(int argc, char *argv[])
        that will consequently fail with EPIPE. All child threads will
        inherit this disposition which is what we want. */
 #if HAVE_SIGACTION
-    memset(&act, 0, sizeof act);
-    act.sa_handler = SIG_IGN;
-    act.sa_flags = SA_RESTART;
-
-    if (sigaction(SIGPIPE, &act, NULL))
     {
-        handle_error(RIG_DEBUG_ERR, "sigaction");
+        struct sigaction act;
+        memset(&act, 0, sizeof act);
+        act.sa_handler = SIG_IGN;
+        act.sa_flags = SA_RESTART;
+
+        if (sigaction(SIGPIPE, &act, NULL))
+        {
+            handle_error(RIG_DEBUG_ERR, "sigaction");
+        }
     }
 
 #elif HAVE_SIGNAL
@@ -595,6 +611,7 @@ int main(int argc, char *argv[])
         handle_socket(arg);
 #endif
     }
+
     while (retcode == 0);
 
     rot_close(my_rot); /* close port */

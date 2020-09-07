@@ -50,7 +50,7 @@ static int hamlibpp_freq_event(RIG *rig, vfo_t vfo, freq_t freq, rig_ptr_t arg)
 		return -RIG_EINVAL;
 
 /* assert rig == ((Rig*)rig->state.obj).theRig */
-	return ((Rig*)rig->state.obj)->FreqEvent(vfo, freq, arg);
+	return (static_cast<Rig*>(rig->state.obj))->FreqEvent(vfo, freq, arg);
 }
 
 
@@ -535,14 +535,14 @@ shortfreq_t Rig::getXit(vfo_t vfo)
 	return xit;
 }
 
-void Rig::setAnt(value_t option, ant_t ant, vfo_t vfo)
+void Rig::setAnt(const value_t option, ant_t ant, vfo_t vfo)
 {
 	CHECK_RIG(rig_set_ant(theRig, vfo, ant, option));
 }
 
-ant_t Rig::getAnt(value_t &option, ant_t ant, ant_t &ant_curr, vfo_t vfo)
+ant_t Rig::getAnt(ant_t &ant_rx, ant_t &ant_tx, ant_t ant, value_t &option, ant_t &ant_curr, vfo_t vfo)
 {
-	CHECK_RIG( rig_get_ant(theRig, vfo, ant, &ant_curr, &option) );
+	CHECK_RIG( rig_get_ant(theRig, vfo, ant, &option, &ant_curr, &ant_tx, &ant_rx) );
 
 	return ant;
 }
@@ -648,9 +648,9 @@ void Rig::setChannel (const channel_t *chan)
 	CHECK_RIG( rig_set_channel(theRig, chan) );
 }
 
-void Rig::getChannel (channel_t *chan)
+void Rig::getChannel (channel_t *chan, int readOnly)
 {
-	CHECK_RIG( rig_get_channel(theRig, chan) );
+	CHECK_RIG( rig_get_channel(theRig, chan, readOnly) );
 }
 
 

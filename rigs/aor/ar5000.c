@@ -104,10 +104,10 @@ static const struct aor_priv_caps ar5k_priv_caps =
  */
 const struct rig_caps ar5000_caps =
 {
-    .rig_model =  RIG_MODEL_AR5000,
+    RIG_MODEL(RIG_MODEL_AR5000),
     .model_name = "AR5000",
     .mfg_name =  "AOR",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_SCANNER,
@@ -249,10 +249,10 @@ const struct rig_caps ar5000_caps =
  */
 const struct rig_caps ar5000a_caps =
 {
-    .rig_model =  RIG_MODEL_AR5000A,
+    RIG_MODEL(RIG_MODEL_AR5000A),
     .model_name = "AR5000A",
     .mfg_name =  "AOR",
-    .version =  BACKEND_VER,
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_SCANNER,
@@ -432,6 +432,7 @@ int format5k_mode(RIG *rig, char *buf, rmode_t mode, pbwidth_t width)
     if (width != RIG_PASSBAND_NOCHANGE)
     {
         int aorwidth;
+
         if (width == RIG_PASSBAND_NORMAL)
         {
             width = rig_passband_normal(rig, mode);

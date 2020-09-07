@@ -63,7 +63,7 @@ int lowe_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 
     rs = &rig->state;
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     retval = write_block(&rs->rigport, cmd, cmd_len);
 
@@ -294,7 +294,7 @@ const char *lowe_get_info(RIG *rig)
 
     if (retval != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_VERBOSE,"%s: INF didn't work\n", __func__);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: INF didn't work\n", __func__);
         // non-fatal
     }
 

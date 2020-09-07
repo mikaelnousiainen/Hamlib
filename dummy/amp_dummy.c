@@ -63,7 +63,7 @@ static int dummy_amp_init(AMP *amp)
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     amp->state.priv = (struct dummy_amp_priv_data *)
-           malloc(sizeof(struct dummy_amp_priv_data));
+                      malloc(sizeof(struct dummy_amp_priv_data));
 
     if (!amp->state.priv)
     {
@@ -334,12 +334,12 @@ static int dummy_amp_get_ext_level(AMP *amp, token_t token, value_t *val)
 
 const struct amp_caps dummy_amp_caps =
 {
-    .amp_model =      AMP_MODEL_DUMMY,
+    AMP_MODEL(AMP_MODEL_DUMMY),
     .model_name =     "Dummy",
     .mfg_name =       "Hamlib",
-    .version =        "0.1",
+    .version =        "20200112.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_STABLE,
     .amp_type =       AMP_TYPE_OTHER,
     .port_type =      RIG_PORT_NONE,
 

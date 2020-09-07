@@ -409,7 +409,7 @@ static int ar7030p_open(RIG *rig)
                 if (rc < 0)
                 {
                     rig_debug(RIG_DEBUG_ERR, "%s: err in getFilterBW: %s\n", __func__,
-                              strerror(rc));
+                              rigerror(rc));
                     return rc;
                 }
                 else
@@ -627,7 +627,7 @@ static int ar7030p_set_mode(RIG *rig, vfo_t vfo, rmode_t mode,
                     }
                 }
 
-                rig_debug(RIG_DEBUG_VERBOSE, "%s: width %d ar_filter %d filterTab[%d] %d\n",
+                rig_debug(RIG_DEBUG_VERBOSE, "%s: width %d ar_filter %d filterTab[%d] %u\n",
                           __func__, (int)width, ar_filter, i, filterTab[i]);
             }
 
@@ -1168,7 +1168,7 @@ static int ar7030p_get_level(RIG *rig, vfo_t vfo, setting_t level,
                 /* Scale parameter */
                 val->i = (int)((float)(x) / NOTCH_STEP_HZ);
 
-                rig_debug(RIG_DEBUG_VERBOSE, "%s: nchfr %d (%d)\n",
+                rig_debug(RIG_DEBUG_VERBOSE, "%s: nchfr %u (%d)\n",
                           __func__, x, val->i);
             }
 
@@ -1638,7 +1638,7 @@ static int ar7030p_set_channel(RIG *rig, const channel_t *chan)
     return (-RIG_ENIMPL);
 }
 
-static int ar7030p_get_channel(RIG *rig, channel_t *chan)
+static int ar7030p_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     int rc = RIG_OK;
     unsigned char v;
@@ -1754,15 +1754,25 @@ static int ar7030p_get_channel(RIG *rig, channel_t *chan)
         rc = lockRx(rig, LOCK_0);
     }
 
+    if (!read_only)
+    {
+        // Set rig to channel values
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: need to know if rig updates when channel read or not\n", __func__);
+        return -RIG_ENIMPL;
+    }
+
     return (rc);
 }
 
 const struct rig_caps ar7030p_caps =
 {
-    .rig_model = RIG_MODEL_AR7030P,
+    RIG_MODEL(RIG_MODEL_AR7030P),
     .model_name = "AR7030 Plus",
     .mfg_name = "AOR",
-    .version = "0.1",
+    .version = "20200319.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_BETA,
     .rig_type = RIG_TYPE_RECEIVER,

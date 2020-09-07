@@ -101,10 +101,10 @@ struct vx1700_priv_data
 
 const struct rig_caps vx1700_caps =
 {
-    .rig_model =  RIG_MODEL_VX1700,
+    RIG_MODEL(RIG_MODEL_VX1700),
     .model_name =  "VX-1700",
     .mfg_name =  "Vertex Standard",
-    .version =  "1.1",
+    .version =  "20200320.0",
     .copyright =  "LGPL",
     .status =   RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -240,7 +240,7 @@ static int vx1700_do_transaction(RIG *rig,
     rs = &rig->state;
     memset(retbuf, 0, retbuf_len);
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
     retval = write_block(&rs->rigport, (const char *)cmd, YAESU_CMD_LENGTH);
 
     if (retval != RIG_OK) { return retval; }
@@ -352,7 +352,7 @@ static int vx1700_do_freq_cmd(RIG *rig, unsigned char ci, freq_t freq)
     if ((ci != VX1700_NATIVE_FREQ_SET) && (ci != VX1700_NATIVE_TX_FREQ_SET))
     {
         rig_debug(RIG_DEBUG_TRACE,
-                  "%s: Attempt to use non freqency sequence\n", __func__);
+                  "%s: Attempt to use non frequency sequence\n", __func__);
         return -RIG_EINVAL;
     }
 
@@ -603,6 +603,7 @@ static int vx1700_init(RIG *rig)
     rig->state.priv = calloc(1, sizeof(struct vx1700_priv_data));
 
     if (rig->state.priv == NULL) { return -RIG_ENOMEM; }
+
     priv = rig->state.priv;
 
     priv->ch = 1;
@@ -651,7 +652,7 @@ static int vx1700_set_vfo(RIG *rig, vfo_t vfo)
 {
     struct vx1700_priv_data *priv = (struct vx1700_priv_data *)rig->state.priv;
 
-    rig_debug(RIG_DEBUG_TRACE, "%s, vfo=%d\n", __func__, vfo);
+    rig_debug(RIG_DEBUG_TRACE, "%s, vfo=%s\n", __func__, rig_strvfo(vfo));
 
     switch (vfo)
     {

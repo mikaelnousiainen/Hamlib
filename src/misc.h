@@ -26,7 +26,7 @@
 
 
 /*
- * Carefull!! These macros are NOT reentrant!
+ * Careful!! These macros are NOT reentrant!
  * ie. they may not be executed atomically,
  * thus not ensure mutual exclusion.
  * Fix it when making Hamlib reentrant!  --SF
@@ -49,7 +49,7 @@ void dump_hex(const unsigned char ptr[], size_t size);
  *  and return a pointer to this array.
  *
  * from_bcd() converts a little endian BCD array to long long int
- *  reprensentation, and return it.
+ *  representation, and return it.
  *
  * bcd_len is the number of digits in the BCD array.
  */
@@ -84,10 +84,12 @@ extern int no_restore_ai;
 
 /* needs config.h included beforehand in .c file */
 #ifdef HAVE_INTTYPES_H
+// cppcheck-suppress *
 #  include <inttypes.h>
 #endif
 
 #ifdef HAVE_SYS_TIME_H
+// cppcheck-suppress *
 #  include <sys/time.h>
 #endif
 
@@ -98,7 +100,13 @@ extern HAMLIB_EXPORT(void) rig_force_cache_timeout(struct timeval *tv);
 
 extern HAMLIB_EXPORT(setting_t) rig_idx2setting(int i);
 
-extern HAMLIB_EXPORT(int) hl_usleep(useconds_t usec);
+extern HAMLIB_EXPORT(int) hl_usleep(rig_useconds_t usec);
+
+extern HAMLIB_EXPORT(double) elapsed_ms(struct timespec *start, int start_flag);
+
+extern HAMLIB_EXPORT(vfo_t) vfo_fixup(RIG *rig, vfo_t vfo);
+
+extern HAMLIB_EXPORT(int) parse_hoststr(char *host, char hoststr[256], char port[6]);
 
 #ifdef PRId64
 /** \brief printf(3) format to be used for long long (64bits) type */

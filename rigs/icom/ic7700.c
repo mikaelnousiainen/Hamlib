@@ -150,10 +150,10 @@ const struct confparams ic7700_ext_levels[] =
 
 const struct rig_caps ic7700_caps =
 {
-    .rig_model =  RIG_MODEL_IC7700,
+    RIG_MODEL(RIG_MODEL_IC7700),
     .model_name = "IC-7700",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,

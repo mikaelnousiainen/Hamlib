@@ -50,8 +50,8 @@
  *            a large enough buffer for all possible replies for a command.
  *
  * returns:
- *   RIG_OK  -  if no error occured.
- *   RIG_EIO  -  if an I/O error occured while sending/receiving data.
+ *   RIG_OK  -  if no error occurred.
+ *   RIG_EIO  -  if an I/O error occurred while sending/receiving data.
  *   RIG_ETIMEOUT  -  if timeout expires without any characters received.
  */
 static int
@@ -67,7 +67,7 @@ celestron_transaction(ROT *rot, const char *cmdstr,
 
 transaction_write:
 
-    serial_flush(&rs->rotport);
+    rig_flush(&rs->rotport);
 
     if (cmdstr)
     {
@@ -227,10 +227,10 @@ celestron_get_info(ROT *rot)
 
 const struct rot_caps nexstar_rot_caps =
 {
-    .rot_model =      ROT_MODEL_NEXSTAR,
+    ROT_MODEL(ROT_MODEL_NEXSTAR),
     .model_name =     "NexStar",  // Any Celestron starting with version 1.2
     .mfg_name =       "Celestron",
-    .version =        "0.1",
+    .version =        "20110821.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_UNTESTED,
     .rot_type =       ROT_TYPE_AZEL,

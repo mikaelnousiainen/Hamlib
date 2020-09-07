@@ -172,12 +172,12 @@ static const tone_t ft100_dcs_list[] =
 
 const struct rig_caps ft100_caps =
 {
-    .rig_model =      RIG_MODEL_FT100,
+    RIG_MODEL(RIG_MODEL_FT100),
     .model_name =     "FT-100",
     .mfg_name =       "Yaesu",
-    .version =        "0.4.1",
+    .version =        "20200323.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_BETA,
+    .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_TRANSCEIVER,
     .ptt_type =       RIG_PTT_RIG,
     .dcd_type =       RIG_DCD_NONE,
@@ -328,7 +328,8 @@ int ft100_init(RIG *rig)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    rig->state.priv = (struct ft100_priv_data *) calloc(1, sizeof(struct ft100_priv_data));
+    rig->state.priv = (struct ft100_priv_data *) calloc(1,
+                      sizeof(struct ft100_priv_data));
 
     if (!rig->state.priv) { return -RIG_ENOMEM; }
 
@@ -402,7 +403,7 @@ static int ft100_read_status(RIG *rig)
 
     priv = (struct ft100_priv_data *)rig->state.priv;
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     ret = ft100_send_priv_cmd(rig, FT100_NATIVE_CAT_READ_STATUS);
 
@@ -431,7 +432,7 @@ static int ft100_read_flags(RIG *rig)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     ret = ft100_send_priv_cmd(rig, FT100_NATIVE_CAT_READ_FLAGS);
 
@@ -515,6 +516,7 @@ int ft100_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     rig_debug(RIG_DEBUG_VERBOSE, "ft100: d1=%"PRIfreq" d2=%"PRIfreq"\n", d1, d2);
 
+    // cppcheck-suppress *
     rig_debug(RIG_DEBUG_VERBOSE, "ft100: get_freq= %8"PRIll" \n", (int64_t)d2);
 
     *freq = d2;

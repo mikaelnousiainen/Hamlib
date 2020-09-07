@@ -30,7 +30,7 @@
 #include <sys/time.h>
 #endif
 
-#define BACKEND_VER "0.2"
+#define BACKEND_VER "20181007"
 
 struct icmarine_priv_caps {
     unsigned char default_remote_id;  /* the remote default equipment's ID */
@@ -73,5 +73,6 @@ int icmarine_get_conf(RIG *rig, token_t token, char *val);
 extern const struct rig_caps icm700pro_caps;
 extern const struct rig_caps icm710_caps;
 extern const struct rig_caps icm802_caps;
+extern const struct rig_caps icm803_caps;
 
 #endif /* _ICMARINE_H */

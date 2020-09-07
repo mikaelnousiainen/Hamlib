@@ -85,8 +85,8 @@ ts711_set_vfo(RIG *rig, vfo_t vfo)
     case RIG_VFO_CURR: return RIG_OK;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n",
-                  __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n",
+                  __func__, rig_strvfo(vfo));
         return -RIG_EINVAL;
     }
 
@@ -99,10 +99,10 @@ ts711_set_vfo(RIG *rig, vfo_t vfo)
  */
 const struct rig_caps ts711_caps =
 {
-    .rig_model =  RIG_MODEL_TS711,
+    RIG_MODEL(RIG_MODEL_TS711),
     .model_name = "TS-711",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_UNTESTED,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -190,6 +190,8 @@ const struct rig_caps ts711_caps =
     .priv = (void *)& ts711_priv_caps,
 
     .rig_init = kenwood_init,
+    .rig_open = kenwood_open,
+    .rig_close = kenwood_close,
     .rig_cleanup = kenwood_cleanup,
     .set_freq =  kenwood_set_freq,
     .get_freq =  kenwood_get_freq,

@@ -59,10 +59,10 @@ cnctrk_set_position(ROT *rot, azimuth_t az, elevation_t el)
     it assumes there is a LinuxCNC running with the Axis GUI */
 const struct rot_caps cnctrk_rot_caps =
 {
-    .rot_model =      ROT_MODEL_CNCTRK,
+    ROT_MODEL(ROT_MODEL_CNCTRK),
     .model_name =     "CNCTRK",
     .mfg_name =       "CNCTRK",
-    .version =        "0.1",
+    .version =        "20191220.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_UNTESTED,
     .rot_type =       ROT_TYPE_OTHER,

@@ -120,10 +120,10 @@ struct sdr1k_priv_data
 
 const struct rig_caps sdr1k_rig_caps =
 {
-    .rig_model =      RIG_MODEL_SDR1000,
+    RIG_MODEL(RIG_MODEL_SDR1000),
     .model_name =     "SDR-1000",
     .mfg_name =       "Flex-radio",
-    .version =        "0.2",
+    .version =        "20200323.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_UNTESTED,
     .rig_type =       RIG_TYPE_TUNER,
@@ -199,7 +199,8 @@ int sdr1k_init(RIG *rig)
 {
     struct sdr1k_priv_data *priv;
 
-    rig->state.priv = (struct sdr1k_priv_data *)malloc(sizeof(struct sdr1k_priv_data));
+    rig->state.priv = (struct sdr1k_priv_data *)malloc(sizeof(
+                          struct sdr1k_priv_data));
 
     if (!rig->state.priv)
     {
@@ -289,6 +290,7 @@ static int set_band(RIG *rig, freq_t freq)
 
     ret = write_latch(rig, L_BAND, 1 << band, 0x3f);
 
+    // cppcheck-suppress *
     rig_debug(RIG_DEBUG_VERBOSE, "%s %"PRIll" band %d\n", __func__, (int64_t)freq,
               band);
 

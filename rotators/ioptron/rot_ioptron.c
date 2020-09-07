@@ -55,7 +55,7 @@
  *  COMMANDS  note: as of 12/2018 a mixture of V2 and V3
  * | TTTTTTTT(T) .01 arc seconds
  * | alt- sign with 8 digits, az - 9 digits                           |
- * | Command     | Atribute | Return value | Description              |
+ * | Command     | Attribute | Return value | Description              |
  * -------------------------------------------------------------------|
  * | :GAC# | .01 arcsec | sTTTTTTTTTTTTTTTTT# | gets alt(s8), az(9)   |
  * | :SzTTTTTTTTT# | .01 arcsec | '1' == OK | Set Target azimuth      |
@@ -65,8 +65,8 @@
  * | :MS#        | -        | '1' == OK    | GoTo Target              |
  * |
  * returns:
- *   RIG_OK  -  if no error occured.
- *   RIG_EIO  -  if an I/O error occured while sending/receiving data.
+ *   RIG_OK  -  if no error occurred.
+ *   RIG_EIO  -  if an I/O error occurred while sending/receiving data.
  *   RIG_ETIMEOUT  -  if timeout expires without any characters received.
  */
 
@@ -83,7 +83,7 @@ ioptron_transaction(ROT *rot, const char *cmdstr,
 
 transaction_write:
 
-    serial_flush(&rs->rotport);
+    rig_flush(&rs->rotport);
 
     if (cmdstr)
     {
@@ -134,7 +134,7 @@ transaction_quit:
 }
 
 /**
- * Opens the Port and sets all needed parametes for operation
+ * Opens the Port and sets all needed parameters for operation
  * as of 12/2018 initiates mount with V3 :MountInfo#
  */
 static int ioptron_open(ROT *rot)
@@ -303,10 +303,10 @@ ioptron_get_info(ROT *rot)
 
 const struct rot_caps ioptron_rot_caps =
 {
-    .rot_model =      ROT_MODEL_IOPTRON,
+    ROT_MODEL(ROT_MODEL_IOPTRON),
     .model_name =     "iOptron",
     .mfg_name =       "iOptron",
-    .version =        "0.1",
+    .version =        "20191209.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_ALPHA,
     .rot_type =       ROT_TYPE_AZEL,

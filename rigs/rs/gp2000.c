@@ -23,7 +23,7 @@
 
 /*
  * Looks like the GP2000 could be reused in other rigs so
- * we implmenet that and then the XK2100 uses this interface
+ * we implement that and then the XK2100 uses this interface
  */
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -71,7 +71,7 @@ gp2000_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 
     rs = &rig->state;
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     rig_debug(RIG_DEBUG_VERBOSE, "gp2000_transaction: len=%d,cmd=%s\n",
               cmd_len, cmd);
@@ -110,12 +110,14 @@ gp2000_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
     char freqbuf[32];
     int freq_len, retval;
+    // cppcheck-suppress *
+    char *fmt = BOM "F%" PRIll ",%" PRIll EOM;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: vfo=%s,freq=%.0f\n", __func__,
               rig_strvfo(vfo), freq);
 
     freq_len =
-        snprintf(freqbuf, sizeof(freqbuf), BOM "F%" PRIll ",%" PRIll EOM,
+        snprintf(freqbuf, sizeof(freqbuf), fmt,
                  (int64_t) freq,
                  (int64_t) freq);
     retval = gp2000_transaction(rig, freqbuf, freq_len, NULL, NULL);
@@ -343,7 +345,7 @@ gp2000_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         return retval;
     }
 
-    // we expecte LF+"X" where X is the status
+    // we expected LF+"X" where X is the status
     *status = buf[2] == 1 ? 1 : 0;
 
     return retval;
@@ -470,6 +472,7 @@ gp2000_get_info(RIG *rig)
     }
 
     p = strtok(infobuf, ",");
+
     while (p)
     {
         switch (p[0])
@@ -487,7 +490,7 @@ gp2000_get_info(RIG *rig)
             break;
 
         default:
-            printf("Unknown reponse: %s\n", p);
+            printf("Unknown response: %s\n", p);
 
         }
 

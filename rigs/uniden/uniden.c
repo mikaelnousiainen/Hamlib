@@ -110,8 +110,8 @@ const tone_t uniden_dcs_list[] =
  *            out: location where to store number of bytes read.
  *
  * returns:
- *   RIG_OK  -  if no error occured.
- *   RIG_EIO  -  if an I/O error occured while sending/receiving data.
+ *   RIG_OK  -  if no error occurred.
+ *   RIG_EIO  -  if an I/O error occurred while sending/receiving data.
  *   RIG_ETIMEOUT  -  if timeout expires without any characters received.
  *   RIG_REJECTED  -  if a negative acknowledge was received or command not
  *                    recognized by rig.
@@ -132,7 +132,7 @@ uniden_transaction(RIG *rig, const char *cmdstr, int cmd_len,
 
 transaction_write:
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     if (cmdstr)
     {
@@ -187,7 +187,7 @@ transaction_write:
         goto transaction_quit;
     }
 
-    if (strcmp(data, "OK"EOM))
+    if (strcmp(data, "OK"EOM) == 0)
     {
         /* everything is fine */
         retval = RIG_OK;
@@ -198,7 +198,7 @@ transaction_write:
      *  in the right mode or using the correct parameters. ERR indicates
      *  an INVALID Command.
      */
-    if (strcmp(data, "NG"EOM) || strcmp(data, "ORER"EOM))
+    if (strcmp(data, "NG"EOM) == 0 || strcmp(data, "ORER"EOM) == 0)
     {
         /* Invalid command */
         rig_debug(RIG_DEBUG_VERBOSE, "%s: NG/Overflow for '%s'\n", __func__, cmdstr);
@@ -206,7 +206,7 @@ transaction_write:
         goto transaction_quit;
     }
 
-    if (strcmp(data, "ERR"EOM))
+    if (strcmp(data, "ERR"EOM) == 0)
     {
         /*  Command format error */
         rig_debug(RIG_DEBUG_VERBOSE, "%s: Error for '%s'\n", __func__, cmdstr);
@@ -229,8 +229,8 @@ transaction_write:
 #endif
 
     /* Special case for SQuelch */
-    if (replystr && !memcmp(cmdstr, "SQ", 2) && (replystr[0] == '-'
-            || replystr[0] == '+'))
+    if (replystr && !memcmp(cmdstr, "SQ", 2) && (data[0] == '-'
+            || data[0] == '+'))
     {
         retval = RIG_OK;
         goto transaction_quit;
@@ -318,6 +318,35 @@ int uniden_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     return RIG_OK;
 }
 
+/*
+ * uniden_get_freq
+ * Assumes rig!=NULL
+ */
+int uniden_get_freq_2(RIG *rig, vfo_t vfo, freq_t *freq)
+{
+    char freqbuf[BUFSZ];
+    size_t freq_len = BUFSZ;
+    int ret;
+
+    ret = uniden_transaction(rig, "SG" EOM, 3, "S", freqbuf, &freq_len);
+
+    if (ret != RIG_OK)
+    {
+        return ret;
+    }
+
+    if (freq_len < 10)
+    {
+        return -RIG_EPROTO;
+    }
+
+    sscanf(freqbuf + 6, "%"SCNfreq, freq);
+    /* returned freq in hundreds of Hz */
+    *freq *= 100;
+
+    return RIG_OK;
+}
+
 int uniden_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
     const char *modebuf;
@@ -377,7 +406,7 @@ int uniden_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     }
     else if (!strcmp(modebuf + 3, "WFM"))
     {
-        *mode = RIG_MODE_AM;
+        *mode = RIG_MODE_WFM;
     }
     else if (!strcmp(modebuf + 3, "FM"))
     {
@@ -561,7 +590,7 @@ int uniden_get_mem(RIG *rig, vfo_t vfo, int *ch)
  * uniden_get_channel
  * Assumes rig!=NULL
  */
-int uniden_get_channel(RIG *rig, channel_t *chan)
+int uniden_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     char cmdbuf[BUFSZ], membuf[BUFSZ];
     size_t cmd_len = BUFSZ, mem_len = BUFSZ;
@@ -590,12 +619,12 @@ int uniden_get_channel(RIG *rig, channel_t *chan)
      */
     if (mem_len < 30 ||
             membuf[5] != 'F' ||
-            membuf[25] != 'T' ||
-            membuf[28] != 'D' ||
-            membuf[31] != 'L' ||
-            membuf[34] != 'A' ||
-            membuf[37] != 'R' ||
-            membuf[40] != 'N')
+            membuf[15] != 'T' ||
+            membuf[18] != 'D' ||
+            membuf[21] != 'L' ||
+            membuf[24] != 'A' ||
+            membuf[27] != 'R' ||
+            membuf[30] != 'N')
     {
         return -RIG_EPROTO;
     }
@@ -639,6 +668,16 @@ int uniden_get_channel(RIG *rig, channel_t *chan)
 
         /*  TA C 001 My Alpha Tag */
         strncpy(chan->channel_desc, membuf + 9, rig->caps->chan_desc_sz);
+    }
+
+    if (!read_only)
+    {
+        // Set rig to channel values
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: need to know if rig updates when channel read or not\n", __func__);
+        return -RIG_ENIMPL;
     }
 
     return RIG_OK;

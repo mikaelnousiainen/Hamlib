@@ -31,6 +31,9 @@
  * This backend supports the Ten-Tec Orion (565) and Orion II (566) transceivers.
  */
 
+
+#define BACKEND_VER "20200324"
+
 #define TRUE	1
 #define FALSE	0
 #define TT565_BUFSIZE 16
@@ -78,7 +81,7 @@ static int tt565_send_morse(RIG *rig, vfo_t vfo, const char *msg);
 static int tt565_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status);
 static int tt565_set_func(RIG *rig, vfo_t vfo, setting_t func, int status);
 static int tt565_set_ant(RIG * rig, vfo_t vfo, ant_t ant, value_t option);
-static int tt565_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option);
+static int tt565_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option, ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx);
 
 /** \brief Orion private data */
 struct tt565_priv_data {
@@ -103,7 +106,7 @@ struct tt565_priv_data {
 				RIG_LEVEL_RF|RIG_LEVEL_NR| \
 				RIG_LEVEL_MICGAIN| \
 				RIG_LEVEL_AF|RIG_LEVEL_AGC| \
-				RIG_LEVEL_VOXGAIN|RIG_LEVEL_VOX|RIG_LEVEL_ANTIVOX| \
+				RIG_LEVEL_VOXGAIN|RIG_LEVEL_VOXDELAY|RIG_LEVEL_ANTIVOX| \
 				RIG_LEVEL_COMP|RIG_LEVEL_PREAMP| \
 				RIG_LEVEL_SWR|RIG_LEVEL_ATT)
 
@@ -190,10 +193,10 @@ struct tt565_priv_data {
  *		http://www.rfsquared.com/
  */
 const struct rig_caps tt565_caps = {
-.rig_model =  RIG_MODEL_TT565,
+RIG_MODEL(RIG_MODEL_TT565),
 .model_name = "TT-565 Orion",
 .mfg_name =  "Ten-Tec",
-.version =  "0.6",
+.version =  BACKEND_VER ".0",
 .copyright =  "LGPL",
 .status =  RIG_STATUS_BETA,
 .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -407,10 +410,10 @@ const struct rig_caps tt565_caps = {
  *
  */
 const struct rig_caps tt599_caps = {
-.rig_model =  RIG_MODEL_TT599,
+RIG_MODEL(RIG_MODEL_TT599),
 .model_name = "TT-599 Eagle",
 .mfg_name =  "Ten-Tec",
-.version =  "0.5",
+.version =  BACKEND_VER ".0",
 .copyright =  "LGPL",
 .status =  RIG_STATUS_UNTESTED,
 .rig_type =  RIG_TYPE_TRANSCEIVER,

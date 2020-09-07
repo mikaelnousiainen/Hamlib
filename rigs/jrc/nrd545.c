@@ -93,10 +93,10 @@ static const struct jrc_priv_caps nrd545_priv_caps =
  */
 const struct rig_caps nrd545_caps =
 {
-    .rig_model =  RIG_MODEL_NRD545,
+    RIG_MODEL(RIG_MODEL_NRD545),
     .model_name = "NRD-545 DSP",
     .mfg_name =  "JRC",
-    .version =  BACKEND_VER,
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_RECEIVER,

@@ -24,9 +24,14 @@
 #ifndef _RIG_H
 #define _RIG_H 1
 
+// cppcheck-suppress *
 #include <stdio.h>
+// cppcheck-suppress *
 #include <stdarg.h>
+// cppcheck-suppress *
 #include <inttypes.h>
+// cppcheck-suppress *
+#include <time.h>
 
 /* Rig list is in a separate file so as not to mess up w/ this one */
 #include <hamlib/riglist.h>
@@ -47,6 +52,7 @@
 /* __BEGIN_DECLS should be used at the beginning of your declarations,
  * so that C++ compilers don't mangle their names.  Use __END_DECLS at
  * the end of C declarations. */
+//! @cond Doxygen_Suppress
 #undef __BEGIN_DECLS
 #undef __END_DECLS
 #ifdef __cplusplus
@@ -56,10 +62,12 @@
 #  define __BEGIN_DECLS      /* empty */
 #  define __END_DECLS        /* empty */
 #endif
+//! @endcond
 
 /* HAMLIB_PARAMS is a macro used to wrap function prototypes, so that compilers
  * that don't understand ANSI C prototypes still work, and ANSI C
  * compilers can issue warnings about type mismatches. */
+//! @cond Doxygen_Suppress
 #undef HAMLIB_PARAMS
 #if defined (__STDC__)                                                  \
     || defined (_AIX)                                                   \
@@ -75,11 +83,14 @@
 #  define rig_ptr_t     char *
 #  define amp_ptr_t     char *
 #endif
+//! @endcond
 
 #include <hamlib/rig_dll.h>
 
 #ifndef SWIGLUA
+//! @cond Doxygen_Suppress
 #define CONSTANT_64BIT_FLAG(BIT) (1ull << (BIT))
+//! @endcond
 #else
 /* SWIG's older Lua generator doesn't grok ull due to Lua using a
    double-precision floating point type internally for number
@@ -96,10 +107,12 @@
 
 __BEGIN_DECLS
 
+//! @cond Doxygen_Suppress
 extern HAMLIB_EXPORT_VAR(const char) hamlib_version[];
 extern HAMLIB_EXPORT_VAR(const char) hamlib_copyright[];
 extern HAMLIB_EXPORT_VAR(const char *) hamlib_version2;
 extern HAMLIB_EXPORT_VAR(const char *) hamlib_copyright2;
+//! @endcond
 
 /**
  * \brief Hamlib error codes
@@ -108,24 +121,24 @@ extern HAMLIB_EXPORT_VAR(const char *) hamlib_copyright2;
  * of rig_errcode_e definitions in case of error, or 0 when successful.
  */
 enum rig_errcode_e {
-    RIG_OK = 0,     /*!< No error, operation completed successfully */
-    RIG_EINVAL,     /*!< invalid parameter */
-    RIG_ECONF,      /*!< invalid configuration (serial,..) */
-    RIG_ENOMEM,     /*!< memory shortage */
-    RIG_ENIMPL,     /*!< function not implemented, but will be */
-    RIG_ETIMEOUT,   /*!< communication timed out */
-    RIG_EIO,        /*!< IO error, including open failed */
-    RIG_EINTERNAL,  /*!< Internal Hamlib error, huh! */
-    RIG_EPROTO,     /*!< Protocol error */
-    RIG_ERJCTED,    /*!< Command rejected by the rig */
-    RIG_ETRUNC,     /*!< Command performed, but arg truncated */
-    RIG_ENAVAIL,    /*!< function not available */
-    RIG_ENTARGET,   /*!< VFO not targetable */
-    RIG_BUSERROR,   /*!< Error talking on the bus */
-    RIG_BUSBUSY,    /*!< Collision on the bus */
-    RIG_EARG,       /*!< NULL RIG handle or any invalid pointer parameter in get arg */
-    RIG_EVFO,       /*!< Invalid VFO */
-    RIG_EDOM        /*!< Argument out of domain of func */
+    RIG_OK = 0,     /*!< 0 No error, operation completed successfully */
+    RIG_EINVAL,     /*!< 1 invalid parameter */
+    RIG_ECONF,      /*!< 2 invalid configuration (serial,..) */
+    RIG_ENOMEM,     /*!< 3 memory shortage */
+    RIG_ENIMPL,     /*!< 4 function not implemented, but will be */
+    RIG_ETIMEOUT,   /*!< 5 communication timed out */
+    RIG_EIO,        /*!< 6 IO error, including open failed */
+    RIG_EINTERNAL,  /*!< 7 Internal Hamlib error, huh! */
+    RIG_EPROTO,     /*!< 8 Protocol error */
+    RIG_ERJCTED,    /*!< 9 Command rejected by the rig */
+    RIG_ETRUNC,     /*!< 10 Command performed, but arg truncated */
+    RIG_ENAVAIL,    /*!< 11 Function not available */
+    RIG_ENTARGET,   /*!< 12 VFO not targetable */
+    RIG_BUSERROR,   /*!< 13 Error talking on the bus */
+    RIG_BUSBUSY,    /*!< 14 Collision on the bus */
+    RIG_EARG,       /*!< 15 NULL RIG handle or any invalid pointer parameter in get arg */
+    RIG_EVFO,       /*!< 16 Invalid VFO */
+    RIG_EDOM        /*!< 17 Argument out of domain of func */
 };
 
 /**
@@ -161,8 +174,9 @@ struct rig_state;
 /**
  * \brief Rig structure definition (see rig for details).
  */
-typedef struct rig RIG;
+typedef struct s_rig RIG;
 
+//! @cond Doxygen_Suppress
 #define RIGNAMSIZ 30
 #define RIGVERSIZ 8
 #define FILPATHLEN 512
@@ -173,6 +187,7 @@ typedef struct rig RIG;
 #define MAXDBLSTSIZ 8       /* max preamp/att levels supported, zero ended */
 #define CHANLSTSIZ 16       /* max mem_list size, zero ended */
 #define MAX_CAL_LENGTH 32   /* max calibration plots in cal_table_t */
+//! @endcond
 
 
 /**
@@ -258,6 +273,7 @@ typedef enum {
     RIG_FLAG_TUNER = (1 << 11)          /*!< dumb tuner */
 } rig_type_t;
 
+//! @cond Doxygen_Suppress
 #define RIG_FLAG_TRANSCEIVER (RIG_FLAG_RECEIVER|RIG_FLAG_TRANSMITTER)
 #define RIG_TYPE_MASK (RIG_FLAG_TRANSCEIVER|RIG_FLAG_SCANNER|RIG_FLAG_MOBILE|RIG_FLAG_HANDHELD|RIG_FLAG_COMPUTER|RIG_FLAG_TRUNKING|RIG_FLAG_TUNER)
 
@@ -271,6 +287,7 @@ typedef enum {
 #define RIG_TYPE_TRUNKSCANNER   (RIG_TYPE_SCANNER|RIG_FLAG_TRUNKING)
 #define RIG_TYPE_COMPUTER       (RIG_FLAG_TRANSCEIVER|RIG_FLAG_COMPUTER)
 #define RIG_TYPE_TUNER          RIG_FLAG_TUNER
+//! @endcond
 
 
 /**
@@ -328,6 +345,9 @@ typedef double freq_t;
  * \brief scanf(3) format to be used for freq_t type
  */
 #define SCNfreq "lf"
+/**
+ * \brief printf(3) format to be used for freq_t type
+ */
 #define FREQFMT SCNfreq
 
 
@@ -338,16 +358,25 @@ typedef double freq_t;
  */
 typedef signed long shortfreq_t;
 
+/** \brief \c Macro to return Hz when f=Hz  */
 #define Hz(f)   ((freq_t)(f))
+/** \brief \c Macro to return Hz when f=kHz  */
 #define kHz(f)  ((freq_t)((f)*(freq_t)1000))
+/** \brief \c Macro to return Hz when f=MHz  */
 #define MHz(f)  ((freq_t)((f)*(freq_t)1000000))
+/** \brief \c Macro to return Hz when f=GHz  */
 #define GHz(f)  ((freq_t)((f)*(freq_t)1000000000))
 
+/** \brief \c Macro to return short Hz when f=Hz  */
 #define s_Hz(f)     ((shortfreq_t)(f))
+/** \brief \c Macro to return short Hz when f=kHz  */
 #define s_kHz(f)    ((shortfreq_t)((f)*(shortfreq_t)1000))
+/** \brief \c Macro to return short Hz when f=MHz  */
 #define s_MHz(f)    ((shortfreq_t)((f)*(shortfreq_t)1000000))
+/** \brief \c Macro to return short Hz when f=GHz  */
 #define s_GHz(f)    ((shortfreq_t)((f)*(shortfreq_t)1000000000))
 
+/** \brief \c Frequency none -- used as default value for checking  */
 #define RIG_FREQ_NONE Hz(0)
 
 
@@ -369,8 +398,9 @@ typedef unsigned int vfo_t;
 
 /** \brief '' -- used in caps */
 
-#define RIG_VFO_N(n)        (1<<(n))
+#define RIG_VFO_N(n)        (1u<<(n))
 
+/** \brief \c VFONone -- vfo unknown */
 #define RIG_VFO_NONE        0
 
 /** \brief \c VFOA -- VFO A */
@@ -412,11 +442,13 @@ typedef unsigned int vfo_t;
 /** \brief \c currVFO -- current "tunable channel"/VFO */
 #define RIG_VFO_CURR        RIG_VFO_N(29)
 
+/** \brief \c Flag to set if VFO can transmit */
 #define RIG_VFO_TX_FLAG     RIG_VFO_N(30)
 // we and also use RIG_VFO_N(31) if needed
 
 // Misc VFO Macros
 
+/** \brief \c Macro to tell you if VFO can transmit */
 #define RIG_VFO_TX_VFO(v)   ((v)|RIG_VFO_TX_FLAG)
 
 /** \brief \c TX -- alias for split tx or uplink, of VFO_CURR  */
@@ -430,6 +462,7 @@ typedef unsigned int vfo_t;
  * targetable bitfields, for internal use.
  * RIG_TARGETABLE_PURE means a pure targetable radio on every command
  */
+//! @cond Doxygen_Suppress
 #define RIG_TARGETABLE_NONE 0
 #define RIG_TARGETABLE_FREQ (1<<0)
 #define RIG_TARGETABLE_MODE (1<<1)
@@ -437,12 +470,32 @@ typedef unsigned int vfo_t;
 #define RIG_TARGETABLE_TONE (1<<3)
 #define RIG_TARGETABLE_FUNC (1<<4)
 #define RIG_TARGETABLE_ALL  0x7fffffff
+//! @endcond
+//
+//
+// Newer Icoms like the 9700 and 910 have VFOA/B on both Main & Sub
+// Compared to older rigs which have one or the other
+// So we need to distinguish between them
+//! @cond Doxygen_Suppress
+#define VFO_HAS_A_B ((rig->state.vfo_list & (RIG_VFO_A|RIG_VFO_B)) == (RIG_VFO_A|RIG_VFO_B))
+#define VFO_HAS_MAIN_SUB ((rig->state.vfo_list & (RIG_VFO_MAIN|RIG_VFO_SUB)) == (RIG_VFO_MAIN|RIG_VFO_SUB))
+#define VFO_HAS_MAIN_SUB_ONLY ((!VFO_HAS_A_B) & VFO_HAS_MAIN_SUB)
+#define VFO_HAS_MAIN_SUB_A_B_ONLY (VFO_HAS_A_B & VFO_HAS_MAIN_SUB)
+#define VFO_HAS_A_B_ONLY (VFO_HAS_A_B & (!VFO_HAS_MAIN_SUB))
+#define VFO_DUAL (RIG_VFO_MAIN_A|RIG_VFO_MAIN_B|RIG_VFO_SUB_A|RIG_VFO_SUB_B)
+#define VFO_HAS_DUAL ((rig->state.vfo_list & VFO_DUAL == VFO_DUAL)
+//! @endcond
 
-
+/**
+ * \brief Macro for bandpass to be set to normal
+ * \def RIG_PASSBAND_NORMAL
+ */
 #define RIG_PASSBAND_NORMAL     s_Hz(0)
+/**
+ * \brief Macro for bandpass to be left alone
+ */
 #define RIG_PASSBAND_NOCHANGE   s_Hz(-1)
 /**
- * \brief Passband width, in Hz
  *
  * \sa rig_passband_normal(), rig_passband_narrow(), rig_passband_wide()
  */
@@ -480,7 +533,7 @@ typedef enum {
  * \brief PTT status
  */
 typedef enum {
-    RIG_PTT_OFF = 0,    /*!< PTT desactivated */
+    RIG_PTT_OFF = 0,    /*!< PTT deactivated */
     RIG_PTT_ON,         /*!< PTT activated */
     RIG_PTT_ON_MIC,     /*!< PTT Mic only, fallbacks on RIG_PTT_ON if unavailable */
     RIG_PTT_ON_DATA     /*!< PTT Data (Mic-muted), fallbacks on RIG_PTT_ON if unavailable */
@@ -589,7 +642,9 @@ typedef enum {
 typedef long token_t;
 
 
+//! @cond Doxygen_Suppress
 #define RIG_CONF_END 0
+//! @endcond
 
 
 /**
@@ -615,8 +670,10 @@ enum rig_conf_e {
     RIG_CONF_BINARY         /*!<    Binary buffer type */
 };
 
+//! @cond Doxygen_Suppress
 #define RIG_COMBO_MAX   16
 #define RIG_BIN_MAX  80
+//! @endcond
 
 /**
  * \brief Configuration parameter structure.
@@ -658,7 +715,50 @@ typedef enum {
 
 
 /**
+ * \brief Antenna typedef
+ * \typedef ant_t
+ */
+/**
  * \brief Antenna number
+ * \def RIG_ANT_NONE
+ * No antenna set yet or unknown 
+ */
+/**
+ * \brief Antenna conversion macro
+ * \def RIG_ANT_N
+ * Convert antenna number to bit mask
+ */
+/**
+ * \brief Macro for Ant#1
+ * \def RIG_ANT_1
+ */
+/**
+ * \brief Macro for Ant#2
+ * \def RIG_ANT_2
+ */
+/**
+ * \brief Macro for Ant#3
+ * \def RIG_ANT_3
+ */
+/**
+ * \brief Macro for Ant#4
+ * \def RIG_ANT_4
+ */
+/**
+ * \brief Macro for Ant#5
+ * \def RIG_ANT_5
+ */
+/**
+ * \brief Antenna is on whatever "current" means
+ * \def RIG_ANT_CURR
+ */
+/**
+ * \brief Macro for unknown antenna
+ * \def RIG_ANT_UNKNOWN
+ */
+/**
+ * \brief Maximum antenna#
+ * \def RIG_ANT_MAX
  */
 typedef unsigned int ant_t;
 
@@ -670,6 +770,7 @@ typedef unsigned int ant_t;
 #define RIG_ANT_4       RIG_ANT_N(3)
 #define RIG_ANT_5       RIG_ANT_N(4)
 
+#define RIG_ANT_UNKNOWN RIG_ANT_N(30)
 #define RIG_ANT_CURR    RIG_ANT_N(31)
 
 #define RIG_ANT_MAX 32
@@ -689,7 +790,9 @@ enum agc_level_e {
     RIG_AGC_AUTO
 };
 
+//! @cond Doxygen_Suppress
 #define RIG_AGC_LAST RIG_AGC_AUTO
+//! @endcond
 
 /**
  * \brief Level display meters
@@ -716,10 +819,12 @@ typedef union {
     float f;            /*!< Single precision float */
     char *s;            /*!< Pointer to char string */
     const char *cs;     /*!< Pointer to constant char string */
+//! @cond Doxygen_Suppress
     struct {
         int l;          /*!< Length of data */
         unsigned char *d; /* Pointer to data buffer */
     } b;
+//! @endcond
 } value_t;
 
 
@@ -735,7 +840,7 @@ enum rig_level_e {
     RIG_LEVEL_NONE =        0,              /*!< '' -- No Level */
     RIG_LEVEL_PREAMP =      (1 << 0),       /*!< \c PREAMP -- Preamp, arg int (dB) */
     RIG_LEVEL_ATT =         (1 << 1),       /*!< \c ATT -- Attenuator, arg int (dB) */
-    RIG_LEVEL_VOX =         (1 << 2),       /*!< \c VOX -- VOX delay, arg int (tenth of seconds) */
+    RIG_LEVEL_VOXDELAY =    (1 << 2),       /*!< \c VOXDELAY -- VOX delay, arg int (tenth of seconds) */
     RIG_LEVEL_AF =          (1 << 3),       /*!< \c AF -- Volume, arg float [0.0 ... 1.0] */
     RIG_LEVEL_RF =          (1 << 4),       /*!< \c RF -- RF gain (not TX power), arg float [0.0 ... 1.0] */
     RIG_LEVEL_SQL =         (1 << 5),       /*!< \c SQL -- Squelch, arg float [0.0 ... 1.0] */
@@ -755,7 +860,6 @@ enum rig_level_e {
     RIG_LEVEL_BALANCE =     (1 << 19),      /*!< \c BAL -- Balance (Dual Watch), arg float [0.0 ... 1.0] */
     RIG_LEVEL_METER =       (1 << 20),      /*!< \c METER -- Display meter, arg int (see enum meter_level_e) */
     RIG_LEVEL_VOXGAIN =     (1 << 21),      /*!< \c VOXGAIN -- VOX gain level, arg float [0.0 ... 1.0] */
-    RIG_LEVEL_VOXDELAY =    RIG_LEVEL_VOX,  /*!< Synonym of RIG_LEVEL_VOX */
     RIG_LEVEL_ANTIVOX =     (1 << 22),      /*!< \c ANTIVOX -- anti-VOX level, arg float [0.0 ... 1.0] */
     RIG_LEVEL_SLOPE_LOW =   (1 << 23),      /*!< \c SLOPE_LOW -- Slope tune, low frequency cut, */
     RIG_LEVEL_SLOPE_HIGH =  (1 << 24),      /*!< \c SLOPE_HIGH -- Slope tune, high frequency cut, */
@@ -776,14 +880,41 @@ enum rig_level_e {
     RIG_LEVEL_NOTCHF_RAW =    CONSTANT_64BIT_FLAG(36),      /*!< \c NOTCHF_RAW -- Notch Freq., arg float [0.0 ... 1.0] */
     RIG_LEVEL_MONITOR_GAIN =  CONSTANT_64BIT_FLAG(37),      /*!< \c MONITOR_GAIN -- Monitor gain (level for monitoring of transmitted audio), arg float [0.0 ... 1.0] */
     RIG_LEVEL_NB =            CONSTANT_64BIT_FLAG(38),      /*!< \c NB -- Noise Blanker level, arg float [0.0 ... 1.0] */
+    RIG_LEVEL_BRIGHT =        CONSTANT_64BIT_FLAG(39),      /*!< \c Display brightness */
+    RIG_LEVEL_40 =            CONSTANT_64BIT_FLAG(40),      /*!< \c Future use */
+    RIG_LEVEL_41 =            CONSTANT_64BIT_FLAG(41),      /*!< \c Future use */
+    RIG_LEVEL_42 =            CONSTANT_64BIT_FLAG(42),      /*!< \c Future use */
+    RIG_LEVEL_43 =            CONSTANT_64BIT_FLAG(43),      /*!< \c Future use */
+    RIG_LEVEL_44 =            CONSTANT_64BIT_FLAG(44),      /*!< \c Future use */
+    RIG_LEVEL_45 =            CONSTANT_64BIT_FLAG(45),      /*!< \c Future use */
+    RIG_LEVEL_46 =            CONSTANT_64BIT_FLAG(46),      /*!< \c Future use */
+    RIG_LEVEL_47 =            CONSTANT_64BIT_FLAG(47),      /*!< \c Future use */
+    RIG_LEVEL_48 =            CONSTANT_64BIT_FLAG(48),      /*!< \c Future use */
+    RIG_LEVEL_49 =            CONSTANT_64BIT_FLAG(49),      /*!< \c Future use */
+    RIG_LEVEL_50 =            CONSTANT_64BIT_FLAG(50),      /*!< \c Future use */
+    RIG_LEVEL_51 =            CONSTANT_64BIT_FLAG(51),      /*!< \c Future use */
+    RIG_LEVEL_52 =            CONSTANT_64BIT_FLAG(52),      /*!< \c Future use */
+    RIG_LEVEL_53 =            CONSTANT_64BIT_FLAG(53),      /*!< \c Future use */
+    RIG_LEVEL_54 =            CONSTANT_64BIT_FLAG(54),      /*!< \c Future use */
+    RIG_LEVEL_55 =            CONSTANT_64BIT_FLAG(55),      /*!< \c Future use */
+    RIG_LEVEL_56 =            CONSTANT_64BIT_FLAG(56),      /*!< \c Future use */
+    RIG_LEVEL_57 =            CONSTANT_64BIT_FLAG(57),      /*!< \c Future use */
+    RIG_LEVEL_58 =            CONSTANT_64BIT_FLAG(58),      /*!< \c Future use */
+    RIG_LEVEL_59 =            CONSTANT_64BIT_FLAG(59),      /*!< \c Future use */
+    RIG_LEVEL_60 =            CONSTANT_64BIT_FLAG(60),      /*!< \c Future use */
+    RIG_LEVEL_61 =            CONSTANT_64BIT_FLAG(61),      /*!< \c Future use */
+    RIG_LEVEL_62 =            CONSTANT_64BIT_FLAG(62),      /*!< \c Future use */
+    RIG_LEVEL_63 =            CONSTANT_64BIT_FLAG(63),      /*!< \c Future use */
 };
 
+//! @cond Doxygen_Suppress
 #define RIG_LEVEL_FLOAT_LIST (RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_APF|RIG_LEVEL_NR|RIG_LEVEL_PBT_IN|RIG_LEVEL_PBT_OUT|RIG_LEVEL_RFPOWER|RIG_LEVEL_MICGAIN|RIG_LEVEL_COMP|RIG_LEVEL_BALANCE|RIG_LEVEL_SWR|RIG_LEVEL_ALC|RIG_LEVEL_VOXGAIN|RIG_LEVEL_ANTIVOX|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_COMP_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_ID_METER|RIG_LEVEL_NOTCHF_RAW|RIG_LEVEL_MONITOR_GAIN|RIG_LEVEL_NB)
 
 #define RIG_LEVEL_READONLY_LIST (RIG_LEVEL_SQLSTAT|RIG_LEVEL_SWR|RIG_LEVEL_ALC|RIG_LEVEL_STRENGTH|RIG_LEVEL_RAWSTR|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_COMP_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_ID_METER)
 
 #define RIG_LEVEL_IS_FLOAT(l) ((l)&RIG_LEVEL_FLOAT_LIST)
 #define RIG_LEVEL_SET(l) ((l)&~RIG_LEVEL_READONLY_LIST)
+//! @endcond
 
 
 /**
@@ -802,14 +933,17 @@ enum rig_parm_e {
     RIG_PARM_BEEP =         (1 << 4),   /*!< \c BEEP -- Beep on keypressed, int (0,1) */
     RIG_PARM_TIME =         (1 << 5),   /*!< \c TIME -- hh:mm:ss, int in seconds from 00:00:00 */
     RIG_PARM_BAT =          (1 << 6),   /*!< \c BAT -- battery level, float [0.0 ... 1.0] */
-    RIG_PARM_KEYLIGHT =     (1 << 7)    /*!< \c KEYLIGHT -- Button backlight, on/off */
+    RIG_PARM_KEYLIGHT =     (1 << 7),   /*!< \c KEYLIGHT -- Button backlight, on/off */
+    RIG_PARM_SCREENSAVER =  (1 << 8)    /*!< \c SCREENSAVER -- rig specific timeouts */
 };
 
+//! @cond Doxygen_Suppress
 #define RIG_PARM_FLOAT_LIST (RIG_PARM_BACKLIGHT|RIG_PARM_BAT|RIG_PARM_KEYLIGHT)
 #define RIG_PARM_READONLY_LIST (RIG_PARM_BAT)
 
 #define RIG_PARM_IS_FLOAT(l) ((l)&RIG_PARM_FLOAT_LIST)
 #define RIG_PARM_SET(l) ((l)&~RIG_PARM_READONLY_LIST)
+//! @endcond
 
 /**
  * \brief Setting
@@ -819,13 +953,24 @@ enum rig_parm_e {
  */
 typedef uint64_t setting_t;
 
-
+/**
+ * \brief Maximum # of rig settings
+ *
+ */
 #define RIG_SETTING_MAX 64
 
 /**
  * \brief Tranceive mode
- *
  * The rig notifies the host of any event, like freq changed, mode changed, etc.
+ * \def RIG_TRN_OFF
+ * Turn it off
+ * \brief Tranceive mode
+ * \def RIG_TRN_RIG
+ * RIG_TRN_RIG means the rig acts asynchrousnly
+ * \brief Tranceive mode
+ * \def RIG_TRN_POLL
+ * RIG_TRN_POLL means we have to poll the rig
+ *
  */
 #define RIG_TRN_OFF 0
 #define RIG_TRN_RIG 1
@@ -893,42 +1038,63 @@ typedef uint64_t setting_t;
 #define RIG_FUNC_DIVERSITY  CONSTANT_64BIT_FLAG (38)   /*!< \c DIVERSITY -- Diversity receive */
 #define RIG_FUNC_DSQL       CONSTANT_64BIT_FLAG (39)   /*!< \c DSQL -- Digital modes squelch */
 #define RIG_FUNC_SCEN       CONSTANT_64BIT_FLAG (40)   /*!< \c SCEN -- scrambler/encryption */
-#define RIG_FUNC_BIT41      CONSTANT_64BIT_FLAG (41)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT42      CONSTANT_64BIT_FLAG (42)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT43      CONSTANT_64BIT_FLAG (43)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT44      CONSTANT_64BIT_FLAG (44)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT45      CONSTANT_64BIT_FLAG (45)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT46      CONSTANT_64BIT_FLAG (46)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT47      CONSTANT_64BIT_FLAG (47)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT48      CONSTANT_64BIT_FLAG (48)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT49      CONSTANT_64BIT_FLAG (49)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT50      CONSTANT_64BIT_FLAG (50)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT51      CONSTANT_64BIT_FLAG (51)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT52      CONSTANT_64BIT_FLAG (52)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT53      CONSTANT_64BIT_FLAG (53)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT54      CONSTANT_64BIT_FLAG (54)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT55      CONSTANT_64BIT_FLAG (55)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT56      CONSTANT_64BIT_FLAG (56)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT57      CONSTANT_64BIT_FLAG (57)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT58      CONSTANT_64BIT_FLAG (58)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT59      CONSTANT_64BIT_FLAG (59)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT60      CONSTANT_64BIT_FLAG (60)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT61      CONSTANT_64BIT_FLAG (61)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT62      CONSTANT_64BIT_FLAG (62)   /* available for future RIG_FUNC items */
-#define RIG_FUNC_BIT63      CONSTANT_64BIT_FLAG (63)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT41      CONSTANT_64BIT_FLAG (41)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT42      CONSTANT_64BIT_FLAG (42)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT43      CONSTANT_64BIT_FLAG (43)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT44      CONSTANT_64BIT_FLAG (44)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT45      CONSTANT_64BIT_FLAG (45)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT46      CONSTANT_64BIT_FLAG (46)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT47      CONSTANT_64BIT_FLAG (47)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT48      CONSTANT_64BIT_FLAG (48)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT49      CONSTANT_64BIT_FLAG (49)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT50      CONSTANT_64BIT_FLAG (50)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT51      CONSTANT_64BIT_FLAG (51)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT52      CONSTANT_64BIT_FLAG (52)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT53      CONSTANT_64BIT_FLAG (53)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT54      CONSTANT_64BIT_FLAG (54)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT55      CONSTANT_64BIT_FLAG (55)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT56      CONSTANT_64BIT_FLAG (56)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT57      CONSTANT_64BIT_FLAG (57)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT58      CONSTANT_64BIT_FLAG (58)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT59      CONSTANT_64BIT_FLAG (59)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT60      CONSTANT_64BIT_FLAG (60)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT61      CONSTANT_64BIT_FLAG (61)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT62      CONSTANT_64BIT_FLAG (62)   /*!< \c available for future RIG_FUNC items */
+#define RIG_FUNC_BIT63      CONSTANT_64BIT_FLAG (63)   /*!< \c available for future RIG_FUNC items */
 /* 63 is this highest bit number that can be used */
 #endif
 
 /**
  * \brief power unit macros
- *
+ * \def mW
  * Converts a power level integer to milliwatts.  This is limited to 2
- * Megawatts on 32 bit systems.
+ * megawatts on 32 bit systems.
  */
 #define mW(p)       ((int)(p))
+/**
+ * \brief power unit macros
+ * \def Watts
+ *
+ * Converts a power level integer to watts.  This is limited to 2
+ * gigawatts on 32 bit systems.
+ */
 #define Watts(p)    ((int)((p)*1000))
+/**
+ * \brief power unit macros
+ * \def W
+ *
+ * Same as Watts for the person who is too lazy to type Watts :-)
+ */
 #define W(p)        Watts(p)
+#if 0 // deprecating kW macro as this doesn't make sense
+/**
+ * \brief power unit macros
+ * \def kW
+ *
+ * Same as Watts for the person who is too lazy to type Watts :-)
+ */
 #define kW(p)       ((int)((p)*1000000L))
+#endif
 
 
 /**
@@ -978,35 +1144,35 @@ typedef uint64_t rmode_t;
 /* hide the top 32 bits from the Lua binding as they will not work */
 #define    RIG_MODE_DD        CONSTANT_64BIT_FLAG (32)  /*!< \c DD Mode IC-9700 */
 #define    RIG_MODE_C4FM      CONSTANT_64BIT_FLAG (33)  /*!< \c Yaesu C4FM mode */
-#define    RIG_MODE_BIT34     CONSTANT_64BIT_FLAG (34)  /* reserved for future expansion */
-#define    RIG_MODE_BIT35     CONSTANT_64BIT_FLAG (35)  /* reserved for future expansion */
-#define    RIG_MODE_BIT36     CONSTANT_64BIT_FLAG (36)  /* reserved for future expansion */
-#define    RIG_MODE_BIT37     CONSTANT_64BIT_FLAG (37)  /* reserved for future expansion */
-#define    RIG_MODE_BIT38     CONSTANT_64BIT_FLAG (38)  /* reserved for future expansion */
-#define    RIG_MODE_BIT39     CONSTANT_64BIT_FLAG (39)  /* reserved for future expansion */
-#define    RIG_MODE_BIT40     CONSTANT_64BIT_FLAG (40)  /* reserved for future expansion */
-#define    RIG_MODE_BIT41     CONSTANT_64BIT_FLAG (41)  /* reserved for future expansion */
-#define    RIG_MODE_BIT42     CONSTANT_64BIT_FLAG (42)  /* reserved for future expansion */
-#define    RIG_MODE_BIT43     CONSTANT_64BIT_FLAG (43)  /* reserved for future expansion */
-#define    RIG_MODE_BIT44     CONSTANT_64BIT_FLAG (44)  /* reserved for future expansion */
-#define    RIG_MODE_BIT45     CONSTANT_64BIT_FLAG (45)  /* reserved for future expansion */
-#define    RIG_MODE_BIT46     CONSTANT_64BIT_FLAG (46)  /* reserved for future expansion */
-#define    RIG_MODE_BIT47     CONSTANT_64BIT_FLAG (47)  /* reserved for future expansion */
-#define    RIG_MODE_BIT48     CONSTANT_64BIT_FLAG (48)  /* reserved for future expansion */
-#define    RIG_MODE_BIT49     CONSTANT_64BIT_FLAG (49)  /* reserved for future expansion */
-#define    RIG_MODE_BIT50     CONSTANT_64BIT_FLAG (50)  /* reserved for future expansion */
-#define    RIG_MODE_BIT51     CONSTANT_64BIT_FLAG (51)  /* reserved for future expansion */
-#define    RIG_MODE_BIT52     CONSTANT_64BIT_FLAG (52)  /* reserved for future expansion */
-#define    RIG_MODE_BIT53     CONSTANT_64BIT_FLAG (53)  /* reserved for future expansion */
-#define    RIG_MODE_BIT54     CONSTANT_64BIT_FLAG (54)  /* reserved for future expansion */
-#define    RIG_MODE_BIT55     CONSTANT_64BIT_FLAG (55)  /* reserved for future expansion */
-#define    RIG_MODE_BIT56     CONSTANT_64BIT_FLAG (56)  /* reserved for future expansion */
-#define    RIG_MODE_BIT57     CONSTANT_64BIT_FLAG (57)  /* reserved for future expansion */
-#define    RIG_MODE_BIT58     CONSTANT_64BIT_FLAG (58)  /* reserved for future expansion */
-#define    RIG_MODE_BIT59     CONSTANT_64BIT_FLAG (59)  /* reserved for future expansion */
-#define    RIG_MODE_BIT60     CONSTANT_64BIT_FLAG (60)  /* reserved for future expansion */
-#define    RIG_MODE_BIT61     CONSTANT_64BIT_FLAG (61)  /* reserved for future expansion */
-#define    RIG_MODE_BIT62     CONSTANT_64BIT_FLAG (62)  /* reserved for future expansion */
+#define    RIG_MODE_BIT34     CONSTANT_64BIT_FLAG (34)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT35     CONSTANT_64BIT_FLAG (35)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT36     CONSTANT_64BIT_FLAG (36)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT37     CONSTANT_64BIT_FLAG (37)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT38     CONSTANT_64BIT_FLAG (38)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT39     CONSTANT_64BIT_FLAG (39)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT40     CONSTANT_64BIT_FLAG (40)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT41     CONSTANT_64BIT_FLAG (41)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT42     CONSTANT_64BIT_FLAG (42)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT43     CONSTANT_64BIT_FLAG (43)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT44     CONSTANT_64BIT_FLAG (44)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT45     CONSTANT_64BIT_FLAG (45)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT46     CONSTANT_64BIT_FLAG (46)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT47     CONSTANT_64BIT_FLAG (47)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT48     CONSTANT_64BIT_FLAG (48)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT49     CONSTANT_64BIT_FLAG (49)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT50     CONSTANT_64BIT_FLAG (50)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT51     CONSTANT_64BIT_FLAG (51)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT52     CONSTANT_64BIT_FLAG (52)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT53     CONSTANT_64BIT_FLAG (53)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT54     CONSTANT_64BIT_FLAG (54)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT55     CONSTANT_64BIT_FLAG (55)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT56     CONSTANT_64BIT_FLAG (56)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT57     CONSTANT_64BIT_FLAG (57)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT58     CONSTANT_64BIT_FLAG (58)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT59     CONSTANT_64BIT_FLAG (59)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT60     CONSTANT_64BIT_FLAG (60)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT61     CONSTANT_64BIT_FLAG (61)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_BIT62     CONSTANT_64BIT_FLAG (62)  /*!< \c reserved for future expansion */
 #define    RIG_MODE_TESTS_MAX CONSTANT_64BIT_FLAG (63)  /*!< \c last bit available for 64-bit enum MUST ALWAYS BE LAST, Max Count for dumpcaps.c */
 #endif
 
@@ -1020,9 +1186,10 @@ typedef uint64_t rmode_t;
  */
 #define RIG_MODE_ECSS   (RIG_MODE_ECSSUSB|RIG_MODE_ECSSLSB)
 
-
+//! @cond Doxygen_Suppress
 #define RIG_DBLST_END 0     /* end marker in a preamp/att level list */
 #define RIG_IS_DBLST_END(d) ((d)==0)
+//! @endcond
 
 
 /**
@@ -1038,17 +1205,14 @@ typedef struct freq_range_list {
     int low_power;      /*!< Lower RF power in mW, -1 for no power (ie. rx list) */
     int high_power;     /*!< Higher RF power in mW, -1 for no power (ie. rx list) */
     vfo_t vfo;          /*!< VFO list equipped with this range */
-    ant_t ant;          /*!< Antenna list equipped with this range, 0 means all */
+    ant_t ant;          /*!< Antenna list equipped with this range, 0 means all, RIG_ANT_CURR means dedicated to certain bands and automatically switches, no set_ant command */
+    char *label;        /*!< Label for this range that explains why.  e.g. Icom rigs USA, EUR, ITR, TPE, KOR */
 } freq_range_t;
 
+//! @cond Doxygen_Suppress
 #define RIG_FRNG_END        {Hz(0),Hz(0),RIG_MODE_NONE,0,0,RIG_VFO_NONE}
 #define RIG_IS_FRNG_END(r)  ((r).startf == Hz(0) && (r).endf == Hz(0))
-
-
-#define RIG_ITU_REGION1 1
-#define RIG_ITU_REGION2 2
-#define RIG_ITU_REGION3 3
-
+//! @endcond
 
 /**
  * \brief Tuning step definition
@@ -1071,9 +1235,11 @@ struct tuning_step_list {
     shortfreq_t ts;     /*!< Tuning step in Hz */
 };
 
+//! @cond Doxygen_Suppress
 #define RIG_TS_ANY          0
 #define RIG_TS_END          {RIG_MODE_NONE, 0}
 #define RIG_IS_TS_END(t)    ((t).modes == RIG_MODE_NONE && (t).ts == 0)
+//! @endcond
 
 
 /**
@@ -1103,10 +1269,11 @@ struct filter_list {
     rmode_t modes;      /*!< Bit field of RIG_MODE's */
     pbwidth_t width;    /*!< Passband width in Hz */
 };
-
+//! @cond Doxygen_Suppress
 #define RIG_FLT_ANY         0
 #define RIG_FLT_END         {RIG_MODE_NONE, 0}
 #define RIG_IS_FLT_END(f)   ((f).modes == RIG_MODE_NONE)
+//! @endcond
 
 
 /**
@@ -1135,8 +1302,10 @@ struct ext_list {
     value_t val;        /*!< Value */
 };
 
+//! @cond Doxygen_Suppress
 #define RIG_EXT_END     {0, {.i=0}}
 #define RIG_IS_EXT_END(x)   ((x).token == 0)
+//! @endcond
 
 /**
  * \brief Channel structure
@@ -1173,7 +1342,7 @@ struct channel {
     tone_t dcs_code;                    /*!< DCS code */
     tone_t dcs_sql;                     /*!< DCS squelch code */
     int scan_group;                     /*!< Scan group */
-    int flags;                          /*!< Channel flags, see RIG_CHFLAG's */
+    unsigned int flags;                 /*!< Channel flags, see RIG_CHFLAG's */
     char channel_desc[MAXCHANDESC];     /*!< Name */
     struct ext_list
             *ext_levels;                /*!< Extension level value list, NULL ended. ext_levels can be NULL */
@@ -1269,8 +1438,10 @@ struct chan_list {
     mem_caps;           /*!< Definition of attributes that can be stored/retrieved */
 };
 
+//! @cond Doxygen_Suppress
 #define RIG_CHAN_END        {0,0,RIG_MTYPE_NONE}
 #define RIG_IS_CHAN_END(c)  ((c).type == RIG_MTYPE_NONE)
+//! @endcond
 
 /**
  * \brief Special memory channel value to tell rig_lookup_mem_caps() to retrieve all the ranges
@@ -1331,7 +1502,9 @@ struct cal_table {
  */
 typedef struct cal_table cal_table_t;
 
+//! @cond Doxygen_Suppress
 #define EMPTY_STR_CAL { 0, { { 0, 0 }, } }
+//! @endcond Doxygen_Suppress
 
 
 /**
@@ -1359,6 +1532,7 @@ struct cal_table_float {
  */
 typedef struct cal_table_float cal_table_float_t;
 
+//! @cond Doxygen_Suppress
 #define EMPTY_FLOAT_CAL { 0, { { 0, 0f }, } }
 
 typedef int (* chan_cb_t)(RIG *, channel_t **, int, const chan_t *, rig_ptr_t);
@@ -1366,6 +1540,7 @@ typedef int (* confval_cb_t)(RIG *,
                              const struct confparams *,
                              value_t *,
                              rig_ptr_t);
+//! @endcond
 
 
 /**
@@ -1384,9 +1559,11 @@ typedef int (* confval_cb_t)(RIG *,
  * sharing the struct rig_caps of the backend, while keeping their own
  * customized data.
  *
- * NB: Don't move fields around, as the backends depend on it when
- *     initializing their caps.
+ * mdblack: Don't move or add fields around without bumping the version numbers
+ *          DLL or shared library replacement depends on order
  */
+//! @cond Doxygen_Suppress
+#define RIG_MODEL(arg) .rig_model=arg,.macro_name=#arg
 struct rig_caps {
     rig_model_t rig_model;      /*!< Rig model. */
     const char *model_name;     /*!< Model name. */
@@ -1424,6 +1601,7 @@ struct rig_caps {
 
     const struct confparams *extparms;  /*!< Extension parm list, \sa ext.c */
     const struct confparams *extlevels; /*!< Extension level list, \sa ext.c */
+    const struct confparams *extfuncs; /*!< Extension func list, \sa ext.c */
     int *ext_tokens;                    /*!< Extension token list */
 
     const tone_t *ctcss_list;   /*!< CTCSS tones list, zero ended */
@@ -1447,10 +1625,20 @@ struct rig_caps {
 
     chan_t chan_list[CHANLSTSIZ];   /*!< Channel list, zero ended */
 
-    freq_range_t rx_range_list1[FRQRANGESIZ];   /*!< Receive frequency range list for ITU region 1 */
-    freq_range_t tx_range_list1[FRQRANGESIZ];   /*!< Transmit frequency range list for ITU region 1 */
-    freq_range_t rx_range_list2[FRQRANGESIZ];   /*!< Receive frequency range list for ITU region 2 */
-    freq_range_t tx_range_list2[FRQRANGESIZ];   /*!< Transmit frequency range list for ITU region 2 */
+    // As of 2020-02-12 we know of 5 models from Icom USA, EUR, ITR, TPE, KOR for the IC-9700
+    // So we currently have 5 ranges we need to deal with
+    // The backend for the model should fill in the label field to explain what model it is
+    // The the IC-9700 in ic7300.c for an example 
+    freq_range_t rx_range_list1[FRQRANGESIZ];   /*!< Receive frequency range list #1 */
+    freq_range_t tx_range_list1[FRQRANGESIZ];   /*!< Transmit frequency range list #1 */
+    freq_range_t rx_range_list2[FRQRANGESIZ];   /*!< Receive frequency range list #2 */
+    freq_range_t tx_range_list2[FRQRANGESIZ];   /*!< Transmit frequency range list #2 */
+    freq_range_t rx_range_list3[FRQRANGESIZ];   /*!< Receive frequency range list #3 */
+    freq_range_t tx_range_list3[FRQRANGESIZ];   /*!< Transmit frequency range list #3 */
+    freq_range_t rx_range_list4[FRQRANGESIZ];   /*!< Receive frequency range list #4 */
+    freq_range_t tx_range_list4[FRQRANGESIZ];   /*!< Transmit frequency range list #4 */
+    freq_range_t rx_range_list5[FRQRANGESIZ];   /*!< Receive frequency range list #5 */
+    freq_range_t tx_range_list5[FRQRANGESIZ];   /*!< Transmit frequency range list #5 */
 
     struct tuning_step_list tuning_steps[TSLSTSIZ];     /*!< Tuning step list */
     struct filter_list filters[FLTLSTSIZ];              /*!< mode/filter table, at -6dB */
@@ -1571,7 +1759,7 @@ struct rig_caps {
     int (*reset)(RIG *rig, reset_t reset);
 
     int (*set_ant)(RIG *rig, vfo_t vfo, ant_t ant, value_t option);
-    int (*get_ant)(RIG *rig, vfo_t vfo, ant_t ant, ant_t *ant_curr, value_t *option);
+    int (*get_ant)(RIG *rig, vfo_t vfo, ant_t ant, value_t *option, ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx);
 
     int (*set_level)(RIG *rig, vfo_t vfo, setting_t level, value_t val);
     int (*get_level)(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
@@ -1584,6 +1772,9 @@ struct rig_caps {
 
     int (*set_ext_level)(RIG *rig, vfo_t vfo, token_t token, value_t val);
     int (*get_ext_level)(RIG *rig, vfo_t vfo, token_t token, value_t *val);
+
+    int (*set_ext_func)(RIG *rig, vfo_t vfo, token_t token, int status);
+    int (*get_ext_func)(RIG *rig, vfo_t vfo, token_t token, int *status);
 
     int (*set_ext_parm)(RIG *rig, token_t token, value_t val);
     int (*get_ext_parm)(RIG *rig, token_t token, value_t *val);
@@ -1613,7 +1804,7 @@ struct rig_caps {
     int (*decode_event)(RIG *rig);
 
     int (*set_channel)(RIG *rig, const channel_t *chan);
-    int (*get_channel)(RIG *rig, channel_t *chan);
+    int (*get_channel)(RIG *rig, channel_t *chan, int read_only);
 
     const char * (*get_info)(RIG *rig);
 
@@ -1629,9 +1820,13 @@ struct rig_caps {
                           confval_cb_t parm_cb,
                           rig_ptr_t);
 
+    int (*set_vfo_opt)(RIG *rig, int status); // only for Net Rigctl device
+
     const char *clone_combo_set;    /*!< String describing key combination to enter load cloning mode */
     const char *clone_combo_get;    /*!< String describing key combination to enter save cloning mode */
+    const char *macro_name;     /*!< Rig model macro name */
 };
+//! @endcond
 
 
 /**
@@ -1639,6 +1834,7 @@ struct rig_caps {
  *
  * Of course, looks like OO painstakingly programmed in C, sigh.
  */
+//! @cond Doxygen_Suppress
 typedef struct hamlib_port {
     union {
         rig_port_t rig;     /*!< Communication port type */
@@ -1696,10 +1892,63 @@ typedef struct hamlib_port {
         } gpio;             /*!< GPIO attributes */
     } parm;                 /*!< Port parameter union */
 } hamlib_port_t;
+//! @endcond
 
 #if !defined(__APPLE__) || !defined(__cplusplus)
 typedef hamlib_port_t port_t;
 #endif
+
+#define HAMLIB_ELAPSED_GET 0
+#define HAMLIB_ELAPSED_SET 1
+#define HAMLIB_ELAPSED_INVALIDATE 2
+
+typedef enum {
+    HAMLIB_CACHE_ALL, // to set all cache timeouts at once
+    HAMLIB_CACHE_VFO,
+    HAMLIB_CACHE_FREQ,
+    HAMLIB_CACHE_MODE,
+    HAMLIB_CACHE_PTT,
+    HAMLIB_CACHE_SPLIT
+} hamlib_cache_t;
+
+/**
+ * \brief Rig cache data
+ * 
+ * This struct contains all the items we cache at the highest level
+ */
+struct rig_cache {
+    int timeout_ms;  // the cache timeout for invalidating itself
+    vfo_t vfo;
+    freq_t freq; // to be deprecated
+    // other abstraction here is based on dual vfo rigs and mapped to all others
+    // So we have four possible states of rig
+    // MainA, MainB, SubA, SubB
+    // Main is the Main VFO and Sub is for the 2nd VFO
+    // Most rigs have MainA and MainB
+    // Dual VFO rigs can have SubA and SubB too
+    // For dual VFO rigs simplex operations are all done on MainA/MainB -- ergo this abstraction
+    freq_t freqMainA; // VFO_A, VFO_MAIN, and VFO_MAINA
+    freq_t freqMainB; // VFO_B, VFO_SUB, and VFO_MAINB
+    freq_t freqSubA;  // VFO_SUBA
+    freq_t freqSubB;  // VFO_SUBB
+    rmode_t mode;
+    pbwidth_t width;
+    ptt_t ptt;
+    split_t split;
+    vfo_t split_vfo;  // split caches two values
+    struct timespec time_freq;
+    struct timespec time_freqMainA;
+    struct timespec time_freqMainB;
+    struct timespec time_freqSubA;
+    struct timespec time_freqSubB;
+    struct timespec time_vfo;
+    struct timespec time_mode;
+    struct timespec time_ptt;
+    struct timespec time_split;
+    vfo_t vfo_freq; // last vfo cached
+    vfo_t vfo_mode; // last vfo cached
+    int satmode; // if rig is in satellite mode
+};
 
 
 /**
@@ -1721,7 +1970,7 @@ struct rig_state {
 
     double vfo_comp;        /*!< VFO compensation in PPM, 0.0 to disable */
 
-    int itu_region;         /*!< ITU region to select among freq_range_t */
+    int deprecated_itu_region;         /*!< ITU region to select among freq_range_t */
     freq_range_t rx_range_list[FRQRANGESIZ];    /*!< Receive frequency range list */
     freq_range_t tx_range_list[FRQRANGESIZ];    /*!< Transmit frequency range list */
 
@@ -1774,11 +2023,19 @@ struct rig_state {
     int transmit;               /*!< rig should be transmitting i.e. hard
                                      wired PTT asserted - used by rigs that
                                      don't do CAT while in Tx */
-    freq_t lo_freq;             /*!< Local oscillator frequency of any
-				     transverter */
+    freq_t lo_freq;             /*!< Local oscillator frequency of any transverter */
+    time_t twiddle_time;        /*!< time when vfo twiddling was detected */
+    int twiddle_timeout;        /*!< timeout to resume from twiddling */
+    struct rig_cache cache;
+    int vfo_opt;                /*!< Is -o switch turned on? */
+    int auto_power_on;          /*!< Allow Hamlib to power rig
+                                   automatically if supported */
+    int auto_disable_screensaver; /*!< Allow Hamlib to disable the
+                                   rig's screen saver automatically if
+                                   supported */
 };
 
-
+//! @cond Doxygen_Suppress
 typedef int (*vprintf_cb_t)(enum rig_debug_level_e,
                             rig_ptr_t,
                             const char *,
@@ -1795,6 +2052,7 @@ typedef int (*pltune_cb_t)(RIG *,
                            pbwidth_t *,
                            rig_ptr_t);
 
+//! @endcond
 
 /**
  * \brief Callback functions and args for rig event.
@@ -1839,7 +2097,7 @@ struct rig_callbacks {
  *
  * \sa rig_init(), rig_caps(), rig_state()
  */
-struct rig {
+struct s_rig {
     struct rig_caps *caps;          /*!< Pointer to rig capabilities (read only) */
     struct rig_state state;         /*!< Rig state */
     struct rig_callbacks callbacks; /*!< registered event callbacks */
@@ -1849,6 +2107,8 @@ struct rig {
 
 /* --------------- API function prototypes -----------------*/
 
+//! @cond Doxygen_Suppress
+
 extern HAMLIB_EXPORT(RIG *) rig_init HAMLIB_PARAMS((rig_model_t rig_model));
 extern HAMLIB_EXPORT(int) rig_open HAMLIB_PARAMS((RIG *rig));
 
@@ -1856,6 +2116,9 @@ extern HAMLIB_EXPORT(int) rig_open HAMLIB_PARAMS((RIG *rig));
  *  General API commands, from most primitive to least.. :()
  *  List Set/Get functions pairs
  */
+
+extern HAMLIB_EXPORT(int)
+rig_flush(hamlib_port_t *port);
 
 extern HAMLIB_EXPORT(int)
 rig_set_freq HAMLIB_PARAMS((RIG *rig,
@@ -2100,6 +2363,17 @@ rig_get_ext_level HAMLIB_PARAMS((RIG *rig,
                                  value_t *val));
 
 extern HAMLIB_EXPORT(int)
+rig_set_ext_func HAMLIB_PARAMS((RIG *rig,
+                                 vfo_t vfo,
+                                 token_t token,
+                                 int status));
+extern HAMLIB_EXPORT(int)
+rig_get_ext_func HAMLIB_PARAMS((RIG *rig,
+                                 vfo_t vfo,
+                                 token_t token,
+                                 int *status));
+
+extern HAMLIB_EXPORT(int)
 rig_set_ext_parm HAMLIB_PARAMS((RIG *rig,
                                 token_t token,
                                 value_t val));
@@ -2161,8 +2435,10 @@ extern HAMLIB_EXPORT(int)
 rig_get_ant HAMLIB_PARAMS((RIG *rig,
                            vfo_t vfo,
                            ant_t ant,
+                           value_t *option,
                            ant_t *ant_curr,
-                           value_t *option));
+                           ant_t *ant_tx,
+                           ant_t *ant_rx));
 
 extern HAMLIB_EXPORT(setting_t)
 rig_has_get_level HAMLIB_PARAMS((RIG *rig,
@@ -2254,7 +2530,7 @@ rig_set_channel HAMLIB_PARAMS((RIG *rig,
                                const channel_t *chan)); /* mem */
 extern HAMLIB_EXPORT(int)
 rig_get_channel HAMLIB_PARAMS((RIG *rig,
-                               channel_t *chan));
+                               channel_t *chan, int read_only));
 
 extern HAMLIB_EXPORT(int)
 rig_set_chan_all HAMLIB_PARAMS((RIG *rig,
@@ -2337,6 +2613,14 @@ rig_set_pltune_callback HAMLIB_PARAMS((RIG *,
                                        pltune_cb_t,
                                        rig_ptr_t));
 
+extern HAMLIB_EXPORT(int)
+rig_set_twiddle HAMLIB_PARAMS((RIG *rig,
+                                 int seconds));
+
+extern HAMLIB_EXPORT(int)
+rig_get_twiddle HAMLIB_PARAMS((RIG *rig,
+                                 int *seconds));
+
 extern HAMLIB_EXPORT(const char *)
 rig_get_info HAMLIB_PARAMS((RIG *rig));
 
@@ -2344,7 +2628,7 @@ extern HAMLIB_EXPORT(const struct rig_caps *)
 rig_get_caps HAMLIB_PARAMS((rig_model_t rig_model));
 
 extern HAMLIB_EXPORT(const freq_range_t *)
-rig_get_range HAMLIB_PARAMS((const freq_range_t range_list[],
+rig_get_range HAMLIB_PARAMS((const freq_range_t *range_list,
                              freq_t freq,
                              rmode_t mode));
 
@@ -2364,7 +2648,8 @@ rigerror HAMLIB_PARAMS((int errnum));
 extern HAMLIB_EXPORT(int)
 rig_setting2idx HAMLIB_PARAMS((setting_t s));
 
-extern setting_t rig_idx2setting(int i);
+extern HAMLIB_EXPORT(setting_t)
+rig_idx2setting(int i);
 /*
  * Even if these functions are prefixed with "rig_", they are not rig specific
  * Maybe "hamlib_" would have been better. Let me know. --SF
@@ -2385,7 +2670,7 @@ rig_need_debug HAMLIB_PARAMS((enum rig_debug_level_e debug_level));
 #ifndef __cplusplus
 #ifdef __GNUC__
 // doing the debug macro with a dummy sprintf allows gcc to check the format string
-#define rig_debug(debug_level,fmt,...) { char xxxbuf[16384];snprintf(xxxbuf,sizeof(xxxbuf),fmt,__VA_ARGS__);rig_debug(debug_level,fmt,##__VA_ARGS__); }
+#define rig_debug(debug_level,fmt,...) { char xxxbuf[16384]="";snprintf(xxxbuf,sizeof(xxxbuf),fmt,__VA_ARGS__);rig_debug(debug_level,fmt,##__VA_ARGS__); }
 #endif
 #endif
 extern HAMLIB_EXPORT(void)
@@ -2457,10 +2742,19 @@ extern HAMLIB_EXPORT(const char *) rig_license HAMLIB_PARAMS(());
 extern HAMLIB_EXPORT(const char *) rig_version HAMLIB_PARAMS(());
 extern HAMLIB_EXPORT(const char *) rig_copyright HAMLIB_PARAMS(());
 
-HAMLIB_EXPORT(void) rig_no_restore_ai();
+extern HAMLIB_EXPORT(void) rig_no_restore_ai();
 
-#include <unistd.h>
-extern HAMLIB_EXPORT(int) hl_usleep(useconds_t msec);
+extern HAMLIB_EXPORT(int) rig_get_cache_timeout_ms(RIG *rig, hamlib_cache_t selection);
+extern HAMLIB_EXPORT(int) rig_set_cache_timeout_ms(RIG *rig, hamlib_cache_t selection, int ms);
+
+extern HAMLIB_EXPORT(int) rig_set_vfo_opt(RIG *rig, int status);
+
+
+// cppcheck-suppress *
+typedef unsigned long rig_useconds_t;
+extern HAMLIB_EXPORT(int) hl_usleep(rig_useconds_t msec);
+
+//! @endcond
 
 __END_DECLS
 

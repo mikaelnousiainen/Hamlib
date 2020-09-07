@@ -15,7 +15,7 @@ dnl however, the use of '~' should be fine as apt (others?) will treat
 dnl it as an earlier version than the actual release.  TNX KA6MAL
 dnl PACKAGE_NAME + " " + PACKAGE_VERSION must not exceed 20 chars!
 AC_INIT([Hamlib],
-        [4.0~git],
+        [4.1~git],
         [hamlib-developer@lists.sourceforge.net],
         [hamlib],
         [http://www.hamlib.org])
@@ -61,7 +61,7 @@ dnl See README.release on setting these values
 # Values given to -version-info when linking.  See libtool documentation.
 # Set them here to keep c++/Makefile and src/Makefile in sync.
 ABI_VERSION=4
-ABI_REVISION=0
+ABI_REVISION=1
 ABI_AGE=0
 
 AC_DEFINE_UNQUOTED([ABI_VERSION], [$ABI_VERSION], [Frontend ABI version])
@@ -307,7 +307,7 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]],
                   [[struct{char a;int b;}s[8]={[3]={.b=5}};]])],
                   [AC_MSG_RESULT(yes)],
                   [AC_MSG_ERROR([""
-"You need a C99 compliant C compiler that supports struct/array intializers."
+"You need a C99 compliant C compiler that supports struct/array initializers."
 "Have you considered GCC lately?."])
                   ])
 
@@ -544,6 +544,11 @@ dnl Determine whether to install pytest.py or py3test.py to $(docdir)/examples
 AM_PYTHON_CHECK_VERSION([${PYTHON}], [3.0], [pyver_3="yes"], [pyver_3="no"])
 AM_CONDITIONAL([PYVER_3], [test x"${pyver_3}" = x"yes"])
 
+dnl Determine whether to link libpython as it is unneeded for Python >= 3.8
+AM_PYTHON_CHECK_VERSION([${PYTHON}], [3.8], [pyver_3_8="yes"], [pyver_3_8="no"])
+AS_IF([test x"${pyver_3_8}" = "xyes"],[
+    PYTHON_LIBS=""
+])
 
 # Tcl binding
 AC_MSG_CHECKING([Whether to build Tcl bindings])
@@ -597,7 +602,7 @@ AC_MSG_RESULT([$cf_with_lua_binding])
 dnl AX_LUA_DEVEL from macros/ax_lua_devel.m4
 AS_IF([test x"${cf_with_lua_binding}" = "xyes"],[
 
-    AX_PROG_LUA([5.2], [5.4])
+    AX_PROG_LUA([5.2], [5.5])
     AX_LUA_HEADERS
     AX_LUA_LIBS
 
@@ -616,7 +621,7 @@ AM_CONDITIONAL([ENABLE_LUA], [test x"${cf_with_lua_binding}" = "xyes"])
 dnl Only search for Swig if one or more bindings are enabled.
 AS_IF([test "x${BINDING_ALL}" != "x"],
     [# macros/ax_pkg_swig.m4
-    AX_PKG_SWIG([1.3.22],
+    AX_PKG_SWIG([3.0.12],
         [BINDINGS="${BINDINGS} bindings"
         cf_with_bindings="yes"],
         [AC_MSG_ERROR([SWIG is required to build bindings...])
@@ -706,6 +711,11 @@ AS_IF([test x"${cf_with_usrp}" = "xyes"],[
 
 AM_CONDITIONAL([HAVE_USRP], [test x"${cf_with_usrp}" = "xyes"])
 
+AM_CONDITIONAL(BUILD_OS_IS_UBUNTU, [test x"$build_os" = ubuntu])
+AM_CONDITIONAL(BUILD_OS_IS_FEDORA, [test x"$build_os" = fedora])
+echo Build_OS is $build_os
+
+
 
 ## -------------------------------- ##
 ## Prepare rig backend dependencies ##
@@ -729,7 +739,7 @@ AC_SUBST([BACKENDEPS])
 ## ---------------------------------- ##
 
 for be in ${RIG_BACKEND_LIST} ; do
-        RIGDIR=`echo $be | awk -F "/" '{print $2}'`
+        RIGDIR=$(echo $be | awk -F "/" '{print $2}')
         RIG_BACKENDEPS="${RIG_BACKENDEPS} \$(top_builddir)/rigs/${RIGDIR}/libhamlib-${RIGDIR}.la"
 done
 
@@ -744,7 +754,7 @@ AC_SUBST([RIG_BACKENDEPS])
 # otherwise parallel 'make -jn' will fail
 
 for be in ${ROT_BACKEND_LIST} ; do
-        ROTDIR=`echo $be | awk -F "/" '{print $2}'`
+        ROTDIR=$(echo $be | awk -F "/" '{print $2}')
         ROT_BACKENDEPS="${ROT_BACKENDEPS} \$(top_builddir)/rotators/${ROTDIR}/libhamlib-${ROTDIR}.la"
 done
 
@@ -758,7 +768,7 @@ AC_SUBST([ROT_BACKENDEPS])
 # otherwise parallel 'make -jn' will fail
 
 for be in ${AMP_BACKEND_LIST} ; do
-        AMPDIR=`echo $be | awk -F "/" '{print $2}'`
+        AMPDIR=$(echo $be | awk -F "/" '{print $2}')
         AMP_BACKENDEPS="${AMP_BACKENDEPS} \$(top_builddir)/amplifiers/${AMPDIR}/libhamlib-${AMPDIR}.la"
 done
 

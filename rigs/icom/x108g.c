@@ -135,10 +135,10 @@ static struct icom_priv_caps x108g_priv_caps =
 
 const struct rig_caps x108g_caps =
 {
-    .rig_model =  RIG_MODEL_X108G,
+    RIG_MODEL(RIG_MODEL_X108G),
     .model_name = "X108G",
     .mfg_name =  "Xeigu",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -270,8 +270,6 @@ const struct rig_caps x108g_caps =
     .set_vfo =  icom_set_vfo,
     .set_ant =  NULL,  /*automatically set by rig depending band */
     .get_ant =  NULL,
-
-    .set_rit =  icom_set_rit,
 
     .decode_event =  icom_decode_event,
     .set_level =  icom_set_level,

@@ -351,6 +351,10 @@ and
 .RI \(aq Elevation \(aq
 are floating point values.
 .IP
+Azimuth can be -180 to 540 depending on the rotator to allow for rotators facing south and the capabilities of the rotator.
+.IP
+Elevation can be -20 to 210 depending on the rotator.
+.IP
 For example:
 .
 .sp
@@ -426,6 +430,15 @@ Get miscellaneous information about the rotator.
 Returns
 .RI \(aq Info \(aq
 \(lqModel Name\(rq at present.
+.
+.TP
+.B dump_state
+Return certain state information about the rotator backend.
+.
+.TP
+.BR 1 ", " dump_caps
+Not a real rot remote command, it just dumps capabilities, i.e. what the
+backend knows about this model, and what it can do.
 .
 .TP
 .BR w ", " send_cmd " \(aq" \fICmd\fP \(aq

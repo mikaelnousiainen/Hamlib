@@ -52,7 +52,9 @@
 #include <hamlib/rig_dll.h>
 #include "misc.h"
 
+//! @cond Doxygen_Suppress
 #define DUMP_HEX_WIDTH 16
+//! @endcond
 
 
 static int rig_debug_level = RIG_DEBUG_TRACE;
@@ -87,6 +89,7 @@ void dump_hex(const unsigned char ptr[], size_t size)
     for (i = 0; i < size; ++i)
     {
         unsigned char c;
+
         if (i % DUMP_HEX_WIDTH == 0)
         {
             /* new line */
@@ -133,7 +136,7 @@ int HAMLIB_API rig_need_debug(enum rig_debug_level_e debug_level)
 }
 
 /**
- * \param debug_time_stamp
+ * \param flag
  * \brief Enbable/disable time stamp on debug output
  */
 void HAMLIB_API rig_set_debug_time_stamp(int flag)
@@ -142,20 +145,22 @@ void HAMLIB_API rig_set_debug_time_stamp(int flag)
 }
 
 
+//! @cond Doxygen_Suppress
 char *date_strget(char *buf, int buflen)
 {
     char tmp[16];
-    time_t mytime;
     struct tm *mytm;
+    time_t t;
     struct timeval tv;
-    mytime = time(NULL);
-    mytm = gmtime(&mytime);
-    gettimeofday(&tv, NULL);
+    t = time(NULL);
+    mytm = gmtime(&t);
     strftime(buf, buflen, "%Y-%m-%d:%H:%M:%S.", mytm);
+    gettimeofday(&tv, NULL);
     sprintf(tmp, "%06ld", (long)tv.tv_usec);
     strcat(buf, tmp);
     return buf;
 }
+//! @endcond
 
 /**
  * \param debug_level
@@ -266,8 +271,8 @@ rig_message_cb(enum rig_debug_level_e debug_level,
     rig_set_debug_callback (rig_message_cb, (rig_ptr_t)cookie);
 \endcode
  *
- * \return RIG_OK if the operation has been sucessful, otherwise
- * a negative value if an error occured (in which case, cause
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause
  * is set appropriately).
  *
  * \sa rig_debug()

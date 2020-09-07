@@ -37,13 +37,13 @@
 #include "bandplan.h"
 
 
-#define IC756_ALL_RX_MODES (RIG_MODE_AM|RIG_MODE_CW|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_FM)
+#define IC756_ALL_RX_MODES (RIG_MODE_AM|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_FM)
 #define IC756_1HZ_TS_MODES IC756_ALL_RX_MODES
 
 /*
  * 100W in all modes but AM (40W)
  */
-#define IC756_OTHER_TX_MODES (RIG_MODE_CW|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_FM)
+#define IC756_OTHER_TX_MODES (RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_FM)
 #define IC756_AM_TX_MODES (RIG_MODE_AM)
 
 #define IC756PRO_FUNC_ALL (RIG_FUNC_NB|RIG_FUNC_COMP|RIG_FUNC_VOX|RIG_FUNC_TONE|RIG_FUNC_TSQL|RIG_FUNC_SBKIN|RIG_FUNC_FBKIN|RIG_FUNC_NR|RIG_FUNC_MON|RIG_FUNC_MN|RIG_FUNC_RF|RIG_FUNC_ANF)
@@ -62,16 +62,13 @@
 
 #define IC756_ANTS (RIG_ANT_1|RIG_ANT_2)
 
-struct cmdparams ic756pro_rigparms[] = {
-    { {.s=RIG_PARM_BEEP}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x20}, CMD_DAT_BOL, 1 },
-    { {.s=RIG_PARM_BACKLIGHT}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x09}, CMD_DAT_LVL, 2 },
-    { {.s=RIG_PARM_TIME}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x16}, CMD_DAT_TIM, 2 },
-    { {.s=RIG_PARM_NONE} }
-};
-
-struct cmdparams ic756pro_riglevels[] = {
-    { {.s=RIG_LEVEL_VOXDELAY}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x60}, CMD_DAT_INT, 1 },
-    { {.s=RIG_LEVEL_NONE} }
+struct cmdparams ic756pro_cmdparms[] =
+{
+    { {.s = RIG_PARM_BEEP}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x20}, CMD_DAT_BOL, 1 },
+    { {.s = RIG_PARM_BACKLIGHT}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x09}, CMD_DAT_LVL, 2 },
+    { {.s = RIG_PARM_TIME}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x16}, CMD_DAT_TIM, 2 },
+    { {.s = RIG_LEVEL_VOXDELAY}, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x00, 0x60}, CMD_DAT_INT, 1 },
+    { {.s = RIG_PARM_NONE} }
 };
 
 #define IC756PRO_STR_CAL { 16, \
@@ -147,12 +144,12 @@ static const struct icom_priv_caps ic756_priv_caps =
 
 const struct rig_caps ic756_caps =
 {
-    .rig_model =  RIG_MODEL_IC756,
+    RIG_MODEL(RIG_MODEL_IC756),
     .model_name = "IC-756",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_ALPHA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_NONE,
     .dcd_type =  RIG_DCD_RIG,
@@ -229,9 +226,11 @@ const struct rig_caps ic756_caps =
     },
     /* mode/filter list, remember: order matters! */
     .filters =  {
-        {RIG_MODE_SSB | RIG_MODE_RTTY, kHz(2.4)},
+        {RIG_MODE_SSB | RIG_MODE_RTTY | RIG_MODE_RTTYR, kHz(2.4)},
         {RIG_MODE_CW, kHz(2.4)},
         {RIG_MODE_CW, Hz(500)},
+        {RIG_MODE_CWR, kHz(2.4)},
+        {RIG_MODE_CWR, Hz(500)},
         {RIG_MODE_AM, kHz(9)},
         {RIG_MODE_AM, kHz(2.4)},
         {RIG_MODE_FM, kHz(15)},
@@ -305,12 +304,12 @@ static const struct icom_priv_caps ic756pro_priv_caps =
 
 const struct rig_caps ic756pro_caps =
 {
-    .rig_model =  RIG_MODEL_IC756PRO,
+    RIG_MODEL(RIG_MODEL_IC756PRO),
     .model_name = "IC-756PRO",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_UNTESTED,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,
@@ -389,8 +388,9 @@ const struct rig_caps ic756pro_caps =
     },
     /* mode/filter list, remember: order matters! */
     .filters =  {
-        {RIG_MODE_SSB | RIG_MODE_RTTY, kHz(2.4)},
+        {RIG_MODE_SSB | RIG_MODE_RTTY | RIG_MODE_RTTYR, kHz(2.4)},
         {RIG_MODE_CW, Hz(500)},
+        {RIG_MODE_CWR, Hz(500)},
         {RIG_MODE_AM, kHz(8)},
         {RIG_MODE_AM, kHz(2.4)},
         {RIG_MODE_FM, kHz(15)},
@@ -468,8 +468,7 @@ static const struct icom_priv_caps ic756pro2_priv_caps =
         { .level = RIG_AGC_SLOW, .icom_level = 3 },
         { .level = -1, .icom_level = 0 },
     },
-    .rigparms = ic756pro_rigparms,   /* Custom parm parameters */
-    .riglevels = ic756pro_riglevels,   /* Custom level parameters */
+    .extcmds = ic756pro_cmdparms,   /* Custom op parameters */
 };
 
 /*
@@ -540,12 +539,12 @@ static int ic756pro2_get_ext_parm(RIG *rig, token_t token, value_t *val);
 
 const struct rig_caps ic756pro2_caps =
 {
-    .rig_model =  RIG_MODEL_IC756PROII,
+    RIG_MODEL(RIG_MODEL_IC756PROII),
     .model_name = "IC-756PROII",
     .mfg_name =  "Icom",
     .version =  BACKEND_VER ".1",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_ALPHA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,
@@ -896,8 +895,7 @@ static const struct icom_priv_caps ic756pro3_priv_caps =
         { .level = RIG_AGC_SLOW, .icom_level = 3 },
         { .level = -1, .icom_level = 0 },
     },
-    .rigparms = ic756pro_rigparms,   /* Custom parm parameters */
-    .riglevels = ic756pro_riglevels,   /* Custom level parameters */
+    .extcmds = ic756pro_cmdparms,   /* Custom op parameters */
 };
 
 
@@ -960,12 +958,12 @@ static const struct icom_priv_caps ic756pro3_priv_caps =
 
 const struct rig_caps ic756pro3_caps =
 {
-    .rig_model =  RIG_MODEL_IC756PROIII,
+    RIG_MODEL(RIG_MODEL_IC756PROIII),
     .model_name = "IC-756PROIII",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_BETA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,

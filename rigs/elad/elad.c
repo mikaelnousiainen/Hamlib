@@ -160,7 +160,7 @@ const struct confparams elad_cfg_params[] =
  *
  * returns:
  *   RIG_OK -   if no error occurred.
- *   RIG_EIO -    if an I/O error occured while sending/receiving data.
+ *   RIG_EIO -    if an I/O error occurred while sending/receiving data.
  *   RIG_ETIMEOUT - if timeout expires without any characters received.
  *   RIG_REJECTED - if a negative acknowledge was received or command not
  *          recognized by rig.
@@ -223,15 +223,7 @@ transaction_write:
         }
 
         /* flush anything in the read buffer before command is sent */
-        if (rs->rigport.type.rig == RIG_PORT_NETWORK
-                || rs->rigport.type.rig == RIG_PORT_UDP_NETWORK)
-        {
-            network_flush(&rs->rigport);
-        }
-        else
-        {
-            serial_flush(&rs->rigport);
-        }
+        rig_flush(&rs->rigport);
 
         retval = write_block(&rs->rigport, cmd, len);
 
@@ -439,7 +431,7 @@ transaction_quit:
  *  expected  Value of expected string length
  *
  * Returns:
- *   RIG_OK -   if no error occured.
+ *   RIG_OK -   if no error occurred.
  *   RIG_EPROTO   if returned string and expected are not equal
  *   Error from elad_transaction() if any
  *
@@ -530,6 +522,7 @@ int elad_init(RIG *rig)
     {
         return -RIG_ENOMEM;
     }
+
     priv = rig->state.priv;
 
     memset(priv, 0x00, sizeof(struct elad_priv_data));
@@ -691,7 +684,7 @@ int elad_open(RIG *rig)
 
         /* driver mismatch */
         rig_debug(RIG_DEBUG_ERR,
-                  "%s: wrong driver selected (%d instead of %d)\n",
+                  "%s: wrong driver selected (%u instead of %u)\n",
                   __func__, rig->caps->rig_model,
                   elad_id_string_list[i].model);
 
@@ -791,7 +784,7 @@ int elad_set_vfo(RIG *rig, vfo_t vfo)
         return RIG_OK;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
         return -RIG_EINVAL;
     }
 
@@ -875,7 +868,7 @@ int elad_set_vfo_main_sub(RIG *rig, vfo_t vfo)
         return RIG_OK;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
         return -RIG_EINVAL;
     }
 
@@ -942,7 +935,7 @@ int elad_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
         case RIG_VFO_MEM: vfo_function = '2'; break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
             return -RIG_EINVAL;
         }
 
@@ -982,7 +975,8 @@ int elad_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
     case RIG_VFO_MEM: vfo_function = '2'; break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, txvfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__,
+                  rig_strvfo(txvfo));
         return -RIG_EINVAL;
     }
 
@@ -1110,8 +1104,8 @@ int elad_get_split_vfo_if(RIG *rig, vfo_t rxvfo, split_t *split, vfo_t *txvfo)
     /* find where is the txvfo.. */
     /* Elecraft info[30] does not track split VFO when transmitting */
     transmitting = '1' == priv->info[28]
-                       && RIG_MODEL_K2 != rig->caps->rig_model
-                       && RIG_MODEL_K3 != rig->caps->rig_model;
+                   && RIG_MODEL_K2 != rig->caps->rig_model
+                   && RIG_MODEL_K3 != rig->caps->rig_model;
 
     switch (priv->info[30])
     {
@@ -1232,10 +1226,11 @@ int elad_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
         return -RIG_EINVAL;
     }
 
+    // cppcheck-suppress *
     snprintf(freqbuf, sizeof(freqbuf), "F%c%011"PRIll, vfo_letter, (int64_t)freq);
 
     err = elad_transaction(rig, freqbuf, NULL, 0);
@@ -1363,7 +1358,7 @@ int elad_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
         return -RIG_EINVAL;
     }
 
@@ -1762,7 +1757,7 @@ int elad_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
         case RIG_VFO_SUB: c = '1'; break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
             return -RIG_EINVAL;
         }
 
@@ -1932,16 +1927,19 @@ int elad_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         }
         else
         {
+            int foundit = 0;
+
             for (i = 0; i < MAXDBLSTSIZ && rig->state.attenuator[i]; i++)
             {
                 if (val.i == rig->state.attenuator[i])
                 {
                     snprintf(levelbuf, sizeof(levelbuf), "RA%02d", i + 1);
+                    foundit = 1;
                     break;
                 }
             }
 
-            if (val.i != rig->state.attenuator[i])
+            if (!foundit)
             {
                 return -RIG_EINVAL;
             }
@@ -1958,16 +1956,19 @@ int elad_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         }
         else
         {
+            int foundit = 0;
+
             for (i = 0; i < MAXDBLSTSIZ && rig->state.preamp[i]; i++)
             {
                 if (val.i == rig->state.preamp[i])
                 {
                     snprintf(levelbuf, sizeof(levelbuf), "PA%01d", i + 1);
+                    foundit = 1;
                     break;
                 }
             }
 
-            if (val.i != rig->state.preamp[i])
+            if (!foundit)
             {
                 return -RIG_EINVAL;
             }
@@ -2028,7 +2029,7 @@ int get_elad_level(RIG *rig, const char *cmd, float *f)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    if ( !f )
+    if (!f)
     {
         return -RIG_EINVAL;
     }
@@ -2552,7 +2553,7 @@ int elad_set_ctcss_tone_tn(RIG *rig, vfo_t vfo, tone_t tone)
         case RIG_VFO_SUB: c = '1'; break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
             return -RIG_EINVAL;
         }
 
@@ -2603,7 +2604,7 @@ int elad_get_ctcss_tone(RIG *rig, vfo_t vfo, tone_t *tone)
         case RIG_VFO_SUB: c = '1'; break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
             return -RIG_EINVAL;
         }
 
@@ -2637,7 +2638,7 @@ int elad_get_ctcss_tone(RIG *rig, vfo_t vfo, tone_t *tone)
     {
         if (caps->ctcss_list[i] == 0)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: CTCSS NG (%04d)\n",
+            rig_debug(RIG_DEBUG_ERR, "%s: CTCSS NG (%04u)\n",
                       __func__, tone_idx);
             return -RIG_EPROTO;
         }
@@ -2690,7 +2691,7 @@ int elad_set_ctcss_sql(RIG *rig, vfo_t vfo, tone_t tone)
         case RIG_VFO_SUB: c = '1'; break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
             return -RIG_EINVAL;
         }
 
@@ -2736,7 +2737,7 @@ int elad_get_ctcss_sql(RIG *rig, vfo_t vfo, tone_t *tone)
         case RIG_VFO_SUB: c = '1'; break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
             return -RIG_EINVAL;
         }
 
@@ -2770,7 +2771,7 @@ int elad_get_ctcss_sql(RIG *rig, vfo_t vfo, tone_t *tone)
     {
         if (caps->ctcss_list[i] == 0)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: CTCSS NG (%04d)\n",
+            rig_debug(RIG_DEBUG_ERR, "%s: CTCSS NG (%04u)\n",
                       __func__, tone_idx);
             return -RIG_EPROTO;
         }
@@ -2827,7 +2828,7 @@ int elad_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
         case RIG_VFO_SUB: c = '1'; break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
             return -RIG_EINVAL;
         }
 
@@ -2875,7 +2876,8 @@ int elad_set_ant_no_ack(RIG *rig, vfo_t vfo, ant_t ant)
 /*
  * get the aerial/antenna in use
  */
-int elad_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option)
+int elad_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
+                 ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx)
 {
     char ackbuf[8];
     int offs;
@@ -2904,7 +2906,7 @@ int elad_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option)
         return -RIG_EPROTO;
     }
 
-    *ant = RIG_ANT_N(ackbuf[offs] - '1');
+    *ant_curr = RIG_ANT_N(ackbuf[offs] - '1');
 
     /* XXX check that the returned antenna is valid for the current rig */
 
@@ -3167,6 +3169,7 @@ int elad_send_morse(RIG *rig, vfo_t vfo, const char *msg)
     while (msg_len > 0)
     {
         int buff_len;
+
         /*
          * Check with "KY" if char buffer is available.
          * if not, sleep.
@@ -3290,7 +3293,7 @@ int elad_set_mem(RIG *rig, vfo_t vfo, int ch)
         case RIG_VFO_SUB: c = '1'; break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
             return -RIG_EINVAL;
         }
 
@@ -3340,7 +3343,7 @@ int elad_get_mem(RIG *rig, vfo_t vfo, int *ch)
         case RIG_VFO_SUB: c = '1'; break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
             return -RIG_EINVAL;
         }
 

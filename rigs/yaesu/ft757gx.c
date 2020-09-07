@@ -49,6 +49,8 @@
 #include "yaesu.h"
 #include "ft757gx.h"
 
+#define FT757GX_VFOS (RIG_VFO_A|RIG_VFO_B)
+
 /* Private helper function prototypes */
 static int ft757_get_update_data(RIG *rig);
 static int mode2rig(RIG *rig, rmode_t mode, pbwidth_t width);
@@ -89,10 +91,10 @@ const struct confparams ft757gx_cfg_params[] =
  */
 const struct rig_caps ft757gx_caps =
 {
-    .rig_model =        RIG_MODEL_FT757,
+    RIG_MODEL(RIG_MODEL_FT757),
     .model_name =       "FT-757GX",
     .mfg_name =     "Yaesu",
-    .version =      "0.5.0",
+    .version =      "20200325.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_BETA,
     .rig_type =     RIG_TYPE_MOBILE,
@@ -139,23 +141,23 @@ const struct rig_caps ft757gx_caps =
         RIG_FRNG_END,
     }, /* rx range */
 
-    .tx_range_list2 =   { {kHz(1500), 1999900, FT757GX_ALL_TX_MODES, .low_power = 5000, .high_power = 100000},
+    .tx_range_list2 =   { {kHz(1500), 1999900, FT757GX_ALL_TX_MODES, .low_power = 5000, .high_power = 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = kHz(3500), 3999900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = kHz(3500), 3999900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = kHz(7000), 7499900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = kHz(7000), 7499900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = MHz(10), 10499900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = MHz(10), 10499900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = MHz(14), 14499900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = MHz(14), 14499900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = MHz(18), 18499900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = MHz(18), 18499900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = MHz(21), 21499900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = MHz(21), 21499900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = kHz(24500), 24999900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = kHz(24500), 24999900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = MHz(28), 29999900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = MHz(28), 29999900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
         RIG_FRNG_END,
     },
@@ -200,10 +202,10 @@ const struct rig_caps ft757gx_caps =
  */
 const struct rig_caps ft757gx2_caps =
 {
-    .rig_model =        RIG_MODEL_FT757GXII,
+    RIG_MODEL(RIG_MODEL_FT757GXII),
     .model_name =       "FT-757GXII",
     .mfg_name =     "Yaesu",
-    .version =      "0.4",
+    .version =      "20200325.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_MOBILE,
@@ -260,23 +262,23 @@ const struct rig_caps ft757gx2_caps =
     }, /* rx range */
 
     /* FIXME: 10m is "less" and AM is 25W carrier */
-    .tx_range_list2 = { {kHz(1500), 1999900, FT757GX_ALL_TX_MODES, .low_power = 5000, .high_power = 100000},
+    .tx_range_list2 = { {kHz(1500), 1999900, FT757GX_ALL_TX_MODES, .low_power = 5000, .high_power = 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = kHz(3500), 3999900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = kHz(3500), 3999900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = kHz(7000), 7499900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = kHz(7000), 7499900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = MHz(10), 10499900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = MHz(10), 10499900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = MHz(14), 14499900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = MHz(14), 14499900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = MHz(18), 18499900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = MHz(18), 18499900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = MHz(21), 21499900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = MHz(21), 21499900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = kHz(24500), 24999900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = kHz(24500), 24999900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
-        {.startf = MHz(28), 29999900, FT757GX_ALL_TX_MODES, 5000, 100000},
+        {.startf = MHz(28), 29999900, FT757GX_ALL_TX_MODES, 5000, 100000, FT757GX_VFOS, RIG_ANT_1},
 
         RIG_FRNG_END,
     },
@@ -333,7 +335,8 @@ int ft757_init(RIG *rig)
         return -RIG_EINVAL;
     }
 
-    rig->state.priv = (struct ft757_priv_data *) calloc(1, sizeof(struct ft757_priv_data));
+    rig->state.priv = (struct ft757_priv_data *) calloc(1,
+                      sizeof(struct ft757_priv_data));
 
     if (!rig->state.priv)     /* whoops! memory shortage! */
     {
@@ -346,7 +349,8 @@ int ft757_init(RIG *rig)
 
     /* TODO: read pacing from preferences */
 
-    priv->pacing = FT757GX_PACING_DEFAULT_VALUE;   /* set pacing to minimum for now */
+    priv->pacing =
+        FT757GX_PACING_DEFAULT_VALUE;   /* set pacing to minimum for now */
     priv->read_update_delay =
         FT757GX_DEFAULT_READ_TIMEOUT;    /* set update timeout to safe value */
     priv->current_vfo =  RIG_VFO_A;            /* default to VFO_A ? */
@@ -648,7 +652,7 @@ int ft757_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         return -RIG_EINVAL;
     }
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     /* send READ STATUS(Meter only) cmd to rig  */
     retval = write_block(&rig->state.rigport, (char *)cmd, YAESU_CMD_LENGTH);
@@ -698,7 +702,7 @@ int ft757_get_update_data(RIG *rig)
     does not fix things. So we restart the read from scratch, it works most of times. */
     for (nbtries = 0 ; nbtries < maxtries ; nbtries++)
     {
-        serial_flush(&rig->state.rigport);
+        rig_flush(&rig->state.rigport);
 
         /* send READ STATUS cmd to rig  */
         retval = write_block(&rig->state.rigport, (char *)cmd, YAESU_CMD_LENGTH);

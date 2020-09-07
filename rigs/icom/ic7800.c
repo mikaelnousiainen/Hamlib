@@ -150,10 +150,10 @@ const struct confparams ic7800_ext_levels[] =
 
 const struct rig_caps ic7800_caps =
 {
-    .rig_model =  RIG_MODEL_IC7800,
+    RIG_MODEL(RIG_MODEL_IC7800),
     .model_name = "IC-7800",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".3",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_UNTESTED,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -342,6 +342,7 @@ int ic7800_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         {
             /* Convert dB to index */
             int i;
+
             for (i = 0; i < 7; i++)
             {
                 if (val.i == rig->state.attenuator[i])

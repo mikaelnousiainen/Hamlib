@@ -211,12 +211,12 @@ static const tone_t ft847_ctcss_list[] =
 
 const struct rig_caps ft847_caps =
 {
-    .rig_model =  RIG_MODEL_FT847,
+    RIG_MODEL(RIG_MODEL_FT847),
     .model_name = "FT-847",
     .mfg_name =  "Yaesu",
-    .version =  "0.5",
+    .version =  "20200509.0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_BETA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,
@@ -256,10 +256,10 @@ const struct rig_caps ft847_caps =
     .chan_list =  { RIG_CHAN_END, }, /* FIXME: memory chan list: 78, but only in clonable mode? */
 
     .rx_range_list1 =  {
-        {kHz(100), MHz(30), FT847_ALL_RX_MODES, -1, -1}, /* rx range begin */
-        {MHz(36), MHz(76), FT847_ALL_RX_MODES, -1, -1},
-        {MHz(108), MHz(174), FT847_ALL_RX_MODES, -1, -1},
-        {MHz(420), MHz(512), FT847_ALL_RX_MODES, -1, -1},
+        {kHz(100), MHz(30), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "EUR"}, /* rx range begin */
+        {MHz(36), MHz(76), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "EUR"},
+        {MHz(108), MHz(174), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "EUR"},
+        {MHz(420), MHz(512), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "EUR"},
 
         RIG_FRNG_END,
     }, /* rx range end */
@@ -268,29 +268,31 @@ const struct rig_caps ft847_caps =
         FRQ_RNG_HF(1, FT847_OTHER_TX_MODES, W(5), W(100), FT847_VFOS, FT847_ANTS),
         FRQ_RNG_HF(1, FT847_AM_TX_MODES, W(1), W(25), FT847_VFOS, FT847_ANTS),
 
-        FRQ_RNG_6m(2, FT847_OTHER_TX_MODES, W(5), W(100), FT847_VFOS, FT847_ANTS),
-        FRQ_RNG_6m(2, FT847_AM_TX_MODES, W(1), W(25), FT847_VFOS, FT847_ANTS),
+        FRQ_RNG_6m(1, FT847_OTHER_TX_MODES, W(5), W(100), FT847_VFOS, FT847_ANTS),
+        FRQ_RNG_6m(1, FT847_AM_TX_MODES, W(1), W(25), FT847_VFOS, FT847_ANTS),
 
-        FRQ_RNG_2m(2, FT847_OTHER_TX_MODES, W(1), W(50), FT847_VFOS, FT847_ANTS),
-        FRQ_RNG_2m(2, FT847_AM_TX_MODES, W(1), W(12.5), FT847_VFOS, FT847_ANTS),
+        FRQ_RNG_4m(1, FT847_OTHER_TX_MODES, W(1), W(50), FT847_VFOS, FT847_ANTS),
+        FRQ_RNG_4m(1, FT847_AM_TX_MODES, W(1), W(12.5), FT847_VFOS, FT847_ANTS),
 
-        FRQ_RNG_70cm(2, FT847_OTHER_TX_MODES, W(1), W(50), FT847_VFOS, FT847_ANTS),
-        FRQ_RNG_70cm(2, FT847_AM_TX_MODES, W(1), W(12.5), FT847_VFOS, FT847_ANTS),
+        FRQ_RNG_2m(1, FT847_OTHER_TX_MODES, W(1), W(50), FT847_VFOS, FT847_ANTS),
+        FRQ_RNG_2m(1, FT847_AM_TX_MODES, W(1), W(12.5), FT847_VFOS, FT847_ANTS),
+
+        FRQ_RNG_70cm(1, FT847_OTHER_TX_MODES, W(1), W(50), FT847_VFOS, FT847_ANTS),
+        FRQ_RNG_70cm(1, FT847_AM_TX_MODES, W(1), W(12.5), FT847_VFOS, FT847_ANTS),
 
         RIG_FRNG_END,
     }, /* tx range end */
 
-    .rx_range_list2 =
-    {   {kHz(100), MHz(30), FT847_ALL_RX_MODES, -1, -1}, /* rx range begin */
-        {MHz(36), MHz(76), FT847_ALL_RX_MODES, -1, -1},
-        {MHz(108), MHz(174), FT847_ALL_RX_MODES, -1, -1},
-        {MHz(420), MHz(512), FT847_ALL_RX_MODES, -1, -1},
+    .rx_range_list2 =  {
+        {kHz(100), MHz(30), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "USA"}, /* rx range begin */
+        {MHz(36), MHz(76), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "USA"},
+        {MHz(108), MHz(174), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "USA"},
+        {MHz(420), MHz(512), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "USA"},
 
         RIG_FRNG_END,
     }, /* rx range end */
 
-    .tx_range_list2 =
-    {
+    .tx_range_list2 =  {
         FRQ_RNG_HF(2, FT847_OTHER_TX_MODES, W(5), W(100), FT847_VFOS, FT847_ANTS),
         FRQ_RNG_HF(2, FT847_AM_TX_MODES, W(1), W(25), FT847_VFOS, FT847_ANTS),
 
@@ -304,7 +306,7 @@ const struct rig_caps ft847_caps =
         FRQ_RNG_70cm(2, FT847_AM_TX_MODES, W(1), W(12.5), FT847_VFOS, FT847_ANTS),
 
         RIG_FRNG_END,
-    },
+    }, /* tx range end */
 
     .tuning_steps =  { {FT847_SSB_CW_RX_MODES, 1}, /* normal */
         {FT847_SSB_CW_RX_MODES, 10}, /* fast */
@@ -366,12 +368,12 @@ const struct rig_caps ft847_caps =
 
 const struct rig_caps ft847uni_caps =
 {
-    .rig_model =  RIG_MODEL_FT847UNI,
+    RIG_MODEL(RIG_MODEL_FT847UNI),
     .model_name = "FT-847UNI",
     .mfg_name =  "Yaesu",
-    .version =  "0.1b",
+    .version =  "20200509.0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_BETA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,
@@ -411,10 +413,10 @@ const struct rig_caps ft847uni_caps =
     .chan_list =  { RIG_CHAN_END, }, /* FIXME: memory chan list: 78, but only in clonable mode? */
 
     .rx_range_list1 =  {
-        {kHz(100), MHz(30), FT847_ALL_RX_MODES, -1, -1}, /* rx range begin */
-        {MHz(36), MHz(76), FT847_ALL_RX_MODES, -1, -1},
-        {MHz(108), MHz(174), FT847_ALL_RX_MODES, -1, -1},
-        {MHz(420), MHz(512), FT847_ALL_RX_MODES, -1, -1},
+        {kHz(100), MHz(30), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "EUR"}, /* rx range begin */
+        {MHz(36), MHz(76), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "EUR"},
+        {MHz(108), MHz(174), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "EUR"},
+        {MHz(420), MHz(512), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "EUR"},
 
         RIG_FRNG_END,
     }, /* rx range end */
@@ -436,10 +438,10 @@ const struct rig_caps ft847uni_caps =
     }, /* tx range end */
 
     .rx_range_list2 =
-    {   {kHz(100), MHz(30), FT847_ALL_RX_MODES, -1, -1}, /* rx range begin */
-        {MHz(36), MHz(76), FT847_ALL_RX_MODES, -1, -1},
-        {MHz(108), MHz(174), FT847_ALL_RX_MODES, -1, -1},
-        {MHz(420), MHz(512), FT847_ALL_RX_MODES, -1, -1},
+    {   {kHz(100), MHz(30), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "USA"}, /* rx range begin */
+        {MHz(36), MHz(76), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "USA"},
+        {MHz(108), MHz(174), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "USA"},
+        {MHz(420), MHz(512), FT847_ALL_RX_MODES, -1, -1, FT847_VFOS, FT847_ANTS, "USA"},
 
         RIG_FRNG_END,
     }, /* rx range end */
@@ -532,13 +534,15 @@ int ft847_init(RIG *rig)
         return -RIG_EINVAL;
     }
 
-    rig->state.priv = (struct ft847_priv_data *) calloc(1, sizeof(struct ft847_priv_data));
+    rig->state.priv = (struct ft847_priv_data *) calloc(1,
+                      sizeof(struct ft847_priv_data));
 
     if (!rig->state.priv)
     {
         /* whoops! memory shortage! */
         return -RIG_ENOMEM;
     }
+
     priv = rig->state.priv;
 
 
@@ -548,7 +552,8 @@ int ft847_init(RIG *rig)
     /* until these are set we won't know what the values are */
     priv->freqA = 1;  /* 1Hz default */
     priv->freqB = 1;  /* 1Hz default */
-    priv->mode = RIG_MODE_USB; /* mode USB by default to avoid users not setting mode */
+    priv->mode =
+        RIG_MODE_USB; /* mode USB by default to avoid users not setting mode */
     priv->width = 1; /* 1Hz default */
 
     return RIG_OK;
@@ -647,7 +652,7 @@ static int ft847_send_priv_cmd(RIG *rig, int cmd_index)
 
 /*
  * opcode_vfo() copy into cmd the 5 byte command designated by cmd_index,
- * and patch the opcode with VFO targetting (MAIN 0x0-, SAT RX 0x1-, SAT TX 0x2-)
+ * and patch the opcode with VFO targeting (MAIN 0x0-, SAT RX 0x1-, SAT TX 0x2-)
  */
 static int opcode_vfo(RIG *rig, unsigned char *cmd, int cmd_index, vfo_t vfo)
 {
@@ -696,6 +701,8 @@ int ft847_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     struct rig_state *rig_s;
     unsigned char p_cmd[YAESU_CMD_LENGTH]; /* sequence to send */
     int ret;
+    // cppcheck-suppress *
+    char *fmt = "%s: requested freq after conversion = %"PRIll" Hz \n";
 
     if (!rig)
     {
@@ -716,8 +723,7 @@ int ft847_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     to_bcd_be(p_cmd, freq / 10, 8); /* store bcd format in in p_cmd */
 
-    rig_debug(RIG_DEBUG_VERBOSE,
-              "%s: requested freq after conversion = %"PRIll" Hz \n", __func__,
+    rig_debug(RIG_DEBUG_VERBOSE, fmt, __func__,
               (int64_t)from_bcd_be(p_cmd, 8) * 10);
 
     if (rig->caps->rig_model == RIG_MODEL_FT847UNI)
@@ -1137,7 +1143,7 @@ static int ft847_get_status(RIG *rig, int status_ci)
         return -RIG_EINTERNAL;
     }
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     n = write_block(&rig->state.rigport, (char *) ncmd[status_ci].nseq,
                     YAESU_CMD_LENGTH);

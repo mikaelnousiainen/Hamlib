@@ -155,12 +155,12 @@ struct ft1000d_priv_data
 const struct rig_caps ft1000d_caps =
 {
 
-    .rig_model =          RIG_MODEL_FT1000D,
+    RIG_MODEL(RIG_MODEL_FT1000D),
     .model_name =         "FT-1000D",
     .mfg_name =           "Yaesu",
-    .version =            "0.1.2",
+    .version =            "20200323.0",
     .copyright =          "LGPL",
-    .status =             RIG_STATUS_BETA,
+    .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
     .ptt_type =           RIG_PTT_RIG,
     .dcd_type =           RIG_DCD_NONE,
@@ -315,7 +315,8 @@ int ft1000d_init(RIG *rig)
         return -RIG_EINVAL;
     }
 
-    rig->state.priv = (struct ft1000d_priv_data *) calloc(1, sizeof(struct ft1000d_priv_data));
+    rig->state.priv = (struct ft1000d_priv_data *) calloc(1,
+                      sizeof(struct ft1000d_priv_data));
 
     if (!rig->state.priv)
     {
@@ -2364,7 +2365,8 @@ int ft1000d_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *value)
     }
 
     rig_debug(RIG_DEBUG_TRACE, "%s: passed vfo %s\n", __func__, rig_strvfo(vfo));
-    rig_debug(RIG_DEBUG_TRACE, "%s: passed level %s\n", __func__, rig_strlevel(level));
+    rig_debug(RIG_DEBUG_TRACE, "%s: passed level %s\n", __func__,
+              rig_strlevel(level));
 
     priv = (struct ft1000d_priv_data *) rig->state.priv;
 
@@ -2713,7 +2715,7 @@ int ft1000d_set_channel(RIG *rig, const channel_t *chan)
  *           Status for split operation, active rig functions and tuning steps
  *           are only relevant for currVFO
  */
-int ft1000d_get_channel(RIG *rig, channel_t *chan)
+int ft1000d_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     struct ft1000d_priv_data *priv;
     ft1000d_op_data_t *p;
@@ -3166,6 +3168,16 @@ int ft1000d_get_channel(RIG *rig, channel_t *chan)
         chan->flags |= RIG_CHFLAG_SKIP;
     }
 
+    if (!read_only)
+    {
+        // Set rig to channel values
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: need to know if rig updates when channel read or not\n", __func__);
+        return -RIG_ENIMPL;
+    }
+
     return RIG_OK;
 }
 
@@ -3424,6 +3436,8 @@ int ft1000d_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     struct rig_state *rig_s;
     struct ft1000d_priv_data *priv;
     int err;
+    // cppcheck-suppress *
+    char *fmt = "%s: requested freq after conversion = %"PRIll" Hz\n";
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -3452,9 +3466,8 @@ int ft1000d_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     /* store bcd format in in p_cmd */
     to_bcd(priv->p_cmd, freq / 10, FT1000D_BCD_DIAL);
 
-    rig_debug(RIG_DEBUG_TRACE,
-              "%s: requested freq after conversion = %"PRIll" Hz\n",
-              __func__, (int64_t)from_bcd(priv->p_cmd, FT1000D_BCD_DIAL) * 10);
+    rig_debug(RIG_DEBUG_TRACE, fmt, __func__, (int64_t)from_bcd(priv->p_cmd,
+              FT1000D_BCD_DIAL) * 10);
 
     err = write_block(&rig_s->rigport, (char *) &priv->p_cmd,
                       YAESU_CMD_LENGTH);

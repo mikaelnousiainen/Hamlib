@@ -34,7 +34,7 @@
 #define TS440_OTHER_TX_MODES (RIG_MODE_CW|RIG_MODE_SSB|RIG_MODE_FM|RIG_MODE_RTTY)
 #define TS440_AM_TX_MODES RIG_MODE_AM
 
-#define TS440_FUNC_ALL RIG_FUNC_LOCK
+#define TS440_FUNC_ALL (RIG_FUNC_LOCK|RIG_FUNC_RIT|RIG_FUNC_XIT)
 
 #define TS440_LEVEL_ALL RIG_LEVEL_NONE
 
@@ -52,8 +52,6 @@ static struct kenwood_priv_caps  ts440_priv_caps  =
 /*
  * ts440 rig capabilities.
  *
- * TODO: scan, get/set_channel, RIT/XIT, Voice Recall, split
- *
  * part of infos comes from .http = //www.n7uic.net/radio/kenwood/ts440/specs.htm
  * .http = //public.srce.hr/9A1CDD/mods/kenwood/knwdif.mod
  * .http = //www.ifrance.fr/clucas/modposte/ts440/mod440.htm
@@ -61,12 +59,12 @@ static struct kenwood_priv_caps  ts440_priv_caps  =
  */
 const struct rig_caps ts440_caps =
 {
-    .rig_model =  RIG_MODEL_TS440,
-    .model_name = "TS-440",
+    RIG_MODEL(RIG_MODEL_TS440),
+    .model_name = "TS-440S",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER "." IC10_VER,
+    .version =  IC10_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_ALPHA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_NONE,
@@ -76,9 +74,9 @@ const struct rig_caps ts440_caps =
     .serial_data_bits =  8,
     .serial_stop_bits =  2,
     .serial_parity =  RIG_PARITY_NONE,
-    .serial_handshake =  RIG_HANDSHAKE_HARDWARE,
-    .write_delay =  20,
-    .post_write_delay =  30,
+    .serial_handshake =  RIG_HANDSHAKE_NONE,
+    .write_delay =  0,
+    .post_write_delay =  0,
     .timeout =  200,
     .retry =  10,
 
@@ -94,8 +92,8 @@ const struct rig_caps ts440_caps =
     .dcs_list =  NULL,
     .preamp =   { RIG_DBLST_END, },
     .attenuator =   { RIG_DBLST_END, },
-    .max_rit =  Hz(9990),
-    .max_xit =  Hz(9990),
+    .max_rit =  Hz(1270),
+    .max_xit =  Hz(1270),
     .max_ifshift =  Hz(0),
     .targetable_vfo =  RIG_TARGETABLE_FREQ,
     .vfo_ops =  TS440_VFO_OPS,
@@ -150,20 +148,24 @@ const struct rig_caps ts440_caps =
     .priv = (void *)& ts440_priv_caps,
 
     .rig_init = kenwood_init,
+    .rig_open = kenwood_open,
+    .rig_close = kenwood_close,
     .rig_cleanup = kenwood_cleanup,
-    .set_freq =  kenwood_set_freq,
+    .set_freq =  ic10_set_freq,
     .get_freq =  ic10_get_freq,
     .set_rit =  kenwood_set_rit,
     .get_rit =  kenwood_get_rit,
     .set_xit =  kenwood_set_xit,
     .get_xit =  kenwood_get_xit,
-    .set_mode =  kenwood_set_mode,
+    .set_mode =  ic10_set_mode,
     .get_mode =  ic10_get_mode,
     .set_vfo =  ic10_set_vfo,
     .get_vfo =  ic10_get_vfo,
+    .set_split_freq = ic10_set_split_freq,
+    .get_split_freq = ic10_get_split_freq,
     .set_split_vfo =  ic10_set_split_vfo,
     .get_split_vfo =  ic10_get_split_vfo,
-    .set_ptt =  kenwood_set_ptt,
+    .set_ptt =  ic10_set_ptt,
     .get_ptt =  ic10_get_ptt,
     .set_func =  kenwood_set_func,
     .vfo_op =  kenwood_vfo_op,

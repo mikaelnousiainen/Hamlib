@@ -99,10 +99,10 @@ static int tt585_get_status_data(RIG *rig);
  */
 const struct rig_caps tt585_caps =
 {
-    .rig_model =  RIG_MODEL_TT585,
+    RIG_MODEL(RIG_MODEL_TT585),
     .model_name = "TT-585 Paragon",
     .mfg_name =  "Ten-Tec",
-    .version =  "0.3",
+    .version =  "20200305.0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -214,7 +214,8 @@ int tt585_init(RIG *rig)
 {
     struct tt585_priv_data *priv;
 
-    rig->state.priv = (struct tt585_priv_data *) malloc(sizeof(struct tt585_priv_data));
+    rig->state.priv = (struct tt585_priv_data *) malloc(sizeof(
+                          struct tt585_priv_data));
 
     if (!rig->state.priv)
     {
@@ -581,9 +582,9 @@ int tt585_get_status_data(RIG *rig)
         return RIG_OK;
     }
 
-    serial_flush(rigport);
+    rig_flush(rigport);
 
-    /* send STATUS comand to fetch data*/
+    /* send STATUS command to fetch data*/
 
     ret = write_block(rigport, "\\", 1);
 
@@ -621,7 +622,7 @@ int tt585_set_parm(RIG *rig, setting_t parm, value_t val)
             return ret;
         }
 
-        /* exact addional delay TBC */
+        /* exact additional delay TBC */
         sleep(1);
         return RIG_OK;
 

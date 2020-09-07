@@ -1,14 +1,14 @@
-#!/bin/bash
+#!/bin/sh
 
-# Builds Hamlib 3.x W32 binary distribution.
+# Builds Hamlib 4.x W32 binary distribution.
 
-# A script to build a set of W32 binary DLLs from a Hamlib tarball.
-# This script assumes that the Hamlib tarball has been extracted to the
-# directory specified in $BUILD_DIR and that libusb-1.x.y has also
-# been extracted to $BUILD_DIR.  The MS VC++ Toolkit must also be installed
-# and working with Wine.
-#
-# See README.build-win32 for complete details.
+# A script to build a set of W32 binary DLLs from a Hamlib tarball.  This
+# script assumes that the Hamlib tarball has been extracted to the directory
+# specified in $BUILD_DIR and that libusb-1.x.y has also been extracted to
+# $BUILD_DIR.  The MS VC++ Toolkit must also be installed and working with
+# Wine.
+
+# See README.build-Windows for complete details.
 
 
 # Set this to a desired directory
@@ -17,7 +17,7 @@ BUILD_DIR=~/builds
 # Set this to LibUSB archive extracted in $BUILD_DIR
 LIBUSB_VER=libusb-1.0.22
 
-# uncomment the correct HOST_ARCH= line for your minGW installation
+# Set to the correct HOST_ARCH= line for your minGW installation
 HOST_ARCH=i686-w64-mingw32
 
 # Set to the strip name for your version of minGW
@@ -30,24 +30,34 @@ EX_NOINPUT=66
 
 # Pass name of Hamlib archive extracted in $BUILD_DIR
 if [ $# -ne 1 ]; then
-	echo -e "\nUsage: `basename $0` hamlib-version\n"
-	echo -e "See README.build-win32 for more information.\n"
-	exit ${EX_USAGE}
+    echo
+    echo "Usage: $(basename $0) hamlib-version"
+    echo "See README.build-Windows for more information."
+    echo
+
+    exit ${EX_USAGE}
 fi
 
 # Make sure the Hamlib archive is where we expect
 if [ -d ${BUILD_DIR}/$1 ]; then
-	echo -e "\nBuilding W32 binaries in ${BUILD_DIR}/$1\n\n"
-	cd ${BUILD_DIR}/$1
+    echo
+    echo "Building W32 binaries in ${BUILD_DIR}/$1"
+    echo
+
+    cd ${BUILD_DIR}/$1
 else
-	echo -e "\nBuild directory, ${BUILD_DIR}/$1 not found!\nCheck path for $1 or correct the version number.\n"
-	exit ${EX_NOINPUT}
+    echo
+    echo "Build directory, ${BUILD_DIR}/$1 not found!"
+    echo "Check path for $1 or correct the version number."
+    echo
+
+    exit ${EX_NOINPUT}
 fi
 
-RELEASE=`/usr/bin/awk 'BEGIN{FS="["; RS="]"} /\[4\./ {print $2;exit}' ./configure.ac`
+RELEASE=$(/usr/bin/awk 'BEGIN{FS="["; RS="]"} /\[4\./ {print $2;exit}' ./configure.ac)
 HL_FILENAME=hamlib-w32-${RELEASE}
-INST_DIR=`pwd`/mingw32-inst
-ZIP_DIR=`pwd`/${HL_FILENAME}
+INST_DIR=$(pwd)/mingw32-inst
+ZIP_DIR=$(pwd)/${HL_FILENAME}
 LIBUSB_1_0_BIN_PATH=${BUILD_DIR}/${LIBUSB_VER}
 
 
@@ -57,18 +67,15 @@ What is it?
 ===========
 
 This ZIP archive or Windows installer contains a build of Hamlib-$RELEASE
-cross-compiled for MS Windows 32 bit systems using MinGW under Debian 
-GNU/Linux 8 (nice, heh!).
-
-The DLL has a cdecl interface for MS VC++.
+cross-compiled for MS Windows 32 bit using MinGW under Debian GNU/Linux 10
+(nice, heh!).
 
 This software is copyrighted. The library license is LGPL, and the *.EXE files
 licenses are GPL.  Hamlib comes WITHOUT ANY WARRANTY. See the LICENSE.txt,
 COPYING.txt, and COPYING.LIB.txt files.
 
-A draft user manual in HTML format is included in the doc directory.  Supporting
-documentation in the form of Unix manual pages have also been included after
-being converted to HTML.
+Supporting documentation in the form of Unix manual pages have also been
+included after being converted to HTML.
 
 
 Installation and Configuration
@@ -103,7 +110,7 @@ following:
    a semi-colon ';' after the last path before adding the Hamlib path (NB. The
    entire path is highlighted and will be erased upon typing a character so
    click in the box to unselect the text first.  The PATH is important!!)
-   Append the Hamlib path, e.g. C:\Program Files\hamlib-w32-3.0~git\bin
+   Append the Hamlib path, e.g. C:\Program Files\hamlib-w32-4.0~git\bin
 
  * Click OK for all three dialog boxes to save your changes.
 
@@ -112,9 +119,9 @@ Testing with the Hamlib Utilities
 =================================
 
 To continue, be sure you have read the README.betatester file, especially the
-"Testing Hamlib" section.  The primary means of testing is by way of the rigctl
-utility for radios and rotctl utility for rotators.  Each is a command line
-program that is interactive or can act on a single command and exit.
+"Testing Hamlib" section.  The primary means of testing is by way of the
+rigctl utility for radios and rotctl utility for rotators.  Each is a command
+line program that is interactive or can act on a single command and exit.
 
 Documentation for each utility can be found as an HTML file in the doc
 directory.
@@ -132,7 +139,7 @@ In short, the command syntax is of the form:
         development.
 
 To run rigctl or rotctl open a cmd window (Start|Run|enter 'cmd' in the
-dialog). If text scrolls off the screen, you can scroll back with the mouse. 
+dialog).  If text scrolls off the screen, you can scroll back with the mouse.
 To copy output text into a mailer or editor (I recommend Notepad++, a free
 editor also licensed under the GPL), highlight the text as a rectangle in the
 cmd window, press <Enter> (or right-click the window icon in the upper left
@@ -152,17 +159,46 @@ PATH as above to remove the Hamlib bin path, if desired.
 Information for w32 Programmers
 =================================
 
-There is a .LIB import library for MS-VC++ in lib/msvc.  Simply #include
-<hamlib/rig.h> (add directory to include path), include the .LIB in your
-project and you are done. Note: MS-VC++ cannot compile all the Hamlib code, but
-the API defined by rig.h has been made MSVC friendly :-)
+The DLL has a cdecl interface.
+
+There is a libhamlib-4.def definition file for MS Visual C++/Visual Studio in
+lib/msvc.  Refer to the sample commands below to generate a local
+libhamlib-4.lib file for use with the VC++/VS linker.
+
+Simply #include <hamlib/rig.h> (add directory to include path), include
+libhamlib-4.lib in your project and you are done.  Note: VC++/VS cannot
+compile all the Hamlib code, but the API defined by rig.h has been made MSVC
+friendly :-)
 
 As the source code for the library DLLs is licensed under the LGPL, your
 program is not considered a "derivative work" when using the published Hamlib
 API and normal linking to the front-end library, and may be of a license of
-your choosing.  The published Hamlib API may be found at:
+your choosing.
+
+For linking the library with MS Visual C++ 2003, from the directory you
+installed Hamlib run the following commands to generate the libhamlib-4.lib
+file needed for linking with your MSVC project:
+
+cd lib\msvc
+c:\Program Files\Microsoft Visual C++ Toolkit 2003\bin\link.exe /lib /machine:i386 /def:libhamlib-4.def
+
+To do the same for Visual Studio 2017:
+
+cd lib\msvc
+c:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\Tools\MSVC\14.16.27023\bin\Hostx64\x86\bin\link.exe /lib /machine:i386 /def:libhamlib-4.def
+
+and for VS 2019:
+
+cd lib\msvc
+c:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.25.28610\bin\Hostx64\x86\bin\link.exe /lib /machine:i386 /def:libhamlib-4.def
+
+NOTE: feedback is requested on the previous two command examples!
+
+The published Hamlib API may be found at:
 
 http://hamlib.sourceforge.net/manuals/3.0.1/index.html
+
+(The 4.0 API/ABI is changed and new documentation will be forthcoming.)
 
 
 Thank You!
@@ -180,7 +216,7 @@ http://www.hamlib.org
 END_OF_README
 
 
-# Configure and build hamlib for mingw32, with libusb-win32
+# Configure and build hamlib for i686-w64-mingw32, with libusb-1.0
 
 ./configure --host=${HOST_ARCH} \
  --prefix=${INST_DIR} \
@@ -190,14 +226,16 @@ END_OF_README
  LDFLAGS="-L${LIBUSB_1_0_BIN_PATH}/MinGW32/dll"
 
 
-make install
+make -j 4 install
 
 mkdir -p ${ZIP_DIR}/bin ${ZIP_DIR}/lib/msvc ${ZIP_DIR}/lib/gcc ${ZIP_DIR}/include ${ZIP_DIR}/doc
-cp -a src/libhamlib.def ${ZIP_DIR}/lib/msvc/libhamlib-2.def; todos ${ZIP_DIR}/lib/msvc/libhamlib-2.def
+cp -a src/libhamlib.def ${ZIP_DIR}/lib/msvc/libhamlib-4.def; todos ${ZIP_DIR}/lib/msvc/libhamlib-4.def
 cp -a ${INST_DIR}/include/hamlib ${ZIP_DIR}/include/.; todos ${ZIP_DIR}/include/hamlib/*.h
 
 # C++ binding is useless on w32 because of ABI
-rm ${ZIP_DIR}/include/hamlib/{rig,rot}class.h
+for f in *class.h ; do \
+    rm ${ZIP_DIR}/include/hamlib/${f}
+done
 
 for f in AUTHORS ChangeLog COPYING COPYING.LIB LICENSE README README.betatester README.w32-bin THANKS ; do \
     cp -a ${f} ${ZIP_DIR}/${f}.txt ; todos ${ZIP_DIR}/${f}.txt ; done
@@ -210,7 +248,10 @@ for f in doc/man1/*.1 doc/man7/*.7; do \
 cd ${BUILD_DIR}/$1
 
 # Copy build files into specific locations for Zip file
-cp -a ${INST_DIR}/bin/{rigctld.exe,rigctl.exe,rigmem.exe,rigsmtr.exe,rigswr.exe,rotctld.exe,rotctl.exe,rigctlcom.exe,ampctl.exe,ampctld.exe} ${ZIP_DIR}/bin/.
+for f in *.exe ; do \
+    cp -a ${INST_DIR}/bin/${f} ${ZIP_DIR}/bin/.
+done
+
 cp -a ${INST_DIR}/bin/libhamlib-?.dll ${ZIP_DIR}/bin/.
 cp -a ${INST_DIR}/lib/libhamlib.dll.a ${ZIP_DIR}/lib/gcc/.
 
@@ -221,13 +262,16 @@ ${HOST_ARCH_STRIP} ${ZIP_DIR}/bin/*.exe ${ZIP_DIR}/bin/*hamlib-*.dll
 cp -a /usr/i686-w64-mingw32/lib/libwinpthread-1.dll ${ZIP_DIR}/bin/.
 cp -a ${LIBUSB_1_0_BIN_PATH}/MinGW32/dll/libusb-1.0.dll ${ZIP_DIR}/bin/libusb-1.0.dll
 
-# Required for MinGW with GCC 6.3
-cp -a /usr/lib/gcc/i686-w64-mingw32/6.3-posix/libgcc_s_sjlj-1.dll ${ZIP_DIR}/bin/libgcc_s_sjlj-1.dll
+# Required for MinGW with GCC 6.3 (Debian 9)
+FILE="/usr/lib/gcc/i686-w64-mingw32/6.3-posix/libgcc_s_sjlj-1.dll"
+if test -f "$FILE"; then
+    cp -a ${FILE} ${ZIP_DIR}/bin/.
+fi
 
-## Need VC++ free toolkit installed (default Wine directory installation shown)
-# Path for 2003 version of Visual C++ Toolkit
-#-( cd ${ZIP_DIR}/lib/msvc/ && wine ~/.wine/drive_c/Program\ Files/Microsoft\ Visual\ C++\ Toolkit\ 2003/bin/link.exe /lib /machine:i386 /def:libhamlib-2.def )
-# Path for Current version of Visual Studio
-( cd ${ZIP_DIR}/lib/msvc/ && wine ~/.wine/drive_c/Program\ Files\ (x86)\/Microsoft\ Visual\ Studio/2017/BuildTools/VC/Tools/MSVC/14.16.27023/bin/Hostx64/x86/bin/link.exe /lib /machine:i386 /def:libhamlib-2.def )
+# Required for MinGW with GCC 8.3 (Debian 10)
+FILE="/usr/lib/gcc/i686-w64-mingw32/8.3-posix/libgcc_s_sjlj-1.dll"
+if test -f "$FILE"; then
+    cp -a ${FILE} ${ZIP_DIR}/bin/.
+fi
 
-/usr/bin/zip -r ${HL_FILENAME}.zip `basename ${ZIP_DIR}`
+/usr/bin/zip -r ${HL_FILENAME}.zip $(basename ${ZIP_DIR})

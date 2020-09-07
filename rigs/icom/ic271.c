@@ -39,7 +39,7 @@
  * IC-271 A/E
  * IC-271 H is high power (75W)
  *
- * Independant transmit/receive
+ * Independent transmit/receive
  *
  * specs: http://www.qsl.net/sm7vhs/radio/icom/Ic271/specs.htm
  *
@@ -55,7 +55,7 @@ static const struct icom_priv_caps ic271_priv_caps =
 
 const struct rig_caps ic271_caps =
 {
-    .rig_model =  RIG_MODEL_IC271,
+    RIG_MODEL(RIG_MODEL_IC271),
     .model_name = "IC-271",
     .mfg_name =  "Icom",
     .version =  BACKEND_VER ".0",

@@ -64,10 +64,10 @@ static int hd1780_send_priv_cmd(ROT *rot, const char *cmd);
 
 const struct rot_caps hd1780_rot_caps =
 {
-    .rot_model =          ROT_MODEL_HD1780,
+    ROT_MODEL(ROT_MODEL_HD1780),
     .model_name =         "HD 1780 Intellirotor",
     .mfg_name =           "Heathkit",
-    .version =            "0.1",
+    .version =            "20200112.0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_BETA,
     .rot_type =           ROT_TYPE_OTHER,
@@ -121,7 +121,7 @@ static int hd1780_rot_init(ROT *rot)
     }
 
     rot->state.priv = (struct hd1780_rot_priv_data *)
-           malloc(sizeof(struct hd1780_rot_priv_data));
+                      malloc(sizeof(struct hd1780_rot_priv_data));
 
     if (!rot->state.priv)
     {

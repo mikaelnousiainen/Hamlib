@@ -87,10 +87,10 @@ static int elektor304_get_conf(RIG *rig, token_t token, char *val);
 
 const struct rig_caps elektor304_caps =
 {
-    .rig_model =  RIG_MODEL_ELEKTOR304,
+    RIG_MODEL(RIG_MODEL_ELEKTOR304),
     .model_name = "Elektor 3/04",
     .mfg_name =  "Elektor",
-    .version =  "0.4",
+    .version =  "20200112.0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TUNER,
@@ -165,7 +165,7 @@ int elektor304_init(RIG *rig)
     struct elektor304_priv_data *priv;
 
     rig->state.priv = (struct elektor304_priv_data *)malloc(sizeof(struct
-            elektor304_priv_data));
+                      elektor304_priv_data));
 
     if (!rig->state.priv)
     {
@@ -345,7 +345,7 @@ int elektor304_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     priv = (struct elektor304_priv_data *)rig->state.priv;
 
-    serial_flush(port);
+    rig_flush(port);
 
     /* Initialization */
     ad_fsync(port, 0);

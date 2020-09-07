@@ -77,10 +77,12 @@ static const yaesu_cmd_set_t ncmd[] =
     { 1, { 0x00, 0x00, 0x00, 0x00, 0x05 } }, /* select vfo A */
     { 1, { 0x00, 0x00, 0x00, 0x01, 0x05 } }, /* select vfo B */
     { 0, { 0x00, 0x00, 0x00, 0x00, 0x06 } }, /* copy memory data to vfo A */
-    { 0, { 0x00, 0x00, 0x00, 0x00, 0x09 } }, /* RX clarifier on */
-    { 1, { 0x00, 0x00, 0x00, 0x01, 0x09 } }, /* RX clarifier off */
-    { 1, { 0x00, 0x00, 0x00, 0x80, 0x09 } }, /* TX clarifier on */
-    { 1, { 0x00, 0x00, 0x00, 0x81, 0x09 } }, /* TX clarifier off */
+    { 1, { 0x00, 0x00, 0x00, 0x01, 0x09 } }, /* RX clarifier on */
+    { 1, { 0x00, 0x00, 0x00, 0x00, 0x09 } }, /* RX clarifier off */
+    { 1, { 0x00, 0x00, 0x00, 0x81, 0x09 } }, /* TX clarifier on */
+    { 1, { 0x00, 0x00, 0x00, 0x80, 0x09 } }, /* TX clarifier off */
+    { 0, { 0x00, 0x00, 0x00, 0xFF, 0x09 } }, /* set clarifier offset */
+
     { 0, { 0x00, 0x00, 0x00, 0x00, 0x0a } }, /* set VFOA freq */
     { 0, { 0x00, 0x00, 0x00, 0x00, 0x8a } }, /* set VFOB freq */
 
@@ -97,29 +99,33 @@ static const yaesu_cmd_set_t ncmd[] =
     { 1, { 0x00, 0x00, 0x00, 0x0a, 0x0c } }, /* vfo A mode set DATA-LSB */
     { 1, { 0x00, 0x00, 0x00, 0x0b, 0x0c } }, /* vfo A mode set DATA-FM */
 
-    /*  { 1, { 0x00, 0x00, 0x00, 0x80, 0x0c } }, */ /* vfo B mode set LSB */
-    /*  { 1, { 0x00, 0x00, 0x00, 0x81, 0x0c } }, */ /* vfo B mode set USB */
-    /*  { 1, { 0x00, 0x00, 0x00, 0x82, 0x0c } }, */ /* vfo B mode set CW-USB */
-    /*  { 1, { 0x00, 0x00, 0x00, 0x83, 0x0c } }, */ /* vfo B mode set CW-LSB */
-    /*  { 1, { 0x00, 0x00, 0x00, 0x84, 0x0c } }, */ /* vfo B mode set AM */
-    /*  { 1, { 0x00, 0x00, 0x00, 0x85, 0x0c } }, */ /* vfo B mode set AM */
-    /*  { 1, { 0x00, 0x00, 0x00, 0x86, 0x0c } }, */ /* vfo B mode set FM */
-    /*  { 1, { 0x00, 0x00, 0x00, 0x87, 0x0c } }, */ /* vfo B mode set FMN */
-    /*  { 1, { 0x00, 0x00, 0x00, 0x88, 0x0c } }, */ /* vfo B mode set DATA-LSB */
-    /*  { 1, { 0x00, 0x00, 0x00, 0x89, 0x0c } }, */ /* vfo B mode set DATA-LSB */
-    /*  { 1, { 0x00, 0x00, 0x00, 0x8a, 0x0c } }, */ /* vfo B mode set DATA-USB */
-    /*  { 1, { 0x00, 0x00, 0x00, 0x8b, 0x0c } }, */ /* vfo B mode set DATA-FM */
+    { 1, { 0x00, 0x00, 0x00, 0x80, 0x0c } }, /* vfo B mode set LSB */
+    { 1, { 0x00, 0x00, 0x00, 0x81, 0x0c } }, /* vfo B mode set USB */
+    { 1, { 0x00, 0x00, 0x00, 0x82, 0x0c } }, /* vfo B mode set CW-USB */
+    { 1, { 0x00, 0x00, 0x00, 0x83, 0x0c } }, /* vfo B mode set CW-LSB */
+    { 1, { 0x00, 0x00, 0x00, 0x84, 0x0c } }, /* vfo B mode set AM */
+    { 1, { 0x00, 0x00, 0x00, 0x85, 0x0c } }, /* vfo B mode set AM */
+    { 1, { 0x00, 0x00, 0x00, 0x86, 0x0c } }, /* vfo B mode set FM */
+    { 1, { 0x00, 0x00, 0x00, 0x87, 0x0c } }, /* vfo B mode set FMN */
+    { 1, { 0x00, 0x00, 0x00, 0x88, 0x0c } }, /* vfo B mode set DATA-LSB */
+    { 1, { 0x00, 0x00, 0x00, 0x89, 0x0c } }, /* vfo B mode set DATA-LSB */
+    { 1, { 0x00, 0x00, 0x00, 0x8a, 0x0c } }, /* vfo B mode set DATA-USB */
+    { 1, { 0x00, 0x00, 0x00, 0x8b, 0x0c } }, /* vfo B mode set DATA-FM */
 
     { 0, { 0x00, 0x00, 0x00, 0x00, 0x0e } }, /* update interval/pacing */
     { 1, { 0x00, 0x00, 0x00, 0x00, 0x0F } }, /* PTT OFF */
     { 1, { 0x00, 0x00, 0x00, 0x01, 0x0F } }, /* PTT ON */
     { 1, { 0x00, 0x00, 0x00, 0x03, 0x10 } }, /* status update VFO A & B update */
     { 1, { 0x00, 0x00, 0x00, 0x02, 0x10 } }, /* status update operating data */
-    { 1, { 0x00, 0x00, 0x00, 0x01, 0xFA } }, /* Read status flags */
+    // We only ask for the 1st 3 status bytes
+    // The MARK-V was not recognizing the 6-byte request
+    // This should be all we need as we're only getting the VFO
+    { 1, { 0x00, 0x00, 0x00, 0x00, 0xFA } }, /* Read status flags */
     /*  { 0, { 0x00, 0x00, 0x00, 0x00, 0x70 } }, */ /* keyer commands */
     /*  { 1, { 0x00, 0x00, 0x00, 0x00, 0x81 } }, */ /* tuner off */
     /*  { 1, { 0x00, 0x00, 0x00, 0x01, 0x81 } }, */ /* tuner on */
     /*  { 1, { 0x00, 0x00, 0x00, 0x00, 0x82 } }, */ /* tuner start*/
+    { 1, { 0x00, 0x00, 0x00, 0x00, 0x85 } }, /* A>B */
 
 };
 
@@ -134,9 +140,13 @@ static const yaesu_cmd_set_t ncmd[] =
 #define FT1000MP_OTHER_TX_MODES (RIG_MODE_CW| RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_FM) /* 100 W class */
 #define FT1000MP_AM_TX_MODES (RIG_MODE_AM )    /* set 25W max */
 
-#define FT1000MP_FUNC_ALL (RIG_FUNC_FAGC|RIG_FUNC_NB|RIG_FUNC_COMP|RIG_FUNC_VOX|RIG_FUNC_TONE|RIG_FUNC_TSQL|RIG_FUNC_SBKIN|RIG_FUNC_FBKIN|RIG_FUNC_LOCK /* |RIG_FUNC_TUNER */) /* FIXME */
+#define FT1000MP_FUNC_ALL (RIG_FUNC_FAGC|RIG_FUNC_NB|RIG_FUNC_COMP|RIG_FUNC_VOX|RIG_FUNC_TONE|RIG_FUNC_TSQL \
+                          |RIG_FUNC_SBKIN|RIG_FUNC_FBKIN|RIG_FUNC_LOCK \
+                          |RIG_FUNC_RIT|RIG_FUNC_XIT \
+                          /* |RIG_FUNC_TUNER */) /* FIXME */
 
-#define FT1000MP_LEVEL_GET (RIG_LEVEL_RAWSTR|RIG_LEVEL_ALC|RIG_LEVEL_SWR|RIG_LEVEL_RFPOWER|RIG_LEVEL_COMP|RIG_LEVEL_MICGAIN|RIG_LEVEL_CWPITCH)
+#define FT1000MP_LEVEL_GET (RIG_LEVEL_RAWSTR|RIG_LEVEL_ALC|RIG_LEVEL_SWR|RIG_LEVEL_RFPOWER|RIG_LEVEL_COMP| \
+                            RIG_LEVEL_MICGAIN|RIG_LEVEL_CWPITCH)
 
 #define FT1000MP_VFOS (RIG_VFO_A|RIG_VFO_B)
 #define FT1000MP_ANTS 0     /* FIXME: declare antenna connectors: ANT-A, ANT-B, RX ANT */
@@ -193,7 +203,6 @@ struct ft1000mp_priv_data
 {
     unsigned char pacing;                     /* pacing value */
     unsigned int read_update_delay;           /* depends on pacing value */
-    unsigned char current_vfo;                /* active VFO from last cmd */
     unsigned char
     p_cmd[YAESU_CMD_LENGTH];    /* private copy of 1 constructed CAT cmd */
     yaesu_cmd_set_t pcs[FT1000MP_NATIVE_SIZE];  /* private cmd set */
@@ -210,12 +219,12 @@ struct ft1000mp_priv_data
 
 const struct rig_caps ft1000mp_caps =
 {
-    .rig_model =          RIG_MODEL_FT1000MP,
+    RIG_MODEL(RIG_MODEL_FT1000MP),
     .model_name =         "FT-1000MP",
     .mfg_name =           "Yaesu",
-    .version =            "0.1.1",
+    .version =            "20200731.0",
     .copyright =          "LGPL",
-    .status =             RIG_STATUS_BETA,
+    .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
     .ptt_type =           RIG_PTT_RIG,
     .dcd_type =           RIG_DCD_RIG,
@@ -228,8 +237,8 @@ const struct rig_caps ft1000mp_caps =
     .serial_handshake =   RIG_HANDSHAKE_NONE,
     .write_delay =        FT1000MP_WRITE_DELAY,
     .post_write_delay =   FT1000MP_POST_WRITE_DELAY,
-    .timeout =            2000,
-    .retry =              0,
+    .timeout =            400, // was 2000 -- see https://github.com/Hamlib/Hamlib/issues/308
+    .retry =              6,
     .has_get_func =       FT1000MP_FUNC_ALL,
     .has_set_func =       FT1000MP_FUNC_ALL,
     .has_get_level =      FT1000MP_LEVEL_GET,
@@ -323,25 +332,33 @@ const struct rig_caps ft1000mp_caps =
     .set_vfo =            ft1000mp_set_vfo,  /* set vfo */
     .get_vfo =            ft1000mp_get_vfo,  /* get vfo */
 
-    .get_rit =            ft1000mp_get_rit,
+    .set_split_freq =     ft1000mp_set_split_freq,
+    .get_split_freq =     ft1000mp_get_split_freq,
+    .set_split_vfo =      ft1000mp_set_split_vfo,
+    .get_split_vfo =      ft1000mp_get_split_vfo,
+
+    .get_rit =            ft1000mp_get_rxit,
     .set_rit =            ft1000mp_set_rit,
-    .get_xit =            ft1000mp_get_xit,
+    .get_xit =            ft1000mp_get_rxit,
     .set_xit =            ft1000mp_set_xit,
 
     .get_level =          ft1000mp_get_level,
     .set_ptt =            ft1000mp_set_ptt,
+
+    .set_func =           ft1000mp_set_func,
+    .get_func =           ft1000mp_get_func,
 
     /* TODO: the remaining ... */
 };
 
 const struct rig_caps ft1000mpmkv_caps =
 {
-    .rig_model =          RIG_MODEL_FT1000MPMKV,
+    RIG_MODEL(RIG_MODEL_FT1000MPMKV),
     .model_name =         "MARK-V FT-1000MP",
     .mfg_name =           "Yaesu",
-    .version =            "0.0.5",
+    .version =            "20200731.0",
     .copyright =          "LGPL",
-    .status =             RIG_STATUS_ALPHA,
+    .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
     .ptt_type =           RIG_PTT_RIG,
     .dcd_type =           RIG_DCD_RIG,
@@ -354,8 +371,8 @@ const struct rig_caps ft1000mpmkv_caps =
     .serial_handshake =   RIG_HANDSHAKE_NONE,
     .write_delay =        FT1000MP_WRITE_DELAY,
     .post_write_delay =   FT1000MP_POST_WRITE_DELAY,
-    .timeout =            2000,
-    .retry =              0,
+    .timeout =            400,
+    .retry =              6,
     .has_get_func =       FT1000MP_FUNC_ALL,
     .has_set_func =       FT1000MP_FUNC_ALL,
     .has_get_level =      FT1000MP_LEVEL_GET,
@@ -449,25 +466,33 @@ const struct rig_caps ft1000mpmkv_caps =
     .set_vfo =            ft1000mp_set_vfo,  /* set vfo */
     .get_vfo =            ft1000mp_get_vfo,  /* get vfo */
 
-    .get_rit =            ft1000mp_get_rit,
+    .set_split_freq =     ft1000mp_set_split_freq,
+    .get_split_freq =     ft1000mp_get_split_freq,
+    .set_split_vfo =      ft1000mp_set_split_vfo,
+    .get_split_vfo =      ft1000mp_get_split_vfo,
+
+    .get_rit =            ft1000mp_get_rxit,
     .set_rit =            ft1000mp_set_rit,
-    .get_xit =            ft1000mp_get_xit,
+    .get_xit =            ft1000mp_get_rxit,
     .set_xit =            ft1000mp_set_xit,
 
     .get_level =          ft1000mp_get_level,
     .set_ptt =            ft1000mp_set_ptt,
+
+    .set_func =           ft1000mp_set_func,
+    .get_func =           ft1000mp_get_func,
 
     /* TODO: the remaining ... */
 };
 
 const struct rig_caps ft1000mpmkvfld_caps =
 {
-    .rig_model =          RIG_MODEL_FT1000MPMKVFLD,
+    RIG_MODEL(RIG_MODEL_FT1000MPMKVFLD),
     .model_name =         "MARK-V Field FT-1000MP",
     .mfg_name =           "Yaesu",
-    .version =            "0.0.5",
+    .version =            "20200731.0",
     .copyright =          "LGPL",
-    .status =             RIG_STATUS_ALPHA,
+    .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
     .ptt_type =           RIG_PTT_RIG,
     .dcd_type =           RIG_DCD_RIG,
@@ -480,8 +505,8 @@ const struct rig_caps ft1000mpmkvfld_caps =
     .serial_handshake =   RIG_HANDSHAKE_NONE,
     .write_delay =        FT1000MP_WRITE_DELAY,
     .post_write_delay =   FT1000MP_POST_WRITE_DELAY,
-    .timeout =            2000,
-    .retry =              0,
+    .timeout =            400,
+    .retry =              6,
     .has_get_func =       FT1000MP_FUNC_ALL,
     .has_set_func =       FT1000MP_FUNC_ALL,
     .has_get_level =      FT1000MP_LEVEL_GET,
@@ -575,13 +600,21 @@ const struct rig_caps ft1000mpmkvfld_caps =
     .set_vfo =            ft1000mp_set_vfo,  /* set vfo */
     .get_vfo =            ft1000mp_get_vfo,  /* get vfo */
 
-    .get_rit =            ft1000mp_get_rit,
+    .set_split_freq =     ft1000mp_set_split_freq,
+    .get_split_freq =     ft1000mp_get_split_freq,
+    .set_split_vfo =      ft1000mp_set_split_vfo,
+    .get_split_vfo =      ft1000mp_get_split_vfo,
+
+    .get_rit =            ft1000mp_get_rxit,
     .set_rit =            ft1000mp_set_rit,
-    .get_xit =            ft1000mp_get_xit,
+    .get_xit =            ft1000mp_get_rxit,
     .set_xit =            ft1000mp_set_xit,
 
     .get_level =          ft1000mp_get_level,
     .set_ptt =            ft1000mp_set_ptt,
+
+    .set_func =           ft1000mp_set_func,
+    .get_func =           ft1000mp_get_func,
 
     /* TODO: the remaining ... */
 };
@@ -599,12 +632,14 @@ int ft1000mp_init(RIG *rig)
     rig_debug(RIG_DEBUG_TRACE, "%s: called \n", __func__);
 
 
-    rig->state.priv = (struct ft1000mp_priv_data *) calloc(1, sizeof(struct ft1000mp_priv_data));
+    rig->state.priv = (struct ft1000mp_priv_data *) calloc(1,
+                      sizeof(struct ft1000mp_priv_data));
 
     if (!rig->state.priv)                       /* whoops! memory shortage! */
     {
         return -RIG_ENOMEM;
     }
+
     priv = rig->state.priv;
 
     /*
@@ -613,10 +648,10 @@ int ft1000mp_init(RIG *rig)
     memcpy(priv->pcs, ncmd, sizeof(ncmd));
 
     /* TODO: read pacing from preferences */
-    priv->pacing = FT1000MP_PACING_DEFAULT_VALUE; /* set pacing to minimum for now */
+    priv->pacing =
+        FT1000MP_PACING_DEFAULT_VALUE; /* set pacing to minimum for now */
     priv->read_update_delay =
         FT1000MP_DEFAULT_READ_TIMEOUT; /* set update timeout to safe value */
-    priv->current_vfo =  RIG_VFO_A;  /* default to VFO_A ? */
 
     return RIG_OK;
 }
@@ -677,6 +712,7 @@ int ft1000mp_open(RIG *rig)
     cmd = p->p_cmd;
     write_block(&rig_s->rigport, (char *) cmd, YAESU_CMD_LENGTH);
 
+    ft1000mp_get_vfo(rig, &rig->state.current_vfo);
     /* TODO */
 
     return RIG_OK;
@@ -703,7 +739,7 @@ int ft1000mp_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     if (vfo == RIG_VFO_CURR)
     {
-        vfo = p->current_vfo;
+        vfo = rig->state.current_vfo;
     }
 
     switch (vfo)
@@ -734,8 +770,8 @@ int ft1000mp_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     /* TODO -- fix 10Hz resolution -- FS */
 
     rig_debug(RIG_DEBUG_TRACE,
-              "%s: requested freq after conversion = %"PRIll" Hz\n",
-              __func__, (int64_t)from_bcd(p->p_cmd, 8) * 10);
+              "%s: requested freq after conversion = %"PRIll" Hz\n", __func__,
+              (int64_t)from_bcd(p->p_cmd, 8) * 10);
 
     cmd = p->p_cmd;               /* get native sequence */
     write_block(&rig_s->rigport, (char *) cmd, YAESU_CMD_LENGTH);
@@ -743,24 +779,9 @@ int ft1000mp_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     return RIG_OK;
 }
 
-
-/*
- * Return Freq for a given VFO
- *
- */
-
-int ft1000mp_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
+int ft1000mp_get_vfo_data(RIG *rig, vfo_t vfo)
 {
-    struct ft1000mp_priv_data *priv;
-    unsigned char *p;
-    freq_t f;
     int cmd_index, len, retval;
-
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
-
-
-    priv = (struct ft1000mp_priv_data *)rig->state.priv;
-
 
     if (vfo == RIG_VFO_A || vfo == RIG_VFO_B)
     {
@@ -779,10 +800,30 @@ int ft1000mp_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
      */
     retval = ft1000mp_get_update_data(rig, cmd_index, len);
 
+    return retval;
+}
+/*
+ * Return Freq for a given VFO
+ *
+ */
+
+int ft1000mp_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
+{
+    struct ft1000mp_priv_data *priv;
+    unsigned char *p;
+    freq_t f;
+    int retval;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
+    retval = ft1000mp_get_vfo_data(rig, vfo);
+
     if (retval < 0)
     {
         return retval;
     }
+
+    priv = (struct ft1000mp_priv_data *)rig->state.priv;
 
     if (vfo == RIG_VFO_B)
     {
@@ -799,7 +840,7 @@ int ft1000mp_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     rig_debug(RIG_DEBUG_TRACE, "ft1000mp: freq = %"PRIfreq" Hz for VFO [%x]\n", f,
               vfo);
 
-    *freq = f;                    /* return diplayed frequency */
+    *freq = f;                    /* return displayed frequency */
 
     return RIG_OK;
 }
@@ -829,42 +870,72 @@ int ft1000mp_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     {
     case RIG_MODE_AM:
         cmd_index = FT1000MP_NATIVE_MODE_SET_AM;
+
+        if (vfo == RIG_VFO_B) { cmd_index = FT1000MP_NATIVE_MODE_SET_AM_B; }
+
         break;
 
     case RIG_MODE_CW:
         cmd_index = FT1000MP_NATIVE_MODE_SET_CWR;
+
+        if (vfo == RIG_VFO_B) { cmd_index = FT1000MP_NATIVE_MODE_SET_CWR_B; }
+
         break;
 
     case RIG_MODE_CWR:
         cmd_index = FT1000MP_NATIVE_MODE_SET_CW;
+
+        if (vfo == RIG_VFO_B) { cmd_index = FT1000MP_NATIVE_MODE_SET_CW_B; }
+
         break;
 
     case RIG_MODE_USB:
         cmd_index = FT1000MP_NATIVE_MODE_SET_USB;
+
+        if (vfo == RIG_VFO_B) { cmd_index = FT1000MP_NATIVE_MODE_SET_USB_B; }
+
         break;
 
     case RIG_MODE_LSB:
         cmd_index = FT1000MP_NATIVE_MODE_SET_LSB;
+
+        if (vfo == RIG_VFO_B) { cmd_index = FT1000MP_NATIVE_MODE_SET_LSB_B; }
+
         break;
 
     case RIG_MODE_FM:
         cmd_index = FT1000MP_NATIVE_MODE_SET_FM;
+
+        if (vfo == RIG_VFO_B) { cmd_index = FT1000MP_NATIVE_MODE_SET_FM_B; }
+
         break;
 
     case RIG_MODE_RTTY:
         cmd_index = FT1000MP_NATIVE_MODE_SET_RTTY_LSB;
+
+        if (vfo == RIG_VFO_B) { cmd_index = FT1000MP_NATIVE_MODE_SET_RTTY_LSB_B; }
+
         break;
 
     case RIG_MODE_RTTYR:
         cmd_index = FT1000MP_NATIVE_MODE_SET_RTTY_USB;
+
+        if (vfo == RIG_VFO_B) { cmd_index = FT1000MP_NATIVE_MODE_SET_RTTY_USB_B; }
+
         break;
 
     case RIG_MODE_PKTLSB:
         cmd_index = FT1000MP_NATIVE_MODE_SET_DATA_LSB;
+
+        if (vfo == RIG_VFO_B) { cmd_index = FT1000MP_NATIVE_MODE_SET_DATA_LSB_B; }
+
         break;
 
     case RIG_MODE_PKTFM:
         cmd_index = FT1000MP_NATIVE_MODE_SET_DATA_FM;
+
+        if (vfo == RIG_VFO_B) { cmd_index = FT1000MP_NATIVE_MODE_SET_FM_B; }
+
         break;
 
     default:
@@ -900,34 +971,19 @@ int ft1000mp_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     struct ft1000mp_priv_data *priv;
     unsigned char mymode;         /* ft1000mp mode */
     unsigned char mymode_ext; /* ft1000mp extra mode bit mode */
-    int cmd_index, len, retval;
+    int retval;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
 
-    priv = (struct ft1000mp_priv_data *)rig->state.priv;
-
-    if (vfo == RIG_VFO_A || vfo == RIG_VFO_B)
-    {
-        cmd_index = FT1000MP_NATIVE_VFO_UPDATE;
-        len = 2 * FT1000MP_STATUS_UPDATE_LENGTH;
-    }
-    else
-    {
-        /* RIG_VFO_CURR or RIG_VFO_MEM */
-        cmd_index = FT1000MP_NATIVE_CURR_VFO_UPDATE;
-        len = FT1000MP_STATUS_UPDATE_LENGTH;
-    }
-
-    /*
-     * get record from rig
-     */
-    retval = ft1000mp_get_update_data(rig, cmd_index, len);
+    retval = ft1000mp_get_vfo_data(rig, vfo);
 
     if (retval < 0)
     {
         return retval;
     }
+
+    priv = (struct ft1000mp_priv_data *)rig->state.priv;
 
     if (vfo == RIG_VFO_B)
     {
@@ -1002,13 +1058,10 @@ int ft1000mp_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 
 int ft1000mp_set_vfo(RIG *rig, vfo_t vfo)
 {
-    struct ft1000mp_priv_data *p;
     unsigned char cmd_index = 0;      /* index of sequence to send */
 
     rig_debug(RIG_DEBUG_TRACE, "ft1000mp: ft1000mp_set_vfo called %s\n",
               rig_strvfo(vfo));
-
-    p = (struct ft1000mp_priv_data *)rig->state.priv;
 
     /*
      * RIG_VFO_VFO/RIG_VFO_MEM are not available
@@ -1019,20 +1072,20 @@ int ft1000mp_set_vfo(RIG *rig, vfo_t vfo)
 
     if (vfo == RIG_VFO_VFO)
     {
-        vfo = p->current_vfo;
+        vfo = rig->state.current_vfo;
     }
 
     switch (vfo)
     {
     case RIG_VFO_A:
         cmd_index = FT1000MP_NATIVE_VFO_A;
-        p->current_vfo = vfo;       /* update active VFO */
+        rig->state.current_vfo = vfo;       /* update active VFO */
         rig_debug(RIG_DEBUG_TRACE, "%s: vfo == RIG_VFO_A\n", __func__);
         break;
 
     case RIG_VFO_B:
         cmd_index = FT1000MP_NATIVE_VFO_B;
-        p->current_vfo = vfo;       /* update active VFO */
+        rig->state.current_vfo = vfo;       /* update active VFO */
         rig_debug(RIG_DEBUG_TRACE, "%s: vfo == RIG_VFO_B\n", __func__);
         break;
 
@@ -1086,11 +1139,11 @@ int ft1000mp_get_vfo(RIG *rig, vfo_t *vfo)
     }
     else if (p->update_data[FT1000MP_SUMO_DISPLAYED_STATUS] & SF_VFOAB)
     {
-        *vfo = p->current_vfo = RIG_VFO_B;
+        *vfo = rig->state.current_vfo = RIG_VFO_B;
     }
     else
     {
-        *vfo = p->current_vfo = RIG_VFO_A;
+        *vfo = rig->state.current_vfo = RIG_VFO_A;
     }
 
     rig_debug(RIG_DEBUG_TRACE, "%s: vfo status = %x %x\n", __func__,
@@ -1099,15 +1152,152 @@ int ft1000mp_get_vfo(RIG *rig, vfo_t *vfo)
     return RIG_OK;
 }
 
+int ft1000mp_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
+{
+    struct ft1000mp_priv_data *priv;
+    struct rig_state *rs;
+    unsigned char *cmd;
+
+    rs = &rig->state;
+    priv = (struct ft1000mp_priv_data *)rig->state.priv;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called func\n", __func__);
+
+    switch (func)
+    {
+    case RIG_FUNC_RIT:
+        if (status)
+        {
+            memcpy(&priv->p_cmd, &ncmd[FT1000MP_NATIVE_RIT_ON].nseq, YAESU_CMD_LENGTH);
+        }
+        else
+        {
+            memcpy(&priv->p_cmd, &ncmd[FT1000MP_NATIVE_RIT_OFF].nseq, YAESU_CMD_LENGTH);
+        }
+
+        cmd = priv->p_cmd;
+
+        write_block(&rs->rigport, (char *) cmd, YAESU_CMD_LENGTH);
+        return RIG_OK;
+
+    case RIG_FUNC_XIT:
+        if (status)
+        {
+            memcpy(&priv->p_cmd, &ncmd[FT1000MP_NATIVE_XIT_ON].nseq, YAESU_CMD_LENGTH);
+        }
+        else
+        {
+            memcpy(&priv->p_cmd, &ncmd[FT1000MP_NATIVE_XIT_OFF].nseq, YAESU_CMD_LENGTH);
+        }
+
+        cmd = priv->p_cmd;
+
+        write_block(&rs->rigport, (char *) cmd, YAESU_CMD_LENGTH);        break;
+        return RIG_OK;
+
+    default:
+        rig_debug(RIG_DEBUG_ERR, "Unsupported set_func %s", rig_strfunc(func));
+        return -RIG_EINVAL;
+    }
+
+    return -RIG_EINVAL;
+}
+int ft1000mp_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
+{
+    int retval;
+    struct ft1000mp_priv_data *priv;
+    unsigned char *p;
+
+    priv = (struct ft1000mp_priv_data *)rig->state.priv;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (!status)
+    {
+        return -RIG_EINVAL;
+    }
+
+    switch (func)
+    {
+    case RIG_FUNC_RIT:
+    {
+        retval = ft1000mp_get_vfo_data(rig, vfo);
+
+        if (retval < 0)
+        {
+            return retval;
+        }
+
+        if (vfo == RIG_VFO_B)
+        {
+            p = &priv->update_data[FT1000MP_SUMO_VFO_B_MEM];
+        }
+        else
+        {
+            p = &priv->update_data[FT1000MP_SUMO_VFO_A_MEM];    /* CURR_VFO has VFOA offset */
+        }
+
+        *status = (*p & 2) ? 1 : 0;
+        return RIG_OK;
+    }
+
+
+    case RIG_FUNC_XIT:
+    {
+        retval = ft1000mp_get_vfo_data(rig, vfo);
+
+        if (retval < 0)
+        {
+            return retval;
+        }
+
+        if (vfo == RIG_VFO_B)
+        {
+            p = &priv->update_data[FT1000MP_SUMO_VFO_B_MEM];
+        }
+        else
+        {
+            p = &priv->update_data[FT1000MP_SUMO_VFO_A_MEM];    /* CURR_VFO has VFOA offset */
+        }
+
+        *status = (*p & 1) ? 1 : 0;
+        return RIG_OK;
+    }
+
+
+
+    default:
+        rig_debug(RIG_DEBUG_ERR, "Unsupported get_func %s", rig_strfunc(func));
+        return -RIG_EINVAL;
+    }
+
+    return -RIG_EINVAL;
+}
 
 /*
  * set_rit only support vfo = RIG_VFO_CURR
  */
 int ft1000mp_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
 {
+    if (rit != 0)
+    {
+        ft1000mp_set_func(rig, vfo, RIG_FUNC_RIT, 1);
+    }
+
+    return ft1000mp_set_rxit(rig, vfo, rit);
+}
+
+int ft1000mp_set_xit(RIG *rig, vfo_t vfo, shortfreq_t rit)
+{
+    return ft1000mp_set_rxit(rig, vfo, rit);
+}
+
+int ft1000mp_set_rxit(RIG *rig, vfo_t vfo, shortfreq_t rit)
+{
     struct rig_state *rs;
     struct ft1000mp_priv_data *priv;
     unsigned char *cmd;           /* points to sequence to send */
+    int direction = 0;
 
     rig_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
 
@@ -1119,10 +1309,25 @@ int ft1000mp_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
     /*
      * Copy native cmd freq_set to private cmd storage area
      */
-    memcpy(&priv->p_cmd, &ncmd[FT1000MP_NATIVE_RIT_ON].nseq, YAESU_CMD_LENGTH);
+    memcpy(&priv->p_cmd, &ncmd[FT1000MP_NATIVE_RXIT_SET].nseq, YAESU_CMD_LENGTH);
 
-    to_bcd(priv->p_cmd, labs(rit) / 10, 4); /* store bcd format in in p_cmd */
-    priv->p_cmd[2] = rit >= 0 ? 0x00 : 0xff;
+    if (rit < 0)
+    {
+        direction = 0xff;
+        rit = -rit;
+    }
+
+    unsigned char rit_freq[10];
+
+    // yes, it really is this nasty and complicated!
+
+    to_bcd_be(rit_freq, (rit - (rit / 1000) * 1000) / 10, 2);
+    priv->p_cmd[0] = rit_freq[0];   // 10 hz
+
+    to_bcd_be(rit_freq, rit / 1000, 2);
+    priv->p_cmd[1] = rit_freq[0];   // Khz
+
+    priv->p_cmd[2] = direction;
 
     cmd = priv->p_cmd;               /* get native sequence */
     write_block(&rs->rigport, (char *) cmd, YAESU_CMD_LENGTH);
@@ -1136,38 +1341,18 @@ int ft1000mp_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
  *
  */
 
-int ft1000mp_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
+int ft1000mp_get_rxit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
 {
     struct ft1000mp_priv_data *priv;
     unsigned char *p;
     shortfreq_t f;
-    int cmd_index, len, retval;
+    int retval;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     priv = (struct ft1000mp_priv_data *)rig->state.priv;
 
-    if (vfo == RIG_VFO_CURR)
-    {
-        vfo = priv->current_vfo;
-    }
-
-    if (vfo == RIG_VFO_A || vfo == RIG_VFO_B)
-    {
-        cmd_index = FT1000MP_NATIVE_VFO_UPDATE;
-        len = 2 * FT1000MP_STATUS_UPDATE_LENGTH;
-    }
-    else
-    {
-        /* RIG_VFO_CURR or RIG_VFO_MEM */
-        cmd_index = FT1000MP_NATIVE_CURR_VFO_UPDATE;
-        len = FT1000MP_STATUS_UPDATE_LENGTH;
-    }
-
-    /*
-     * get record from rig
-     */
-    retval = ft1000mp_get_update_data(rig, cmd_index, len);
+    retval = ft1000mp_get_vfo_data(rig, vfo);
 
     if (retval < 0)
     {
@@ -1183,14 +1368,12 @@ int ft1000mp_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
         p = &priv->update_data[FT1000MP_SUMO_VFO_A_CLAR];    /* CURR_VFO has VFOA offset */
     }
 
-    /* big endian integer, kinda */
+    f = (p[0] << 8) + p[1];
+
     if (p[0] & 0x80)
     {
-        f = (p[0] << 8) + p[1] - 65536;
-    }
-    else
-    {
-        f = (p[0] << 8) + p[1];
+        f = ~(f - 1) & 0x7fff; // two's complement
+        f = -f;
     }
 
     f = f * 10 / 16;
@@ -1198,114 +1381,11 @@ int ft1000mp_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
     rig_debug(RIG_DEBUG_TRACE, "%s: freq = %d Hz for VFO [%s]\n", __func__, (int)f,
               rig_strvfo(vfo));
 
-    *rit = f;     /* return diplayed frequency */
+    *rit = f;     /* return displayed frequency */
 
     return RIG_OK;
 }
 
-
-/*
- * set_xit only support vfo = RIG_VFO_CURR
- */
-int ft1000mp_set_xit(RIG *rig, vfo_t vfo, shortfreq_t xit)
-{
-    struct rig_state *rs;
-    struct ft1000mp_priv_data *priv;
-    unsigned char *cmd;           /* points to sequence to send */
-
-    rig_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
-
-    rs = &rig->state;
-    priv = (struct ft1000mp_priv_data *)rs->priv;
-
-    rig_debug(RIG_DEBUG_TRACE, "%s: requested freq = %d Hz \n", __func__, (int)xit);
-
-    /*
-     * Copy native cmd freq_set to private cmd storage area
-     */
-    memcpy(&priv->p_cmd, &ncmd[FT1000MP_NATIVE_XIT_ON].nseq, YAESU_CMD_LENGTH);
-
-    to_bcd(priv->p_cmd, labs(xit) / 10, 4); /* store bcd format in in p_cmd */
-    priv->p_cmd[2] = xit >= 0 ? 0x00 : 0xff;
-
-    cmd = priv->p_cmd;               /* get native sequence */
-    write_block(&rs->rigport, (char *) cmd, YAESU_CMD_LENGTH);
-
-    return RIG_OK;
-}
-
-
-/*
- * Return XIT for a given VFO
- *
- */
-
-int ft1000mp_get_xit(RIG *rig, vfo_t vfo, shortfreq_t *xit)
-{
-    struct ft1000mp_priv_data *priv;
-    unsigned char *p;
-    shortfreq_t f;
-    int cmd_index, len, retval;
-
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
-
-    priv = (struct ft1000mp_priv_data *)rig->state.priv;
-
-    if (vfo == RIG_VFO_CURR)
-    {
-        vfo = priv->current_vfo;
-    }
-
-    if (vfo == RIG_VFO_A || vfo == RIG_VFO_B)
-    {
-        cmd_index = FT1000MP_NATIVE_VFO_UPDATE;
-        len = 2 * FT1000MP_STATUS_UPDATE_LENGTH;
-    }
-    else
-    {
-        /* RIG_VFO_CURR or RIG_VFO_MEM */
-        cmd_index = FT1000MP_NATIVE_CURR_VFO_UPDATE;
-        len = FT1000MP_STATUS_UPDATE_LENGTH;
-    }
-
-    /*
-     * get record from rig
-     */
-    retval = ft1000mp_get_update_data(rig, cmd_index, len);
-
-    if (retval < 0)
-    {
-        return retval;
-    }
-
-    if (vfo == RIG_VFO_B)
-    {
-        p = &priv->update_data[FT1000MP_SUMO_VFO_B_CLAR];
-    }
-    else
-    {
-        p = &priv->update_data[FT1000MP_SUMO_VFO_A_CLAR];    /* CURR_VFO has VFOA offset */
-    }
-
-    /* big endian integer, kinda */
-    if (p[0] & 0x80)
-    {
-        f = (p[0] << 8) + p[1] - 65536;
-    }
-    else
-    {
-        f = (p[0] << 8) + p[1];
-    }
-
-    f = f * 10 / 16;
-
-    rig_debug(RIG_DEBUG_TRACE, "%s: freq = %d Hz for VFO [%s]\n", __func__, (int)f,
-              rig_strvfo(vfo));
-
-    *xit = f;     /* return diplayed frequency */
-
-    return RIG_OK;
-}
 
 int ft1000mp_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 {
@@ -1314,6 +1394,7 @@ int ft1000mp_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     unsigned char lvl_data[YAESU_CMD_LENGTH];
     int m;
     int retval;
+    int retry = rig->state.rigport.retry;
 
     rs = &rig->state;
     priv = (struct ft1000mp_priv_data *)rs->priv;
@@ -1327,7 +1408,7 @@ int ft1000mp_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     case RIG_LEVEL_RAWSTR:
         if (vfo == RIG_VFO_CURR)
         {
-            vfo = priv->current_vfo;
+            vfo = rig->state.current_vfo;
         }
 
         m = vfo == RIG_VFO_B ? 0x01 : 0x00;
@@ -1370,9 +1451,13 @@ int ft1000mp_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     memset(&priv->p_cmd, m, YAESU_CMD_LENGTH - 1);
     priv->p_cmd[4] = 0xf7;
 
-    write_block(&rs->rigport, (char *) priv->p_cmd, YAESU_CMD_LENGTH);
+    do
+    {
+        write_block(&rs->rigport, (char *) priv->p_cmd, YAESU_CMD_LENGTH);
 
-    retval = read_block(&rs->rigport, (char *) lvl_data, YAESU_CMD_LENGTH);
+        retval = read_block(&rs->rigport, (char *) lvl_data, YAESU_CMD_LENGTH);
+    }
+    while (retry-- && retval == -RIG_ETIMEOUT);
 
     if (retval != YAESU_CMD_LENGTH)
     {
@@ -1435,6 +1520,7 @@ static int ft1000mp_get_update_data(RIG *rig, unsigned char ci,
     struct rig_state *rig_s;
     struct ft1000mp_priv_data *p;
     int n;                        /* for read_  */
+    int retry = rig->state.rigport.retry;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
@@ -1442,10 +1528,19 @@ static int ft1000mp_get_update_data(RIG *rig, unsigned char ci,
     p = (struct ft1000mp_priv_data *)rig->state.priv;
     rig_s = &rig->state;
 
-    /* send UPDATE comand to fetch data*/
-    ft1000mp_send_priv_cmd(rig, ci);
+    do
+    {
+        /* send UPDATE command to fetch data*/
+        ft1000mp_send_priv_cmd(rig, ci);
 
-    n = read_block(&rig_s->rigport, (char *) p->update_data, rl);
+        n = read_block(&rig_s->rigport, (char *) p->update_data, rl);
+
+        if (n == -RIG_ETIMEOUT)
+        {
+            rig_debug(RIG_DEBUG_TRACE, "%s: Timeout retry count = %d\n", __func__, retry);
+        }
+    }
+    while (retry-- && n == -RIG_ETIMEOUT);
 
     return n;
 
@@ -1483,8 +1578,94 @@ static int ft1000mp_send_priv_cmd(RIG *rig, unsigned char ci)
     }
 
     cmd = (unsigned char *) p->pcs[cmd_index].nseq; /* get native sequence */
+    rig_flush(&rig_s->rigport);
     write_block(&rig_s->rigport, (char *) cmd, YAESU_CMD_LENGTH);
 
     return RIG_OK;
 
+}
+
+int ft1000mp_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
+{
+    // FT1000 transmits on A and receives on B
+
+    unsigned char cmd_index = 0;      /* index of sequence to send */
+    freq_t tx_freq;
+
+    rig_debug(RIG_DEBUG_TRACE, "%s called rx_vfo=%s, tx_vfo=%s\n", __func__,
+              rig_strvfo(vfo), rig_strvfo(tx_vfo));
+
+    switch (split)
+    {
+    case RIG_SPLIT_OFF:
+        cmd_index = FT1000MP_NATIVE_SPLIT_OFF;
+        break;
+
+    case RIG_SPLIT_ON:
+        cmd_index = FT1000MP_NATIVE_SPLIT_ON;
+        break;
+
+    default:
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: Unknown split value = %d\n", __func__, split);
+        return -RIG_EINVAL;         /* sorry, wrong VFO */
+    }
+
+    rig_get_freq(rig, RIG_VFO_B, &tx_freq);
+    // manual says VFO_A=Tx and VFO_B=Rx but testing shows otherwise
+    rig->state.current_vfo = RIG_VFO_A;
+    rig->state.tx_vfo = RIG_VFO_B;
+    ft1000mp_send_priv_cmd(rig, FT1000MP_NATIVE_AB); // Copy A to B
+    ft1000mp_send_priv_cmd(rig, FT1000MP_NATIVE_VFO_A); // make A active
+    ft1000mp_send_priv_cmd(rig, cmd_index);
+    rig_set_freq(rig, RIG_VFO_B, tx_freq); // restore orig frequency
+
+    return RIG_OK;
+}
+
+/*
+ * get split
+ *
+ */
+
+int ft1000mp_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
+{
+    struct ft1000mp_priv_data *p;
+    int retval;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
+
+    p = (struct ft1000mp_priv_data *)rig->state.priv;
+
+    /* Get flags for split status */
+    retval = ft1000mp_get_update_data(rig, FT1000MP_NATIVE_UPDATE,
+                                      FT1000MP_STATUS_FLAGS_LENGTH);
+
+    if (retval < 0)
+    {
+        return retval;
+    }
+
+    if (p->update_data[0] & 0x01)
+    {
+        *tx_vfo = RIG_VFO_B;
+        *split = RIG_SPLIT_ON;
+    }
+    else
+    {
+        *tx_vfo = RIG_VFO_A;
+        *split = RIG_SPLIT_OFF;
+    }
+
+    return RIG_OK;
+}
+
+int ft1000mp_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
+{
+    return ft1000mp_set_freq(rig, RIG_VFO_B, tx_freq);
+}
+
+int ft1000mp_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq)
+{
+    return ft1000mp_get_freq(rig, RIG_VFO_B, tx_freq);
 }

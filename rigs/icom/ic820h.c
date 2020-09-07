@@ -1,5 +1,5 @@
 /*
- *  Hamlib CI-V backend - description of IC-820H (VHF/UHF All-Mode Tranceiver)
+ *  Hamlib CI-V backend - description of IC-820H (VHF/UHF All-Mode Transceiver)
  *  Contributed by Francois Retief <fgretief@sun.ac.za>
  *  Copyright (c) 2000-2010 by Stephane Fillod
  *
@@ -56,7 +56,7 @@ static const struct icom_priv_caps ic820h_priv_caps =
 
 const struct rig_caps ic820h_caps =
 {
-    .rig_model =  RIG_MODEL_IC820,
+    RIG_MODEL(RIG_MODEL_IC820),
     .model_name = "IC-820H",
     .mfg_name =  "Icom",
     .version =  BACKEND_VER ".0",

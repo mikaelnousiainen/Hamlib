@@ -80,7 +80,7 @@ static int aor_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 
     rs = &rig->state;
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     retval = write_block(&rs->rigport, cmd, cmd_len);
 
@@ -180,6 +180,7 @@ static int format_freq(char *buf, freq_t freq)
 
     f = f * 100 + lowhz;
 
+    // cppcheck-suppress *
     return sprintf(buf, "RF%010"PRIll, f);
 }
 
@@ -438,17 +439,18 @@ int format8k_mode(RIG *rig, char *buf, rmode_t mode, pbwidth_t width)
 int aor_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
     struct aor_priv_caps *priv = (struct aor_priv_caps *)rig->caps->priv;
-    char mdbuf[BUFSZ];
-    char mdbuf2[BUFSZ] = "";
-    int mdbuf_len, mdbuf2_len, retval;
+    char mdbuf[9];
+    char mdbuf2[16] = "";
+    int mdbuf2_len, retval;
 
-    mdbuf_len = priv->format_mode(rig, mdbuf, mode, width);
+    if (priv->format_mode(rig, mdbuf, mode, width) <= 0)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: format_mode=%s failed?\n", __func__,
+                  rig_strrmode(mode));
+        return -RIG_EINVAL;
+    }
 
-    // Return on error
-    if (mdbuf_len < 0) { return mdbuf_len; }
-
-    strcpy(mdbuf + mdbuf_len, EOM);
-    mdbuf_len += strlen(EOM);
+    strcat(mdbuf, EOM);
 
     switch (rig->caps->rig_model)
     {
@@ -461,17 +463,21 @@ int aor_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         mdbuf2_len = strlen(mdbuf2);
 
         retval = aor_transaction(rig, mdbuf2, mdbuf2_len, NULL, NULL);
+
         if (retval != RIG_OK) { return retval; }
 
         strncpy(mdbuf2, mdbuf + 4, 3); /* Extract first 'BW' part */
+        mdbuf2[3] = '\0'; // in case strnpy produces and un-terminated string
         mdbuf2_len = strlen(mdbuf2);
 
         retval = aor_transaction(rig, mdbuf2, mdbuf2_len, NULL, NULL);
+
         if (retval != RIG_OK) { return retval; }
+
         break;
 
     default:
-        retval = aor_transaction(rig, mdbuf, mdbuf_len, NULL, NULL);
+        retval = aor_transaction(rig, mdbuf, strlen(mdbuf), NULL, NULL);
     }
 
     return retval;
@@ -625,6 +631,7 @@ int aor_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         unsigned att = 0;
 
         unsigned i;
+
         for (i = 0; i < MAXDBLSTSIZ && !RIG_IS_DBLST_END(rs->attenuator[i]); i++)
         {
             if (rs->attenuator[i] == val.i)
@@ -1041,8 +1048,8 @@ int aor_set_channel(RIG *rig, const channel_t *chan)
 
     cmd_len += priv->format_mode(rig, aorcmd + cmd_len, chan->mode, chan->width);
 
-    cmd_len += sprintf(aorcmd + cmd_len, " AT%d TM%12s"EOM,
-                       chan->levels[LVL_ATT].i ? 1 : 0, chan->channel_desc);
+    cmd_len += sprintf(aorcmd + cmd_len, " AT%d TM%12s%s",
+                       chan->levels[LVL_ATT].i ? 1 : 0, chan->channel_desc, EOM);
 
     return aor_transaction(rig, aorcmd, cmd_len, NULL, NULL);
 }
@@ -1233,7 +1240,7 @@ static int parse_chan_line(RIG *rig, channel_t *chan, char *basep,
 }
 
 
-int aor_get_channel(RIG *rig, channel_t *chan)
+int aor_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     struct aor_priv_caps *priv = (struct aor_priv_caps *)rig->caps->priv;
     char aorcmd[BUFSZ];
@@ -1262,6 +1269,7 @@ int aor_get_channel(RIG *rig, channel_t *chan)
          * find mem_caps in caps, we'll need it later
          */
         int i;
+
         for (i = 0; i < CHANLSTSIZ && !RIG_IS_CHAN_END(chan_list[i]); i++)
         {
             if (channel_num >= chan_list[i].startc &&
@@ -1284,6 +1292,7 @@ int aor_get_channel(RIG *rig, channel_t *chan)
          *  and sizing memorized.
          */
         mem_num = channel_num % 100;
+
         if (mem_num >= 50 && priv->bank_base1 != priv->bank_base2)
         {
             bank_base = priv->bank_base2;
@@ -1320,6 +1329,16 @@ int aor_get_channel(RIG *rig, channel_t *chan)
     }
 
     retval = parse_chan_line(rig, chan, chanbuf, mem_caps);
+
+    if (!read_only)
+    {
+        // Set rig to channel values
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: need to know if rig updates when channel read or not\n", __func__);
+        return -RIG_ENIMPL;
+    }
 
     return retval;
 }
@@ -1440,7 +1459,7 @@ const char *aor_get_info(RIG *rig)
         return NULL;
     }
 
-    if (retval > 2) idbuf[2] = '\0';
+    if (retval > 2) { idbuf[2] = '\0'; }
 
     retval = aor_transaction(rig, "VR" EOM, 3, frmbuf, &frm_len);
 

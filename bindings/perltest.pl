@@ -49,10 +49,10 @@ print "get_info:\t\t$inf\n";
 
 $rig->set_level("VOX", 1);
 $lvl = $rig->get_level_i("VOX");
-print "VOX level:\t\t$lvl\n";
-$rig->set_level($Hamlib::RIG_LEVEL_VOX, 5);
-$lvl = $rig->get_level_i($Hamlib::RIG_LEVEL_VOX);
-print "VOX level:\t\t$lvl\n";
+print "VOX delay:\t\t$lvl\n";
+$rig->set_level($Hamlib::RIG_LEVEL_VOXDELAY, 5);
+$lvl = $rig->get_level_i($Hamlib::RIG_LEVEL_VOXDELAY);
+print "VOX delay:\t\t$lvl\n";
 
 $lvl = $rig->get_level_i($Hamlib::RIG_LEVEL_STRENGTH);
 print "strength:\t\t$lvl\n";
@@ -60,7 +60,7 @@ print "strength:\t\t$lvl\n";
 
 $chan = new Hamlib::channel($Hamlib::RIG_VFO_A);
 
-$rig->get_channel($chan);
+$rig->get_channel($chan,1);
 print "get_channel status:\t$rig->{error_status} = ".Hamlib::rigerror($rig->{error_status})."\n";
 
 print "VFO:\t\t\t".Hamlib::rig_strvfo($chan->{vfo}).", $chan->{freq}\n";

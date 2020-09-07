@@ -115,6 +115,7 @@ int icom_one_transaction(RIG *rig, int cmd, int subcmd,
     int frm_len, retval;
     int ctrl_id;
 
+    sendbuf[0] = buf[0] = 0;
     rs = &rig->state;
     priv = (struct icom_priv_data *)rs->priv;
     priv_caps = (struct icom_priv_caps *)rig->caps->priv;
@@ -129,7 +130,7 @@ int icom_one_transaction(RIG *rig, int cmd, int subcmd,
      */
     Hold_Decode(rig);
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     retval = write_block(&rs->rigport, (char *) sendbuf, frm_len);
 
@@ -146,7 +147,7 @@ int icom_one_transaction(RIG *rig, int cmd, int subcmd,
          * read what we just sent, because TX and RX are looped,
          * and discard it...
          * - if what we read is not what we sent, then it means
-         *          a collision on the CI-V bus occured!
+         *          a collision on the CI-V bus occurred!
          *      - if we get a timeout, then retry to send the frame,
          *          up to rs->retry times.
          */
@@ -155,7 +156,7 @@ int icom_one_transaction(RIG *rig, int cmd, int subcmd,
 
         if (retval == -RIG_ETIMEOUT || retval == 0)
         {
-            /* Nothing recieved, CI-V interface is not echoing */
+            /* Nothing received, CI-V interface is not echoing */
             Unhold_Decode(rig);
             return -RIG_BUSERROR;
         }
@@ -163,7 +164,6 @@ int icom_one_transaction(RIG *rig, int cmd, int subcmd,
         if (retval < 0)
         {
             /* Other error, return it */
-            Unhold_Decode(rig);
             return retval;
         }
 
@@ -220,9 +220,10 @@ int icom_one_transaction(RIG *rig, int cmd, int subcmd,
 
     /*
      * wait for ACK ...
-     * FIXME: handle pading/collisions
+     * FIXME: handle padding/collisions
      * ACKFRMLEN is the smallest frame we can expect from the rig
      */
+    buf[0] = 0;
     frm_len = read_icom_frame(&rs->rigport, buf, sizeof(buf));
 
     if (memcmp(buf, sendbuf, frm_len) == 0 && priv->serial_USB_echo_off)
@@ -307,13 +308,14 @@ int icom_transaction(RIG *rig, int cmd, int subcmd,
         {
             break;
         }
-        hl_usleep(500*1000);   // pause a half second
+
+        hl_usleep(500 * 1000); // pause a half second
     }
     while (retry-- > 0);
 
     if (retval != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: failed: %s\n", __func__, strerror(retval));
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: failed: %s\n", __func__, rigerror(retval));
     }
 
     return retval;
@@ -386,7 +388,6 @@ int rig2icom_mode(RIG *rig, rmode_t mode, pbwidth_t width,
 {
     unsigned char icmode;
     signed char icmode_ext;
-    pbwidth_t medium_width;
 
     icmode_ext = -1;
 
@@ -446,7 +447,7 @@ int rig2icom_mode(RIG *rig, rmode_t mode, pbwidth_t width,
 
     if (width != RIG_PASSBAND_NOCHANGE)
     {
-        medium_width = rig_passband_normal(rig, mode);
+        pbwidth_t medium_width = rig_passband_normal(rig, mode);
 
         if (width == medium_width || width == RIG_PASSBAND_NORMAL)
         {
@@ -487,6 +488,7 @@ int rig2icom_mode(RIG *rig, rmode_t mode, pbwidth_t width,
 void icom2rig_mode(RIG *rig, unsigned char md, int pd, rmode_t *mode,
                    pbwidth_t *width)
 {
+    rig_debug(RIG_DEBUG_TRACE, "%s: mode=0x%02x, pd=%d\n", __func__, md, pd);
     *width = RIG_PASSBAND_NORMAL;
 
     switch (md)
@@ -561,9 +563,9 @@ void icom2rig_mode(RIG *rig, unsigned char md, int pd, rmode_t *mode,
            rigs these are presets, which can be programmed for 30 - 41 bandwidths,
            depending on mode  */
 
-    if (rig->caps->rig_model == RIG_MODEL_IC706MKIIG ||
-            rig->caps->rig_model == RIG_MODEL_IC706 ||
-            rig->caps->rig_model ==  RIG_MODEL_IC706MKII) { pd++; }
+    if (pd >= 0 && (rig->caps->rig_model == RIG_MODEL_IC706MKIIG ||
+                    rig->caps->rig_model == RIG_MODEL_IC706 ||
+                    rig->caps->rig_model ==  RIG_MODEL_IC706MKII)) { pd++; }
 
     switch (pd)
     {

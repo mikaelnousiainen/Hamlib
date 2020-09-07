@@ -165,7 +165,7 @@ int dump_chan(RIG *rig, int chan_num)
 
     chan.vfo = RIG_VFO_MEM;
     chan.channel_num = chan_num;
-    status = rig_get_channel(rig, &chan);
+    status = rig_get_channel(rig, &chan, 1);
 
     if (status != RIG_OK)
     {
@@ -181,7 +181,7 @@ int dump_chan(RIG *rig, int chan_num)
 
     sprintf_freq(freqbuf, chan.width);
     printf("Width: %s\n", freqbuf);
-    printf("VFO: %d\n", chan.vfo);
+    printf("VFO: %s\n", rig_strvfo(chan.vfo));
 
     printf("Split: %d\n", chan.split);
     sprintf_freq(freqbuf, chan.tx_freq);
@@ -195,7 +195,7 @@ int dump_chan(RIG *rig, int chan_num)
     sprintf_freq(freqbuf, chan.rptr_offs);
     printf("Offset: %s%s\n", chan.rptr_offs > 0 ? "+" : "", freqbuf);
 
-    printf("Antenna: %d\n", chan.ant);
+    printf("Antenna: %u\n", chan.ant);
 
     sprintf_freq(freqbuf, chan.tuning_step);
     printf("Step: %s\n", freqbuf);
@@ -205,10 +205,10 @@ int dump_chan(RIG *rig, int chan_num)
 
     sprintf_freq(freqbuf, chan.xit);
     printf("XIT: %s%s\n", chan.xit > 0 ? "+" : "", freqbuf);
-    printf("CTCSS: %d.%dHz\n", chan.ctcss_tone / 10, chan.ctcss_tone % 10);
-    printf("CTCSSsql: %d.%dHz\n", chan.ctcss_sql / 10, chan.ctcss_sql % 10);
-    printf("DCS: %d.%d\n", chan.dcs_code / 10, chan.dcs_code % 10);
-    printf("DCSsql: %d.%d\n", chan.dcs_sql / 10, chan.dcs_sql % 10);
+    printf("CTCSS: %u.%uHz\n", chan.ctcss_tone / 10, chan.ctcss_tone % 10);
+    printf("CTCSSsql: %u.%uHz\n", chan.ctcss_sql / 10, chan.ctcss_sql % 10);
+    printf("DCS: %u.%u\n", chan.dcs_code / 10, chan.dcs_code % 10);
+    printf("DCSsql: %u.%u\n", chan.dcs_sql / 10, chan.dcs_sql % 10);
     printf("Name: %s\n", chan.channel_desc);
 
     printf("Functions: ");
@@ -395,6 +395,11 @@ int dump_chan(RIG *rig, int chan_num)
     if (rig_has_set_level(rig, RIG_LEVEL_BKINDL))
     {
         printf("BKINDL: %d\n", chan.levels[rig_setting2idx(RIG_LEVEL_BKINDL)].i);
+    }
+
+    if (rig_has_set_level(rig, RIG_LEVEL_BRIGHT))
+    {
+        printf("BRIGHT: %d\n", chan.levels[rig_setting2idx(RIG_LEVEL_BRIGHT)].i);
     }
 
     return 0;

@@ -428,7 +428,7 @@ int execRoutine(RIG *rig, enum ROUTINE_e rtn)
  */
 static int setAddr(RIG *rig, enum PAGE_e page, unsigned int addr)
 {
-    int rc=RIG_OK;
+    int rc = RIG_OK;
     unsigned char v;
 
     assert(NULL != rig);
@@ -459,6 +459,7 @@ static int setAddr(RIG *rig, enum PAGE_e page, unsigned int addr)
                 v = SRH((0x0f0 & addr) >> 4);
 
                 rc = write_block(&rig->state.rigport, (char *) &v, 1);
+
                 if (rc != RIG_OK)
                 {
                     return -RIG_EIO;
@@ -953,7 +954,7 @@ int bcd2Int(const unsigned char bcd)
  *
  * \param int Integer value (0-99)
  *
- * \return 2 digit BCD equvalent (0-99), 0xff on failure
+ * \return 2 digit BCD equivalent (0-99), 0xff on failure
  */
 unsigned char int2BCD(const unsigned int val)
 {
@@ -1041,7 +1042,7 @@ int getCalLevel(RIG *rig, unsigned char rawAgc, int *dbm)
             }
             else
             {
-                step = 20; /* HACK - try and fix mimimum AGC readings */
+                step = 20; /* HACK - try and fix minimum AGC readings */
             }
 
             rig_debug(RIG_DEBUG_VERBOSE, "%s: got step size %d\n", __func__, step);

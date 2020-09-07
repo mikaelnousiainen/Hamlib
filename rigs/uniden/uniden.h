@@ -25,7 +25,7 @@
 #include <hamlib/rig.h>
 #include <cal.h>
 
-#define BACKEND_VER	"0.3"
+#define BACKEND_VER	"20200621"
 
 /* TODO: Trunk, Delay, Recording
  *
@@ -58,6 +58,7 @@ int uniden_transaction (RIG *rig, const char *cmdstr, int cmd_len,
 		const char *replystr, char *data, size_t *datasize);
 int uniden_set_freq(RIG *rig, vfo_t vfo, freq_t freq);
 int uniden_get_freq(RIG *rig, vfo_t vfo, freq_t *freq);
+int uniden_get_freq_2(RIG *rig, vfo_t vfo, freq_t *freq);
 int uniden_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width);
 int uniden_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width);
 int uniden_set_mem(RIG *rig, vfo_t vfo, int ch);
@@ -65,7 +66,7 @@ int uniden_get_mem(RIG *rig, vfo_t vfo, int *ch);
 int uniden_get_dcd(RIG *rig, vfo_t vfo, dcd_t *dcd);
 int uniden_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val);
 int uniden_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
-int uniden_get_channel(RIG *rig, channel_t *chan);
+int uniden_get_channel(RIG *rig, channel_t *chan, int read_only);
 int uniden_set_channel(RIG *rig, const channel_t *chan);
 const char* uniden_get_info(RIG *rig);
 

@@ -108,6 +108,8 @@ static int rig2ctcss(RIG *rig, unsigned char tn, tone_t *tone);
  */
 /* #define USE_YAESU_PUBLISHED_TONES */
 
+#define FT767GX_VFOS (RIG_VFO_A|RIG_VFO_B)
+
 /* Valid command codes */
 #define CMD_CAT_SW  0x00
 #define CMD_CHECK   0x01
@@ -260,10 +262,10 @@ const tone_t static_767gx_ctcss_list[] =
 
 const struct rig_caps ft767gx_caps =
 {
-    .rig_model =        RIG_MODEL_FT767,
+    RIG_MODEL(RIG_MODEL_FT767),
     .model_name =       "FT-767GX",
     .mfg_name =         "Yaesu",
-    .version =           "1.1",
+    .version =           "20200325.0",
     .copyright =         "LGPL",
     .status =            RIG_STATUS_STABLE,
     .rig_type =          RIG_TYPE_TRANSCEIVER,
@@ -311,29 +313,29 @@ const struct rig_caps ft767gx_caps =
         RIG_FRNG_END,
     }, /* rx range */
 
-    .tx_range_list2 =    { {kHz(1500), 1999900, FT767GX_HF_TX_MODES, .low_power = 5000, .high_power = 100000},
+    .tx_range_list2 =    { {kHz(1500), 1999900, FT767GX_HF_TX_MODES, .low_power = 5000, .high_power = 100000, FT767GX_VFOS, RIG_ANT_CURR},
 
-        {.startf = kHz(3500), 3999900, FT767GX_HF_TX_MODES, 5000, 100000},
+        {.startf = kHz(3500), 3999900, FT767GX_HF_TX_MODES, 5000, 100000, FT767GX_VFOS, RIG_ANT_CURR},
 
-        {.startf = kHz(7000), 7499900, FT767GX_HF_TX_MODES, 5000, 100000},
+        {.startf = kHz(7000), 7499900, FT767GX_HF_TX_MODES, 5000, 100000, FT767GX_VFOS, RIG_ANT_CURR},
 
-        {.startf = MHz(10), 10499900, FT767GX_HF_TX_MODES, 5000, 100000},
+        {.startf = MHz(10), 10499900, FT767GX_HF_TX_MODES, 5000, 100000, FT767GX_VFOS, RIG_ANT_CURR},
 
-        {.startf = MHz(14), 14499900, FT767GX_HF_TX_MODES, 5000, 100000},
+        {.startf = MHz(14), 14499900, FT767GX_HF_TX_MODES, 5000, 100000, FT767GX_VFOS, RIG_ANT_CURR},
 
-        {.startf = MHz(18), 18499900, FT767GX_HF_TX_MODES, 5000, 100000},
+        {.startf = MHz(18), 18499900, FT767GX_HF_TX_MODES, 5000, 100000, FT767GX_VFOS, RIG_ANT_CURR},
 
-        {.startf = MHz(21), 21499900, FT767GX_HF_TX_MODES, 5000, 100000},
+        {.startf = MHz(21), 21499900, FT767GX_HF_TX_MODES, 5000, 100000, FT767GX_VFOS, RIG_ANT_CURR},
 
-        {.startf = kHz(24500), 24999900, FT767GX_HF_TX_MODES, 5000, 100000},
+        {.startf = kHz(24500), 24999900, FT767GX_HF_TX_MODES, 5000, 100000, FT767GX_VFOS, RIG_ANT_CURR},
 
-        {.startf = MHz(28), 29999900, FT767GX_HF_TX_MODES, 5000, 100000},
+        {.startf = MHz(28), 29999900, FT767GX_HF_TX_MODES, 5000, 100000, FT767GX_VFOS, RIG_ANT_CURR},
 
-        {.startf = MHz(50), 59999900, FT767GX_ALL_TX_MODES, 5000, 10000},
+        {.startf = MHz(50), 59999900, FT767GX_ALL_TX_MODES, 5000, 10000, FT767GX_VFOS, RIG_ANT_CURR},
 
-        {.startf = MHz(144), 147999900, FT767GX_ALL_TX_MODES, 5000, 10000},
+        {.startf = MHz(144), 147999900, FT767GX_ALL_TX_MODES, 5000, 10000, FT767GX_VFOS, RIG_ANT_CURR},
 
-        {.startf = MHz(430), 449999990, FT767GX_ALL_TX_MODES, 5000, 10000},
+        {.startf = MHz(430), 449999990, FT767GX_ALL_TX_MODES, 5000, 10000, FT767GX_VFOS, RIG_ANT_CURR},
 
         RIG_FRNG_END,
     },
@@ -396,12 +398,14 @@ int ft767_init(RIG *rig)
         return -RIG_EINVAL;
     }
 
-    rig->state.priv = (struct ft767_priv_data *) calloc(1, sizeof(struct ft767_priv_data));
+    rig->state.priv = (struct ft767_priv_data *) calloc(1,
+                      sizeof(struct ft767_priv_data));
 
     if (!rig->state.priv)           /* whoops! memory shortage! */
     {
         return -RIG_ENOMEM;
     }
+
     priv = rig->state.priv;
 
     rig_debug(RIG_DEBUG_TRACE, "%s called\n", __func__);
@@ -456,7 +460,7 @@ int ft767_open(RIG *rig)
     struct ft767_priv_data *priv = (struct ft767_priv_data *)rig->state.priv;
     int retval;
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     /* send 0 delay PACING cmd to rig  */
     retval = ft767_enter_CAT(rig);
@@ -488,7 +492,7 @@ int ft767_open(RIG *rig)
 
 int ft767_close(RIG *rig)
 {
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
     return RIG_OK;
 }
 
@@ -861,8 +865,8 @@ int ft767_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
             return RIG_OK;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: error, unknown vfo value %d\n", __func__,
-                      curr_vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: error, unknown vfo value %s\n", __func__,
+                      rig_strvfo(curr_vfo));
             return RIG_OK;
         }
     }
@@ -964,8 +968,8 @@ int ft767_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq)
             return RIG_OK;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: error, unknown vfo value %d\n", __func__,
-                      curr_vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: error, unknown vfo value %s\n", __func__,
+                      rig_strvfo(curr_vfo));
             return RIG_OK;
         }
     }
@@ -1024,8 +1028,8 @@ int ft767_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode,
             return RIG_OK;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: error, unknown vfo value %d\n", __func__,
-                      curr_vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: error, unknown vfo value %s\n", __func__,
+                      rig_strvfo(curr_vfo));
             return RIG_OK;
         }
     }
@@ -1128,8 +1132,8 @@ int ft767_get_split_mode(RIG *rig, vfo_t vfo, rmode_t *tx_mode,
             return RIG_OK;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: error, unknown vfo value %d\n", __func__,
-                      curr_vfo);
+            rig_debug(RIG_DEBUG_ERR, "%s: error, unknown vfo value %s\n", __func__,
+                      rig_strvfo(curr_vfo));
             return RIG_OK;
         }
     }
@@ -1221,7 +1225,7 @@ int ft767_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
             return -RIG_EINVAL;       /* sorry, wrong VFO */
         }
 
-        serial_flush(&rig->state.rigport);
+        rig_flush(&rig->state.rigport);
 
         retval = ft767_enter_CAT(rig);
 
@@ -1339,8 +1343,8 @@ int ft767_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
     default:
         /* we don't know how to deal with MEM, anything else is an error */
         /* TODO make sure this is what we want to do here */
-        rig_debug(RIG_DEBUG_ERR, "%s: current vfo is %d with split\n", __func__,
-                  curr_vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: current vfo is %s with split\n", __func__,
+                  rig_strvfo(curr_vfo));
         return -RIG_EINVAL;
         break;
     }
@@ -1475,9 +1479,12 @@ int ft767_send_block_and_ack(RIG *rig, unsigned char *cmd, size_t length)
     retval = read_block(&rig->state.rigport,
                         (char *) cmd_echo_buf,
                         YAESU_CMD_LENGTH);
-    if (retval < 0) {
-        rig_debug(RIG_DEBUG_ERR, "%s: read_block failed: %s\n", __func__, rigerror(retval));
-        return retval; 
+
+    if (retval < 0)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: read_block failed: %s\n", __func__,
+                  rigerror(retval));
+        return retval;
     }
 
     /* see if it matches the command we sent */
@@ -1531,7 +1538,7 @@ int ft767_get_update_data(RIG *rig)
     struct ft767_priv_data *priv = (struct ft767_priv_data *)rig->state.priv;
     int retval;
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     /* Entering CAT updates our data structures */
     retval = ft767_enter_CAT(rig);
@@ -1562,7 +1569,7 @@ int ft767_set_split(RIG *rig, unsigned int split)
     int retval;
     unsigned int curr_split;
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     /* Entering CAT updates our data structures */
     retval = ft767_enter_CAT(rig);
@@ -1576,7 +1583,7 @@ int ft767_set_split(RIG *rig, unsigned int split)
     /* See whether we need to toggle */
     curr_split = priv->update_data[STATUS_FLAGS] & STATUS_MASK_SPLIT;
 
-    rig_debug(RIG_DEBUG_TRACE, "%s called curr_split = %d, split = %d\n", __func__,
+    rig_debug(RIG_DEBUG_TRACE, "%s called curr_split = %u, split = %u\n", __func__,
               curr_split, split);
 
     if (curr_split ^ split)

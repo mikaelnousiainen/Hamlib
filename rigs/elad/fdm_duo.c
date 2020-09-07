@@ -335,10 +335,10 @@ static struct elad_priv_caps fdm_duo_priv_caps =
  */
 const struct rig_caps fdm_duo_caps =
 {
-    .rig_model = RIG_MODEL_ELAD_FDM_DUO,
+    RIG_MODEL(RIG_MODEL_ELAD_FDM_DUO),
     .model_name = "FDM-DUO",
     .mfg_name = "ELAD",
-    .version = BACKEND_VER ".5",
+    .version = BACKEND_VER ".0",
     .copyright = "LGPL",
     .status = RIG_STATUS_UNTESTED,
     .rig_type = RIG_TYPE_TRANSCEIVER,

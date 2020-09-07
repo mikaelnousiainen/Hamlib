@@ -51,10 +51,10 @@
 
 const struct rig_caps ekd500_caps =
 {
-    .rig_model =  RIG_MODEL_EKD500,
+    RIG_MODEL(RIG_MODEL_EKD500),
     .model_name = "EKD-500",
     .mfg_name =  "RFT",
-    .version =  "0.4",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_RECEIVER,

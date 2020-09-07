@@ -191,7 +191,8 @@ static int thd74_set_vfo(RIG *rig, vfo_t vfo)
         break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO: %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO: %s\n", __func__,
+                  rig_strvfo(vfo));
         return -RIG_ENTARGET;
     }
 
@@ -252,7 +253,8 @@ static int thd74_vfoc(RIG *rig, vfo_t vfo, char *vfoc)
     case RIG_VFO_B: *vfoc = '1'; break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO: %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO: %s\n", __func__,
+                  rig_strvfo(vfo));
         return -RIG_ENTARGET;
     }
 
@@ -380,6 +382,8 @@ static int thd74_round_freq(RIG *rig, vfo_t vfo, freq_t freq)
     int64_t f;
     long double r;
     shortfreq_t ts;
+    // cppcheck-suppress *
+    char *fmt = "%s: rounded %"PRIll" to %"PRIll" because stepsize:%d\n";
 
     rig_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
 
@@ -389,9 +393,7 @@ static int thd74_round_freq(RIG *rig, vfo_t vfo, freq_t freq)
     r = round((double)f / (double)ts);
     r = ts * r;
 
-    rig_debug(RIG_DEBUG_TRACE,
-              "%s: rounded %"PRIll" to %"PRIll" because stepsize:%d\n",
-              __func__, f, (int64_t)r, (int)ts);
+    rig_debug(RIG_DEBUG_TRACE, fmt, __func__, f, (int64_t)r, (int)ts);
 
     return (freq_t)r;
 }
@@ -1106,7 +1108,7 @@ static int thd74_set_parm(RIG *rig, setting_t parm, value_t val)
 
     switch (parm)
     {
-    case RIG_PARM_TIME: // FIXME check val, send formated via RT
+    case RIG_PARM_TIME: // FIXME check val, send formatted via RT
     default:
         return -RIG_EINVAL;
     }
@@ -1273,7 +1275,7 @@ static int thd74_parse_channel(int kind, const char *buf, channel_t *chan)
     return RIG_OK;
 }
 
-static int thd74_get_channel(RIG *rig, channel_t *chan)
+static int thd74_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     int retval;
     char buf[72];
@@ -1320,6 +1322,16 @@ static int thd74_get_channel(RIG *rig, channel_t *chan)
         }
 
         return thd74_parse_channel(0, buf, chan);
+    }
+
+    if (!read_only)
+    {
+        // Set rig to channel values
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: need to know if rig updates when channel read or not\n", __func__);
+        return -RIG_ENIMPL;
     }
 
     return RIG_OK;
@@ -1514,7 +1526,7 @@ int thd74_get_chan_all_cb(RIG *rig, chan_cb_t chan_cb, rig_ptr_t arg)
 
 
     hl_usleep(100 * 1000); /* let the pcr settle */
-    serial_flush(rp);   /* flush any remaining data */
+    rig_flush(rp);   /* flush any remaining data */
     ret = ser_set_rts(rp, 1);   /* setRTS or Hardware flow control? */
 
     if (ret != RIG_OK)
@@ -1626,10 +1638,10 @@ int thd74_get_chan_all_cb(RIG *rig, chan_cb_t chan_cb, rig_ptr_t arg)
  */
 const struct rig_caps thd74_caps =
 {
-    .rig_model =  RIG_MODEL_THD74,
+    RIG_MODEL(RIG_MODEL_THD74),
     .model_name = "TH-D74",
     .mfg_name =  "Kenwood",
-    .version =  "0.1",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_HANDHELD | RIG_FLAG_APRS | RIG_FLAG_TNC | RIG_FLAG_DXCLUSTER,

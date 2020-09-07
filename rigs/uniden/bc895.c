@@ -61,10 +61,10 @@
  */
 const struct rig_caps bc895_caps =
 {
-    .rig_model =  RIG_MODEL_BC895,
+    RIG_MODEL(RIG_MODEL_BC895),
     .model_name = "BC895xlt",
     .mfg_name =  "Uniden",
-    .version =  BACKEND_VER,
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_UNTESTED,
     .rig_type =  RIG_TYPE_TRUNKSCANNER,

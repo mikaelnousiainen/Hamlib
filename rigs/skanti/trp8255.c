@@ -86,10 +86,10 @@ static int cu_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op);
  */
 const struct rig_caps trp8255_caps =
 {
-    .rig_model =  RIG_MODEL_TRP8255,
+    RIG_MODEL(RIG_MODEL_TRP8255),
     .model_name = "TRP 8255 S R",
     .mfg_name =  "Skanti",
-    .version =  "0.1",
+    .version =  "20200323.0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_UNTESTED,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -462,7 +462,7 @@ int cu_set_parm(RIG *rig, setting_t parm, value_t val)
     case RIG_PARM_TIME:
         /* zap seconds */
         val.i /= 60;
-        cmd_len = sprintf(cmdbuf, "f%02u%02u"CR,
+        cmd_len = sprintf(cmdbuf, "f%02d%02d"CR,
                           val.i / 60, val.i % 60);
         break;
 

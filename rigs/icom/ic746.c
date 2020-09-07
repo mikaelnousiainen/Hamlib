@@ -153,7 +153,7 @@ typedef channel_str_t band_stack_reg_t;
 
 static int ic746_set_parm(RIG *rig, setting_t parm, value_t val);
 static int ic746_get_parm(RIG *rig, setting_t parm, value_t *val);
-static int ic746pro_get_channel(RIG *rig, channel_t *chan);
+static int ic746pro_get_channel(RIG *rig, channel_t *chan, int read_only);
 static int ic746pro_set_channel(RIG *rig, const channel_t *chan);
 static int ic746pro_set_ext_parm(RIG *rig, token_t token, value_t val);
 static int ic746pro_get_ext_parm(RIG *rig, token_t token, value_t *val);
@@ -181,10 +181,10 @@ static const struct icom_priv_caps ic746_priv_caps =
 
 const struct rig_caps ic746_caps =
 {
-    .rig_model =  RIG_MODEL_IC746,
+    RIG_MODEL(RIG_MODEL_IC746),
     .model_name = "IC-746",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".4",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -408,10 +408,10 @@ static const struct icom_priv_caps ic746pro_priv_caps =
 
 const struct rig_caps ic746pro_caps =
 {
-    .rig_model =  RIG_MODEL_IC746PRO,
+    RIG_MODEL(RIG_MODEL_IC746PRO),
     .model_name = "IC-746PRO",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -513,7 +513,7 @@ const struct rig_caps ic746pro_caps =
         {RIG_MODE_FM, kHz(15)},
         {RIG_MODE_FM, kHz(7)},
 
-        /* There are 5 rtty filters when rtty filter mode is set (default condition) { 1k, 500, 350, 300, 250 }. These are fixed. If rtty filter mode is unset there are 3 general IF filters { 2.4k, 500, 250 are the defaults }.  These can be changed. There is a "twin-peak" filter mode as well.  It boosts the 2125 and 2295 recieve frequency reponse.    The S_FUNC_RF (rtty filter) turns the rtty filter mode on and off. */
+        /* There are 5 rtty filters when rtty filter mode is set (default condition) { 1k, 500, 350, 300, 250 }. These are fixed. If rtty filter mode is unset there are 3 general IF filters { 2.4k, 500, 250 are the defaults }.  These can be changed. There is a "twin-peak" filter mode as well.  It boosts the 2125 and 2295 receive frequency response.    The S_FUNC_RF (rtty filter) turns the rtty filter mode on and off. */
 
         {RIG_MODE_CW | RIG_MODE_CWR | RIG_MODE_RTTY | RIG_MODE_RTTYR, Hz(500)}, /* RTTY &  "normal" IF Filters */
         {RIG_MODE_CW | RIG_MODE_CWR | RIG_MODE_RTTY | RIG_MODE_RTTYR, Hz(250)}, /* RTTY & "narrow" IF Filters */
@@ -904,7 +904,7 @@ int ic746_get_parm(RIG *rig, setting_t parm, value_t *val)
  *
  * If memory is empty it will return RIG_OK,but every thing will be null. Where do we boundary check?
  */
-int ic746pro_get_channel(RIG *rig, channel_t *chan)
+int ic746pro_get_channel(RIG *rig, channel_t *chan, int read_only)
 {
     struct icom_priv_data *priv;
     struct rig_state *rs;
@@ -964,19 +964,22 @@ int ic746pro_get_channel(RIG *rig, channel_t *chan)
      * chanbuf should contain Cn,Sc, Chan #, Data area
      */
     // Do we get chan_len==1 || chan_len==5 on empty memory?
-    // The IC746Pro returns 1a 00 00 01 ff on a blank channel 
+    // The IC746Pro returns 1a 00 00 01 ff on a blank channel
     // So this logic should apply to any Icom with chan_len==5 hopefully
-    if (chan_len == 5 && chanbuf[4]==0xff) {
-        rig_debug(RIG_DEBUG_TRACE,"%s: chan %d is empty\n", __func__, chan->channel_num);
+    if (chan_len == 5 && chanbuf[4] == 0xff)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: chan %d is empty\n", __func__,
+                  chan->channel_num);
         return RIG_OK;
     }
 
     if ((chan_len != freq_len * 2 + 40) && (chan_len != 1))
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: wrong frame len=%d\n", __func__, 
+        rig_debug(RIG_DEBUG_ERR, "%s: wrong frame len=%d\n", __func__,
                   chan_len);
         return -RIG_ERJCTED;
     }
+
     /* do this only if not a blank channel */
     if (chan_len != 1)
     {
@@ -991,7 +994,9 @@ int ic746pro_get_channel(RIG *rig, channel_t *chan)
         chan->flags = (membuf->chan_flag & 0x01) ? RIG_CHFLAG_SKIP : RIG_CHFLAG_NONE;
         rig_debug(RIG_DEBUG_TRACE, "%s: chan->flags=0x%02x\n", __func__, chan->flags);
         /* data mode on */
-        rig_debug(RIG_DEBUG_TRACE, "%s: membuf->rx.data=0x%02x\n", __func__, membuf->rx.data);
+        rig_debug(RIG_DEBUG_TRACE, "%s: membuf->rx.data=0x%02x\n", __func__,
+                  membuf->rx.data);
+
         if (membuf->rx.data) { chan->flags |= RIG_CHFLAG_DATA; }
 
         /*
@@ -1004,7 +1009,8 @@ int ic746pro_get_channel(RIG *rig, channel_t *chan)
                       &chan->mode, &chan->width);
 
         chan->rptr_shift = (rptr_shift_t)(membuf->rx.dup >> 8);
-        rig_debug(RIG_DEBUG_TRACE, "%s: chan->rptr_shift=%d\n", __func__, chan->rptr_shift);
+        rig_debug(RIG_DEBUG_TRACE, "%s: chan->rptr_shift=%d\n", __func__,
+                  chan->rptr_shift);
 
         /* offset is default for the band & is not stored in channel memory.
            The following retrieves the system default for the band */
@@ -1023,14 +1029,17 @@ int ic746pro_get_channel(RIG *rig, channel_t *chan)
         }
 
         chan->rptr_offs = from_bcd(databuf + 3, 6) * 100;
-        rig_debug(RIG_DEBUG_TRACE, "%s: chan->rptr_offs=%d\n", __func__, (int)chan->rptr_offs);
+        rig_debug(RIG_DEBUG_TRACE, "%s: chan->rptr_offs=%d\n", __func__,
+                  (int)chan->rptr_offs);
 
         chan->ctcss_tone = from_bcd_be(membuf->rx.tone, 6);
-        rig_debug(RIG_DEBUG_TRACE, "%s: chan->ctcss_tone=%d\n", __func__, chan->ctcss_tone);
+        rig_debug(RIG_DEBUG_TRACE, "%s: chan->ctcss_tone=%u\n", __func__,
+                  chan->ctcss_tone);
         chan->ctcss_sql = from_bcd_be(membuf->rx.tone_sql, 6);
-        rig_debug(RIG_DEBUG_TRACE, "%s: chan->ctcss_sql=%d\n", __func__, chan->ctcss_sql);
+        rig_debug(RIG_DEBUG_TRACE, "%s: chan->ctcss_sql=%u\n", __func__,
+                  chan->ctcss_sql);
         chan->dcs_code = from_bcd_be(membuf->rx.dcs.code, 4);
-        rig_debug(RIG_DEBUG_TRACE, "%s: chan->dcs_code=%d\n", __func__, chan->dcs_code);
+        rig_debug(RIG_DEBUG_TRACE, "%s: chan->dcs_code=%u\n", __func__, chan->dcs_code);
         /* The dcs information include in the channel includes polarity information
         for both tx and receive.  Both directions are enabled when in dcs mode */
 
@@ -1040,7 +1049,18 @@ int ic746pro_get_channel(RIG *rig, channel_t *chan)
                       &chan->tx_mode, &chan->tx_width);
         strncpy(chan->channel_desc, membuf->name, 9);
         chan->channel_desc[9] = '\0';   /* add null terminator */
-        rig_debug(RIG_DEBUG_TRACE, "%s: chan->channel_desc=%s\n", __func__, chan->channel_desc);
+        rig_debug(RIG_DEBUG_TRACE, "%s: chan->channel_desc=%s\n", __func__,
+                  chan->channel_desc);
+    }
+
+    if (!read_only)
+    {
+        // Set rig to channel values
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: need to know if rig updates when channel read or not\n", __func__);
+        return -RIG_ENIMPL;
     }
 
     return RIG_OK;
@@ -1052,146 +1072,180 @@ int ic746pro_get_channel(RIG *rig, channel_t *chan)
  */
 int ic746pro_set_channel(RIG *rig, const channel_t *chan)
 {
-  struct icom_priv_data *priv;
-  struct rig_state *rs;
-  mem_buf_t membuf = {0};
-  unsigned char chanbuf[MAXFRAMELEN], ackbuf[MAXFRAMELEN];
-  int chan_len, ack_len, freq_len, retval;
+    struct icom_priv_data *priv;
+    struct rig_state *rs;
+    mem_buf_t membuf = {0};
+    unsigned char chanbuf[MAXFRAMELEN], ackbuf[MAXFRAMELEN];
+    int chan_len, ack_len, freq_len, retval;
 
-  rs = &rig->state;
-  priv = (struct icom_priv_data *)rs->priv;
+    rs = &rig->state;
+    priv = (struct icom_priv_data *)rs->priv;
 
-  freq_len = priv->civ_731_mode ? 4 : 5;
+    freq_len = priv->civ_731_mode ? 4 : 5;
 
-  // set memory channel
-  to_bcd_be(chanbuf, chan->channel_num, 4);
-  chan_len = 2;
+    // set memory channel
+    to_bcd_be(chanbuf, chan->channel_num, 4);
+    chan_len = 2;
 
-  // if good value, we change the memory otherwise clear
-  if (chan->freq != 0 || chan->mode != 0)
+    // if good value, we change the memory otherwise clear
+    if (chan->freq != 0 || chan->mode != 0)
     {
-      if (chan->split == RIG_SPLIT_ON)
-        membuf.chan_flag |= 0x10;
-      else
-        membuf.chan_flag |= (chan->flags & RIG_CHFLAG_SKIP) ? 0x01 : 0x00;
-
-      // RX
-      to_bcd(membuf.rx.freq, chan->freq, freq_len * 2);
-
-      retval = rig2icom_mode(rig, chan->mode, chan->width,
-                             &membuf.rx.mode, &membuf.rx.pb);
-
-      if (retval != RIG_OK)
+        if (chan->split == RIG_SPLIT_ON)
         {
-          return retval;
+            membuf.chan_flag |= 0x10;
+        }
+        else
+        {
+            membuf.chan_flag |= (chan->flags & RIG_CHFLAG_SKIP) ? 0x01 : 0x00;
         }
 
-      if(membuf.rx.pb == -1)
-        membuf.rx.pb = PD_MEDIUM_3;
+        // RX
+        to_bcd(membuf.rx.freq, chan->freq, freq_len * 2);
 
-      membuf.rx.data = (chan->flags & RIG_CHFLAG_DATA) ? 1 : 0;
-      membuf.rx.dup = chan->rptr_shift;
+        retval = rig2icom_mode(rig, chan->mode, chan->width,
+                               &membuf.rx.mode, &membuf.rx.pb);
 
-      // not empty otherwise the call fail
-      if (chan->ctcss_tone == 0)
-        to_bcd_be(membuf.rx.tone, 885, 6);
-      else
-        to_bcd_be(membuf.rx.tone, chan->ctcss_tone, 6);
-      if (chan->ctcss_sql == 0)
-        to_bcd_be(membuf.rx.tone_sql, 885, 6);
-      else
-        to_bcd_be(membuf.rx.tone_sql, chan->ctcss_sql, 6);
-
-      if (chan->dcs_code == 0)
-        to_bcd_be(membuf.rx.dcs.code, 23, 4);
-      else
-        to_bcd_be(membuf.rx.dcs.code, chan->dcs_code, 4);
-
-      // TX
-      to_bcd(membuf.tx.freq, chan->tx_freq, freq_len * 2);
-
-      retval = rig2icom_mode(rig, chan->tx_mode, chan->tx_width,
-                             &membuf.tx.mode, &membuf.tx.pb);
-
-      if (retval != RIG_OK)
+        if (retval != RIG_OK)
         {
-          return retval;
+            return retval;
         }
 
-      if(membuf.tx.pb == -1)
-        membuf.tx.pb = PD_MEDIUM_3;
-
-      membuf.tx.data = (chan->flags | RIG_CHFLAG_DATA) ? 1 : 0;
-      membuf.tx.dup = chan->rptr_shift;
-
-      // not empty otherwise the call fail
-      if (chan->ctcss_tone == 0)
-        to_bcd_be(membuf.tx.tone, 885, 6);
-      else
-        to_bcd_be(membuf.tx.tone, chan->ctcss_tone, 6);
-      if (chan->ctcss_sql == 0)
-        to_bcd_be(membuf.tx.tone_sql, 885, 6);
-      else
-        to_bcd_be(membuf.tx.tone_sql, chan->ctcss_sql, 6);
-
-      if (chan->dcs_code == 0)
-        to_bcd_be(membuf.tx.dcs.code, 23, 4);
-      else
-        to_bcd_be(membuf.tx.dcs.code, chan->dcs_code, 4);
-
-      // set description
-      memcpy(membuf.name, chan->channel_desc, sizeof(membuf.name));
-
-      memcpy(chanbuf+chan_len, &membuf, sizeof(mem_buf_t));
-      chan_len += sizeof(mem_buf_t);
-
-      retval = icom_transaction(rig, C_CTL_MEM, S_MEM_CNTNT,
-                                chanbuf, chan_len, ackbuf, &ack_len);
-
-      if (retval != RIG_OK)
+        if (membuf.rx.pb == -1)
         {
-          return retval;
+            membuf.rx.pb = PD_MEDIUM_3;
         }
 
-      if (ack_len != 1 || ackbuf[0] != ACK)
+        membuf.rx.data = (chan->flags & RIG_CHFLAG_DATA) ? 1 : 0;
+        membuf.rx.dup = chan->rptr_shift;
+
+        // not empty otherwise the call fail
+        if (chan->ctcss_tone == 0)
         {
-          rig_debug(RIG_DEBUG_ERR, "icom_set_channel: ack NG (%#.2x), "
-                    "len=%d\n", ackbuf[0], ack_len);
-          return -RIG_ERJCTED;
+            to_bcd_be(membuf.rx.tone, 885, 6);
+        }
+        else
+        {
+            to_bcd_be(membuf.rx.tone, chan->ctcss_tone, 6);
+        }
+
+        if (chan->ctcss_sql == 0)
+        {
+            to_bcd_be(membuf.rx.tone_sql, 885, 6);
+        }
+        else
+        {
+            to_bcd_be(membuf.rx.tone_sql, chan->ctcss_sql, 6);
+        }
+
+        if (chan->dcs_code == 0)
+        {
+            to_bcd_be(membuf.rx.dcs.code, 23, 4);
+        }
+        else
+        {
+            to_bcd_be(membuf.rx.dcs.code, chan->dcs_code, 4);
+        }
+
+        // TX
+        to_bcd(membuf.tx.freq, chan->tx_freq, freq_len * 2);
+
+        retval = rig2icom_mode(rig, chan->tx_mode, chan->tx_width,
+                               &membuf.tx.mode, &membuf.tx.pb);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        if (membuf.tx.pb == -1)
+        {
+            membuf.tx.pb = PD_MEDIUM_3;
+        }
+
+        membuf.tx.data = (chan->flags & RIG_CHFLAG_DATA) ? 1 : 0;
+        membuf.tx.dup = chan->rptr_shift;
+
+        // not empty otherwise the call fail
+        if (chan->ctcss_tone == 0)
+        {
+            to_bcd_be(membuf.tx.tone, 885, 6);
+        }
+        else
+        {
+            to_bcd_be(membuf.tx.tone, chan->ctcss_tone, 6);
+        }
+
+        if (chan->ctcss_sql == 0)
+        {
+            to_bcd_be(membuf.tx.tone_sql, 885, 6);
+        }
+        else
+        {
+            to_bcd_be(membuf.tx.tone_sql, chan->ctcss_sql, 6);
+        }
+
+        if (chan->dcs_code == 0)
+        {
+            to_bcd_be(membuf.tx.dcs.code, 23, 4);
+        }
+        else
+        {
+            to_bcd_be(membuf.tx.dcs.code, chan->dcs_code, 4);
+        }
+
+        // set description
+        memcpy(membuf.name, chan->channel_desc, sizeof(membuf.name));
+
+        memcpy(chanbuf + chan_len, &membuf, sizeof(mem_buf_t));
+        chan_len += sizeof(mem_buf_t);
+
+        retval = icom_transaction(rig, C_CTL_MEM, S_MEM_CNTNT,
+                                  chanbuf, chan_len, ackbuf, &ack_len);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        if (ack_len != 1 || ackbuf[0] != ACK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "icom_set_channel: ack NG (%#.2x), "
+                      "len=%d\n", ackbuf[0], ack_len);
+            return -RIG_ERJCTED;
         }
     }
-  else
+    else
     {
-      retval = icom_transaction(rig, C_SET_MEM, -1,
-                                chanbuf, chan_len, ackbuf, &ack_len);
+        retval = icom_transaction(rig, C_SET_MEM, -1,
+                                  chanbuf, chan_len, ackbuf, &ack_len);
 
-      if (retval != RIG_OK)
+        if (retval != RIG_OK)
         {
-          return retval;
+            return retval;
         }
 
-      if (ack_len != 1 || ackbuf[0] != ACK)
+        if (ack_len != 1 || ackbuf[0] != ACK)
         {
-          rig_debug(RIG_DEBUG_ERR, "icom_set_channel: ack NG (%#.2x), "
-                    "len=%d\n", ackbuf[0], ack_len);
-          return -RIG_ERJCTED;
+            rig_debug(RIG_DEBUG_ERR, "icom_set_channel: ack NG (%#.2x), "
+                      "len=%d\n", ackbuf[0], ack_len);
+            return -RIG_ERJCTED;
         }
 
-      retval = icom_transaction(rig, C_CLR_MEM, -1, NULL, 0, ackbuf, &ack_len);
+        retval = icom_transaction(rig, C_CLR_MEM, -1, NULL, 0, ackbuf, &ack_len);
 
-      if (retval != RIG_OK)
+        if (retval != RIG_OK)
         {
-          return retval;
+            return retval;
         }
 
-      if (ack_len != 1 || ackbuf[0] != ACK)
+        if (ack_len != 1 || ackbuf[0] != ACK)
         {
-          rig_debug(RIG_DEBUG_ERR, "icom_set_channel: ack NG (%#.2x), "
-                    "len=%d\n", ackbuf[0], ack_len);
-          return -RIG_ERJCTED;
+            rig_debug(RIG_DEBUG_ERR, "icom_set_channel: ack NG (%#.2x), "
+                      "len=%d\n", ackbuf[0], ack_len);
+            return -RIG_ERJCTED;
         }
 
     }
 
-  return RIG_OK;
+    return RIG_OK;
 }

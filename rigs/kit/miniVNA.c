@@ -46,7 +46,7 @@ static int miniVNA_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     rig_debug(RIG_DEBUG_TRACE, "%s called: %s %s\n", __func__,
               rig_strvfo(vfo), fstr);
 
-    serial_flush(&rig->state.rigport);
+    rig_flush(&rig->state.rigport);
 
     sprintf(cmdstr, "0\r%lu\r1\r0\r", (unsigned long int)(freq * DDS_RATIO));
 
@@ -62,10 +62,10 @@ static int miniVNA_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
 const struct rig_caps miniVNA_caps =
 {
-    .rig_model =      RIG_MODEL_MINIVNA,
+    RIG_MODEL(RIG_MODEL_MINIVNA),
     .model_name =     "miniVNA",
     .mfg_name =       "mRS",
-    .version =        "0.1",
+    .version =        "20190817.0",
     .copyright =   "LGPL",
     .status =         RIG_STATUS_ALPHA,
     .rig_type =       RIG_TYPE_TUNER,

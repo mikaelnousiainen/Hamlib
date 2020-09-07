@@ -124,10 +124,10 @@ int ts450_open(RIG *rig)
 const struct rig_caps ts450s_caps =
 {
 
-    .rig_model  = RIG_MODEL_TS450S,
+    RIG_MODEL(RIG_MODEL_TS450S),
     .model_name = "TS-450S",
     .mfg_name   = "Kenwood",
-    .version    = BACKEND_VER ".1",
+    .version    = BACKEND_VER ".0",
     .copyright  = "LGPL",
     .status     = RIG_STATUS_BETA,
     .rig_type   = RIG_TYPE_TRANSCEIVER,

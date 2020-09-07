@@ -56,10 +56,10 @@ static struct kenwood_priv_caps  ts930_priv_caps  =
  */
 const struct rig_caps ts930_caps =
 {
-    .rig_model =  RIG_MODEL_TS930,
+    RIG_MODEL(RIG_MODEL_TS930),
     .model_name = "TS-930",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER,
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_UNTESTED,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -144,6 +144,8 @@ const struct rig_caps ts930_caps =
     .priv = (void *)& ts930_priv_caps,
 
     .rig_init = kenwood_init,
+    .rig_open = kenwood_open, // we don't know the ID for this rig
+    .rig_close = kenwood_close,
     .rig_cleanup = kenwood_cleanup,
     .set_freq =  kenwood_set_freq,
     .get_freq =  kenwood_get_freq,

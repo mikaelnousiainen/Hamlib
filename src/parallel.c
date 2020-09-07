@@ -76,6 +76,7 @@
 #  include <dev/ppbus/ppbconf.h>
 #endif
 
+//! @cond Doxygen_Suppress
 /*
  * These control port bits are active low.
  * We toggle them so that this weirdness doesn't get propagated
@@ -89,6 +90,7 @@
  * through our interface.
  */
 #define SP_ACTIVE_LOW_BITS  0x80
+//! @endcond
 
 /*
    Pinout table of parallel port from http://en.wikipedia.org/wiki/Parallel_port#Pinouts
@@ -132,6 +134,7 @@ int par_open(hamlib_port_t *port)
 #endif
 
 #if defined (__WIN64__) || defined(__WIN32__)
+    // cppcheck-suppress *
     HANDLE handle;
 #endif
 

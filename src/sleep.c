@@ -32,7 +32,7 @@
 
 /**
  * \brief provide sleep and usleep replacements
- * \param same as man page for each
+ * \note parameters are same as man page for each
  *
  */
 #include <unistd.h>
@@ -50,7 +50,7 @@ extern "C" {
 // In order to stop the usleep warnings in cppcheck we provide our own interface
 // So this will use system usleep or our usleep depending on availability of nanosleep
 // This version of usleep can handle > 1000000 usec values
-int hl_usleep(useconds_t usec)
+int hl_usleep(rig_useconds_t usec)
 {
     int retval = 0;
 
@@ -66,6 +66,11 @@ int hl_usleep(useconds_t usec)
 }
 
 #ifdef HAVE_NANOSLEEP
+#ifndef HAVE_SLEEP
+/**
+ * \brief sleep
+ * \param secs is seconds to sleep
+ */
 unsigned int sleep(unsigned int secs)
 {
     int retval;
@@ -79,10 +84,16 @@ unsigned int sleep(unsigned int secs)
 
     return 0;
 }
+#endif
 
 
-// Does not have the same 1000000 limit as usleep
-int usleep(useconds_t usec)
+#if 0
+/**
+ * \brief microsecond sleep
+ * \param usec is microseconds to sleep
+ * This does not have the same 1000000 limit as POSIX usleep
+ */
+int usleep(rig_useconds_t usec)
 {
     int retval;
     unsigned long sec = usec / 1000000ul;
@@ -98,8 +109,10 @@ int usleep(useconds_t usec)
 
     return 0;
 }
-#endif // HAVE_NANOSLEEP
+#endif
 
+#endif // HAVE_NANOSLEEP
 #ifdef __cplusplus
 }
 #endif
+/** @} */

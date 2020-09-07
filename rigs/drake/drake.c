@@ -69,7 +69,7 @@ int drake_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 
     rs = &rig->state;
 
-    serial_flush(&rs->rigport);
+    rig_flush(&rs->rigport);
 
     retval = write_block(&rs->rigport, cmd, cmd_len);
 
@@ -110,6 +110,7 @@ int drake_init(RIG *rig)
     {
         return -RIG_ENOMEM;
     }
+
     priv = rig->state.priv;
 
     priv->curr_ch = 0;
@@ -211,8 +212,8 @@ int drake_set_vfo(RIG *rig, vfo_t vfo)
     case RIG_VFO_MEM: vfo_function = 'C'; break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "drake_set_vfo: unsupported VFO %d\n",
-                  vfo);
+        rig_debug(RIG_DEBUG_ERR, "drake_set_vfo: unsupported VFO %s\n",
+                  rig_strvfo(vfo));
         return -RIG_EINVAL;
     }
 
@@ -504,11 +505,14 @@ int drake_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
  * drake_get_ant
  * Assumes rig!=NULL
  */
-int drake_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option)
+int drake_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
+                  ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx)
 {
     int mdbuf_len, retval;
     char mdbuf[BUFSZ];
     char cant;
+
+    *ant_tx = *ant_rx = RIG_ANT_UNKNOWN;
 
     retval = drake_transaction(rig, "RM" EOM, 3, mdbuf, &mdbuf_len);
 
@@ -528,19 +532,20 @@ int drake_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, ant_t *ant, value_t *option)
 
     switch (cant & 0x3c)
     {
-    case '0': *ant = RIG_ANT_1; break;
+    case '0': *ant_curr = RIG_ANT_1; break;
 
-    case '4': *ant = RIG_ANT_3; break;
+    case '4': *ant_curr = RIG_ANT_3; break;
 
-    case '8': *ant = RIG_ANT_2; break;
+    case '8': *ant_curr = RIG_ANT_2; break;
 
     default :
         rig_debug(RIG_DEBUG_ERR,
                   "drake_get_ant: unsupported antenna %c\n",
                   cant);
-        *ant = RIG_ANT_NONE;
+        *ant_curr = RIG_ANT_UNKNOWN;
         return -RIG_EINVAL;
     }
+
     return RIG_OK;
 }
 
@@ -558,6 +563,7 @@ int drake_set_mem(RIG *rig, vfo_t vfo, int ch)
 
     len = sprintf(buf, "C%03d" EOM, ch);
 
+    ack_len = 0; // fix compile-time warning "possibly uninitialized"
     retval = drake_transaction(rig, buf, len, ackbuf, &ack_len);
 
     if (ack_len != 2)
@@ -665,7 +671,7 @@ int drake_set_chan(RIG *rig, const channel_t *chan)
  * drake_get_chan
  * Assumes rig!=NULL
  */
-int drake_get_chan(RIG *rig, channel_t *chan)
+int drake_get_chan(RIG *rig, channel_t *chan, int read_only)
 {
     struct drake_priv_data *priv = rig->state.priv;
     vfo_t   old_vfo;
@@ -716,7 +722,7 @@ int drake_get_chan(RIG *rig, channel_t *chan)
         return RIG_OK;
     }
 
-    //now decypher it
+    //now decipher it
     retval = drake_transaction(rig, "RA" EOM, 3, mdbuf, &mdbuf_len);
 
     if (retval != RIG_OK)
@@ -847,8 +853,10 @@ int drake_get_chan(RIG *rig, channel_t *chan)
 
 
     strncpy(chan->channel_desc, mdbuf + 25, 7);
+    chan->channel_desc[7] = '\0'; // in case strncpy did not terminate the string
 
     //now put the radio back the way it was
+    //we apparently can't do a read-only channel read
     if (old_vfo != RIG_VFO_MEM)
     {
         retval = drake_set_vfo(rig, RIG_VFO_VFO);

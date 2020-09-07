@@ -53,21 +53,24 @@
 #define TOK_REC TOKEN_BACKEND(003)
 
 int icr30_tokens[] = { TOK_ANL, TOK_EAR, TOK_REC,
-    TOK_DSTAR_DSQL, TOK_DSTAR_CALL_SIGN, TOK_DSTAR_MESSAGE, TOK_DSTAR_STATUS,
-    TOK_DSTAR_GPS_DATA, TOK_DSTAR_GPS_MESS, TOK_DSTAR_CODE, TOK_DSTAR_TX_DATA,
-    TOK_BACKEND_NONE };
+                       TOK_DSTAR_DSQL, TOK_DSTAR_CALL_SIGN, TOK_DSTAR_MESSAGE, TOK_DSTAR_STATUS,
+                       TOK_DSTAR_GPS_DATA, TOK_DSTAR_GPS_MESS, TOK_DSTAR_CODE, TOK_DSTAR_TX_DATA,
+                       TOK_BACKEND_NONE
+                     };
 
-struct confparams icr30_ext[] = {
+struct confparams icr30_ext[] =
+{
     { TOK_ANL, "anl", "Auto noise limiter", "", "", RIG_CONF_CHECKBUTTON, {} },
     { TOK_EAR, "ear", "Earphone mode", "", "", RIG_CONF_CHECKBUTTON, {} },
     { TOK_REC, "record", "Recorder on/off", "", "", RIG_CONF_CHECKBUTTON, {} },
     { 0 }
 };
 
-struct cmdparams icr30_extcmds[] = {
-    { {.t=TOK_ANL}, C_CTL_MEM, S_MEM_ANL, SC_MOD_RW, 0, {}, CMD_DAT_BOL, 1 },
-    { {.t=TOK_EAR}, C_CTL_MEM, S_MEM_EAR, SC_MOD_RW, 0, {}, CMD_DAT_BOL, 1 },
-    { {.t=TOK_REC}, C_CTL_MEM, S_MEM_REC, SC_MOD_WR, 0, {}, CMD_DAT_BOL, 1 },
+struct cmdparams icr30_extcmds[] =
+{
+    { {.t = TOK_ANL}, C_CTL_MEM, S_MEM_ANL, SC_MOD_RW, 0, {}, CMD_DAT_BOL, 1 },
+    { {.t = TOK_EAR}, C_CTL_MEM, S_MEM_EAR, SC_MOD_RW, 0, {}, CMD_DAT_BOL, 1 },
+    { {.t = TOK_REC}, C_CTL_MEM, S_MEM_REC, SC_MOD_WR, 0, {}, CMD_DAT_BOL, 1 },
     { {0} }
 };
 
@@ -128,10 +131,10 @@ static struct icom_priv_caps icr30_priv_caps =
 
 const struct rig_caps icr30_caps =
 {
-    .rig_model =  RIG_MODEL_ICR30,
+    RIG_MODEL(RIG_MODEL_ICR30),
     .model_name = "IC-R30",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".2",
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_RECEIVER | RIG_FLAG_HANDHELD,
@@ -159,7 +162,7 @@ const struct rig_caps icr30_caps =
     },
     .parm_gran =  {},
     .ext_tokens = icr30_tokens,
-    .extlevels = icr30_ext,
+    .extfuncs = icr30_ext,
     .extparms = icom_ext_parms,
     .ctcss_list =  common_ctcss_list,
     .dcs_list =  common_dcs_list,
@@ -266,6 +269,8 @@ const struct rig_caps icr30_caps =
     .get_ext_parm = icom_get_ext_parm,
     .set_ext_level = icom_set_ext_level,
     .get_ext_level = icom_get_ext_level,
+    .set_ext_func = icom_set_ext_func,
+    .get_ext_func = icom_get_ext_func,
     .get_dcd = icom_get_dcd,
     .set_ctcss_sql = icom_set_ctcss_sql,
     .get_ctcss_sql = icom_get_ctcss_sql,

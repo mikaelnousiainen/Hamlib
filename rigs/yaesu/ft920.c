@@ -148,10 +148,10 @@ struct ft920_priv_data
 
 const struct rig_caps ft920_caps =
 {
-    .rig_model =        RIG_MODEL_FT920,
+    RIG_MODEL(RIG_MODEL_FT920),
     .model_name =       "FT-920",
     .mfg_name =         "Yaesu",
-    .version =          "2010-08-23",           /* YYYY-MM-DD */
+    .version =          "20100823.0",           /* YYYYMMDD */
     .copyright =        "LGPL",
     .status =           RIG_STATUS_STABLE,
     .rig_type =         RIG_TYPE_TRANSCEIVER,
@@ -372,12 +372,14 @@ static int ft920_init(RIG *rig)
         return -RIG_EINVAL;
     }
 
-    rig->state.priv = (struct ft920_priv_data *) calloc(1, sizeof(struct ft920_priv_data));
+    rig->state.priv = (struct ft920_priv_data *) calloc(1,
+                      sizeof(struct ft920_priv_data));
 
     if (!rig->state.priv)
     {
         return -RIG_ENOMEM;    /* whoops! memory shortage! */
     }
+
     priv = rig->state.priv;
 
     /*
@@ -2522,6 +2524,8 @@ static int ft920_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     struct rig_state *rig_s;
     struct ft920_priv_data *priv;
     int err;
+    // cppcheck-suppress *
+    char *fmt = "%s: requested freq after conversion = %"PRIll" Hz\n";
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -2554,9 +2558,8 @@ static int ft920_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     /* store bcd format in in p_cmd */
     to_bcd(priv->p_cmd, freq / 10, FT920_BCD_DIAL);
 
-    rig_debug(RIG_DEBUG_TRACE,
-              "%s: requested freq after conversion = %"PRIll" Hz\n",
-              __func__, (int64_t)from_bcd(priv->p_cmd, FT920_BCD_DIAL) * 10);
+    rig_debug(RIG_DEBUG_TRACE, fmt, __func__, (int64_t)from_bcd(priv->p_cmd,
+              FT920_BCD_DIAL) * 10);
 
     err = write_block(&rig_s->rigport, (char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 

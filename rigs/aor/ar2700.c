@@ -84,10 +84,10 @@ static const struct aor_priv_caps ar2700_priv_caps =
  */
 const struct rig_caps ar2700_caps =
 {
-    .rig_model =  RIG_MODEL_AR2700,
+    RIG_MODEL(RIG_MODEL_AR2700),
     .model_name = "AR2700",
     .mfg_name =  "AOR",
-    .version =  BACKEND_VER,
+    .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_UNTESTED,
     .rig_type =  RIG_TYPE_SCANNER,
