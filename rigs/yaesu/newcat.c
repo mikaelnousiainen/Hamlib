@@ -889,7 +889,7 @@ int newcat_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 }
 
 /*
- * rig_set_vfo
+ * newcat_set_vfo
  *
  * set vfo and store requested vfo for later RIG_VFO_CURR
  * requests.
@@ -2527,6 +2527,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     int scale;
     int fpf;
     char main_sub_vfo = '0';
+    char *format;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -2538,7 +2539,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         return err;
     }
 
-    if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+    if (rig->caps->targetable_vfo & RIG_TARGETABLE_PURE)
     {
         main_sub_vfo = (RIG_VFO_B == vfo) ? '1' : '0';
     }
@@ -2684,10 +2685,22 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         {
             return -RIG_ENAVAIL;
         }
+        if (newcat_is_rig(rig, RIG_MODEL_TS890S)) // new format for the command with VFO selection
+        {
+            format = "MS0%d;";
+            if (vfo == RIG_VFO_SUB)
+            {
+                format = "MS1%d";
+            }
+        }
+        else
+        {
+            format = "MS%d";
+        }
 
         switch (val.i)
         {
-        case RIG_METER_ALC: snprintf(priv->cmd_str, sizeof(priv->cmd_str), "MS1;");
+        case RIG_METER_ALC: snprintf(priv->cmd_str, sizeof(priv->cmd_str), format, 1);
             break;
 
         case RIG_METER_PO:
@@ -2697,21 +2710,21 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             }
             else
             {
-                snprintf(priv->cmd_str, sizeof(priv->cmd_str), "MS2;");
+                snprintf(priv->cmd_str, sizeof(priv->cmd_str), format, 2);
             }
 
             break;
 
-        case RIG_METER_SWR:  snprintf(priv->cmd_str, sizeof(priv->cmd_str), "MS3;");
+        case RIG_METER_SWR:  snprintf(priv->cmd_str, sizeof(priv->cmd_str), format, 3);
             break;
 
-        case RIG_METER_COMP: snprintf(priv->cmd_str, sizeof(priv->cmd_str), "MS0;");
+        case RIG_METER_COMP: snprintf(priv->cmd_str, sizeof(priv->cmd_str), format, 0);
             break;
 
-        case RIG_METER_IC:   snprintf(priv->cmd_str, sizeof(priv->cmd_str), "MS4;");
+        case RIG_METER_IC:   snprintf(priv->cmd_str, sizeof(priv->cmd_str), format, 4);
             break;
 
-        case RIG_METER_VDD:  snprintf(priv->cmd_str, sizeof(priv->cmd_str), "MS5;");
+        case RIG_METER_VDD:  snprintf(priv->cmd_str, sizeof(priv->cmd_str), format, 5);
             break;
 
         default: return -RIG_EINVAL;
@@ -3060,7 +3073,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         return err;
     }
 
-    if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+    if (rig->caps->targetable_vfo & RIG_TARGETABLE_PURE)
     {
         main_sub_vfo = (RIG_VFO_B == vfo) ? '1' : '0';
     }
@@ -3550,7 +3563,7 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         return err;
     }
 
-    if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+    if (rig->caps->targetable_vfo & (RIG_TARGETABLE_MODE | RIG_TARGETABLE_TONE))
     {
         main_sub_vfo = (RIG_VFO_B == vfo) ? '1' : '0';
     }
@@ -3607,7 +3620,12 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "CT0%d%c", status ? 2 : 0,
                  cat_term);
-        priv->cmd_str[2] = main_sub_vfo;
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_TONE)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     case RIG_FUNC_TSQL:
@@ -3618,7 +3636,12 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "CT0%d%c", status ? 1 : 0,
                  cat_term);
-        priv->cmd_str[2] = main_sub_vfo;
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_TONE)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     case RIG_FUNC_LOCK:
@@ -3649,7 +3672,9 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "NB0%d%c", status ? 1 : 0,
                  cat_term);
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE){
         priv->cmd_str[2] = main_sub_vfo;
+        }
         break;
 
     case RIG_FUNC_NR:
@@ -3660,7 +3685,9 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "NR0%d%c", status ? 1 : 0,
                  cat_term);
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE){
         priv->cmd_str[2] = main_sub_vfo;
+        }
         break;
 
     case RIG_FUNC_COMP:
@@ -3779,7 +3806,12 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         }
 
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "CT0%c", cat_term);
-        priv->cmd_str[2] = main_sub_vfo;
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_TONE)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     case RIG_FUNC_TSQL:
@@ -3789,7 +3821,12 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         }
 
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "CT0%c", cat_term);
-        priv->cmd_str[2] = main_sub_vfo;
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_TONE)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     case RIG_FUNC_LOCK:
@@ -3817,7 +3854,12 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         }
 
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "NB0%c", cat_term);
-        priv->cmd_str[2] = main_sub_vfo;
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     case RIG_FUNC_NR:
@@ -3827,7 +3869,12 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         }
 
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "NR0%c", cat_term);
-        priv->cmd_str[2] = main_sub_vfo;
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     case RIG_FUNC_COMP:
@@ -6442,6 +6489,7 @@ int newcat_get_cmd(RIG *rig)
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     int retry_count = 0;
     int rc = -RIG_EPROTO;
+    int is_read_cmd = 0;
 
     // try to cache rapid repeats of the IF command
     // this is for WSJT-X/JTDX sequence of v/f/m/t
@@ -6463,8 +6511,60 @@ int newcat_get_cmd(RIG *rig)
         // we drop through and do the real IF command
     }
 
+    // any command that is read only should not expire cache
+    is_read_cmd =
+        strcmp(priv->cmd_str, "AG0;") == 0
+        || strcmp(priv->cmd_str, "AG1;") == 0
+        || strcmp(priv->cmd_str, "AN0;") == 0
+        || strcmp(priv->cmd_str, "AN1;") == 0
+        || strcmp(priv->cmd_str, "BP00;") == 0
+        || strcmp(priv->cmd_str, "BP01;") == 0
+        || strcmp(priv->cmd_str, "BP10;") == 0
+        || strcmp(priv->cmd_str, "BP11;") == 0
+        || strcmp(priv->cmd_str, "CN00;") == 0
+        || strcmp(priv->cmd_str, "CN10;") == 0
+        || strcmp(priv->cmd_str, "CO00;") == 0
+        || strcmp(priv->cmd_str, "CO01;") == 0
+        || strcmp(priv->cmd_str, "CO02;") == 0
+        || strcmp(priv->cmd_str, "CO03;") == 0
+        || strcmp(priv->cmd_str, "CO10;") == 0
+        || strcmp(priv->cmd_str, "CO11;") == 0
+        || strcmp(priv->cmd_str, "CO12;") == 0
+        || strcmp(priv->cmd_str, "CO13;") == 0
+        || strcmp(priv->cmd_str, "IS1;") == 0
+        || strcmp(priv->cmd_str, "IS0;") == 0
+        || strcmp(priv->cmd_str, "IS1;") == 0
+        || strcmp(priv->cmd_str, "MD0;") == 0
+        || strcmp(priv->cmd_str, "MD1;") == 0
+        || strcmp(priv->cmd_str, "NA0;") == 0
+        || strcmp(priv->cmd_str, "NA1;") == 0
+        || strcmp(priv->cmd_str, "NB0;") == 0
+        || strcmp(priv->cmd_str, "NB1;") == 0
+        || strcmp(priv->cmd_str, "NL0;") == 0
+        || strcmp(priv->cmd_str, "NL1;") == 0
+        || strcmp(priv->cmd_str, "NR0;") == 0
+        || strcmp(priv->cmd_str, "NR1;") == 0
+        || strcmp(priv->cmd_str, "OS0;") == 0
+        || strcmp(priv->cmd_str, "OS1;") == 0
+        || strcmp(priv->cmd_str, "PA0;") == 0
+        || strcmp(priv->cmd_str, "PA1;") == 0
+        || strcmp(priv->cmd_str, "RA0;") == 0
+        || strcmp(priv->cmd_str, "RA1;") == 0
+        || strcmp(priv->cmd_str, "RF0;") == 0
+        || strcmp(priv->cmd_str, "RF1;") == 0
+        || strcmp(priv->cmd_str, "RL0;") == 0
+        || strcmp(priv->cmd_str, "RL1;") == 0
+        || strcmp(priv->cmd_str, "RM0;") == 0
+        || strcmp(priv->cmd_str, "RM1;") == 0
+        || strcmp(priv->cmd_str, "SM0;") == 0
+        || strcmp(priv->cmd_str, "SM1;") == 0
+        || strcmp(priv->cmd_str, "SQ0;") == 0
+        || strcmp(priv->cmd_str, "SQ1;") == 0
+        || strcmp(priv->cmd_str, "VT0;") == 0
+        || strcmp(priv->cmd_str, "VT1;") == 0;
+
     if (priv->cmd_str[2] !=
-            ';') // then we must be setting something so we'll invalidate the cache
+            ';' && !is_read_cmd) // then we must be setting something so we'll invalidate the cache
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: cache invalidated\n", __func__);
         priv->cache_start.tv_sec = 0;

@@ -75,6 +75,7 @@ const struct rig_caps ftdx5000_caps =
     .has_get_parm =       RIG_PARM_NONE,
     .has_set_parm =       RIG_PARM_NONE,
     .level_gran = {
+        // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
         [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 1050 }, .step = { .i = 50 } },
     },
@@ -86,7 +87,7 @@ const struct rig_caps ftdx5000_caps =
     .max_xit =            Hz(9999),
     .max_ifshift =        Hz(1000),
     .vfo_ops =            FTDX5000_VFO_OPS,
-    .targetable_vfo =     RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE,
+    .targetable_vfo =     RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE | RIG_TARGETABLE_FUNC | RIG_TARGETABLE_PURE,
     .transceive =         RIG_TRN_OFF,        /* May enable later as the 5000 has an Auto Info command */
     .bank_qty =           0,
     .chan_desc_sz =       0,
@@ -386,7 +387,7 @@ const struct rig_caps ftdx101d_caps =
     RIG_MODEL(RIG_MODEL_FTDX101D),
     .model_name =         "FT-DX101D",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".0",
+    .version =            NEWCAT_VER ".1",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -421,7 +422,7 @@ const struct rig_caps ftdx101d_caps =
     .max_xit =            Hz(9999),
     .max_ifshift =        Hz(1000),
     .vfo_ops =            FTDX5000_VFO_OPS,
-    .targetable_vfo =     RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE,
+    .targetable_vfo =     RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE | RIG_TARGETABLE_FUNC | RIG_TARGETABLE_PURE,
     .transceive =         RIG_TRN_OFF,        /* May enable later as the 5000 has an Auto Info command */
     .bank_qty =           0,
     .chan_desc_sz =       0,
