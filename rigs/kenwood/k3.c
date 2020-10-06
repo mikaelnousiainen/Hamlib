@@ -152,6 +152,7 @@ int k3_get_split_mode(RIG *rig, vfo_t vfo, rmode_t *tx_mode,
                       pbwidth_t *tx_width);
 int k3_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val);
 int k3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
+int kx3_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val);
 int kx3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
 int k3_set_func(RIG *rig, vfo_t vfo, setting_t func, int status);
 int k3_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status);
@@ -758,7 +759,7 @@ const struct rig_caps kx3_caps =
     .get_func =     k3_get_func,
     .set_ext_parm =     kenwood_set_ext_parm,
     .get_ext_parm =     kenwood_get_ext_parm,
-    .set_level =        k3_set_level,
+    .set_level =        kx3_set_level,
     .get_level =        kx3_get_level,
     .set_ext_level =    k3_set_ext_level,
     .get_ext_level =    k3_get_ext_level,
@@ -907,7 +908,7 @@ const struct rig_caps kx2_caps =
     .get_func =     k3_get_func,
     .set_ext_parm =     kenwood_set_ext_parm,
     .get_ext_parm =     kenwood_get_ext_parm,
-    .set_level =        k3_set_level,
+    .set_level =        kx3_set_level,
     .get_level =        kx3_get_level,
     .set_ext_level =    k3_set_ext_level,
     .get_ext_level =    k3_get_ext_level,
@@ -1578,6 +1579,58 @@ int k3_get_split_mode(RIG *rig, vfo_t vfo, rmode_t *tx_mode,
     return RIG_OK;
 }
 
+static int k3_get_maxpower(RIG *rig)
+{
+    int retval;
+    int maxpower = 12; // K3 default power level
+    char levelbuf[16];
+    struct kenwood_priv_data *priv = rig->state.priv;
+
+    // default range is 0-12 if there is no KPA3 installed
+    if (priv->has_kpa3 || priv->has_kpa100) { maxpower = 110; }
+
+    if (RIG_IS_KX2 || RIG_IS_KX3)
+    {
+
+        int bandnum = -1;
+        retval = kenwood_safe_transaction(rig, "BN", levelbuf, KENWOOD_MAX_BUF_LEN, 4);
+
+        if (retval != RIG_OK) { return retval; }
+
+        sscanf(levelbuf, "BN%d", &bandnum);
+
+        switch (bandnum)
+        {
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+            maxpower = 15;
+            break;
+
+        case 0: // 160M
+        case 6: // 17M
+        case 7: // 15M
+        case 8: // 12M
+        case 9: // 10M
+            maxpower = 12;
+            break;
+
+        case 10: // 6M
+            maxpower = 10;
+            break;
+
+        default: // are transverters all limited to 3W??
+            maxpower = 3;
+            break;
+        }
+    }
+
+    rig_debug(RIG_DEBUG_TRACE, "%s: maxpower=%d\n", __func__, maxpower);
+    return maxpower;
+}
+
 int k3_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 {
     char levelbuf[16];
@@ -1680,6 +1733,11 @@ int k3_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         snprintf(levelbuf, sizeof(levelbuf), "ML%03d", (int)(val.f * 60.0f));
         break;
 
+    case RIG_LEVEL_RFPOWER:
+        snprintf(levelbuf, sizeof(levelbuf), "PC%03d",
+                 (int)(val.f * k3_get_maxpower(rig)));
+        break;
+
     default:
         return kenwood_set_level(rig, vfo, level, val);
     }
@@ -1692,7 +1750,7 @@ int k3_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
  */
 int k3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 {
-    char lvlbuf[50];
+    char levelbuf[16];
     int retval;
     int lvl;
     struct kenwood_priv_data *priv = rig->state.priv;
@@ -1724,14 +1782,14 @@ int k3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         {
             cal_table_t str_cal = K3_SM_CAL;
 
-            retval = kenwood_safe_transaction(rig, "SM", lvlbuf, sizeof(lvlbuf), 6);
+            retval = kenwood_safe_transaction(rig, "SM", levelbuf, sizeof(levelbuf), 6);
 
             if (retval != RIG_OK)
             {
                 return retval;
             }
 
-            sscanf(lvlbuf + 2, "%d", &val->i);  /* rawstr */
+            sscanf(levelbuf + 2, "%d", &val->i);  /* rawstr */
 
             val->i = (int) rig_raw2val(val->i, &str_cal);
         }
@@ -1739,14 +1797,14 @@ int k3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         {
             cal_table_t str_cal = K3_SMH_CAL;
 
-            retval = kenwood_safe_transaction(rig, "SMH", lvlbuf, sizeof(lvlbuf), 6);
+            retval = kenwood_safe_transaction(rig, "SMH", levelbuf, sizeof(levelbuf), 6);
 
             if (retval != RIG_OK)
             {
                 return retval;
             }
 
-            sscanf(lvlbuf + 3, "%d", &val->i);  /* rawstr */
+            sscanf(levelbuf + 3, "%d", &val->i);  /* rawstr */
 
             val->i = (int) rig_raw2val(val->i, &str_cal);
         }
@@ -1808,14 +1866,14 @@ int k3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     }
 
     case RIG_LEVEL_AGC:
-        retval = kenwood_safe_transaction(rig, "GT", lvlbuf, sizeof(lvlbuf), 5);
+        retval = kenwood_safe_transaction(rig, "GT", levelbuf, sizeof(levelbuf), 5);
 
         if (retval != RIG_OK)
         {
             return retval;
         }
 
-        sscanf(lvlbuf + 2, "%d", &lvl);
+        sscanf(levelbuf + 2, "%d", &lvl);
 
         if (lvl == 0)
         {
@@ -1837,14 +1895,14 @@ int k3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         break;
 
     case RIG_LEVEL_ATT:
-        retval = kenwood_safe_transaction(rig, "RA", lvlbuf, sizeof(lvlbuf), 4);
+        retval = kenwood_safe_transaction(rig, "RA", levelbuf, sizeof(levelbuf), 4);
 
         if (retval != RIG_OK)
         {
             return retval;
         }
 
-        sscanf(lvlbuf + 2, "%d", &lvl);
+        sscanf(levelbuf + 2, "%d", &lvl);
 
         if (lvl == 0)
         {
@@ -1878,62 +1936,62 @@ int k3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         break;
 
     case RIG_LEVEL_MICGAIN:
-        retval = kenwood_safe_transaction(rig, "MG", lvlbuf, sizeof(lvlbuf), 5);
+        retval = kenwood_safe_transaction(rig, "MG", levelbuf, sizeof(levelbuf), 5);
 
         if (retval != RIG_OK)
         {
             return retval;
         }
 
-        sscanf(lvlbuf + 2, "%d", &lvl);
+        sscanf(levelbuf + 2, "%d", &lvl);
         val->f = (float) lvl / 60.0f;
         break;
 
     case RIG_LEVEL_COMP:
-        retval = kenwood_safe_transaction(rig, "CP", lvlbuf, sizeof(lvlbuf), 5);
+        retval = kenwood_safe_transaction(rig, "CP", levelbuf, sizeof(levelbuf), 5);
 
         if (retval != RIG_OK)
         {
             return retval;
         }
 
-        sscanf(lvlbuf + 2, "%d", &lvl);
+        sscanf(levelbuf + 2, "%d", &lvl);
         val->f = (float) lvl / 40.0f;
         break;
 
     case RIG_LEVEL_SQL:
-        retval = kenwood_safe_transaction(rig, "SQ", lvlbuf, sizeof(lvlbuf), 5);
+        retval = kenwood_safe_transaction(rig, "SQ", levelbuf, sizeof(levelbuf), 5);
 
         if (retval != RIG_OK)
         {
             return retval;
         }
 
-        sscanf(lvlbuf + 2, "%d", &lvl);
+        sscanf(levelbuf + 2, "%d", &lvl);
         val->f = (float) lvl / 29.0f;
         break;
 
-    case RIG_LEVEL_AF:
-        retval = kenwood_safe_transaction(rig, "AG", lvlbuf, sizeof(lvlbuf), 5);
+    case RIG_LEVEL_RF:
+        retval = kenwood_safe_transaction(rig, "RG", levelbuf, sizeof(levelbuf), 5);
 
         if (retval != RIG_OK)
         {
             return retval;
         }
 
-        sscanf(lvlbuf + 2, "%d", &lvl);
+        sscanf(levelbuf + 2, "%d", &lvl);
         val->f = (float) lvl / 250.0f;
         break;
 
-    case RIG_LEVEL_RF:
-        retval = kenwood_safe_transaction(rig, "RG", lvlbuf, sizeof(lvlbuf), 5);
+    case RIG_LEVEL_AF:
+        retval = kenwood_safe_transaction(rig, "AG", levelbuf, sizeof(levelbuf), 5);
 
         if (retval != RIG_OK)
         {
             return retval;
         }
 
-        sscanf(lvlbuf + 2, "%d", &lvl);
+        sscanf(levelbuf + 2, "%d", &lvl);
         val->f = (float) lvl / 250.0f;
         break;
 
@@ -1941,15 +1999,27 @@ int k3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         return k3_get_nb_level(rig, &val->f, NULL);
 
     case RIG_LEVEL_MONITOR_GAIN:
-        retval = kenwood_safe_transaction(rig, "ML", lvlbuf, sizeof(lvlbuf), 5);
+        retval = kenwood_safe_transaction(rig, "ML", levelbuf, sizeof(levelbuf), 5);
 
         if (retval != RIG_OK)
         {
             return retval;
         }
 
-        sscanf(lvlbuf + 2, "%d", &lvl);
+        sscanf(levelbuf + 2, "%d", &lvl);
         val->f = (float) lvl / 60.0f;
+        break;
+
+    case RIG_LEVEL_RFPOWER:
+        retval = kenwood_safe_transaction(rig, "PC", levelbuf, sizeof(levelbuf), 5);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        sscanf(levelbuf + 2, "%d", &lvl);
+        val->f = (float) lvl / k3_get_maxpower(rig);
         break;
 
     default:
@@ -1959,17 +2029,76 @@ int k3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     return RIG_OK;
 }
 
-int kx3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
+int kx3_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 {
+    int ival;
+    char cmdbuf[32];
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (val.f > 1.0 || val.f < 0) { return -RIG_EINVAL; }
+
     switch (level)
     {
+    case RIG_LEVEL_RF:
+        ival = val.f * (250.0 - 190.0) + 190.0;
+        snprintf(cmdbuf, sizeof(cmdbuf) - 1, "RG%03d", ival);
+        return kenwood_transaction(rig, cmdbuf, NULL, 0);
+
+    case RIG_LEVEL_AF:
+        // manual says 0-255 as of Rev G5 but experiment says 0-60
+        snprintf(cmdbuf, sizeof(cmdbuf), "AG%03d", (int)(val.f * 60.0f));
+        return kenwood_transaction(rig, cmdbuf, NULL, 0);
+
+    case RIG_LEVEL_MICGAIN:
+        // manual says 0-255 as of Rev G5 but experiment says 0-80
+        snprintf(cmdbuf, sizeof(cmdbuf), "MG%03d", (int)(val.f * 80.0f));
+        return kenwood_transaction(rig, cmdbuf, NULL, 0);
+    }
+
+    return k3_set_level(rig, vfo, level, val);
+}
+
+int kx3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
+{
+    int retval;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    switch (level)
+    {
+    case RIG_LEVEL_AF:
+        retval = get_kenwood_level(rig, "AG", NULL, &val->i);
+
+        if (retval != RIG_OK) { return retval; }
+
+        // manual says 0-255 as of Rev G5 but experiment says 0-60
+        val->f = val->i / 60.0;
+        return retval;
+
+    case RIG_LEVEL_RF:
+        retval = get_kenwood_level(rig, "RG", NULL, &val->i);
+
+        if (retval != RIG_OK) { return retval; }
+
+        val->f = (val->i - 190.0) / (250.0 - 190.0);
+        return retval;
+
+    case RIG_LEVEL_MICGAIN:
+        retval = get_kenwood_level(rig, "MG", NULL, &val->i);
+
+        if (retval != RIG_OK) { return retval; }
+
+        val->f = val->i / 80.0;
+        return retval;
+
     case RIG_LEVEL_RFPOWER_METER:
     {
         int tx_status = 0;
         float pwr;
 
         // Return zero RF power when not in TX mode
-        int retval = get_kenwood_func(rig, "TQ", &tx_status);
+        retval = get_kenwood_func(rig, "TQ", &tx_status);
 
         if (retval != RIG_OK)
         {
@@ -1990,14 +2119,11 @@ int kx3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
 
         val->f = pwr;
-        break;
+        return retval;
+    }
     }
 
-    default:
-        return k3_get_level(rig, vfo, level, val);
-    }
-
-    return RIG_OK;
+    return k3_get_level(rig, vfo, level, val);
 }
 
 
@@ -2116,7 +2242,7 @@ int set_rit_xit(RIG *rig, shortfreq_t rit)
 
 int k3_set_nb_level(RIG *rig, float dsp_nb, float if_nb)
 {
-    char lvlbuf[16];
+    char levelbuf[16];
     int dsp_nb_raw = 0;
     int if_nb_raw = 0;
 
@@ -2137,14 +2263,14 @@ int k3_set_nb_level(RIG *rig, float dsp_nb, float if_nb)
         int current_dsp_nb_raw;
         int current_if_nb_raw;
 
-        int retval = kenwood_safe_transaction(rig, "NL", lvlbuf, sizeof(lvlbuf), 6);
+        int retval = kenwood_safe_transaction(rig, "NL", levelbuf, sizeof(levelbuf), 6);
 
         if (retval != RIG_OK)
         {
             return retval;
         }
 
-        sscanf(lvlbuf + 2, "%02d%02d", &current_dsp_nb_raw, &current_if_nb_raw);
+        sscanf(levelbuf + 2, "%02d%02d", &current_dsp_nb_raw, &current_if_nb_raw);
 
         if (dsp_nb < 0)
         {
@@ -2157,28 +2283,28 @@ int k3_set_nb_level(RIG *rig, float dsp_nb, float if_nb)
         }
     }
 
-    snprintf(lvlbuf, sizeof(lvlbuf), "NL%02d%02d", dsp_nb_raw, if_nb_raw);
+    snprintf(levelbuf, sizeof(levelbuf), "NL%02d%02d", dsp_nb_raw, if_nb_raw);
 
-    return kenwood_transaction(rig, lvlbuf, NULL, 0);
+    return kenwood_transaction(rig, levelbuf, NULL, 0);
 }
 
 int k3_get_nb_level(RIG *rig, float *dsp_nb, float *if_nb)
 {
-    char lvlbuf[16];
+    char levelbuf[16];
     int retval;
     int dsp_nb_raw;
     int if_nb_raw;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    retval = kenwood_safe_transaction(rig, "NL", lvlbuf, sizeof(lvlbuf), 6);
+    retval = kenwood_safe_transaction(rig, "NL", levelbuf, sizeof(levelbuf), 6);
 
     if (retval != RIG_OK)
     {
         return retval;
     }
 
-    sscanf(lvlbuf + 2, "%02d%02d", &dsp_nb_raw, &if_nb_raw);
+    sscanf(levelbuf + 2, "%02d%02d", &dsp_nb_raw, &if_nb_raw);
 
     if (dsp_nb != NULL)
     {
@@ -2196,7 +2322,7 @@ int k3_get_nb_level(RIG *rig, float *dsp_nb, float *if_nb)
 int k3_get_bar_graph_level(RIG *rig, float *smeter, float *pwr, float *alc,
                            int *mode_tx)
 {
-    char lvlbuf[16];
+    char levelbuf[16];
     int retval;
     int tm_raw;
     int bg_raw;
@@ -2212,14 +2338,14 @@ int k3_get_bar_graph_level(RIG *rig, float *smeter, float *pwr, float *alc,
         return retval;
     }
 
-    retval = kenwood_safe_transaction(rig, "BG", lvlbuf, sizeof(lvlbuf), 5);
+    retval = kenwood_safe_transaction(rig, "BG", levelbuf, sizeof(levelbuf), 5);
 
     if (retval != RIG_OK)
     {
         return retval;
     }
 
-    sscanf(lvlbuf + 2, "%02d%c", &bg_raw, &mode);
+    sscanf(levelbuf + 2, "%02d%c", &bg_raw, &mode);
 
     if (mode == 'R')
     {
@@ -2293,20 +2419,20 @@ int k3_get_bar_graph_level(RIG *rig, float *smeter, float *pwr, float *alc,
 
 int kx3_get_bar_graph_level(RIG *rig, float *level)
 {
-    char lvlbuf[16];
+    char levelbuf[16];
     int retval;
     int bg_raw;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    retval = kenwood_safe_transaction(rig, "BG", lvlbuf, sizeof(lvlbuf), 4);
+    retval = kenwood_safe_transaction(rig, "BG", levelbuf, sizeof(levelbuf), 4);
 
     if (retval != RIG_OK)
     {
         return retval;
     }
 
-    sscanf(lvlbuf + 2, "%02d", &bg_raw);
+    sscanf(levelbuf + 2, "%02d", &bg_raw);
 
     if (bg_raw >= 0 && bg_raw <= 10)
     {

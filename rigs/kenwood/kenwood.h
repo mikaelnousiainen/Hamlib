@@ -27,7 +27,7 @@
 #include <string.h>
 #include "token.h"
 
-#define BACKEND_VER "20200917"
+#define BACKEND_VER "20201004"
 
 #define EOM_KEN ';'
 #define EOM_TH '\r'
@@ -80,6 +80,9 @@ extern const struct confparams kenwood_cfg_params[];
 #define RIG_IS_HPSDR     (rig->caps->rig_model == RIG_MODEL_HPSDR)
 #define RIG_IS_K2        (rig->caps->rig_model == RIG_MODEL_K2)
 #define RIG_IS_K3        (rig->caps->rig_model == RIG_MODEL_K3)
+#define RIG_IS_K3S       (rig->caps->rig_model == RIG_MODEL_K3S)
+#define RIG_IS_KX2       (rig->caps->rig_model == RIG_MODEL_KX2)
+#define RIG_IS_KX3       (rig->caps->rig_model == RIG_MODEL_KX3)
 #define RIG_IS_THD7A     (rig->caps->rig_model == RIG_MODEL_THD7A)
 #define RIG_IS_THD74     (rig->caps->rig_model == RIG_MODEL_THD74)
 #define RIG_IS_TS2000    (rig->caps->rig_model == RIG_MODEL_TS2000)
@@ -114,18 +117,21 @@ struct kenwood_priv_data
     int k2_ext_lvl;   /* Initial K2 extension level */
     int k3_ext_lvl;   /* Initial K3 extension level */
     int k2_md_rtty;   /* K2 RTTY mode available flag, 1 = RTTY, 0 = N/A */
-    char *fw_rev;   /* firmware revision level */
-    int trn_state;  /* AI state discovered at startup */
+    int has_kpa3;     /* Elecraft K3 has k3pa for PC command */
+    int has_kpa100;   /* Elecraft KX3/KX2 has kpa100 for PC command */
+    char *fw_rev;     /* firmware revision level */
+    int trn_state;    /* AI state discovered at startup */
     unsigned fw_rev_uint; /* firmware revision as a number 1.07 -> 107 */
     char verify_cmd[4];   /* command used to verify set commands */
     int is_emulation;     /* flag for TS-2000 emulations */
     void *data;           /* model specific data */
-    rmode_t curr_mode;     /* used for is_emulation to avoid get_mode on VFOB */
+    rmode_t curr_mode;    /* used for is_emulation to avoid get_mode on VFOB */
     struct timespec cache_start;
     char last_if_response[KENWOOD_MAX_BUF_LEN];
-    int poweron; /* to avoid powering on more than once */
-    int has_rit2; /* rig has set 2 rit command */
-    int ag_format;    /* which AG command is being used...see LEVEL_AF in kenwood.c*/
+    int poweron;   /* to avoid powering on more than once */
+    int has_rit2;  /* rig has set 2 rit command */
+    int ag_format; /* which AG command is being used...see LEVEL_AF in kenwood.c*/
+    int micgain_min, micgain_max; /* varies by rig so we figure it out automagically */
 };
 
 
@@ -204,7 +210,7 @@ int kenwood_set_trn(RIG *rig, int trn);
 int kenwood_get_trn(RIG *rig, int *trn);
 
 /* only use if returned string has length 6, e.g. 'SQ011;' */
-int get_kenwood_level(RIG *rig, const char *cmd, float *f);
+int get_kenwood_level(RIG *rig, const char *cmd, float *fval, int *ival);
 int get_kenwood_func(RIG *rig, const char *cmd, int *status);
 
 extern const struct rig_caps ts950s_caps;
