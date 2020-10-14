@@ -2027,10 +2027,13 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
         rig_debug(RIG_DEBUG_TRACE, "%s: retcode from rig_get_freq = %s\n", __func__,
                   rigerror(retcode));
     }
+    else // don't expire cache if we just read it
+    {
+        elapsed_ms(&rig->state.cache.time_freq, HAMLIB_ELAPSED_INVALIDATE);
+    }
 
     // expire several cached items when we switch VFOs
     elapsed_ms(&rig->state.cache.time_vfo, HAMLIB_ELAPSED_INVALIDATE);
-    elapsed_ms(&rig->state.cache.time_freq, HAMLIB_ELAPSED_INVALIDATE);
     elapsed_ms(&rig->state.cache.time_mode, HAMLIB_ELAPSED_INVALIDATE);
 
     rig_debug(RIG_DEBUG_TRACE, "%s: return %d, vfo=%s\n", __func__, retcode,
@@ -2230,9 +2233,9 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
         retcode = ser_set_dtr(&rig->state.pttport, ptt != RIG_PTT_OFF);
 
         if (strcmp(rs->pttport.pathname, rs->rigport.pathname)
-                && ptt == RIG_PTT_OFF)
+                && ptt == RIG_PTT_OFF && rs->ptt_share != 0)
         {
-
+            rig_debug(RIG_DEBUG_TRACE, "%s: ptt_share=%d\n", __func__, rs->ptt_share);
             /* free the port */
             ser_close(&rs->pttport);
         }
@@ -2277,9 +2280,9 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
         retcode = ser_set_rts(&rig->state.pttport, ptt != RIG_PTT_OFF);
 
         if (strcmp(rs->pttport.pathname, rs->rigport.pathname)
-                && ptt == RIG_PTT_OFF)
+                && ptt == RIG_PTT_OFF && rs->ptt_share != 0)
         {
-
+            rig_debug(RIG_DEBUG_TRACE, "%s: ptt_share=%d\n", __func__, rs->ptt_share);
             /* free the port */
             ser_close(&rs->pttport);
         }
