@@ -196,7 +196,7 @@ const struct rig_caps ft817_caps =
     RIG_MODEL(RIG_MODEL_FT817),
     .model_name =          "FT-817",
     .mfg_name =            "Yaesu",
-    .version =             "20201013.0",
+    .version =             "20201015.0",
     .copyright =           "LGPL",
     .status =              RIG_STATUS_STABLE,
     .rig_type =            RIG_TYPE_TRANSCEIVER,
@@ -476,7 +476,8 @@ int ft817_init(RIG *rig)
 {
     struct ft817_priv_data *priv;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: called, version %s\n", __func__, rig->caps->version);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called, version %s\n", __func__,
+              rig->caps->version);
 
     if ((rig->state.priv = calloc(1, sizeof(struct ft817_priv_data))) == NULL)
     {
@@ -1068,6 +1069,7 @@ static int ft817_send_cmd(RIG *rig, int index)
         return -RIG_EINTERNAL;
     }
 
+    rig_flush(&rig->state.rigport);
     write_block(&rig->state.rigport, (char *) p->pcs[index].nseq, YAESU_CMD_LENGTH);
     return ft817_read_ack(rig);
 }
@@ -1111,7 +1113,7 @@ int ft817_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         &((struct ft817_priv_data *)rig->state.priv)->fm_status_tv);
 
     retval = ft817_send_icmd(rig, FT817_NATIVE_CAT_SET_FREQ, data);
-    hl_usleep(50*1000); // FT817 needs a little time after setting freq
+    hl_usleep(50 * 1000); // FT817 needs a little time after setting freq
     return retval;
 }
 
@@ -1445,6 +1447,8 @@ int ft817_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
 
 int ft817_set_powerstat(RIG *rig, powerstat_t status)
 {
+    struct ft817_priv_data *p = (struct ft817_priv_data *) rig->state.priv;
+
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     switch (status)
@@ -1453,8 +1457,13 @@ int ft817_set_powerstat(RIG *rig, powerstat_t status)
         return ft817_send_cmd(rig, FT817_NATIVE_CAT_PWR_OFF);
 
     case RIG_POWER_ON:
-        ft817_send_cmd(rig, FT817_NATIVE_CAT_PWR_WAKE);
-        return ft817_send_cmd(rig, FT817_NATIVE_CAT_PWR_ON);
+        // send 5 bytes first, snooze a bit, then PWR_ON
+        write_block(&rig->state.rigport,
+                    (char *) p->pcs[FT817_NATIVE_CAT_PWR_WAKE].nseq, YAESU_CMD_LENGTH);
+        hl_usleep(200 * 1000);
+        write_block(&rig->state.rigport, (char *) p->pcs[FT817_NATIVE_CAT_PWR_ON].nseq,
+                    YAESU_CMD_LENGTH);
+        return RIG_OK;
 
     case RIG_POWER_STANDBY:
     default:

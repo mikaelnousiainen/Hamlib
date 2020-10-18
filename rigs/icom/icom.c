@@ -369,11 +369,25 @@ const struct ts_sc_list ic705_ts_sc_list[] =
     {kHz(25), 0x11},
     {kHz(50), 0x12},
     {kHz(100), 0x13},
-    {0, 0x13},            /* programmable tuning step not supported */
     {0, 0},
 };
 
-
+const struct ts_sc_list ic9700_ts_sc_list[] =
+{
+    {10, 0x00},
+    {100, 0x01},
+    {500, 0x02},
+    {kHz(1), 0x03},
+    {kHz(5), 0x04},
+    {kHz(6.25), 0x05},
+    {kHz(10), 0x06},
+    {kHz(12.5), 0x07},
+    {kHz(20), 0x08},
+    {kHz(25), 0x09},
+    {kHz(50), 0x10},
+    {kHz(100), 0x11},
+    {0, 0},
+};
 
 /* rtty filter list for some DSP rigs ie PRO */
 #define RTTY_FIL_NB 5
@@ -3639,6 +3653,7 @@ int icom_get_rptr_shift(RIG *rig, vfo_t vfo, rptr_shift_t *rptr_shift)
     switch (rptrbuf[1])
     {
     case S_DUP_OFF:
+    case S_DUP_DD_RPS:
         *rptr_shift = RIG_RPT_SHIFT_NONE; /* Simplex mode */
         break;
 
@@ -3648,6 +3663,12 @@ int icom_get_rptr_shift(RIG *rig, vfo_t vfo, rptr_shift_t *rptr_shift)
 
     case S_DUP_P:
         *rptr_shift = RIG_RPT_SHIFT_PLUS; /* Duplex + mode */
+        break;
+
+    // The same command indicates split state, which means simplex mode
+    case S_SPLT_OFF:
+    case S_SPLT_ON:
+        *rptr_shift = RIG_RPT_SHIFT_NONE; /* Simplex mode */
         break;
 
     default:
@@ -4965,6 +4986,13 @@ int icom_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
 
     case S_SPLT_ON:
         *split = RIG_SPLIT_ON;
+        break;
+
+    // The same command indicates repeater shift state, which means that split is off
+    case S_DUP_M:
+    case S_DUP_P:
+    case S_DUP_DD_RPS:
+        *split = RIG_SPLIT_OFF;
         break;
 
     default:
@@ -6753,6 +6781,38 @@ int icom_send_morse(RIG *rig, vfo_t vfo, const char *msg)
     rig_debug(RIG_DEBUG_TRACE, "%s: %s\n", __func__, msg);
 
     retval = icom_transaction(rig, C_SND_CW, -1, (unsigned char *) msg, len,
+                              ackbuf, &ack_len);
+
+    if (retval != RIG_OK)
+    {
+        return retval;
+    }
+
+    if (ack_len != 1 || ackbuf[0] != ACK)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: ack NG (%#.2x), len=%d\n", __func__,
+                  ackbuf[0], ack_len);
+        return -RIG_ERJCTED;
+    }
+
+    return RIG_OK;
+}
+
+/*
+ * icom_stop_morse
+ * Assumes rig!=NULL, msg!=NULL
+ */
+int icom_stop_morse(RIG *rig, vfo_t vfo)
+{
+    unsigned char ackbuf[MAXFRAMELEN];
+    unsigned char cmd[MAXFRAMELEN];
+    int ack_len = sizeof(ackbuf), retval;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    cmd[0] = 0xff;
+
+    retval = icom_transaction(rig, C_SND_CW, -1, (unsigned char *) cmd, 1,
                               ackbuf, &ack_len);
 
     if (retval != RIG_OK)

@@ -1792,6 +1792,7 @@ struct rig_caps {
     int (*recv_dtmf)(RIG *rig, vfo_t vfo, char *digits, int *length);
 
     int (*send_morse)(RIG *rig, vfo_t vfo, const char *msg);
+    int (*stop_morse)(RIG *rig, vfo_t vfo);
 
     int (*send_voice_mem)(RIG *rig, vfo_t vfo, int ch);
 
@@ -1925,7 +1926,7 @@ typedef enum {
 struct rig_cache {
     int timeout_ms;  // the cache timeout for invalidating itself
     vfo_t vfo;
-    freq_t freq; // to be deprecated
+    freq_t freq; // to be deprecated in 4.1 when full Main/Sub/A/B caching is implemented in 4.1
     // other abstraction here is based on dual vfo rigs and mapped to all others
     // So we have four possible states of rig
     // MainA, MainB, SubA, SubB
@@ -1935,8 +1936,9 @@ struct rig_cache {
     // For dual VFO rigs simplex operations are all done on MainA/MainB -- ergo this abstraction
     freq_t freqMainA; // VFO_A, VFO_MAIN, and VFO_MAINA
     freq_t freqMainB; // VFO_B, VFO_SUB, and VFO_MAINB
-    freq_t freqSubA;  // VFO_SUBA
-    freq_t freqSubB;  // VFO_SUBB
+    freq_t freqMainC; // VFO_C (future MainC?)
+    freq_t freqSubA;  // VFO_SUBA -- only for rigs with dual Sub VFOs
+    freq_t freqSubB;  // VFO_SUBB -- only for rigs with dual Sub VFOs
     rmode_t mode;
     pbwidth_t width;
     ptt_t ptt;
@@ -1945,6 +1947,7 @@ struct rig_cache {
     struct timespec time_freq;
     struct timespec time_freqMainA;
     struct timespec time_freqMainB;
+    struct timespec time_freqMainC;
     struct timespec time_freqSubA;
     struct timespec time_freqSubB;
     struct timespec time_vfo;
@@ -2502,6 +2505,10 @@ extern HAMLIB_EXPORT(int)
 rig_send_morse HAMLIB_PARAMS((RIG *rig,
                               vfo_t vfo,
                               const char *msg));
+
+extern HAMLIB_EXPORT(int)
+rig_stop_morse HAMLIB_PARAMS((RIG *rig,
+                              vfo_t vfo));
 
 extern HAMLIB_EXPORT(int)
 rig_send_voice_mem HAMLIB_PARAMS((RIG *rig,
