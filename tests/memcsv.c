@@ -25,20 +25,13 @@
 #  include "config.h"
 #endif
 
-// cppcheck-suppress *
 #include <stdio.h>
-// cppcheck-suppress *
 #include <stdlib.h>
-// cppcheck-suppress *
 #include <string.h>
-// cppcheck-suppress *
 #include <unistd.h>
-// cppcheck-suppress *
 #include <ctype.h>
-// cppcheck-suppress *
 #include <errno.h>
 
-// cppcheck-suppress *
 #include <getopt.h>
 
 #include <hamlib/rig.h>

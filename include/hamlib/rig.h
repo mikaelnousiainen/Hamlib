@@ -24,13 +24,9 @@
 #ifndef _RIG_H
 #define _RIG_H 1
 
-// cppcheck-suppress *
 #include <stdio.h>
-// cppcheck-suppress *
 #include <stdarg.h>
-// cppcheck-suppress *
 #include <inttypes.h>
-// cppcheck-suppress *
 #include <time.h>
 
 /* Rig list is in a separate file so as not to mess up w/ this one */
@@ -461,6 +457,9 @@ typedef unsigned int vfo_t;
 /*
  * targetable bitfields, for internal use.
  * RIG_TARGETABLE_PURE means a pure targetable radio on every command
+ * In rig.c lack of a flag will case a VFO change if needed
+ * So setting this flag will mean the backend handles any VFO needs
+ * For many rigs RITXIT, PTT, MEM, and BANK are non-VFO commands so need these flags to avoid unnecessary VFO swapping
  */
 //! @cond Doxygen_Suppress
 #define RIG_TARGETABLE_NONE 0
@@ -470,6 +469,11 @@ typedef unsigned int vfo_t;
 #define RIG_TARGETABLE_TONE (1<<3)
 #define RIG_TARGETABLE_FUNC (1<<4)
 #define RIG_TARGETABLE_LEVEL (1<<5)
+#define RIG_TARGETABLE_RITXIT (1<<6)
+#define RIG_TARGETABLE_PTT (1<<7)
+#define RIG_TARGETABLE_MEM (1<<8)
+#define RIG_TARGETABLE_BANK (1<<9)
+#define RIG_TARGETABLE_COMMON (RIG_TARGETABLE_RITXIT | RIG_TARGETABLE_PTT | RIG_TARGETABLE_MEM | RIG_TARGETABLE_BANK)
 #define RIG_TARGETABLE_ALL  0x7fffffff
 //! @endcond
 //
@@ -2787,7 +2791,6 @@ extern HAMLIB_EXPORT(int) rig_set_cache_timeout_ms(RIG *rig, hamlib_cache_t sele
 extern HAMLIB_EXPORT(int) rig_set_vfo_opt(RIG *rig, int status);
 
 
-// cppcheck-suppress *
 typedef unsigned long rig_useconds_t;
 extern HAMLIB_EXPORT(int) hl_usleep(rig_useconds_t msec);
 

@@ -937,6 +937,7 @@ int kenwood_open(RIG *rig)
     // we're making this non fatal
     // mismatched IDs can still be tested
     rig->state.rigport.retry = retry_save;
+
     return RIG_OK;
 }
 
