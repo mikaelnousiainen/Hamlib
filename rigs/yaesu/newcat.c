@@ -391,27 +391,30 @@ static ncboolean newcat_valid_command(RIG *rig, char const *const command);
  */
 static int newcat_band_index(freq_t freq)
 {
-    // FTDX101D has band=12=MW Medium Wave
     int band = 11; // general
 
-    // what about 13?
+    // restrict band memory recall to ITU 1,2,3 band ranges
+    // using < instead of <= for the moment
+    // does anybody work LSB or RTTYR at the upper band edge?
+    // what about band 13 -- what is it?
     if (freq >= MHz(420) && freq < MHz(470)) { band = 16; }
-    else if (freq >= MHz(144) && freq < MHz(148)) { band = 15; }
+    // band 14 is RX only
     else if (freq >= MHz(118) && freq < MHz(164)) { band = 14; }
-    else if (freq >= MHz(70) && freq < MHz(75)) { band = 17; }
-    else if (freq >= MHz(50) && freq < MHz(54)) { band = 10; }
-    // do we need to restrict ranges below here?
-    else if (freq >= MHz(28)) { band = 9; }
-    else if (freq >= MHz(24.5)) { band = 8; }
-    else if (freq >= MHz(21)) { band = 7; }
-    else if (freq >= MHz(18)) { band = 6; }
-    else if (freq >= MHz(14)) { band = 5; }
-    else if (freq >= MHz(10)) { band = 4; }
-    else if (freq >= MHz(7)) { band = 3; }
-    else if (freq >= MHz(5)) { band = 2; }
-    else if (freq >= MHz(3.5)) { band = 1; }
-    else if (freq >= MHz(1.8)) { band = 0; }
-    else if (freq >= MHz(0.5)) { band = 12; } // MW Medium Wave
+    // override band 14 with 15 if needed
+    else if (freq >= MHz(144) && freq < MHz(148)) { band = 15; }
+    else if (freq >= MHz(70) && freq < MHz(70.5)) { band = 17; }
+    else if (freq >= MHz(50) && freq < MHz(55)) { band = 10; }
+    else if (freq >= MHz(28) && freq < MHz(29.7)) { band = 9; }
+    else if (freq >= MHz(24.890) && freq < MHz(24.990)) { band = 8; }
+    else if (freq >= MHz(21) && freq < MHz(21.45)) { band = 7; }
+    else if (freq >= MHz(18) && freq < MHz(18.168)) { band = 6; }
+    else if (freq >= MHz(14) && freq < MHz(14.35)) { band = 5; }
+    else if (freq >= MHz(10) && freq < MHz(10.15)) { band = 4; }
+    else if (freq >= MHz(7) && freq < MHz(7.3)) { band = 3; }
+    else if (freq >= MHz(5.3515) && freq < MHz(5.3665)) { band = 2; }
+    else if (freq >= MHz(3.5) && freq < MHz(4)) { band = 1; }
+    else if (freq >= MHz(1.8) && freq < MHz(2)) { band = 0; }
+    else if (freq >= MHz(0.5) && freq < MHz(1.705)) { band = 12; } // MW Medium Wave
 
     rig_debug(RIG_DEBUG_TRACE, "%s: freq=%g, band=%d\n", __func__, freq, band);
     return band;
@@ -1170,6 +1173,29 @@ int newcat_set_vfo(RIG *rig, vfo_t vfo)
     return RIG_OK;
 }
 
+// Either returns a valid RIG_VFO* or if < 0 an error code
+static vfo_t newcat_set_vfo_if_needed(RIG *rig, vfo_t vfo)
+{
+    vfo_t oldvfo = rig->state.current_vfo;
+
+    rig_debug(RIG_DEBUG_TRACE, "%s: vfo=%s, oldvfo=%s\n", __func__, rig_strvfo(vfo),
+              rig_strvfo(oldvfo));
+
+    if (oldvfo != vfo)
+    {
+        int ret;
+        ret = newcat_set_vfo(rig, vfo);
+
+        if (ret != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: error setting vfo=%s\n", __func__,
+                      rig_strvfo(vfo));
+            return ret;
+        }
+    }
+
+    return oldvfo;
+}
 
 /*
  * rig_get_vfo
@@ -1731,11 +1757,9 @@ int newcat_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
     return RIG_OK;
 }
 
-
 int newcat_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
-    int vfo_swap = 0;
     vfo_t oldvfo;
     int ret;
 
@@ -1744,19 +1768,9 @@ int newcat_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
         return -RIG_ENAVAIL;
     }
 
-    if (rig->state.current_vfo != vfo)
-    {
-        oldvfo = rig->state.current_vfo;
-        ret = newcat_set_vfo(rig, vfo);
+    oldvfo = newcat_set_vfo_if_needed(rig, vfo);
 
-        if (ret != RIG_OK)
-        {
-            rig_debug(RIG_DEBUG_ERR, "%s: error setting vfo=%s\n", __func__,
-                      rig_strvfo(vfo));
-        }
-
-        vfo_swap = 1;
-    }
+    if (oldvfo < 0) { return oldvfo; }
 
     if (rit > rig->caps->max_rit)
     {
@@ -1785,16 +1799,9 @@ int newcat_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
 
     ret = newcat_set_cmd(rig);
 
-    if (vfo_swap)
-    {
-        newcat_set_vfo(rig, oldvfo);
+    oldvfo = newcat_set_vfo_if_needed(rig, oldvfo);
 
-        if (ret != RIG_OK)
-        {
-            rig_debug(RIG_DEBUG_ERR, "%s: error setting vfo=%s\n", __func__,
-                      rig_strvfo(vfo));
-        }
-    }
+    if (oldvfo < 0) { return oldvfo; }
 
     return ret;
 }
@@ -1865,11 +1872,17 @@ int newcat_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
 int newcat_set_xit(RIG *rig, vfo_t vfo, shortfreq_t xit)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
+    vfo_t oldvfo;
+    int ret;
 
     if (!newcat_valid_command(rig, "XT"))
     {
         return -RIG_ENAVAIL;
     }
+
+    oldvfo = newcat_set_vfo_if_needed(rig, vfo);
+
+    if (oldvfo < 0) { return oldvfo; }
 
     if (xit > rig->caps->max_xit)
     {
@@ -1897,7 +1910,13 @@ int newcat_set_xit(RIG *rig, vfo_t vfo, shortfreq_t xit)
                  labs(xit), cat_term);
     }
 
-    return newcat_set_cmd(rig);
+    ret = newcat_set_cmd(rig);
+
+    oldvfo = newcat_set_vfo_if_needed(rig, vfo);
+
+    if (oldvfo < 0) { return oldvfo; }
+
+    return ret;
 }
 
 
@@ -1907,8 +1926,14 @@ int newcat_get_xit(RIG *rig, vfo_t vfo, shortfreq_t *xit)
     char *retval;
     int err;
     int offset = 0;
+    char *cmd = "IF";
 
-    if (!newcat_valid_command(rig, "IF"))
+    if (vfo == RIG_VFO_B || vfo == RIG_VFO_SUB)
+    {
+        cmd = "OI";
+    }
+
+    if (!newcat_valid_command(rig, cmd))
     {
         return -RIG_ENAVAIL;
     }
@@ -1917,7 +1942,7 @@ int newcat_get_xit(RIG *rig, vfo_t vfo, shortfreq_t *xit)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    snprintf(priv->cmd_str, sizeof(priv->cmd_str), "%s%c", "IF", cat_term);
+    snprintf(priv->cmd_str, sizeof(priv->cmd_str), "%s%c", cmd, cat_term);
 
     rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
 
