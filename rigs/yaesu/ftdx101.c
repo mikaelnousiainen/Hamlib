@@ -104,6 +104,8 @@ const struct rig_caps ftdx101d_caps =
     .level_gran = {
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
         [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 1050 }, .step = { .i = 10 } },
+        [LVL_KEYSPD] = { .min = { .i = 4 }, .max = { .i = 60 }, .step = { .i = 1 } },
+        [LVL_NOTCHF] = { .min = { .i = 1 }, .max = { .i = 3200 }, .step = { .i = 10 } },
     },
     .ctcss_list =         common_ctcss_list,
     .dcs_list =           NULL,
@@ -125,7 +127,7 @@ const struct rig_caps ftdx101d_caps =
 
     .rx_range_list1 =     {
         /* General coverage + ham, ANT_5 is RX only antenna */
-        {kHz(30), MHz(60), FTDX101_ALL_RX_MODES, -1, -1, FTDX101_VFO_ALL, FTDX101_TX_ANTS | RIG_ANT_5, "USA"},
+        {kHz(30), MHz(60), FTDX101_ALL_RX_MODES, -1, -1, FTDX101_VFO_ALL, FTDX101_TX_ANTS, "USA"},
         RIG_FRNG_END,
     },
 
@@ -139,7 +141,7 @@ const struct rig_caps ftdx101d_caps =
     },
 
     .rx_range_list2 =     {
-        {kHz(30), MHz(60), FTDX101_ALL_RX_MODES, -1, -1, FTDX101_VFO_ALL, FTDX101_TX_ANTS | RIG_ANT_5, "EUR"},
+        {kHz(30), MHz(60), FTDX101_ALL_RX_MODES, -1, -1, FTDX101_VFO_ALL, FTDX101_TX_ANTS, "EUR"},
         RIG_FRNG_END,
     },
 
@@ -227,6 +229,8 @@ const struct rig_caps ftdx101d_caps =
     .mW2power =           newcat_mW2power,
     .set_rptr_shift =     newcat_set_rptr_shift,
     .get_rptr_shift =     newcat_get_rptr_shift,
+    .set_rptr_offs =      newcat_set_rptr_offs,
+    .get_rptr_offs =      newcat_get_rptr_offs,
     .set_ctcss_tone =     newcat_set_ctcss_tone,
     .get_ctcss_tone =     newcat_get_ctcss_tone,
     .set_ctcss_sql  =     newcat_set_ctcss_sql,

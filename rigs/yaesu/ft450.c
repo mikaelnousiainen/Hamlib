@@ -32,19 +32,13 @@
 
 #include "hamlib/rig.h"
 #include "bandplan.h"
-#include "serial.h"
-#include "misc.h"
-#include "yaesu.h"
 #include "newcat.h"
 #include "ft450.h"
 #include "idx_builtin.h"
 
 /*
- * ft450 rigs capabilities.
- * Also this struct is READONLY!
- *
+ * FT-450 rig capabilities
  */
-
 const struct rig_caps ft450_caps =
 {
     RIG_MODEL(RIG_MODEL_FT450),
@@ -77,11 +71,13 @@ const struct rig_caps ft450_caps =
         // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
         [LVL_CWPITCH] = { .min = { .i = 400 }, .max = { .i = 800 }, .step = { .i = 100 } },
+        [LVL_KEYSPD] = { .min = { .i = 4 }, .max = { .i = 60 }, .step = { .i = 1 } },
+        [LVL_NOTCHF] = { .min = { .i = 1 }, .max = { .i = 4000 }, .step = { .i = 10 } },
     },
     .ctcss_list =         common_ctcss_list,
     .dcs_list =           NULL,
-    .preamp =             { 10, RIG_DBLST_END, }, /* TBC */
-    .attenuator =         { 18, RIG_DBLST_END, }, /* TBC */
+    .preamp =             { 10, RIG_DBLST_END, }, /* TBC: Not specified in manual */
+    .attenuator =         { 20, RIG_DBLST_END, },
     .max_rit =            Hz(9999),
     .max_xit =            Hz(0),
     .max_ifshift =        Hz(1000),
@@ -190,6 +186,8 @@ const struct rig_caps ft450_caps =
     .mW2power =           newcat_mW2power,
     .set_rptr_shift =     newcat_set_rptr_shift,
     .get_rptr_shift =     newcat_get_rptr_shift,
+    .set_rptr_offs =      newcat_set_rptr_offs,
+    .get_rptr_offs =      newcat_get_rptr_offs,
     .set_ctcss_tone =     newcat_set_ctcss_tone,
     .get_ctcss_tone =     newcat_get_ctcss_tone,
     .set_ctcss_sql  =     newcat_set_ctcss_sql,
