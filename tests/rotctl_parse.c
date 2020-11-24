@@ -1446,6 +1446,7 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
         /* only for rotctld */
         if (interactive && !prompt)
         {
+            rot_debug(RIG_DEBUG_TRACE, "%s: NETROTCTL_RET %d\n", __func__, retcode);
             fprintf(fout, NETROTCTL_RET "%d\n", retcode);
             // ext_resp = 0; // not used ?
             resp_sep = '\n';
@@ -1466,12 +1467,14 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, char *argv[], int argc,
             /* netrotctl RIG_OK */
             if (!(cmd_entry->flags & ARG_OUT) && !ext_resp)
             {
+                rot_debug(RIG_DEBUG_TRACE, "%s: NETROTCTL_RET 0\n", __func__);
                 fprintf(fout, NETROTCTL_RET "0\n");
             }
 
             /* Extended Response protocol */
             else if (ext_resp && cmd != 0xf0)
             {
+                rot_debug(RIG_DEBUG_TRACE, "%s: NETROTCTL_RET 0\n", __func__);
                 fprintf(fout, NETROTCTL_RET "0\n");
                 resp_sep = '\n';
             }
@@ -1692,6 +1695,22 @@ declare_proto_rot(set_position)
 {
     azimuth_t az;
     elevation_t el;
+    char *comma_pos;
+
+    /* Fixing args with an invalid decimal separator. */
+    comma_pos = strchr(arg1, ',');
+
+    if (comma_pos)
+    {
+        *comma_pos = '.';
+    }
+
+    comma_pos = strchr(arg2, ',');
+
+    if (comma_pos)
+    {
+        *comma_pos = '.';
+    }
 
     CHKSCN1ARG(sscanf(arg1, "%f", &az));
     CHKSCN1ARG(sscanf(arg2, "%f", &el));

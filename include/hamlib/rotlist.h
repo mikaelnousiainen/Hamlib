@@ -456,16 +456,28 @@
 
 
 /**
++ *  \def ROT_MODEL_INDI
++ *  \brief A macro that returns the model number of the INDI backend.
++ *
++ *  The INDI backend can be used with rotators that support, among other, the
++ *  INDI interface.
++ */
+//! @cond Doxygen_Suppress
+#define ROT_INDI 20
+#define ROT_BACKEND_INDI "indi"
+//! @endcond
+#define ROT_MODEL_INDI ROT_MAKE_MODEL(ROT_INDI, 1)
+
+/**
  *  \def ROT_MODEL_OH3AAROT
  *  \brief A macro that returns the model number of the OH3AA rotator controller backend.
  *
  *  The OH3AA rotator controller backend can be used with rotators that support the OH3AA
  *  protocol and alike.
  */
-#define ROT_OH3AAROT 20
+#define ROT_OH3AAROT 21
 #define ROT_BACKEND_OH3AAROT "oh3aarot"
 #define ROT_MODEL_OH3AAROT ROT_MAKE_MODEL(ROT_OH3AAROT, 1)
-
 
 
 /**
