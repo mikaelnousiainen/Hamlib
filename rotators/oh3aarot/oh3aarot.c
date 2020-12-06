@@ -376,7 +376,7 @@ static int oh3aarot_rot_get_status(ROT *rot, rot_status_t *status)
 }
 
 const struct rot_caps oh3aarot_rot_caps = {
-    .rot_model =      ROT_MODEL_OH3AAROT,
+    ROT_MODEL(ROT_MODEL_OH3AAROT1),
     .model_name =     "OH3AArot 1",
     .mfg_name =       "OH3AA",
     .version =        "20201206",
