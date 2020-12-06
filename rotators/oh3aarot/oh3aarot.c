@@ -25,6 +25,7 @@
 #endif
 
 #include <string.h>  /* String function definitions */
+#include <stdlib.h>
 
 #include <hamlib/rotator.h>
 #include "serial.h"
@@ -42,6 +43,14 @@
 
 #define OH3AAROT_ROT_STATUS (ROT_STATUS_MOVING | ROT_STATUS_MOVING_AZ | ROT_STATUS_MOVING_LEFT | ROT_STATUS_MOVING_RIGHT | \
         ROT_STATUS_LIMIT_LEFT | ROT_STATUS_LIMIT_RIGHT | ROT_STATUS_OVERLAP_LEFT | ROT_STATUS_OVERLAP_RIGHT)
+
+#define OH3AAROT_BACKEND_INFO "OH3AA IP network-based rotator controller"
+
+struct oh3aarot_rot_priv_data
+{
+    char controller_info[BUF_MAX];
+    char backend_info[BUF_MAX * 2];
+};
 
 static int oh3aarot_transaction(ROT *rot, char *cmd, char *resp)
 {
@@ -67,11 +76,48 @@ static int oh3aarot_transaction(ROT *rot, char *cmd, char *resp)
     return ret;
 }
 
+static int oh3aarot_rot_init(ROT *rot)
+{
+    struct oh3aarot_rot_priv_data *priv;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    rot->state.priv = (struct oh3aarot_rot_priv_data *)
+            malloc(sizeof(struct oh3aarot_rot_priv_data));
+
+    if (!rot->state.priv) {
+        return -RIG_ENOMEM;
+    }
+
+    priv = rot->state.priv;
+
+    priv->controller_info[0] = '\0';
+    strncpy(priv->backend_info, OH3AAROT_BACKEND_INFO, BUF_MAX);
+
+    return RIG_OK;
+}
+
+static int oh3aarot_rot_cleanup(ROT *rot)
+{
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (rot->state.priv)
+    {
+        free(rot->state.priv);
+    }
+
+    rot->state.priv = NULL;
+
+    return RIG_OK;
+}
+
 static int oh3aarot_rot_open(ROT *rot)
 {
     int ret, matches;
     float min_az, max_az;
     struct rot_state *rs = &rot->state;
+    struct oh3aarot_rot_priv_data *priv =
+            (struct oh3aarot_rot_priv_data *) rot->state.priv;
 
     char cmd[CMD_MAX];
     char resp[BUF_MAX];
@@ -82,8 +128,16 @@ static int oh3aarot_rot_open(ROT *rot)
 
     ret = oh3aarot_transaction(rot, cmd, resp);
     if (ret <= 0) {
+        rig_debug(RIG_DEBUG_ERR, "%s: invalid response to INFO command\n", __func__);
         return (ret < 0) ? ret : -RIG_EPROTO;
     }
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: rotator controller info: %s\n", __func__, resp);
+
+    strncpy(priv->controller_info, resp, BUF_MAX);
+    strncpy(priv->backend_info, OH3AAROT_BACKEND_INFO, BUF_MAX);
+    strncat(priv->backend_info, ": ", BUF_MAX);
+    strncat(priv->backend_info, resp, BUF_MAX);
 
     sprintf(cmd, "AZLIMITS\n");
 
@@ -94,6 +148,7 @@ static int oh3aarot_rot_open(ROT *rot)
 
     matches = sscanf(resp, "OK AZLIMITS MIN=%f MAX=%f", &min_az, &max_az);
     if (matches != 2) {
+        rig_debug(RIG_DEBUG_ERR, "%s: invalid response to AZLIMITS command\n", __func__);
         return -RIG_EPROTO;
     }
 
@@ -307,9 +362,12 @@ static int oh3aarot_rot_move(ROT *rot, int direction, int speed)
 
 static const char *oh3aarot_rot_get_info(ROT *rot)
 {
+    struct oh3aarot_rot_priv_data *priv =
+            (struct oh3aarot_rot_priv_data *) rot->state.priv;
+
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    return "OH3AA IP network-based rotator controller";
+    return priv->backend_info;
 }
 
 static int oh3aarot_rot_find_flag(char *flag_str)
@@ -338,6 +396,7 @@ static int oh3aarot_rot_get_status(ROT *rot, rot_status_t *status)
     char buf[BUF_MAX];
     char *flags_prefix = "FLAGS=";
     char *flags_str;
+    char *flags_saveptr = NULL;
     int flags = 0;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -357,13 +416,13 @@ static int oh3aarot_rot_get_status(ROT *rot, rot_status_t *status)
 
     flags_str += strlen(flags_prefix);
 
-    char *flag_str = strtok(flags_str, ",");
+    char *flag_str = strtok_r(flags_str, ",", &flags_saveptr);
     if (flag_str == NULL) {
         flags |= oh3aarot_rot_find_flag(flags_str);
     } else {
         while (flag_str != NULL) {
             flags |= oh3aarot_rot_find_flag(flag_str);
-            flag_str = strtok(NULL, ",");
+            flag_str = strtok_r(NULL, ",", &flags_saveptr);
         }
     }
 
@@ -401,6 +460,8 @@ const struct rot_caps oh3aarot_rot_caps = {
 
     .level_gran =      { [ROT_LVL_SPEED] = { .min = { .i = 1 }, .max = { .i = 100 }, .step = { .i = 1 } } },
 
+    .rot_init     =  oh3aarot_rot_init,
+    .rot_cleanup  =  oh3aarot_rot_cleanup,
     .rot_open     =  oh3aarot_rot_open,
     .rot_close    =  oh3aarot_rot_close,
 
