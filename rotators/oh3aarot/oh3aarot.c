@@ -1,6 +1,6 @@
 /*
  *  Hamlib OH3AA rotator controller backend - main file
- *  Copyright (c) 2019 by Mikael Nousiainen
+ *  Copyright (c) 2019-2020 by Mikael Nousiainen
  *  Based on Ether6 backend by Stephane Fillod and Jonny Röker
  *
  *
@@ -24,17 +24,12 @@
 #include "config.h"
 #endif
 
-#include <stdlib.h>
 #include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
-#include <math.h>
-#include <sys/time.h>
-#include <time.h>
 
 #include <hamlib/rotator.h>
 #include "serial.h"
-#include "misc.h"
 #include "register.h"
+#include "idx_builtin.h"
 
 #include "oh3aarot.h"
 
@@ -43,24 +38,29 @@
 
 #define OH3AAROT_PROTOCOL_RESPONSE_OK "OK"
 
+#define OH3AAROT_LEVELS ROT_LEVEL_SPEED
+
+#define OH3AAROT_ROT_STATUS (ROT_STATUS_MOVING | ROT_STATUS_MOVING_AZ | ROT_STATUS_MOVING_LEFT | ROT_STATUS_MOVING_RIGHT | \
+        ROT_STATUS_LIMIT_LEFT | ROT_STATUS_LIMIT_RIGHT | ROT_STATUS_OVERLAP_LEFT | ROT_STATUS_OVERLAP_RIGHT)
+
 static int oh3aarot_transaction(ROT *rot, char *cmd, char *resp)
 {
     int ret;
 
     ret = write_block(&rot->state.rotport, cmd, strlen(cmd));
-    rig_debug(RIG_DEBUG_VERBOSE, "function %s(1): ret=%d command=%s\n", __FUNCTION__, ret, cmd);
+    rig_debug(RIG_DEBUG_VERBOSE, "function %s(1): ret=%d command=%s\n", __func__, ret, cmd);
     if (ret != 0) {
         return ret;
     }
 
     ret = read_string(&rot->state.rotport, resp, BUF_MAX, "\n", sizeof("\n"));
-    rig_debug(RIG_DEBUG_VERBOSE, "function %s(2): ret=%d response=%s\n", __FUNCTION__, ret, resp);
+    rig_debug(RIG_DEBUG_VERBOSE, "function %s(2): ret=%d response=%s\n", __func__, ret, resp);
     if (ret < 0) {
         return ret;
     }
 
-    if (memcmp(resp, OH3AAROT_PROTOCOL_RESPONSE_OK, strlen(OH3AAROT_PROTOCOL_RESPONSE_OK))) {
-        rig_debug(RIG_DEBUG_VERBOSE, "function %s(2a): invalid response=%s\n", __FUNCTION__, resp);
+    if (memcmp(resp, OH3AAROT_PROTOCOL_RESPONSE_OK, strlen(OH3AAROT_PROTOCOL_RESPONSE_OK)) != 0) {
+        rig_debug(RIG_DEBUG_VERBOSE, "function %s(2a): invalid response=%s\n", __func__, resp);
         return -RIG_EPROTO;
     }
 
@@ -76,7 +76,7 @@ static int oh3aarot_rot_open(ROT *rot)
     char cmd[CMD_MAX];
     char resp[BUF_MAX];
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __FUNCTION__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     sprintf(cmd, "INFO\n");
 
@@ -109,7 +109,7 @@ static int oh3aarot_rot_open(ROT *rot)
 
 static int oh3aarot_rot_close(ROT *rot)
 {
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __FUNCTION__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     write_block(&rot->state.rotport, "\n", 1);
 
@@ -121,7 +121,7 @@ static int oh3aarot_command(ROT *rot, char *cmd)
     int ret;
     char buf[BUF_MAX];
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called: cmd=%s\n", __FUNCTION__, cmd);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called: cmd=%s\n", __func__, cmd);
 
     ret = oh3aarot_transaction(rot, cmd, buf);
     if (ret <= 0) {
@@ -135,7 +135,7 @@ static int oh3aarot_rot_set_position(ROT *rot, azimuth_t az, elevation_t el)
 {
     char cmd[CMD_MAX];
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %f %f\n", __FUNCTION__, az, el);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %f %f\n", __func__, az, el);
 
     sprintf(cmd, "AZ %f\n", az);
 
@@ -148,7 +148,7 @@ static int oh3aarot_rot_get_position(ROT *rot, azimuth_t *az, elevation_t *el)
     char cmd[CMD_MAX];
     char buf[BUF_MAX];
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __FUNCTION__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     sprintf(cmd, "AZ?\n");
 
@@ -160,7 +160,7 @@ static int oh3aarot_rot_get_position(ROT *rot, azimuth_t *az, elevation_t *el)
     matches = sscanf(buf, "OK AZ %f", az);
     *el = 0;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "az=%f\n", *az);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: az=%f\n", __func__, *az);
 
     if (matches != 1) {
         return -RIG_EPROTO;
@@ -173,7 +173,7 @@ static int oh3aarot_rot_stop(ROT *rot)
 {
     char cmd[CMD_MAX];
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %f %f\n", __FUNCTION__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     sprintf(cmd, "STOP\n");
 
@@ -185,7 +185,7 @@ static int oh3aarot_rot_park(ROT *rot)
 {
     char cmd[CMD_MAX];
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %f %f\n", __FUNCTION__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     sprintf(cmd, "PARK\n");
 
@@ -196,11 +196,78 @@ static int oh3aarot_rot_reset(ROT *rot, rot_reset_t reset)
 {
     char cmd[CMD_MAX];
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %f %f\n", __FUNCTION__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     sprintf(cmd, "RESET\n");
 
     return oh3aarot_command(rot, cmd);
+}
+
+static int oh3aarot_rot_get_level(ROT *rot, setting_t level, value_t *val)
+{
+    char cmd[CMD_MAX];
+    char buf[BUF_MAX];
+    int ret, matches;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s\n", __func__, rot_strlevel(level));
+
+    switch (level) {
+        case ROT_LEVEL_SPEED: {
+            int speed;
+            sprintf(cmd, "SPEED?\n");
+
+            ret = oh3aarot_transaction(rot, cmd, buf);
+            if (ret <= 0) {
+                return (ret < 0) ? ret : -RIG_EPROTO;
+            }
+
+            matches = sscanf(buf, "OK SPEED %d", &speed);
+
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: speed=%d\n", __func__, speed);
+
+            if (matches != 1) {
+                return -RIG_EPROTO;
+            }
+
+            val->i = speed;
+            break;
+        }
+        default:
+            return -RIG_ENAVAIL;
+    }
+
+    return RIG_OK;
+}
+
+
+static int oh3aarot_rot_set_level(ROT *rot, setting_t level, value_t val)
+{
+    char cmd[CMD_MAX];
+    int ret;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s\n", __func__, rot_strlevel(level));
+
+    switch (level) {
+        case ROT_LEVEL_SPEED: {
+            int speed = val.i;
+            if (speed < 1 || speed > 100) {
+                rig_debug(RIG_DEBUG_ERR, "%s: invalid speed %d\n", __func__, speed);
+                return -RIG_EINVAL;
+            }
+
+            sprintf(cmd, "SPEED %d\n", speed);
+
+            ret = oh3aarot_command(rot, cmd);
+            if (ret < 0) {
+                return ret;
+            }
+            break;
+        }
+        default:
+            return -RIG_ENAVAIL;
+    }
+
+    return RIG_OK;
 }
 
 static int oh3aarot_rot_move(ROT *rot, int direction, int speed)
@@ -209,7 +276,7 @@ static int oh3aarot_rot_move(ROT *rot, int direction, int speed)
     char cmd[CMD_MAX];
     char *dir_param;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %d %d\n", __FUNCTION__, direction, speed);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called: direction=%d speed=%d\n", __func__, direction, speed);
 
     switch (direction) {
         case ROT_MOVE_CW:
@@ -219,21 +286,24 @@ static int oh3aarot_rot_move(ROT *rot, int direction, int speed)
             dir_param = "CCW";
             break;
         default:
+            rig_debug(RIG_DEBUG_ERR, "%s: invalid direction %d\n", __func__, direction);
             return -RIG_EINVAL;
     }
 
-    sprintf(cmd, "SPEED %d\n", speed);
+    if (speed != ROT_SPEED_NOCHANGE) {
+        value_t speed_val = { .i = speed };
 
-    ret = oh3aarot_command(rot, cmd);
-    if (ret < 0) {
-        return ret;
+        ret = oh3aarot_rot_set_level(rot, ROT_LEVEL_SPEED, speed_val);
+        if (ret != RIG_OK)
+        {
+            return ret;
+        }
     }
 
     sprintf(cmd, "MOVE %s\n", dir_param);
 
     return oh3aarot_command(rot, cmd);
 }
-
 
 static const char *oh3aarot_rot_get_info(ROT *rot)
 {
@@ -242,11 +312,74 @@ static const char *oh3aarot_rot_get_info(ROT *rot)
     return "OH3AA IP network-based rotator controller";
 }
 
+static int oh3aarot_rot_find_flag(char *flag_str)
+{
+    if (strcmp(flag_str, "CW") == 0) {
+        return ROT_STATUS_MOVING | ROT_STATUS_MOVING_AZ | ROT_STATUS_MOVING_RIGHT;
+    } else if (strcmp(flag_str, "CCW") == 0) {
+        return ROT_STATUS_MOVING | ROT_STATUS_MOVING_AZ | ROT_STATUS_MOVING_LEFT;
+    } else if (strcmp(flag_str, "T1") == 0) {
+        return ROT_STATUS_OVERLAP_LEFT;
+    } else if (strcmp(flag_str, "T2") == 0) {
+        return ROT_STATUS_OVERLAP_RIGHT;
+    } else if (strcmp(flag_str, "L1") == 0) {
+        return ROT_STATUS_LIMIT_LEFT;
+    } else if (strcmp(flag_str, "L2") == 0) {
+        return ROT_STATUS_LIMIT_RIGHT;
+    }
+
+    return 0;
+}
+
+static int oh3aarot_rot_get_status(ROT *rot, rot_status_t *status)
+{
+    int ret;
+    char cmd[CMD_MAX];
+    char buf[BUF_MAX];
+    char *flags_prefix = "FLAGS=";
+    char *flags_str;
+    int flags = 0;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    sprintf(cmd, "STATE\n");
+
+    ret = oh3aarot_transaction(rot, cmd, buf);
+    if (ret <= 0) {
+        return (ret < 0) ? ret : -RIG_EPROTO;
+    }
+
+    flags_str = strstr(buf, flags_prefix);
+    if (flags_str == NULL) {
+        rig_debug(RIG_DEBUG_ERR, "%s: no status flags found in state response\n", __func__);
+        return -RIG_EPROTO;
+    }
+
+    flags_str += strlen(flags_prefix);
+
+    char *flag_str = strtok(flags_str, ",");
+    if (flag_str == NULL) {
+        flags |= oh3aarot_rot_find_flag(flags_str);
+    } else {
+        while (flag_str != NULL) {
+            flags |= oh3aarot_rot_find_flag(flag_str);
+            flag_str = strtok(NULL, ",");
+        }
+    }
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: flags_str=%s flags=0x%08x\n",
+            __func__, flags_str, flags);
+
+    *status = flags;
+
+    return RIG_OK;
+}
+
 const struct rot_caps oh3aarot_rot_caps = {
     .rot_model =      ROT_MODEL_OH3AAROT,
     .model_name =     "OH3AArot 1",
     .mfg_name =       "OH3AA",
-    .version =        "0.1",
+    .version =        "20201206",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_BETA,
     .rot_type =       ROT_FLAG_AZIMUTH,
@@ -261,6 +394,13 @@ const struct rot_caps oh3aarot_rot_caps = {
 
     .priv =  NULL,  /* priv */
 
+    .has_status = OH3AAROT_ROT_STATUS,
+
+    .has_get_level =  OH3AAROT_LEVELS,
+    .has_set_level =  ROT_LEVEL_SET(OH3AAROT_LEVELS),
+
+    .level_gran =      { [ROT_LVL_SPEED] = { .min = { .i = 1 }, .max = { .i = 100 }, .step = { .i = 1 } } },
+
     .rot_open     =  oh3aarot_rot_open,
     .rot_close    =  oh3aarot_rot_close,
 
@@ -270,13 +410,16 @@ const struct rot_caps oh3aarot_rot_caps = {
     .stop         =  oh3aarot_rot_stop,
     .reset        =  oh3aarot_rot_reset,
     .move         =  oh3aarot_rot_move,
+    .get_level    =  oh3aarot_rot_get_level,
+    .set_level    =  oh3aarot_rot_set_level,
 
     .get_info     =  oh3aarot_rot_get_info,
+    .get_status   =  oh3aarot_rot_get_status,
 };
 
 DECLARE_INITROT_BACKEND(oh3aarot)
 {
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __FUNCTION__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     rot_register(&oh3aarot_rot_caps);
 
