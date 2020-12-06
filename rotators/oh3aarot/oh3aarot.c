@@ -73,6 +73,8 @@ static int oh3aarot_transaction(ROT *rot, char *cmd, char *resp)
         return -RIG_EPROTO;
     }
 
+    resp[strcspn(resp, "\r\n")] = 0;
+
     return ret;
 }
 
