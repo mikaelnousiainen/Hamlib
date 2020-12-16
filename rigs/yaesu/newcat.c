@@ -163,7 +163,7 @@ const cal_table_float_t yaesu_default_comp_meter_cal =
     2,
     {
         {0, 0.0f},
-        {255, 1.0f},
+        {255, 100.0f},
     }
 };
 
@@ -531,6 +531,15 @@ int newcat_open(RIG *rig)
 
     /* Initialize rig_id in case any subsequent commands need it */
     (void)newcat_get_rigid(rig);
+
+    if (priv->rig_id == NC_RIGID_FT2000)
+    { //  then we need to readjust rfpowermeter cal table in half
+        int i;
+        for(i=0;i<rig->caps->rfpower_meter_cal.size; ++i)
+        { // we may need a table for the FT2000 instead of this
+            rig->caps->rfpower_meter_cal.table[i].raw/=2;
+        }
+    }
 
     return RIG_OK;
 }
@@ -1034,6 +1043,7 @@ int newcat_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 
     if (*mode == '0')
     {
+        rig_debug(RIG_DEBUG_ERR, "%s: *mode = '0'??\n", __func__);
         return -RIG_EPROTO;
     }
 
@@ -2839,7 +2849,9 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
 {
     struct rig_state *state = &rig->state;
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
-    int err;
+    int retval;
+    int i;
+    int retry_save;
     char ps;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -2870,9 +2882,39 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
 
     snprintf(priv->cmd_str, sizeof(priv->cmd_str), "PS%c%c", ps, cat_term);
 
-    err = write_block(&state->rigport, priv->cmd_str, strlen(priv->cmd_str));
+    retval = write_block(&state->rigport, priv->cmd_str, strlen(priv->cmd_str));
+    
+    retry_save = rig->state.rigport.retry;
+    rig->state.rigport.retry = 0;
 
-    return err;
+    if (status == RIG_POWER_ON) // wait for wakeup only
+    {
+        for (i = 0; i < 8; ++i) // up to ~10 seconds including the timeouts
+        {
+            freq_t freq;
+            hl_usleep(1000000);
+            retval = rig_get_freq(rig, RIG_VFO_A, &freq);
+
+            if (retval == RIG_OK) { 
+                rig->state.rigport.retry = retry_save;
+	        return retval; 
+	    }
+
+            rig_debug(RIG_DEBUG_TRACE, "%s: Wait #%d for power up\n", __func__, i + 1);
+        }
+    }
+
+    rig->state.rigport.retry = retry_save;
+
+    if (i == 9)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: timeout waiting for powerup, try %d\n",
+                  __func__,
+                  i + 1);
+        retval = -RIG_ETIMEOUT;
+    }
+
+    return retval;
 }
 
 
@@ -4130,7 +4172,14 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             return -RIG_ENAVAIL;
         }
 
-        snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM5%c", cat_term);
+        if (is_ftdx9000)
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM08%c", cat_term);
+        }
+        else
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM5%c", cat_term);
+        }
         break;
 
     case RIG_LEVEL_COMP_METER:
@@ -4330,10 +4379,13 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         break;
 
     case RIG_LEVEL_RFPOWER_METER:
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: RFPOWER_METER retlvl=%s\n", __func__, retlvl);
         if (retlvl_len > 3)
         {
             // Some rigs like FTDX101 have 6-byte return so we just truncate
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: retlvl of %s getting truncated\n", __func__, retlvl);
             retlvl[3] = 0;
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: retlvl truncated to %s\n", __func__, retlvl);
         }
 
         if (rig->caps->rfpower_meter_cal.size == 0)
@@ -4343,6 +4395,12 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         else
         {
             val->f = rig_raw2val_float(atoi(retlvl), &rig->caps->rfpower_meter_cal);
+        }
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: RFPOWER_METER=%s, converted to %f\n", __func__, retlvl, val->f);
+        if (val->f > 1.0) 
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: val->f(%f) clipped at 1.0\n", __func__, val->f);
+            val->f = 1.0;
         }
 
         break;
@@ -4356,11 +4414,11 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         if (rig->caps->comp_meter_cal.size == 0)
         {
-            val->f = rig_raw2val_float(atoi(retlvl), &yaesu_default_comp_meter_cal);
+            val->f = rig_raw2val_float(atoi(retlvl), &yaesu_default_comp_meter_cal)/100;
         }
         else
         {
-            val->f = rig_raw2val_float(atoi(retlvl), &rig->caps->comp_meter_cal);
+            val->f = rig_raw2val_float(atoi(retlvl), &rig->caps->comp_meter_cal)/100;
         }
 
         break;
@@ -7593,26 +7651,31 @@ int newcat_get_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t *width)
             return err;
         }
 
+
+        w = 0; // use default in case of error
         if (strlen(priv->ret_data) == 7)
         {
-            if (sscanf(priv->ret_data, "SH%*1d0%3d", &w) != 1)
+            int on;
+            int n = sscanf(priv->ret_data, "SH0%1d%3d", &on, &w);
+            if (n == 2) {
+                if (!on) { w = 0; }
+            }
+            else
             {
                 err = -RIG_EPROTO;
             }
         }
         else if (strlen(priv->ret_data) == 6)
         {
-            if (sscanf(priv->ret_data, "SH%*1d%3d", &w) != 1)
-            {
-                err = -RIG_EPROTO;
-            }
+            int n = sscanf(priv->ret_data, "SH%3d", &w);
+            if (n != 1) err = -RIG_EPROTO;
         }
         else
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: unknown SH response='%s'\n", __func__,
-                      priv->ret_data);
-            return -RIG_EPROTO;
+            err = -RIG_EPROTO;
         }
+
+	    rig_debug(RIG_DEBUG_TRACE, "%s: w=%d\n", __func__, w);
 
         if (err != RIG_OK)
         {
@@ -7620,8 +7683,6 @@ int newcat_get_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t *width)
                       priv->ret_data);
             return -RIG_EPROTO;
         }
-
-        rig_debug(RIG_DEBUG_TRACE, "%s: w=%d\n", __func__, w);
     }
     else
     {
@@ -7745,6 +7806,7 @@ int newcat_get_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t *width)
             break;
 
         default:
+            rig_debug(RIG_DEBUG_ERR, "%s: unknown mode=%s\n", __func__, rig_strrmode(mode));
             return -RIG_EINVAL;
         }   /* end switch(mode) */
 
@@ -7753,6 +7815,7 @@ int newcat_get_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t *width)
     {
         if ((narrow = get_narrow(rig, vfo)) < 0)
         {
+            rig_debug(RIG_DEBUG_ERR, "%s: error narrow < 0, narrow=%d\n", __func__, narrow);
             return -RIG_EPROTO;
         }
 
@@ -7812,7 +7875,9 @@ int newcat_get_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t *width)
 
             case 17: *width = 3000; break;
 
-            default: return -RIG_EINVAL;
+            default: 
+                rig_debug(RIG_DEBUG_ERR, "%s: unknown w=%d\n", __func__, w);
+                return -RIG_EINVAL;
             }
 
             break;
@@ -7865,7 +7930,9 @@ int newcat_get_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t *width)
 
             case 21: *width = 3200; break;
 
-            default: return -RIG_EINVAL;
+            default: 
+                rig_debug(RIG_DEBUG_ERR, "%s: unknown mode=%s\n", __func__, rig_strrmode(mode));
+                return -RIG_EINVAL;
             }
 
             break;
@@ -7885,6 +7952,7 @@ int newcat_get_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t *width)
             break;
 
         default:
+            rig_debug(RIG_DEBUG_ERR, "%s: unknown mode=%s\n", __func__, rig_strrmode(mode));
             return -RIG_EINVAL;
         }   /* end switch(mode) */
 
@@ -8915,6 +8983,7 @@ int newcat_get_cmd(RIG *rig)
     {
         if (rc != -RIG_BUSBUSY)
         {
+            rig_flush(&state->rigport);  /* discard any unsolicited data */
             /* send the command */
             rig_debug(RIG_DEBUG_TRACE, "cmd_str = %s\n", priv->cmd_str);
 
@@ -8944,6 +9013,7 @@ int newcat_get_cmd(RIG *rig)
                       __func__, priv->ret_data);
             // we were using BUSBUSY but microham devices need retries
             //rc = -RIG_BUSBUSY;    /* don't write command again */
+            rc = -RIG_EPROTO;
             /* we could decrement retry_count
                here but there is a danger of
                infinite looping so we just use up
@@ -8996,10 +9066,12 @@ int newcat_get_cmd(RIG *rig)
                  * There are many more cases like these and they vary by rig model.
                  *
                  * So far, "rig busy" type situations with the ? response have not been observed for get commands.
+                 * Followup 20201213 FTDX3000 FB; command returning ?; so do NOT abort
+                 * see https://github.com/Hamlib/Hamlib/issues/464
                  */
                 rig_debug(RIG_DEBUG_ERR, "%s: Command rejected by the rig: '%s'\n", __func__,
                           priv->cmd_str);
-                return -RIG_ERJCTED;
+                // return -RIG_ERJCTED; 
             }
 
             continue;
@@ -9019,6 +9091,7 @@ int newcat_get_cmd(RIG *rig)
             // we were using BUSBUSY but microham devices need retries
             // this should be OK under all other circumstances too
             //rc = -RIG_BUSBUSY;    /* retry read only */
+            rc = -RIG_EPROTO;
         }
     }
 
