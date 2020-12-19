@@ -133,6 +133,7 @@ const struct rig_caps ft2000_caps =
     .transceive =         RIG_TRN_OFF,        /* May enable later as the 2000 has an Auto Info command */
     .bank_qty =           0,
     .chan_desc_sz =       0,
+    .rfpower_meter_cal =  FT2000D_RFPOWER_METER_CAL,
     .str_cal =            FT2000_STR_CAL,
     .chan_list =          {
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
@@ -184,12 +185,12 @@ const struct rig_caps ft2000_caps =
 
     /* mode/filter list, .remember =  order matters! */
     .filters =            {
-        {RIG_MODE_CW|RIG_MODE_CWR,     Hz(500)},    /* Normal CW, RTTY, PKT/USER */
-        {RIG_MODE_CW|RIG_MODE_CWR,     Hz(200)},    /* Narrow CW, RTTY, PKT/USER */
-        {RIG_MODE_CW|RIG_MODE_CWR,     Hz(2400)},   /* Wide   CW, RTTY, PKT/USER */
-        {RIG_MODE_RTTY|RIG_MODE_RTTYR, Hz(500)},    /* Normal RTTY */
-        {RIG_MODE_RTTY|RIG_MODE_RTTYR, Hz(300)},    /* Narrow RTTY */
-        {RIG_MODE_RTTY|RIG_MODE_RTTYR, Hz(2400)},   /* Wide   RTTY */
+        {RIG_MODE_CW | RIG_MODE_CWR,     Hz(500)},  /* Normal CW, RTTY, PKT/USER */
+        {RIG_MODE_CW | RIG_MODE_CWR,     Hz(200)},  /* Narrow CW, RTTY, PKT/USER */
+        {RIG_MODE_CW | RIG_MODE_CWR,     Hz(2400)}, /* Wide   CW, RTTY, PKT/USER */
+        {RIG_MODE_RTTY | RIG_MODE_RTTYR, Hz(500)},  /* Normal RTTY */
+        {RIG_MODE_RTTY | RIG_MODE_RTTYR, Hz(300)},  /* Narrow RTTY */
+        {RIG_MODE_RTTY | RIG_MODE_RTTYR, Hz(2400)}, /* Wide   RTTY */
         {RIG_MODE_SSB,                 Hz(2400)},   /* Normal SSB */
         {RIG_MODE_SSB,                 Hz(1800)},   /* Narrow SSB */
         {RIG_MODE_SSB,                 Hz(3000)},   /* Wide   SSB */
