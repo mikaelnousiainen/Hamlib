@@ -58,7 +58,7 @@
                      RIG_MODE_FM | RIG_MODE_WFM | RIG_MODE_FMN | RIG_MODE_PKTFM |\
                      RIG_MODE_C4FM)
 
-#define FLRIG_LEVELS (RIG_LEVEL_AF | RIG_LEVEL_RF | RIG_LEVEL_MICGAIN | RIG_LEVEL_STRENGTH | RIG_LEVEL_RFPOWER_METER | RIG_LEVEL_RFPOWER_METER_WATTS)
+#define FLRIG_LEVELS (RIG_LEVEL_AF | RIG_LEVEL_RF | RIG_LEVEL_MICGAIN | RIG_LEVEL_STRENGTH | RIG_LEVEL_RFPOWER_METER | RIG_LEVEL_RFPOWER_METER_WATTS | RIG_LEVEL_RFPOWER)
 
 #define streq(s1,s2) (strcmp(s1,s2)==0)
 
@@ -125,7 +125,7 @@ const struct rig_caps flrig_caps =
     .port_type = RIG_PORT_NETWORK,
     .write_delay = 0,
     .post_write_delay = 0,
-    .timeout = 2000,
+    .timeout = 5000,
     .retry = 5,
 
     .has_get_func = RIG_FUNC_NONE,
@@ -517,7 +517,8 @@ static int write_transaction(RIG *rig, char *xml, int xml_len)
 static int flrig_transaction(RIG *rig, char *cmd, char *cmd_arg, char *value,
                              int value_len)
 {
-    int retry = 2;
+    char xml[MAXXMLLEN];
+    int retry = 5;
 
     if (value)
     {
@@ -526,7 +527,6 @@ static int flrig_transaction(RIG *rig, char *cmd, char *cmd_arg, char *value,
 
     do
     {
-        char xml[MAXXMLLEN];
         char *pxml;
         int retval;
 
@@ -551,7 +551,7 @@ static int flrig_transaction(RIG *rig, char *cmd, char *cmd_arg, char *value,
             xml_parse(xml, value, value_len);
         }
     }
-    while (value && strlen(value) == 0 && retry--); // we'll do retries if needed
+    while (((value && strlen(value) == 0) || (strlen(xml)==0)) && retry--); // we'll do retries if needed
 
     if (value && strlen(value) == 0) { return RIG_EPROTO; }
 
@@ -909,7 +909,7 @@ static int flrig_open(RIG *rig)
         else if (streq(p, "UCW")) { modeMapAdd(&modes, RIG_MODE_CW, p); }
         else if (streq(p, "C4FM")) { modeMapAdd(&modes, RIG_MODE_C4FM, p); }
         else if (streq(p, "SPEC")) { modeMapAdd(&modes, RIG_MODE_SPEC, p); }
-        else if (streq(p,"DRM")) // we don't support DRM yet (or maybe ever)
+        else if (streq(p, "DRM")) // we don't support DRM yet (or maybe ever)
         {
             rig_debug(RIG_DEBUG_VERBOSE, "%s: no mapping for mode %s\n", __func__, p);
         }
@@ -1883,6 +1883,7 @@ static int flrig_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     int retval;
     char cmd_arg[MAXARGLEN];
     char *cmd;
+    char *param_type = "i4";
 
     rig_debug(RIG_DEBUG_TRACE, "%s: vfo=%s level=%d, val=%f\n", __func__,
               rig_strvfo(vfo), (int)level, val.f);
@@ -1894,22 +1895,25 @@ static int flrig_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         return -RIG_EINVAL;
     }
 
-    sprintf(cmd_arg,
-            "<params><param><value><double>%d</double></value></param></params>",
-            (int)val.f);
-
     switch (level)
     {
-    case RIG_LEVEL_RF: cmd = "rig.set_rfgain"; break;
+    case RIG_LEVEL_RF: cmd = "rig.set_rfgain"; val.f *= 100; break;
 
-    case RIG_LEVEL_AF: cmd = "rig.set_volume"; break;
+    case RIG_LEVEL_AF: cmd = "rig.set_volume"; val.f *= 100; break;
 
-    case RIG_LEVEL_MICGAIN: cmd = "rig.set_micgain"; break;
+    case RIG_LEVEL_MICGAIN: cmd = "rig.set_micgain"; val.f *= 100; break;
+
+    case RIG_LEVEL_RFPOWER: cmd = "rig.set_power"; val.f *= 100; break;
 
     default:
         rig_debug(RIG_DEBUG_ERR, "%s: invalid level=%d\n", __func__, (int)level);
         return -RIG_EINVAL;
     }
+
+    sprintf(cmd_arg,
+            "<params><param><value><%s>%d</%s></value></param></params>",
+            param_type, (int)val.f, param_type);
+
 
     retval = flrig_transaction(rig, cmd, cmd_arg, NULL, 0);
 
@@ -1946,6 +1950,8 @@ static int flrig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     case RIG_LEVEL_STRENGTH: cmd = "rig.get_smeter"; break;
 
+    case RIG_LEVEL_RFPOWER: cmd = "rig.get_power"; break;
+
     case RIG_LEVEL_RFPOWER_METER_WATTS:
     case RIG_LEVEL_RFPOWER_METER: cmd = "rig.get_pwrmeter"; break;
 
@@ -1970,6 +1976,11 @@ static int flrig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         val->i = atoi(value) - 54;
         //if (val->i > 0) val->i /= 10;
         rig_debug(RIG_DEBUG_TRACE, "%s: val.i='%s'(%d)\n", __func__, value, val->i);
+        break;
+
+    case RIG_LEVEL_RFPOWER:
+        val->f = atof(value) / 100.0 * priv->powermeter_scale;
+        rig_debug(RIG_DEBUG_TRACE, "%s: val.f='%s'(%g)\n", __func__, value, val->f);
         break;
 
     case RIG_LEVEL_RFPOWER_METER:

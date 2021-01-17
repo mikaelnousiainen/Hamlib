@@ -45,6 +45,75 @@
 
 #define BUFSZ 64
 
+/* V3 commands
+ * retrieved from https://sourceforge.net/projects/prm80/
+MessageVersion: DB   "PRM8060 V3.0", 0
+
+MessageAide:  DB   "H",0Dh,0Ah
+              DB   " Commandes disponibles :",0Dh,0Ah
+              DB   " [0] = Reset.",0Dh,0Ah
+              DB   " [1] a [5] = Show 80c552 port state P1 to P5.",0Dh,0Ah
+              DB   " [A] = Set serial communication to 1200 bps.",0Dh,0Ah
+              DB   " [B] = Set serial communication to 4800 bps.",0Dh,0Ah
+              DB   " [C] = Print channels list.",0Dh,0Ah
+              DB   " [D] = Set system byte.",0Dh,0Ah
+              DB   " [E] = Show system state (Mode-Chan-Chanstate-Sql-Vol-Lock-RX freq-TX freq).",0Dh,0Ah
+              DB   " [F] = Set squelch.",0Dh,0Ah
+              DB   " [H] = Print this help page.",0Dh,0Ah
+              DB   " [I] = Erase and init RAM and EEPROM.",0Dh,0Ah
+              DB   " [K] = Set lock byte.",0Dh,0Ah
+              DB   " [L] = Print latch state.",0Dh,0Ah
+              DB   " [M] = Edit external RAM manualy.",0Dh,0Ah
+              DB   " [N] = Set current channel.",0Dh,0Ah
+              DB   " [O] = Set volume.",0Dh,0Ah
+              DB   " [P] = Edit/Add channel.",0Dh,0Ah
+              DB   " [Q] = Set channels number.",0Dh,0Ah
+              DB   " [R] = Set synthetiser frequencies.",0Dh,0Ah
+              DB   " [U] = Print 80c552 internal RAM.",0Dh,0Ah
+              DB   " [S] = Copy EEPROM to external RAM.",0Dh,0Ah
+              DB   " [T] = Set current channel state.",0Dh,0Ah
+              DB   " [V] = Print firmware version.",0Dh,0Ah
+              DB   " [X] = Copy external RAM to EEPROM.",0Dh,0Ah
+              DB   " [Y] = Print first 2 kb from the EEPROM I2C 24c16.",0Dh,0Ah
+              DB   " [Z] = Print external RAM ($0000 to $07FF).",0Dh,0Ah,0
+*/
+
+/* V4 commands
+ * retrieved from https://sourceforge.net/projects/prm80/
+ *
+MessageVersion:
+IF TARGET EQ 8060
+              DB   "PRM8060 V4.0"
+ELSEIF TARGET EQ 8070
+              DB   "PRM8070 V4.0"
+ENDIF
+
+MessageAide:  DB   "H",0Dh,0Ah
+              DB   " Commandes disponibles :",0Dh,0Ah
+              DB   " [0] = Reset.",0Dh,0Ah
+              DB   " [1] a [5] = Show 80c552 port state P1 to P5.",0Dh,0Ah
+              DB   " [C] = Print channels list.",0Dh,0Ah
+              DB   " [D] = Set system byte.",0Dh,0Ah
+              DB   " [E] = Show system state (Mode-Chan-Chanstate-Sql-Vol-Lock-RX freq-TX freq).",0Dh,0Ah
+              DB   " [F] = Set squelch.",0Dh,0Ah
+              DB   " [H] = Print this help page.",0Dh,0Ah
+              DB   " [I] = Erase and init RAM and EEPROM.",0Dh,0Ah
+              DB   " [K] = Set lock byte.",0Dh,0Ah
+              DB   " [L] = Print latch state.",0Dh,0Ah
+              DB   " [M] = Edit external RAM manualy.",0Dh,0Ah
+              DB   " [N] = Set current channel.",0Dh,0Ah
+              DB   " [O] = Set volume.",0Dh,0Ah
+              DB   " [P] = Edit/Add channel.",0Dh,0Ah
+              DB   " [Q] = Set channels number.",0Dh,0Ah
+              DB   " [R] = Set synthetiser frequencies.",0Dh,0Ah
+              DB   " [U] = Print 80c552 internal RAM.",0Dh,0Ah
+              DB   " [S] = Copy EEPROM to external RAM.",0Dh,0Ah
+              DB   " [T] = Set current channel state.",0Dh,0Ah
+              DB   " [V] = Print firmware version.",0Dh,0Ah
+              DB   " [X] = Copy external RAM to EEPROM.",0Dh,0Ah
+              DB   " [Y] = Print first 2 kb from the EEPROM I2C 24c16.",0Dh,0Ah
+              DB   " [Z] = Print external RAM ($0000 to $07FF).",0Dh,0Ah,0
+*/
 /*
 [0] = Reset.
 [C] = Print channels list.
@@ -297,12 +366,13 @@ int prm80_get_channel(RIG *rig, vfo_t vfo, channel_t *chan, int read_only)
 
     if (ret != RIG_OK)
     {
-        return ret;
+        RETURNFUNC(ret);
     }
 
     if (statebuf_len < 20)
     {
-        return -RIG_EPROTO;
+        rig_debug(RIG_DEBUG_ERR, "%s: statebuf_len < 20, statebuf='%s'\n", __func__, statebuf);
+        RETURNFUNC(-RIG_EPROTO);
     }
 
     /* Example: 1240080AFF0033F02D40 */
@@ -334,10 +404,10 @@ int prm80_get_channel(RIG *rig, vfo_t vfo, channel_t *chan, int read_only)
     {
         // Set rig to channel values
         rig_debug(RIG_DEBUG_ERR,
-                  "%s: please contact hamlib mailing list to implement this\n", __func__);
+                  "%s: please contact hamlib mailing list to implement this, rxfreq=%.0f, txfreq=%.0f\n", __func__, chan->freq, chan->tx_freq);
         rig_debug(RIG_DEBUG_ERR,
                   "%s: need to know if rig updates when channel read or not\n", __func__);
-        return -RIG_ENIMPL;
+        //return -RIG_ENIMPL;
     }
 
     return RIG_OK;
@@ -432,7 +502,7 @@ int prm80_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     memset(&chan, 0, sizeof(chan));
     chan.vfo = RIG_VFO_CURR;
 
-    ret = prm80_get_channel(rig, vfo, &chan, 1);
+    ret = prm80_get_channel(rig, vfo, &chan, 0);
 
     if (ret != RIG_OK)
     {
