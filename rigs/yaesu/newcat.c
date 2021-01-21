@@ -526,6 +526,9 @@ int newcat_open(RIG *rig)
     /* get current AI state so it can be restored */
     priv->trn_state = -1;
 
+    // for this sequence we will shorten the timeout so we can detect rig is powered off faster
+    int timeout = rig->state.rigport.timeout;
+    rig->state.rigport.timeout = 100;
     newcat_get_trn(rig, &priv->trn_state);  /* ignore errors */
 
     /* Currently we cannot cope with AI mode so turn it off in case
@@ -538,6 +541,7 @@ int newcat_open(RIG *rig)
     /* Initialize rig_id in case any subsequent commands need it */
     (void)newcat_get_rigid(rig);
     rig_debug(RIG_DEBUG_VERBOSE, "%s: rig_id=%d\n", __func__, priv->rig_id);
+    rig->state.rigport.timeout = timeout;
 
 #if 0 // possible future enhancement?
 
@@ -775,6 +779,9 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
            current VFO so we must use the VS[0|1]; command to check
            and select the correct VFO before setting the frequency
         */
+        // Plus we can't do the VFO swap if transmitting
+        if (target_vfo == 'B' && rig->state.cache.ptt == RIG_PTT_ON) return -RIG_ENTARGET;
+
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS%c", cat_term);
 
         if (RIG_OK != (err = newcat_get_cmd(rig)))
@@ -814,35 +821,34 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     // And only when not in split mode (note this check has been removed for testing)
     int changing;
 
-    rig_debug(RIG_DEBUG_TRACE, "%s(%d)%s: rig->state.current_vfo=%s\n", __FILE__, __LINE__, __func__, rig_strvfo(rig->state.current_vfo));
-    if (rig->state.current_vfo == RIG_VFO_A || rig->state.current_vfo == RIG_VFO_MAIN)
+    rig_debug(RIG_DEBUG_TRACE, "%s(%d)%s: rig->state.current_vfo=%s\n", __FILE__,
+              __LINE__, __func__, rig_strvfo(rig->state.current_vfo));
+
+    CACHE_RESET;
+
+    if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
     {
-         rig_debug(RIG_DEBUG_TRACE, "%s(%d)%s: checking VFOA for band change \n", __FILE__, __LINE__, __func__);
-        if (rig->state.cache.freqMainA == 0)
-        {
-            freq_t freqtmp;
-            err = rig_get_freq(rig,RIG_VFO_CURR,&freqtmp);
-            if (err != RIG_OK) RETURNFUNC(err);
-        }
-        changing = newcat_band_index(freq) != newcat_band_index(
-                       rig->state.cache.freqMainA);
+        freq_t freqA;
+        rig_get_freq(rig, RIG_VFO_A, &freqA);
+        rig_debug(RIG_DEBUG_TRACE, "%s(%d)%s: checking VFOA for band change \n",
+                  __FILE__, __LINE__, __func__);
+
+        changing = newcat_band_index(freq) != newcat_band_index(freqA);
         rig_debug(RIG_DEBUG_TRACE, "%s: VFO_A band changing=%d\n", __func__, changing);
     }
     else
     {
-        rig_debug(RIG_DEBUG_TRACE, "%s(%d)%s: checking VFOB for band change \n", __FILE__, __LINE__, __func__);
-        if (rig->state.cache.freqMainB == 0)
-        {
-            freq_t freqtmp;
-            err = rig_get_freq(rig,RIG_VFO_CURR,&freqtmp);
-            if (err != RIG_OK) RETURNFUNC(err);
-        }
-        changing = newcat_band_index(freq) != newcat_band_index(
-                       rig->state.cache.freqMainB);
+        freq_t freqB;
+        rig_get_freq(rig, RIG_VFO_B, &freqB);
+        rig_debug(RIG_DEBUG_TRACE, "%s(%d)%s: checking VFOB for band change \n",
+                  __FILE__, __LINE__, __func__);
+
+        changing = newcat_band_index(freq) != newcat_band_index(freqB);
         rig_debug(RIG_DEBUG_TRACE, "%s: VFO_B band changing=%d\n", __func__, changing);
     }
 
     if (newcat_valid_command(rig, "BS") && changing
+            && !rig->state.disable_yaesu_bandselect
             // remove the split check here -- hopefully works OK
             //&& !rig->state.cache.split
             && !is_ft891 // 891 does not remember bandwidth so don't do this
@@ -852,12 +858,12 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         if (rig->state.current_vfo != vfo)
         {
             // then we need to change vfos, BS, and change back
-            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS1;BS%02d%c;VS0;",
-                     newcat_band_index(freq), cat_term);
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS1;BS%02d;VS0;",
+                     newcat_band_index(freq));
 
             if (vfo  == RIG_VFO_A || vfo == RIG_VFO_MAIN)
-                snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS0;BS%02d%c;VS1;",
-                         newcat_band_index(freq), cat_term);
+                snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS0;BS%02d;VS1;",
+                         newcat_band_index(freq));
         }
         else
         {
@@ -871,6 +877,8 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
                       __func__,
                       rigerror(err));
         }
+
+#if 0 // disable for testing
         else
         {
             // Also need to do this for the other VFO on some Yaesu rigs
@@ -935,6 +943,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             freq_t tmp_freqA, tmp_freqB;
             rmode_t tmp_mode;
             pbwidth_t tmp_width;
+
             rig_get_freq(rig, RIG_VFO_MAIN, &tmp_freqA);
             rig_get_freq(rig, RIG_VFO_SUB, &tmp_freqB);
             rig_get_mode(rig, RIG_VFO_MAIN, &tmp_mode, &tmp_width);
@@ -949,13 +958,61 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             }
         }
 
+#endif
+        // after band select re-read things -- may not have to change anything
+        // reading both VFOs is really only needed for rigs with just one VFO stack
+        // but we read them all to ensure we cover both types
+        freq_t tmp_freqA, tmp_freqB;
+        rmode_t tmp_mode;
+        pbwidth_t tmp_width;
+
+        // we need to update some info that BS may have caused
+        CACHE_RESET;
+
+        if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
+        {
+            rig_get_freq(rig, RIG_VFO_SUB, &tmp_freqA);
+        }
+        else
+        {
+            rig_get_freq(rig, RIG_VFO_MAIN, &tmp_freqB);
+        }
+
+        rig_get_mode(rig, RIG_VFO_MAIN, &tmp_mode, &tmp_width);
+        rig_get_mode(rig, RIG_VFO_SUB, &tmp_mode, &tmp_width);
+
+        if ((target_vfo == 0 && tmp_freqA == freq)
+                || (target_vfo == 1 && tmp_freqB == freq))
+        {
+            rig_debug(RIG_DEBUG_VERBOSE,
+                      "%s: freq after band select already set to %"PRIfreq"\n", __func__, freq);
+            RETURNFUNC(RIG_OK); // we're done then!!
+        }
+
         // just drop through
     }
 
 
     // cppcheck-suppress *
-    snprintf(priv->cmd_str, sizeof(priv->cmd_str), "F%c%0*"PRIll"%c", c,
-             priv->width_frequency, (int64_t)freq, cat_term);
+    if (RIG_MODEL_FT450 == caps->rig_model)
+    {
+        if (c == 'B')
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS1;F%c%0*"PRIll"%c;VS0;", c,
+                     priv->width_frequency, (int64_t)freq, cat_term);
+        }
+        else
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "F%c%0*"PRIll"%c", c,
+                     priv->width_frequency, (int64_t)freq, cat_term);
+        }
+    }
+    else
+    {
+        snprintf(priv->cmd_str, sizeof(priv->cmd_str), "F%c%0*"PRIll"%c", c,
+                 priv->width_frequency, (int64_t)freq, cat_term);
+    }
+
     rig_debug(RIG_DEBUG_TRACE, "%s:%d cmd_str = %s\n", __func__, __LINE__,
               priv->cmd_str);
 
@@ -1240,6 +1297,9 @@ int newcat_set_vfo(RIG *rig, vfo_t vfo)
     ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s: passed vfo = %s\n", __func__,
               rig_strvfo(vfo));
+
+    // we can't change VFO while transmitting
+    if (rig->state.cache.ptt == RIG_PTT_ON) { return RIG_OK; }
 
     if (!newcat_valid_command(rig, command))
     {
@@ -6599,7 +6659,7 @@ ncboolean newcat_is_rig(RIG *rig, rig_model_t model)
     //rig_debug(RIG_DEBUG_TRACE, "%s(%d):%s called\n", __FILE__, __LINE__, __func__);
     is_rig = (model == rig->caps->rig_model) ? TRUE : FALSE;
 
-    return(is_rig);
+    return (is_rig);
 }
 
 
@@ -9618,8 +9678,15 @@ int newcat_set_cmd_validate(RIG *rig)
 
         if (bytes > 0)
         {
-            // if they match we are validated
-            if (strcmp(priv->cmd_str, priv->ret_data) == 0) { RETURNFUNC(RIG_OK); }
+            // for the BS command we can only run it once
+            // so we'll assume it worked
+            // maybe Yaeus will make this command more intelligent
+            if (strstr(priv->cmd_str, "BS")) { return RIG_OK; }
+
+            // if the first two chars match we are validated
+            if (strncmp(priv->cmd_str, "VS", 2) == 0
+                    && strncmp(priv->cmd_str, priv->ret_data, 2) == 0) { RETURNFUNC(RIG_OK); }
+            else if (strcmp(priv->cmd_str, priv->ret_data) == 0) { RETURNFUNC(RIG_OK); }
             else { rc = -RIG_EPROTO; }
         }
 
