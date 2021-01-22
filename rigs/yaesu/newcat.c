@@ -738,11 +738,23 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     }
 
     /* vfo should now be modified to a valid VFO constant. */
-    /* DX3000/DX5000 can only do VFO_MEM on 60M */
+    /* DX3000/DX5000/450 can only do VFO_MEM on 60M */
     /* So we will not change freq in that case */
-    special_60m = newcat_is_rig(rig, RIG_MODEL_FTDX3000);
+    // did have FTDX3000 as not capable of 60M set_freq but as of 2021-01-21 it works
+    // special_60m = newcat_is_rig(rig, RIG_MODEL_FTDX3000);
     /* duplicate the following line to add more rigs */
-    special_60m |= newcat_is_rig(rig, RIG_MODEL_FTDX5000);
+    special_60m = newcat_is_rig(rig, RIG_MODEL_FTDX5000);
+    special_60m |= newcat_is_rig(rig, RIG_MODEL_FT450);
+    rig_debug(RIG_DEBUG_TRACE, "%s: special_60m=%d, 60m freq=%d, is_ftdx3000=%d\n",
+              __func__, special_60m, freq >= 5300000
+              && freq <= 5410000, newcat_is_rig(rig, RIG_MODEL_FTDX3000));
+
+    if (special_60m && (freq >= 5300000 && freq <= 5410000))
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: 60M VFO_MEM exception, no freq change done\n",
+                  __func__);
+        RETURNFUNC(RIG_OK); /* make it look like we changed */
+    }
 
     switch (vfo)
     {
@@ -754,17 +766,6 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     case RIG_VFO_B:
     case RIG_VFO_SUB:
         c = 'B';
-        break;
-
-    case RIG_VFO_MEM:
-        if (special_60m && (freq >= 5300000 && freq <= 5410000))
-        {
-            rig_debug(RIG_DEBUG_TRACE, "%s: 60M VFO_MEM exception, no freq change done\n",
-                      __func__);
-            RETURNFUNC(RIG_OK); /* make it look like we changed */
-        }
-
-        c = 'A';
         break;
 
     default:
@@ -780,7 +781,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
            and select the correct VFO before setting the frequency
         */
         // Plus we can't do the VFO swap if transmitting
-        if (target_vfo == 'B' && rig->state.cache.ptt == RIG_PTT_ON) return -RIG_ENTARGET;
+        if (target_vfo == 'B' && rig->state.cache.ptt == RIG_PTT_ON) { return -RIG_ENTARGET; }
 
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS%c", cat_term);
 
@@ -851,6 +852,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             && !rig->state.disable_yaesu_bandselect
             // remove the split check here -- hopefully works OK
             //&& !rig->state.cache.split
+            && !(is_ftdx3000 && newcat_band_index(freq) == 2)
             && !is_ft891 // 891 does not remember bandwidth so don't do this
             && rig->caps->get_vfo != NULL
             && rig->caps->set_vfo != NULL) // gotta' have get_vfo too
@@ -998,19 +1000,19 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     {
         if (c == 'B')
         {
-            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS1;F%c%0*"PRIll"%c;VS0;", c,
-                     priv->width_frequency, (int64_t)freq, cat_term);
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS1;F%c%0*"PRIll";VS0;", c,
+                     priv->width_frequency, (int64_t)freq);
         }
         else
         {
-            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "F%c%0*"PRIll"%c", c,
-                     priv->width_frequency, (int64_t)freq, cat_term);
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "F%c%0*"PRIll";", c,
+                     priv->width_frequency, (int64_t)freq);
         }
     }
     else
     {
-        snprintf(priv->cmd_str, sizeof(priv->cmd_str), "F%c%0*"PRIll"%c", c,
-                 priv->width_frequency, (int64_t)freq, cat_term);
+        snprintf(priv->cmd_str, sizeof(priv->cmd_str), "F%c%0*"PRIll";", c,
+                 priv->width_frequency, (int64_t)freq);
     }
 
     rig_debug(RIG_DEBUG_TRACE, "%s:%d cmd_str = %s\n", __func__, __LINE__,
@@ -6136,6 +6138,12 @@ int newcat_get_trn(RIG *rig, int *trn)
     /* Get Auto Information */
     if (RIG_OK != (err = newcat_get_cmd(rig)))
     {
+        // if we failed to get AI we turn it off and try again
+        snprintf(priv->cmd_str, sizeof(priv->cmd_str), "%s0%c", command, cat_term);
+        hl_usleep(500 * 1000); // is 500ms enough for the rig to stop sending info?
+        newcat_set_cmd(rig); // don't care about the return here
+        snprintf(priv->cmd_str, sizeof(priv->cmd_str), "%s%c", command, cat_term);
+        err = newcat_get_cmd(rig);
         RETURNFUNC(err);
     }
 
@@ -6725,6 +6733,7 @@ int newcat_set_tx_vfo(RIG *rig, vfo_t tx_vfo)
             newcat_is_rig(rig, RIG_MODEL_FTDX5000) ||
             newcat_is_rig(rig, RIG_MODEL_FTDX1200) ||
             newcat_is_rig(rig, RIG_MODEL_FT991) ||
+            newcat_is_rig(rig, RIG_MODEL_FTDX10) ||
             newcat_is_rig(rig, RIG_MODEL_FTDX3000))
     {
         p1 = p1 + 2;    /* use non-Toggle commands */
@@ -7857,14 +7866,14 @@ int newcat_set_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     } /* end else */
 
-    if (is_ftdx101 || is_ft891 || is_ftdx10)
+    if (is_ftdx101 || is_ft891)
     {
         // some rigs now require the bandwidth be turned "on"
         int on = is_ft891;
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "SH%c%d%02d;", main_sub_vfo, on,
                  w);
     }
-    else if (is_ft2000)
+    else if (is_ft2000 || is_ftdx10 || is_ftdx3000)
     {
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "SH0%02d;", w);
     }
@@ -8094,7 +8103,7 @@ int newcat_get_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t *width)
 
     if (sh_command_valid)
     {
-        if (is_ft2000)
+        if (is_ft2000 || is_ftdx10 || is_ftdx3000)
         {
             snprintf(priv->cmd_str, sizeof(priv->cmd_str), "%s0%c", cmd, cat_term);
         }
