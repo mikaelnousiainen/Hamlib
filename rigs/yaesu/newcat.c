@@ -743,8 +743,9 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     // did have FTDX3000 as not capable of 60M set_freq but as of 2021-01-21 it works
     // special_60m = newcat_is_rig(rig, RIG_MODEL_FTDX3000);
     /* duplicate the following line to add more rigs */
-    special_60m = newcat_is_rig(rig, RIG_MODEL_FTDX5000);
-    special_60m |= newcat_is_rig(rig, RIG_MODEL_FT450);
+    // disabled to check 2019 firmware on FTDX5000 and FT450 behavior
+    //special_60m = newcat_is_rig(rig, RIG_MODEL_FTDX5000);
+    //special_60m |= newcat_is_rig(rig, RIG_MODEL_FT450);
     rig_debug(RIG_DEBUG_TRACE, "%s: special_60m=%d, 60m freq=%d, is_ftdx3000=%d\n",
               __func__, special_60m, freq >= 5300000
               && freq <= 5410000, newcat_is_rig(rig, RIG_MODEL_FTDX3000));
@@ -774,6 +775,28 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     target_vfo = 'A' == c ? '0' : '1';
 
+    // some rigs like FTDX101D cannot change non-TX vfo freq
+    // but they can change the TX vfo
+    if (is_ftdx101 && rig->state.cache.ptt == RIG_PTT_ON)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: ftdx101 check vfo OK, vfo=%s, tx_vfo=%s\n", __func__, rig_strvfo(vfo), rig_strvfo(rig->state.tx_vfo));
+        // when in split we can change VFOB but not VFOA
+        if (rig->state.cache.split == RIG_SPLIT_ON && target_vfo == '0') return -RIG_ENTARGET;
+        // when not in split we can't change VFOA at all
+        if (rig->state.cache.split == RIG_SPLIT_OFF && target_vfo == '0') return -RIG_ENTARGET;
+        if (vfo != rig->state.tx_vfo) return -RIG_ENTARGET;
+    }
+
+    if (rig->state.cache.ptt ==
+            RIG_PTT_ON) // we have a few rigs that can't set TX VFO while PTT_ON
+    {
+        // should be true whether we're on VFOA or VFOB but only restricting VFOB right now
+        // we return RIG_OK as we dont' want
+        if (is_ftdx3000) { return RIG_ENTARGET; }
+
+        if (is_ftdx5000) { return RIG_ENTARGET; }
+    }
+
     if (RIG_MODEL_FT450 == caps->rig_model)
     {
         /* The FT450 only accepts F[A|B]nnnnnnnn; commands for the
@@ -781,7 +804,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
            and select the correct VFO before setting the frequency
         */
         // Plus we can't do the VFO swap if transmitting
-        if (target_vfo == 'B' && rig->state.cache.ptt == RIG_PTT_ON) { return -RIG_ENTARGET; }
+        if (target_vfo == 'B' && rig->state.cache.ptt == RIG_PTT_ON) { RETURNFUNC(-RIG_ENTARGET); }
 
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS%c", cat_term);
 
@@ -852,7 +875,10 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             && !rig->state.disable_yaesu_bandselect
             // remove the split check here -- hopefully works OK
             //&& !rig->state.cache.split
+            // some rigs can't do BS command on 60M
             && !(is_ftdx3000 && newcat_band_index(freq) == 2)
+            && !(is_ft2000 && newcat_band_index(freq) == 2)
+            && !(is_ftdx1200 && newcat_band_index(freq) == 2)
             && !is_ft891 // 891 does not remember bandwidth so don't do this
             && rig->caps->get_vfo != NULL
             && rig->caps->set_vfo != NULL) // gotta' have get_vfo too
@@ -1301,7 +1327,7 @@ int newcat_set_vfo(RIG *rig, vfo_t vfo)
               rig_strvfo(vfo));
 
     // we can't change VFO while transmitting
-    if (rig->state.cache.ptt == RIG_PTT_ON) { return RIG_OK; }
+    if (rig->state.cache.ptt == RIG_PTT_ON) { RETURNFUNC(RIG_OK); }
 
     if (!newcat_valid_command(rig, command))
     {
@@ -2346,7 +2372,7 @@ int newcat_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
 
     oldvfo = newcat_set_vfo_if_needed(rig, vfo);
 
-    if (oldvfo < 0) { return oldvfo; }
+    if (oldvfo < 0) { RETURNFUNC(oldvfo); }
 
     if (rit > rig->caps->max_rit)
     {
@@ -2377,7 +2403,7 @@ int newcat_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
 
     oldvfo = newcat_set_vfo_if_needed(rig, oldvfo);
 
-    if (oldvfo < 0) { return oldvfo; }
+    if (oldvfo < 0) { RETURNFUNC(oldvfo); }
 
     RETURNFUNC(ret);
 }
@@ -2460,7 +2486,7 @@ int newcat_set_xit(RIG *rig, vfo_t vfo, shortfreq_t xit)
 
     oldvfo = newcat_set_vfo_if_needed(rig, vfo);
 
-    if (oldvfo < 0) { return oldvfo; }
+    if (oldvfo < 0) { RETURNFUNC(oldvfo); }
 
     if (xit > rig->caps->max_xit)
     {
@@ -2492,7 +2518,7 @@ int newcat_set_xit(RIG *rig, vfo_t vfo, shortfreq_t xit)
 
     oldvfo = newcat_set_vfo_if_needed(rig, vfo);
 
-    if (oldvfo < 0) { return oldvfo; }
+    if (oldvfo < 0) { RETURNFUNC(oldvfo); }
 
     RETURNFUNC(ret);
 }
@@ -6141,7 +6167,7 @@ int newcat_get_trn(RIG *rig, int *trn)
         // if we failed to get AI we turn it off and try again
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "%s0%c", command, cat_term);
         hl_usleep(500 * 1000); // is 500ms enough for the rig to stop sending info?
-        newcat_set_cmd(rig); // don't care about the return here
+        newcat_set_cmd(rig); // don't care about any errors here
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "%s%c", command, cat_term);
         err = newcat_get_cmd(rig);
         RETURNFUNC(err);
@@ -6667,12 +6693,13 @@ ncboolean newcat_is_rig(RIG *rig, rig_model_t model)
     //rig_debug(RIG_DEBUG_TRACE, "%s(%d):%s called\n", __FILE__, __LINE__, __func__);
     is_rig = (model == rig->caps->rig_model) ? TRUE : FALSE;
 
-    return (is_rig);
+    return (is_rig); // RETURN is too verbose here
 }
 
 
 /*
  * newcat_set_tx_vfo does not set priv->curr_vfo
+ * does set rig->state.tx_vfo
  */
 int newcat_set_tx_vfo(RIG *rig, vfo_t tx_vfo)
 {
@@ -6748,9 +6775,10 @@ int newcat_set_tx_vfo(RIG *rig, vfo_t tx_vfo)
 
     snprintf(priv->cmd_str, sizeof(priv->cmd_str), "%s%c%c", command, p1, cat_term);
 
-    rig_debug(RIG_DEBUG_TRACE, "cmd_str = %s\n", priv->cmd_str);
+    rig_debug(RIG_DEBUG_TRACE, "cmd_str = %s, vfo=%s\n", priv->cmd_str, rig_strvfo(tx_vfo));
 
-    /* Set TX VFO */
+    rig->state.tx_vfo = tx_vfo;
+
     RETURNFUNC(newcat_set_cmd(rig));
 }
 
@@ -6905,7 +6933,7 @@ int newcat_scale_float(int scale, float fval)
         f = scale * (fval + fudge);
     }
 
-    return (int) f;
+    return (int) f; // RETURN is too verbose here
 }
 
 
@@ -7036,7 +7064,7 @@ int newcat_set_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     int err;
-    int w;
+    int w = 0;
     char main_sub_vfo = '0';
 
     ENTERFUNC;
@@ -9202,9 +9230,9 @@ int newcat_set_faststep(RIG *rig, ncboolean fast_step)
 
     snprintf(priv->cmd_str, sizeof(priv->cmd_str), "FS%c%c", c, cat_term);
 
-    rig_debug(RIG_DEBUG_TRACE, "cmd_str = %s\n", priv->cmd_str);
+    rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
 
-    return newcat_set_cmd(rig);
+    RETURNFUNC(newcat_set_cmd(rig));
 }
 
 
@@ -9267,7 +9295,7 @@ int newcat_get_rigid(RIG *rig)
     rig_debug(RIG_DEBUG_TRACE, "rig_id = %d, *s = %s\n", priv->rig_id,
               s == NULL ? "NULL" : s);
 
-    return priv->rig_id;
+    RETURNFUNC(priv->rig_id);
 }
 
 
@@ -9362,7 +9390,7 @@ int newcat_vfomem_toggle(RIG *rig)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
 
-    return newcat_set_cmd(rig);
+    RETURNFUNC(newcat_set_cmd(rig));
 }
 
 /*
@@ -9654,7 +9682,7 @@ int newcat_set_cmd_validate(RIG *rig)
     }
     else
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: %s not implemented\n", __func__, priv->cmd_str);
+        rig_debug(RIG_DEBUG_TRACE, "%s: %s not implemented\n", __func__, priv->cmd_str);
         RETURNFUNC(-RIG_ENIMPL);
     }
 
@@ -9690,7 +9718,7 @@ int newcat_set_cmd_validate(RIG *rig)
             // for the BS command we can only run it once
             // so we'll assume it worked
             // maybe Yaeus will make this command more intelligent
-            if (strstr(priv->cmd_str, "BS")) { return RIG_OK; }
+            if (strstr(priv->cmd_str, "BS")) { RETURNFUNC(RIG_OK); }
 
             // if the first two chars match we are validated
             if (strncmp(priv->cmd_str, "VS", 2) == 0

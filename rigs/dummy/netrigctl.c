@@ -215,7 +215,11 @@ static int netrigctl_open(RIG *rig)
     len = sprintf(cmd, "\\chk_vfo\n");
     ret = netrigctl_transaction(rig, cmd, len, buf);
 
-    if (ret == 2)
+    if (sscanf(buf,"CHKVFO %d", &priv->rigctld_vfo_mode)==1)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: chkvfo=%d\n", __func__, priv->rigctld_vfo_mode);
+    }
+    else if (ret == 2)
     {
         if (buf[0]) { sscanf(buf, "%d", &priv->rigctld_vfo_mode); }
     }
@@ -826,18 +830,13 @@ static int netrigctl_get_vfo(RIG *rig, vfo_t *vfo)
     int ret, len;
     char cmd[CMD_MAX];
     char buf[BUF_MAX];
-    char vfostr[16] = "";
     struct netrigctl_priv_data *priv;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     priv = (struct netrigctl_priv_data *)rig->state.priv;
 
-    ret = netrigctl_vfostr(rig, vfostr, sizeof(vfostr), RIG_VFO_A);
-
-    if (ret != RIG_OK) { return ret; }
-
-    len = sprintf(cmd, "v%s\n", vfostr);
+    len = sprintf(cmd, "v\n");
 
     ret = netrigctl_transaction(rig, cmd, len, buf);
 
@@ -2284,7 +2283,7 @@ struct rig_caps netrigctl_caps =
     RIG_MODEL(RIG_MODEL_NETRIGCTL),
     .model_name =     "NET rigctl",
     .mfg_name =       "Hamlib",
-    .version =        "20210108.0",
+    .version =        "20210207.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,

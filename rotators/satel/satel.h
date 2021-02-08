@@ -1,6 +1,6 @@
 /*
- *  Hamlib FLRig backend - main header
- *  Copyright (c) 2017 by Michael Black W9MDB
+ *  Hamlib SatEL backend - main header
+ *  Copyright (c) 2021 Joshua Lynch
  *
  *
  *   This library is free software; you can redistribute it and/or
@@ -19,21 +19,10 @@
  *
  */
 
-#ifndef _FLRIG_H
-#define _FLRIG_H 1
+#ifndef _ROT_SATEL_H
+#define _ROT_SATEL_H 1
 
-#include "hamlib/rig.h"
+extern const struct rot_caps satel_rot_caps;
 
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
 
-#define BACKEND_VER "20210128"
-
-#define EOM "\r"
-#define TRUE 1
-#define FALSE 0
-
-extern const struct rig_caps flrig_caps;
-
-#endif /* _FLRIG_H */
+#endif /* _ROT_SATEL_H */

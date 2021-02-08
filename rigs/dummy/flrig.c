@@ -404,8 +404,6 @@ static int read_transaction(RIG *rig, char *xml, int xml_len)
 
     rig_debug(RIG_DEBUG_TRACE, "%s\n", __func__);
 
-    rs->rigport.timeout = 1000; // 1 second read string timeout
-
     retry = 2;
     delims = "\n";
     xml[0] = 0;
@@ -541,6 +539,11 @@ static int flrig_transaction(RIG *rig, char *cmd, char *cmd_arg, char *value,
         if (retval != RIG_OK)
         {
             rig_debug(RIG_DEBUG_ERR, "%s: write_transaction error=%d\n", __func__, retval);
+
+            // if we get RIG_EIO the socket has probably disappeared
+            // so bubble up the error so port can re re-opened
+            if (retval == -RIG_EIO) { return retval; }
+
             hl_usleep(50 * 1000); // 50ms sleep if error
         }
 
@@ -551,7 +554,8 @@ static int flrig_transaction(RIG *rig, char *cmd, char *cmd_arg, char *value,
             xml_parse(xml, value, value_len);
         }
     }
-    while (((value && strlen(value) == 0) || (strlen(xml)==0)) && retry--); // we'll do retries if needed
+    while (((value && strlen(value) == 0) || (strlen(xml) == 0))
+            && retry--); // we'll do retries if needed
 
     if (value && strlen(value) == 0) { return RIG_EPROTO; }
 

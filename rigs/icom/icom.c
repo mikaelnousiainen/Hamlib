@@ -704,7 +704,7 @@ int icom_get_usb_echo_off(RIG *rig)
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     // reduce the retry here so it's quicker
-    rs->rigport.retry = 1;
+    rs->rigport.retry = 0;
     // Check for echo on first
     priv->serial_USB_echo_off = 0;
 
@@ -1911,7 +1911,8 @@ int icom_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     /*
      * modebuf should contain Cn,Data area
      */
-    mode_len--;
+    // when mode gets here it should be 2 or 1
+    // mode_len--;
 
     if (mode_len != 2 && mode_len != 1)
     {
@@ -3112,11 +3113,13 @@ int icom_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         else
         {
             float scale = 100;
+
             if (rig->caps->rig_model == RIG_MODEL_IC705
                     || rig->caps->rig_model == RIG_MODEL_IC703)
             {
                 scale = 10;
             }
+
             val->f =
                 rig_raw2val_float(icom_val, &rig->caps->rfpower_meter_cal) * scale;
         }
@@ -6228,6 +6231,7 @@ int icom_set_powerstat(RIG *rig, powerstat_t status)
         retval =
             icom_transaction(rig, C_SET_PWR, pwr_sc, NULL, 0, ackbuf, &ack_len);
         rs->rigport.retry = retry;
+        hl_usleep(3000*1000); // give it 3 seconds to wake up
 
         break;
 

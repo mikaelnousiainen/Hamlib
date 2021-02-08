@@ -290,6 +290,8 @@ int foreach_opened_rig(int (*cfunc)(RIG *, rig_ptr_t), rig_ptr_t data)
  *
  * \todo support gettext/localization
  */
+char debugmsgsave[DEBUGMSGSAVE_SIZE] = "No message";
+
 const char *HAMLIB_API rigerror(int errnum)
 {
     errnum = abs(errnum);
@@ -300,7 +302,12 @@ const char *HAMLIB_API rigerror(int errnum)
         return "ERR_OUT_OF_RANGE";
     }
 
-    return rigerror_table[errnum];
+    static char msg[25000];
+    // we have to remove LF from debugmsgsave since calling function controls LF
+    char *p = &debugmsgsave[strlen(debugmsgsave)-1];
+    if (*p=='\n') *p=0;
+    snprintf(msg, sizeof(msg), "%.80s\n%.15000s", rigerror_table[errnum], debugmsgsave);
+    return msg;
 }
 
 // We use a couple of defined pointer to determine if the shared library changes
@@ -325,7 +332,7 @@ int rig_check_rig_caps()
         rig_debug(RIG_DEBUG_WARN, "%s: shared libary change#2\n", __func__);
     }
 
-    if (rc != RIG_OK)
+    //if (rc != RIG_OK)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: p1=%p, p2=%p, rig_model=%p, macro_name=%p\n",
                   __func__, caps_test_rig_model, caps_test_macro_name, &caps_test.rig_model,
@@ -471,10 +478,10 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
                sizeof(struct freq_range_list)*FRQRANGESIZ);
     }
 
-    if (rs->tx_range_list == NULL)
+    if (rs->tx_range_list[0].startf == 0)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: rig does not have rx_range!!\n", __func__);
-        RETURNFUNC(NULL);
+        rig_debug(RIG_DEBUG_ERR, "%s: rig does not have tx_range!!\n", __func__);
+        //RETURNFUNC(NULL); // this is not fatal
     }
 
 #if 0 // this is no longer applicable -- replace it with something?
@@ -1387,8 +1394,7 @@ static int set_cache_freq(RIG *rig, vfo_t vfo, freq_t freq)
         elapsed_ms(&rig->state.cache.time_freqMainB, HAMLIB_ELAPSED_SET);
         break;
 
-#if 0
-
+#if 0 // 5.0
     case RIG_VFO_C: // is there a MainC/SubC we need to cover?
         rig->state.cache.freqMainC = freq;
         elapsed_ms(&rig->state.cache.time_freqMainC, HAMLIB_ELAPSED_SET);
@@ -1403,6 +1409,11 @@ static int set_cache_freq(RIG *rig, vfo_t vfo, freq_t freq)
     case RIG_VFO_SUB_B:
         rig->state.cache.freqSubB = freq;
         elapsed_ms(&rig->state.cache.time_freqSubB, HAMLIB_ELAPSED_SET);
+        break;
+
+    case RIG_VFO_MEM:
+        rig->state.cache.freqMem = freq;
+        elapsed_ms(&rig->state.cache.time_freqMem, HAMLIB_ELAPSED_SET);
         break;
 
     default:
@@ -1453,19 +1464,25 @@ static int get_cache_freq(RIG *rig, vfo_t vfo, freq_t *freq, int *cache_ms)
         *cache_ms = elapsed_ms(&rig->state.cache.time_freqSubB, HAMLIB_ELAPSED_GET);
         break;
 
-#if 0 // future
-
+#if 0 // 5.0
     case RIG_VFO_C:
-    case RIG_VFO_MAINC:
+    //case RIG_VFO_MAINC: // not used by any rig yet
         *freq = rig->state.cache.freqMainC;
-        *cache_ms = rig->state.cache.time_freqMainC;
+        *cache_ms = elapsed_ms(&rig->state.cache.time_freqMainC, HAMLIB_ELAPSED_GET);
         break;
+#endif
 
+#if 0 // no known rigs use this yet
     case RIG_VFO_SUBC:
         *freq = rig->state.cache.freqSubC;
         *cache_ms = rig->state.cache.time_freqSubC;
         break;
 #endif
+
+    case RIG_VFO_MEM:
+        *freq = rig->state.cache.freqMem;
+        *cache_ms = elapsed_ms(&rig->state.cache.time_freqMem, HAMLIB_ELAPSED_GET);
+        break;
 
     default:
         rig_debug(RIG_DEBUG_ERR, "%s: unknown vfo?, vfo=%s\n", __func__,
@@ -1569,7 +1586,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
         if (retcode != RIG_OK)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: set_vfo err %s\n", __func__, rigerror(retcode));
+            rig_debug(RIG_DEBUG_ERR, "%s: set_vfo err %.10000s\n", __func__, rigerror(retcode));
             RETURNFUNC(retcode);
         }
 
@@ -1653,11 +1670,15 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s\n", __func__, rig_strvfo(vfo));
 
+#if 0 // don't think we really need this check
+
     if (CHECK_RIG_ARG(rig) || !freq)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: rig or freq ptr invalid\n", __func__);
         RETURNFUNC(-RIG_EINVAL);
     }
+
+#endif
 
     curr_vfo = rig->state.current_vfo; // save vfo for restore later
 
@@ -2249,7 +2270,7 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
     }
     else
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: set_vfo %s failed with '%s'\n", __func__,
+        rig_debug(RIG_DEBUG_ERR, "%s: set_vfo %s failed with '%.10000s'\n", __func__,
                   rig_strvfo(vfo), rigerror(retcode));
     }
 
@@ -2258,7 +2279,7 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
     if (retcode == RIG_OK && caps->get_freq)
     {
         retcode = caps->get_freq(rig, vfo, &curr_freq);
-        rig_debug(RIG_DEBUG_TRACE, "%s: retcode from rig_get_freq = %s\n", __func__,
+        rig_debug(RIG_DEBUG_TRACE, "%s: retcode from rig_get_freq = %.10000s\n", __func__,
                   rigerror(retcode));
     }
     else // don't expire cache if we just read it
@@ -2343,7 +2364,7 @@ int HAMLIB_API rig_get_vfo(RIG *rig, vfo_t *vfo)
 
     if (retcode != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: returning %d(%s)\n", __func__, retcode,
+        rig_debug(RIG_DEBUG_ERR, "%s: returning %d(%.10000s)\n", __func__, retcode,
                   rigerror(retcode));
     }
 
@@ -5539,6 +5560,40 @@ const char *HAMLIB_API rig_get_info(RIG *rig)
     RETURNFUNC(rig->caps->get_info(rig));
 }
 
+/**
+ * \brief get freq/mode/width for requested VFO
+ * \param rig   The rig handle
+ * \param vfo   The VFO to get
+ * \param *freq frequency answer
+ * \param *mode mode answer
+ * \param *width bandwidth answer
+ *
+ *  Gets the current VFO information. The VFO can be RIG_VFO_A, RIG_VFO_B, RIG_VFO_C
+ *  for VFOA, VFOB, VFOC respectively or RIG_VFO_MEM for Memory mode.
+ *  Supported VFOs depends on rig capabilities.
+ *
+ * \RETURNFUNC(RIG_OK) if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case use rigerror(return)
+ * for error message).
+ *
+ */
+int HAMLIB_API rig_get_vfo_info(RIG *rig, vfo_t vfo, freq_t *freq, rmode_t *mode, pbwidth_t *width)
+{
+    int retcode;
+
+    ENTERFUNC;
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s\n", __func__, rig_strvfo(vfo));
+
+    if (CHECK_RIG_ARG(rig))
+    {
+        RETURNFUNC(-RIG_EINVAL);
+    }
+
+    retcode = rig_get_freq(rig,vfo,freq);
+    if (retcode != RIG_OK) RETURNFUNC(retcode);
+    retcode = rig_get_mode(rig,vfo,mode,width);
+    RETURNFUNC(retcode);
+}
 
 /**
  * \brief get the Hamlib license

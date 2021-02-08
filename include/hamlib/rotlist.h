@@ -490,6 +490,21 @@
 //! @endcond
 #define ROT_MODEL_INDI ROT_MAKE_MODEL(ROT_INDI, 1)
 
+
+/**
+ *  \def ROT_MODEL_SATEL
+ *  \brief A macro that returns the model number of the SatEL backend.
+ *
+ *  The SatEL backend can be used with rotators that support the VE5FP
+ *  interface.
+ */
+//! @cond Doxygen_Suppress
+#define ROT_SATEL 21
+#define ROT_BACKEND_SATEL "satel"
+//! @endcond
+#define ROT_MODEL_SATEL ROT_MAKE_MODEL(ROT_SATEL, 1)
+
+
 /**
  *  \def ROT_MODEL_OH3AAROT
  *  \brief A macro that returns the model number of the OH3AA rotator controller backend.
@@ -497,7 +512,7 @@
  *  The OH3AA rotator controller backend can be used with rotators that support the OH3AA
  *  protocol and alike.
  */
-#define ROT_OH3AAROT 21
+#define ROT_OH3AAROT 22
 #define ROT_BACKEND_OH3AAROT "oh3aarot"
 #define ROT_MODEL_OH3AAROT1 ROT_MAKE_MODEL(ROT_OH3AAROT, 1)
 
