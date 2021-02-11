@@ -291,6 +291,7 @@ int foreach_opened_rig(int (*cfunc)(RIG *, rig_ptr_t), rig_ptr_t data)
  * \todo support gettext/localization
  */
 char debugmsgsave[DEBUGMSGSAVE_SIZE] = "No message";
+char debugmsgsave2[DEBUGMSGSAVE_SIZE] = "No message";
 
 const char *HAMLIB_API rigerror(int errnum)
 {
@@ -302,11 +303,11 @@ const char *HAMLIB_API rigerror(int errnum)
         return "ERR_OUT_OF_RANGE";
     }
 
-    static char msg[25000];
+    static char msg[DEBUGMSGSAVE_SIZE*2];
     // we have to remove LF from debugmsgsave since calling function controls LF
     char *p = &debugmsgsave[strlen(debugmsgsave)-1];
     if (*p=='\n') *p=0;
-    snprintf(msg, sizeof(msg), "%.80s\n%.15000s", rigerror_table[errnum], debugmsgsave);
+    snprintf(msg, sizeof(msg), "%.80s\n%.15000s\n%.15000s", rigerror_table[errnum], debugmsgsave2, debugmsgsave);
     return msg;
 }
 
@@ -1371,10 +1372,26 @@ static int set_cache_freq(RIG *rig, vfo_t vfo, freq_t freq)
     rig_debug(RIG_DEBUG_TRACE, "%s:  vfo=%s, current_vfo=%s\n", __func__,
               rig_strvfo(vfo), rig_strvfo(rig->state.current_vfo));
 
-    if (vfo == RIG_VFO_CURR) { vfo = rig->state.current_vfo; }
+    if (vfo == RIG_VFO_CURR) 
+    { 
+        // if CURR then update this before we figure out the real VFO
+        rig->state.cache.freqCurr = freq;
+        elapsed_ms(&rig->state.cache.time_freqCurr, HAMLIB_ELAPSED_SET);
+        vfo = rig->state.current_vfo; 
+    }
+
+    rig_debug(RIG_DEBUG_TRACE, "%s: set vfo=%s to freq=%.0f\n", __func__, rig_strvfo(vfo), freq);
 
     switch (vfo)
     {
+    case RIG_VFO_ALL: // we'll use NONE to reset all VFO caches
+        elapsed_ms(&rig->state.cache.time_freqCurr, HAMLIB_ELAPSED_INVALIDATE);
+        elapsed_ms(&rig->state.cache.time_freqMainA, HAMLIB_ELAPSED_INVALIDATE);
+        elapsed_ms(&rig->state.cache.time_freqMainB, HAMLIB_ELAPSED_INVALIDATE);
+        elapsed_ms(&rig->state.cache.time_freqSubA, HAMLIB_ELAPSED_INVALIDATE);
+        elapsed_ms(&rig->state.cache.time_freqSubB, HAMLIB_ELAPSED_INVALIDATE);
+        elapsed_ms(&rig->state.cache.time_freqMem, HAMLIB_ELAPSED_INVALIDATE);
+        break;
     case RIG_VFO_CURR:
         rig->state.cache.freqCurr = freq;
         elapsed_ms(&rig->state.cache.time_freqCurr, HAMLIB_ELAPSED_SET);
@@ -1432,6 +1449,8 @@ static int get_cache_freq(RIG *rig, vfo_t vfo, freq_t *freq, int *cache_ms)
               rig_strvfo(vfo), rig_strvfo(rig->state.current_vfo));
 
     if (vfo == RIG_VFO_CURR) { vfo = rig->state.current_vfo; }
+
+    rig_debug(RIG_DEBUG_TRACE, "%s: get vfo=%s\n", __func__, rig_strvfo(vfo));
 
     // VFO_C to be implemented
     switch (vfo)
@@ -1586,7 +1605,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
         if (retcode != RIG_OK)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: set_vfo err %.10000s\n", __func__, rigerror(retcode));
+            rig_debug(RIG_DEBUG_ERR, "%s: set_vfo(%s) err %.10000s\n", __func__, rig_strvfo(vfo), rigerror(retcode));
             RETURNFUNC(retcode);
         }
 
@@ -1618,6 +1637,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
            )
         {
             elapsed_ms(&rig->state.cache.time_freq, HAMLIB_ELAPSED_INVALIDATE);
+            set_cache_freq(rig, RIG_VFO_ALL, (freq_t)0);
             retcode = rig_get_freq(rig, vfo, &freq_new);
 
             if (retcode != RIG_OK) { RETURNFUNC(retcode); }
@@ -1625,7 +1645,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
         if (freq_new != freq)
         {
-            rig_debug(RIG_DEBUG_TRACE, "%s: Asked freq=%.0fg, got freq=%.0fg\n", __func__,
+            rig_debug(RIG_DEBUG_TRACE, "%s: Asked freq=%.0f, got freq=%.0f\n", __func__,
                       freq,
                       freq_new);
         }
@@ -1837,6 +1857,30 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     rig->state.cache.vfo_freq = vfo;
 
     RETURNFUNC(retcode);
+}
+
+/**
+ * \brief get the frequency of VFOA and VFOB
+ * \param rig   The rig handle
+ * \param freqA  The location where to store the VFOA/Main frequency
+ * \param freqB  The location where to store the VFOB/Sub frequency
+ *
+ *  Retrieves the frequency of  VFOA/Main and VFOB/Sub
+ *  The value stored at \a freq location equals RIG_FREQ_NONE when the current
+ *  frequency of the VFO is not defined (e.g. blank memory).
+ *
+ * \RETURNFUNC(RIG_OK) if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
+ * set appropriately).
+ *
+ * \sa rig_set_freq()
+ */
+int HAMLIB_API rig_get_freqs(RIG *rig, freq_t *freqA, freq_t freqB)
+{
+    // we will attempt to avoid vfo swapping in this routine
+
+    return -RIG_ENIMPL;
+
 }
 
 
@@ -5593,6 +5637,27 @@ int HAMLIB_API rig_get_vfo_info(RIG *rig, vfo_t vfo, freq_t *freq, rmode_t *mode
     if (retcode != RIG_OK) RETURNFUNC(retcode);
     retcode = rig_get_mode(rig,vfo,mode,width);
     RETURNFUNC(retcode);
+}
+
+/**
+ * \brief get list of available vfos 
+ * \param rig   The rig handle
+ *
+ * Retrieves all usable vfo entries for the rig
+ *
+ * \return a pointer to a string, e.g. "VFOA VFOB Mem"
+ * if the operation has been successful, otherwise NULL if an error occurred
+ */
+const char *HAMLIB_API rig_get_vfo_list(RIG *rig)
+{
+    ENTERFUNC;
+
+    if (CHECK_RIG_ARG(rig))
+    {
+        RETURNFUNC(NULL);
+    }
+
+    RETURNFUNC(RIG_OK);
 }
 
 /**
