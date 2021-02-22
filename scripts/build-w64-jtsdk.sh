@@ -1,26 +1,32 @@
 #!/bin/sh
 
-# Builds Hamlib 4.x W32 binary distribution.
+# Builds Hamlib 4.x W64 dl binary distribution under Windows Qt MinGW/MSYS2 
+# Customised for >= JTSDK 3.2.0 B3 stream(s)
 
-# A script to build a set of W32 binary DLLs and executables from a Hamlib
-# source tarball.  This script assumes that the Hamlib source tarball has been
-# extracted to the directory specified in $BUILD_DIR and that libusb-1.x.y has
-# also been extracted to $BUILD_DIR.
+# A script to compile a set of W64 binary DLLs, executables and compiler 
+# packages from a Hamlib source tarball.  This script assumes uses the 
+# JTSDK's previously deployed LibUSB (pointed to by JTSDK environment 
+# variable $libusb_dir_f)
 
-# See README.build-Windows for complete details.
+# See future README.build-JTSDK for complete details.
 
+#Ensure that the Qt-supplied GCC compilers and tools can be found
+export PATH=$PATH:$GCCD_F:.
 
 # Set this to a desired directory
 BUILD_DIR=~/builds
 
 # Set this to LibUSB archive extracted in $BUILD_DIR
-LIBUSB_VER=libusb-1.0.22
+LIBUSB_VER=libusb-1.0.24
 
 # Set to the correct HOST_ARCH= line for your minGW installation
-HOST_ARCH=i686-w64-mingw32
+HOST_ARCH=x86_64-w64-mingw32
 
 # Set to the strip name for your version of minGW
-HOST_ARCH_STRIP=i686-w64-mingw32-strip
+HOST_ARCH_STRIP=strip.exe
+
+# Set to the name of the utility to provide Unix to DOS translation
+UNIX_TO_DOS_TOOL=unix2dos.exe
 
 # Error return codes.  See /usr/include/sysexits.h
 EX_USAGE=64
@@ -42,7 +48,7 @@ fi
 if test -d ${BUILD_DIR}/$1
 then
     echo
-    echo "Building W32 binaries in ${BUILD_DIR}/$1"
+    echo "Building W64 binaries in ${BUILD_DIR}/$1"
     echo
 
     cd ${BUILD_DIR}/$1
@@ -56,19 +62,19 @@ else
 fi
 
 RELEASE=$(/usr/bin/awk 'BEGIN{FS="["; RS="]"} /\[4\./ {print $2;exit}' ./configure.ac)
-HL_FILENAME=hamlib-w32-${RELEASE}
-INST_DIR=$(pwd)/mingw32-inst
+HL_FILENAME=hamlib-w64-${RELEASE}
+INST_DIR=$(pwd)/mingw64-inst
 ZIP_DIR=$(pwd)/${HL_FILENAME}
-LIBUSB_1_0_BIN_PATH=${BUILD_DIR}/${LIBUSB_VER}
+# LIBUSB_1_0_BIN_PATH=${BUILD_DIR}/${LIBUSB_VER} # REDUNDANT
 
 
-# Create W32 specific README.w32-bin file
-cat > README.w32-bin <<END_OF_README
+# Create W64 specific README.w64-bin file
+cat > README.w64-bin <<END_OF_README
 What is it?
 ===========
 
 This ZIP archive or Windows installer contains a build of Hamlib-$RELEASE
-cross-compiled for MS Windows 32 bit using MinGW under Debian GNU/Linux 10
+native compiled for MS Windows 64 bit using MinGW under Windows JTSDK 3.2.0
 (nice, heh!).
 
 This software is copyrighted. The library license is LGPL, and the *.EXE files
@@ -82,8 +88,8 @@ included after being converted to HTML.
 Installation and Configuration
 ==============================
 
-Extract the ZIP archive into a convenient location, C:\Program Files is a
-reasonable choice.
+Extract the ZIP archive into a convenient location, C:\Program Files (being x64)
+is a reasonable choice.
 
 Make sure *all* the .DLL files are in your PATH (leave them in the bin
 directory and set the PATH).  To set the PATH environment variable in Windows
@@ -111,7 +117,7 @@ following:
    a semi-colon ';' after the last path before adding the Hamlib path (NB. The
    entire path is highlighted and will be erased upon typing a character so
    click in the box to unselect the text first.  The PATH is important!!)
-   Append the Hamlib path, e.g. C:\Program Files\hamlib-w32-4.0~git\bin
+   Append the Hamlib path, e.g. C:\Program Files\hamlib-w64-4.0~git\bin
 
  * Click OK for all three dialog boxes to save your changes.
 
@@ -157,7 +163,7 @@ To uninstall, simply delete the Hamlib directory.  You may wish to edit the
 PATH as above to remove the Hamlib bin path, if desired.
 
 
-Information for w32 Programmers
+Information for w64 Programmers
 =================================
 
 The DLL has a cdecl interface.
@@ -181,19 +187,20 @@ installed Hamlib run the following commands to generate the libhamlib-4.lib
 file needed for linking with your MSVC project:
 
 cd lib\msvc
-c:\Program Files\Microsoft Visual C++ Toolkit 2003\bin\link.exe /lib /machine:i386 /def:libhamlib-4.def
+c:\Program Files\Microsoft Visual C++ Toolkit 2003\bin\link.exe /lib /machine:amd64 /def:libhamlib-4.def
 
 To do the same for Visual Studio 2017:
 
 cd lib\msvc
-c:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\Tools\MSVC\14.16.27023\bin\Hostx64\x86\bin\link.exe /lib /machine:i386 /def:libhamlib-4.def
+c:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Tools\MSVC\14.16.27023\bin\Hostx64\x86\bin\link.exe /lib /machine:i386 /def:libhamlib-4.def
 
 and for VS 2019:
 
 cd lib\msvc
 c:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.25.28610\bin\Hostx64\x86\bin\link.exe /lib /machine:i386 /def:libhamlib-4.def
 
-NOTE: feedback is requested on the previous two command examples!
+NOTE: feedback is requested on the previous two command examples as these do
+not appear to be correct to generate a 64 bit libhamlib-4.lib file!
 
 The published Hamlib API may be found at:
 
@@ -210,39 +217,40 @@ Please report problems or success to hamlib-developer@lists.sourceforge.net
 Cheers,
 Stephane Fillod - F8CFE
 Nate Bargmann - N0NB
+JTSDK Maintenance Team - JTSDK@GROUPS.IO
 http://www.hamlib.org
 
 END_OF_README
 
 
-# Configure and build hamlib for i686-w64-mingw32, with libusb-1.0
+# Configure and build hamlib for x86_64-w64-mingw32, with libusb-1.0
 
 ./configure --host=${HOST_ARCH} \
  --prefix=${INST_DIR} \
  --without-cxx-binding \
  --disable-static \
- CPPFLAGS="-I${LIBUSB_1_0_BIN_PATH}/include" \
- LDFLAGS="-L${LIBUSB_1_0_BIN_PATH}/MinGW32/dll"
+ CPPFLAGS="-I${libusb_dir_f}/include" \
+ LDFLAGS="-L${libusb_dir_f}/MinGW64/dll"
 
 
 make -j 4 install
 
 mkdir -p ${ZIP_DIR}/bin ${ZIP_DIR}/lib/msvc ${ZIP_DIR}/lib/gcc ${ZIP_DIR}/include ${ZIP_DIR}/doc
 cp -a src/libhamlib.def ${ZIP_DIR}/lib/msvc/libhamlib-4.def
-todos ${ZIP_DIR}/lib/msvc/libhamlib-4.def
+${UNIX_TO_DOS_TOOL} ${ZIP_DIR}/lib/msvc/libhamlib-4.def
 cp -a ${INST_DIR}/include/hamlib ${ZIP_DIR}/include/.
-todos ${ZIP_DIR}/include/hamlib/*.h
+${UNIX_TO_DOS_TOOL} ${ZIP_DIR}/include/hamlib/*.h
 
-# C++ binding is useless on w32 because of ABI
+# C++ binding is useless on w64 because of ABI
 for f in *class.h
 do
     rm ${ZIP_DIR}/include/hamlib/${f}
 done
 
-for f in AUTHORS ChangeLog COPYING COPYING.LIB LICENSE README README.betatester README.w32-bin THANKS
+for f in AUTHORS ChangeLog COPYING COPYING.LIB LICENSE README README.betatester README.w64-bin THANKS
 do
     cp -a ${f} ${ZIP_DIR}/${f}.txt
-    todos ${ZIP_DIR}/${f}.txt
+    ${UNIX_TO_DOS_TOOL} ${ZIP_DIR}/${f}.txt
 done
 
 # Generate HTML documents from nroff formatted man files
@@ -267,8 +275,15 @@ cp -a ${INST_DIR}/lib/libhamlib.dll.a ${ZIP_DIR}/lib/gcc/.
 ${HOST_ARCH_STRIP} ${ZIP_DIR}/bin/*.exe ${ZIP_DIR}/bin/*hamlib-*.dll
 
 # Copy needed third party DLLs
-cp -a /usr/i686-w64-mingw32/lib/libwinpthread-1.dll ${ZIP_DIR}/bin/.
-cp -a ${LIBUSB_1_0_BIN_PATH}/MinGW32/dll/libusb-1.0.dll ${ZIP_DIR}/bin/libusb-1.0.dll
+cp -a ${QTD_F}/libwinpthread-1.dll ${ZIP_DIR}/bin/.
+cp -a ${libusb_dir_f}/MinGW64/dll/libusb-1.0.dll ${ZIP_DIR}/bin/libusb-1.0.dll
+
+# Set for MinGW build - To Be safe !
+FILE="${QTD_F}/libgcc_s_seh-1.dll"
+if test -f "$FILE"
+then
+    cp -a ${FILE} ${ZIP_DIR}/bin/.
+fi
 
 # Required for MinGW with GCC 6.3 (Debian 9)
 FILE="/usr/lib/gcc/i686-w64-mingw32/6.3-posix/libgcc_s_sjlj-1.dll"

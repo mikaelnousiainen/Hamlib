@@ -36,46 +36,53 @@
  */
 
 /**
- *  \file amplist.h
- *  \brief Hamlib amplifier model definitions.
+ * \brief Hamlib amplifier model definitions.
  *
- *  This file contains amplifier model definitions for the Hamlib amplifier
- *  Application Programming Interface (API).  Each distinct amplifier type has
- *  a unique model number (ID) and is used by Hamlib to identify and
- *  distinguish between the different hardware drivers.  The exact model
- *  numbers can be acquired using the macros in this file. To obtain a list of
- *  supported amplifier branches, one can use the statically defined
- *  AMP_BACKEND_LIST macro. To obtain a full list of supported amplifiers
- *  (including each model in every branch), the foreach_opened_amp() API
- *  function can be used.
+ * \file amplist.h
  *
- *  The model number, or ID, is used to tell Hamlib which amplifier the client
- *  wishes to use. It is done with the amp_init() API call.
+ * This file contains amplifier model definitions for the Hamlib amplifier
+ * Application Programming Interface (API).  Each distinct amplifier type has
+ * a unique model number (ID) and is used by Hamlib to identify and
+ * distinguish between the different hardware drivers.  The exact model
+ * numbers can be acquired using the macros in this file. To obtain a list of
+ * supported amplifier branches, one can use the statically defined
+ * AMP_BACKEND_LIST macro (defined in configure.ac). To obtain a full list of
+ * supported amplifiers (including each model in every branch), the
+ * foreach_opened_amp() API function can be used.
+ *
+ * The model number, or ID, is used to tell Hamlib which amplifier the client
+ * wishes to use which is done with the amp_init() API call.
  */
 
-
-//! @cond Doxygen_Suppress
-#define AMP_MODEL_NONE 0
-//! @endcond
-
-/*
- * Hamlib
- */
 
 /**
- *  \def AMP_MODEL_DUMMY
- *  \brief A macro that returns the model number for the dummy backend.
+ * \brief A macro that returns the model number for an unknown model.
  *
- *  The dummy backend, as the name suggests, is a backend which performs no
- *  hardware operations and always behaves as one would expect. It can be
- *  thought of as a hardware simulator and is very useful for testing client
- *  applications.
+ * \def AMP_MODEL_NONE
  *
- *  \def AMP_MODEL_NETAMPCTL
- *  \brief A macro that returns the model number for the netampctl backend.
+ * The none backend, as the name suggests, does nothing.  It is mainly for
+ * internal use.
+ */
+#define AMP_MODEL_NONE 0
+
+
+/**
+ * \brief A macro that returns the model number for the DUMMY backend.
  *
- *  This backend allows use of the ampctld daemon through the normal
- *  Hamlib API.
+ * \def AMP_MODEL_DUMMY
+ *
+ * The DUMMY backend, as the name suggests, is a backend which performs no
+ * hardware operations and always behaves as one would expect.  It can be
+ * thought of as a hardware simulator and is very useful for testing client
+ * applications.
+ */
+/**
+ * \brief A macro that returns the model number for the NETAMPCTL backend.
+ *
+ * \def AMP_MODEL_NETAMPCTL
+ *
+ * The NETAMPCTL backend allows use of the `ampctld` daemon through the normal
+ * Hamlib API.
  */
 //! @cond Doxygen_Suppress
 #define AMP_DUMMY 0
@@ -85,16 +92,13 @@
 #define AMP_MODEL_NETAMPCTL AMP_MAKE_MODEL(AMP_DUMMY, 2)
 
 
-/*
- * Elecraft
- */
-
 /**
- *  \def AMP_MODEL_ELECRAFT_KPA1500
- *  \brief A macro that returns the model number of the kpa1500 backend.
+ * \brief A macro that returns the model number of the KPA1500 backend.
  *
- *  The kpa1500 backend can be used with amplifiers that support the Elecraft
- *  KPA-1500 protocol.
+ * \def AMP_MODEL_ELECRAFT_KPA1500
+ *
+ * The KPA1500 backend can be used with amplifiers that support the Elecraft
+ * KPA-1500 protocol.
  */
 //! @cond Doxygen_Suppress
 #define AMP_ELECRAFT 2
@@ -104,8 +108,9 @@
 //#define AMP_MODEL_ELECRAFT_KPA500 AMP_MAKE_MODEL(AMP_ELECRAFT, 2)
 
 /**
- *  \typedef typedef int amp_model_t
- *  \brief Convenience type definition for amplifier model.
+ * \brief Convenience type definition for an amplifier model.
+ *
+ * \typedef typedef int amp_model_t
  */
 typedef int amp_model_t;
 

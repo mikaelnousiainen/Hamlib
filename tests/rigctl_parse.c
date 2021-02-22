@@ -722,7 +722,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 /* command by name */
                 if (cmd == '\\')
                 {
-                    unsigned char cmd_name[MAXNAMSIZ], *pcmd = cmd_name;
+                    char cmd_name[MAXNAMSIZ], *pcmd = cmd_name;
 
                     if (scanfc(fin, "%c", pcmd) < 1)
                     {
@@ -730,7 +730,8 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                         return -1;
                     }
 
-                    fscanf(fin, "%s", ++pcmd);
+                    retcode = fscanf(fin, "%s", ++pcmd);
+                    if (retcode == 0) rig_debug(RIG_DEBUG_WARN, "%s: unable to scan %c\n", __func__, *(pcmd-1));
                     while(*++pcmd);
 
                     *pcmd = '\0';
@@ -2872,6 +2873,10 @@ declare_proto_rig(set_level)
     }
 
     level = rig_parse_level(arg1);
+
+    // some Java apps send comma in international setups so substitute period
+    char *p = strchr(arg2,',');
+    if (p) *p = '.';
 
     if (!rig_has_set_level(rig, level))
     {
