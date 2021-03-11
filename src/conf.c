@@ -134,6 +134,11 @@ static const struct confparams frontend_cfg_params[] =
         "0", RIG_CONF_CHECKBUTTON, { }
     },
     {
+        TOK_AUTO_POWER_OFF, "auto_power_off", "Auto power off",
+        "True enables compatible rigs to be powered down on close",
+        "0", RIG_CONF_CHECKBUTTON, { }
+    },
+    {
         TOK_AUTO_DISABLE_SCREENSAVER, "auto_disable_screensaver", "Auto disable screen saver",
         "True enables compatible rigs to have their screen saver disabled on open",
         "0", RIG_CONF_CHECKBUTTON, { }
@@ -227,7 +232,7 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
     switch (token)
     {
     case TOK_PATHNAME:
-        strncpy(rs->rigport.pathname, val, FILPATHLEN - 1);
+        strncpy(rs->rigport.pathname, val, HAMLIB_FILPATHLEN - 1);
         break;
 
     case TOK_WRITE_DELAY:
@@ -426,37 +431,37 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
         {
         case 1:
             memcpy(rs->tx_range_list, caps->tx_range_list1,
-                   sizeof(struct freq_range_list)*FRQRANGESIZ);
+                   sizeof(struct freq_range_list)*HAMLIB_FRQRANGESIZ);
             memcpy(rs->rx_range_list, caps->rx_range_list1,
-                   sizeof(struct freq_range_list)*FRQRANGESIZ);
+                   sizeof(struct freq_range_list)*HAMLIB_FRQRANGESIZ);
             break;
 
         case 2:
             memcpy(rs->tx_range_list, caps->tx_range_list2,
-                   sizeof(struct freq_range_list)*FRQRANGESIZ);
+                   sizeof(struct freq_range_list)*HAMLIB_FRQRANGESIZ);
             memcpy(rs->rx_range_list, caps->rx_range_list2,
-                   sizeof(struct freq_range_list)*FRQRANGESIZ);
+                   sizeof(struct freq_range_list)*HAMLIB_FRQRANGESIZ);
             break;
 
         case 3:
             memcpy(rs->tx_range_list, caps->tx_range_list3,
-                   sizeof(struct freq_range_list)*FRQRANGESIZ);
+                   sizeof(struct freq_range_list)*HAMLIB_FRQRANGESIZ);
             memcpy(rs->rx_range_list, caps->rx_range_list3,
-                   sizeof(struct freq_range_list)*FRQRANGESIZ);
+                   sizeof(struct freq_range_list)*HAMLIB_FRQRANGESIZ);
             break;
 
         case 4:
             memcpy(rs->tx_range_list, caps->tx_range_list4,
-                   sizeof(struct freq_range_list)*FRQRANGESIZ);
+                   sizeof(struct freq_range_list)*HAMLIB_FRQRANGESIZ);
             memcpy(rs->rx_range_list, caps->rx_range_list4,
-                   sizeof(struct freq_range_list)*FRQRANGESIZ);
+                   sizeof(struct freq_range_list)*HAMLIB_FRQRANGESIZ);
             break;
 
         case 5:
             memcpy(rs->tx_range_list, caps->tx_range_list5,
-                   sizeof(struct freq_range_list)*FRQRANGESIZ);
+                   sizeof(struct freq_range_list)*HAMLIB_FRQRANGESIZ);
             memcpy(rs->rx_range_list, caps->rx_range_list5,
-                   sizeof(struct freq_range_list)*FRQRANGESIZ);
+                   sizeof(struct freq_range_list)*HAMLIB_FRQRANGESIZ);
             break;
 
         default:
@@ -510,7 +515,7 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
         break;
 
     case TOK_PTT_PATHNAME:
-        strncpy(rs->pttport.pathname, val, FILPATHLEN - 1);
+        strncpy(rs->pttport.pathname, val, HAMLIB_FILPATHLEN - 1);
         break;
 
     case TOK_PTT_BITNUM:
@@ -567,7 +572,7 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
         break;
 
     case TOK_DCD_PATHNAME:
-        strncpy(rs->dcdport.pathname, val, FILPATHLEN - 1);
+        strncpy(rs->dcdport.pathname, val, HAMLIB_FILPATHLEN - 1);
         break;
 
 
@@ -594,6 +599,15 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
         }
 
         rs->auto_power_on = val_i ? 1 : 0;
+        break;
+
+    case TOK_AUTO_POWER_OFF:
+        if (1 != sscanf(val, "%d", &val_i))
+        {
+            return -RIG_EINVAL; //value format error
+        }
+
+        rs->auto_power_off = val_i ? 1 : 0;
         break;
 
     case TOK_AUTO_DISABLE_SCREENSAVER:
@@ -637,6 +651,7 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
         {
             return -RIG_EINVAL; //value format error
         }
+
         rs->twiddle_timeout = val_i;
         break;
 
@@ -645,7 +660,8 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
         {
             return -RIG_EINVAL; //value format error
         }
-        rs->twiddle_rit = val_i ? 1: 0;
+
+        rs->twiddle_rit = val_i ? 1 : 0;
         break;
 
     default:
@@ -962,6 +978,10 @@ static int frontend_get_conf(RIG *rig, token_t token, char *val)
 
     case TOK_AUTO_POWER_ON:
         sprintf(val, "%d", rs->auto_power_on);
+        break;
+
+    case TOK_AUTO_POWER_OFF:
+        sprintf(val, "%d", rs->auto_power_off);
         break;
 
     case TOK_AUTO_DISABLE_SCREENSAVER:
