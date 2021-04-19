@@ -772,6 +772,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     {
     case RIG_VFO_A:
     case RIG_VFO_MAIN:
+    case RIG_VFO_MEM:
         c = 'A';
         break;
 
@@ -805,13 +806,26 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     if (is_ftdx3000 || is_ftdx5000)
     {
         // we have a few rigs that can't set freq while PTT_ON
+        // so we'll try a few times to see if we just need to wait a bit
+        // 3 retries should be about 400ms -- hopefully more than enough
         ptt_t ptt;
+        int retry = 3;
 
-        if (RIG_OK != (err = newcat_get_ptt(rig, vfo, &ptt)))
+        do
         {
-            ERRMSG(err, "newcat_set_cmd failed");
-            RETURNFUNC(err);
+            if (RIG_OK != (err = newcat_get_ptt(rig, vfo, &ptt)))
+            {
+                ERRMSG(err, "newcat_set_cmd failed");
+                RETURNFUNC(err);
+            }
+
+            if (ptt == RIG_PTT_ON)
+            {
+                rig_debug(RIG_DEBUG_WARN, "%s: ptt still on...retry#%d\n", __func__, retry);
+                hl_usleep(100 * 1000); // 100ms pause if ptt still on
+            }
         }
+        while (err == RIG_OK && ptt == RIG_PTT_ON && retry-- > 0);
 
         if (ptt) { return RIG_ENTARGET; }
     }
@@ -4554,12 +4568,6 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         if (is_ftdx9000)
         {
             snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM08%c", cat_term);
-        }
-
-        if (is_ftdx101d || is_ftdx101mp)
-        {
-            // separate meters for Main and Sub
-            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM0%c", cat_term);
         }
         else
         {

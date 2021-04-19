@@ -48,7 +48,7 @@
  * kenwood_ts480_get_info
  * Assumes rig!=NULL
  */
-static const char *
+const char *
 kenwood_ts480_get_info(RIG *rig)
 {
     char firmbuf[50];
@@ -914,5 +914,100 @@ const struct rig_caps ts890s_caps =
     .has_set_func = TS890_FUNC_ALL,
     .set_func = kenwood_set_func,
     .get_func = kenwood_get_func,
+};
+
+const struct confparams malachite_cfg_parms[] =
+{
+    {
+        // the Malachite SDR cannot handle sending ID; after FA; commands
+        TOK_NO_ID, "no_id", "No ID", "If true do not send ID; with set commands",
+        NULL, RIG_CONF_CHECKBUTTON, { }
+    },
+    { RIG_CONF_END, NULL, }
+};
+
+int malachite_init(RIG *rig)
+{
+    struct kenwood_priv_data *priv;
+    int retval;
+
+    ENTERFUNC;
+
+    retval = kenwood_init(rig);
+
+    priv = rig->state.priv;
+
+    priv->no_id = 1;  // the Malchite doesn't like the ID; verify cmd
+
+    if (retval != RIG_OK) { RETURNFUNC(retval); }
+
+    RETURNFUNC(RIG_OK);
+}
+
+int malachite_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
+{
+    int retval;
+
+    // Malachite has a bug where it takes two freq set to make it work
+    // under some band changes -- so we just do this all the time
+    retval = kenwood_set_freq(rig, vfo, freq + 1);
+
+    if (retval != RIG_OK) { RETURNFUNC(retval); }
+
+    retval = kenwood_set_freq(rig, vfo, freq);
+
+    RETURNFUNC(retval);
+}
+
+/*
+ * Malachite SDR rig capabilities.
+ * Notice that some rigs share the same functions.
+ * Also this struct is READONLY!
+ */
+const struct rig_caps malachite_caps =
+{
+    RIG_MODEL(RIG_MODEL_MALACHITE),
+    .model_name = "DSP",
+    .mfg_name = "Malachite",
+    .version = BACKEND_VER ".0",
+    .copyright = "LGPL",
+    .status = RIG_STATUS_STABLE,
+    .rig_type = RIG_TYPE_RECEIVER,
+    .ptt_type = RIG_PTT_NONE,
+    .port_type = RIG_PORT_SERIAL,
+    .serial_rate_min = 4800,
+    .serial_rate_max = 38400,
+    .serial_data_bits = 8,
+    .serial_stop_bits = 1,
+    .serial_parity = RIG_PARITY_NONE,
+    .serial_handshake = RIG_HANDSHAKE_NONE,
+    .write_delay = 0,
+    .post_write_delay = 400,
+    .timeout = 3000,
+    .retry = 3,
+    .preamp = {0, RIG_DBLST_END,},
+    .attenuator = {0, RIG_DBLST_END,},
+    .max_ifshift = Hz(0),
+    .targetable_vfo = RIG_TARGETABLE_FREQ,
+    .transceive = RIG_TRN_POLL,
+
+
+    .rx_range_list1 = {
+        {kHz(50),   MHz(250), TS480_ALL_MODES, -1, -1, RIG_VFO_A, RIG_ANT_CURR,  "Generic" },
+        {MHz(400),   GHz(2), TS480_ALL_MODES, -1, -1, RIG_VFO_A, RIG_ANT_CURR,  "Generic" },
+        RIG_FRNG_END,
+    },
+    .priv = (void *)& ts480_priv_caps,
+    .rig_init = malachite_init,
+    .rig_open = kenwood_open,
+    .rig_cleanup = kenwood_cleanup,
+    .set_freq = malachite_set_freq,
+    .get_freq = kenwood_get_freq,
+    .set_mode = kenwood_set_mode,
+    .get_mode = kenwood_get_mode,
+    .set_vfo = kenwood_set_vfo, // Malachite only supports VFOA
+    .get_vfo = kenwood_get_vfo_if,
+    .set_powerstat = kenwood_set_powerstat,
+    .get_powerstat = kenwood_get_powerstat,
 };
 

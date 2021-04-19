@@ -844,6 +844,7 @@ static int dummy_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
 
     ENTERFUNC;
     priv->curr->tx_freq = tx_freq;
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: priv->curr->tx_freq = %.0f\n", __func__, priv->curr->tx_freq);
 
     RETURNFUNC(RIG_OK);
 }
@@ -856,6 +857,7 @@ static int dummy_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq)
     ENTERFUNC;
 
     *tx_freq = priv->curr->tx_freq;
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: priv->curr->tx_freq = %.0f\n", __func__, priv->curr->tx_freq);
 
     RETURNFUNC(RIG_OK);
 }
@@ -2080,7 +2082,7 @@ static int dummy_mW2power(RIG *rig, float *power, unsigned int mwpower,
 #define DUMMY_VFO_OP  0x7ffffffUL /* All possible VFO OPs */
 #define DUMMY_SCAN    0x7ffffffUL /* All possible scan OPs */
 
-#define DUMMY_VFOS (RIG_VFO_A|RIG_VFO_B|RIG_VFO_C|RIG_VFO_MEM|RIG_VFO_MAIN|RIG_VFO_SUB|RIG_VFO_MAIN_A|RIG_VFO_MAIN_B|RIG_VFO_SUB_A|RIG_VFO_SUB_B)
+#define DUMMY_VFOS (RIG_VFO_TX|RIG_VFO_TX|RIG_VFO_A|RIG_VFO_B|RIG_VFO_C|RIG_VFO_MEM|RIG_VFO_MAIN|RIG_VFO_SUB|RIG_VFO_MAIN_A|RIG_VFO_MAIN_B|RIG_VFO_SUB_A|RIG_VFO_SUB_B)
 
 #define DUMMY_MODES (RIG_MODE_AM | RIG_MODE_CW | RIG_MODE_RTTY | \
                      RIG_MODE_SSB | RIG_MODE_FM | RIG_MODE_WFM | \

@@ -123,7 +123,7 @@ static int netrigctl_vfostr(RIG *rig, char *vfostr, int len, vfo_t vfo)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: vfo_opt=%d\n", __func__, rig->state.vfo_opt);
 
-    if (rig->state.vfo_opt)
+    if (rig->state.vfo_opt || priv->rigctld_vfo_mode)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: vfo_opt vfo=%u\n", __func__, vfo);
         char *myvfo;
@@ -328,6 +328,16 @@ static int netrigctl_open(RIG *rig)
         {
             break;
         }
+        switch(i)
+        {
+        }
+        rig->caps->tx_range_list1->startf = rs->tx_range_list[i].startf;
+        rig->caps->tx_range_list1->endf = rs->tx_range_list[i].endf;
+        rig->caps->tx_range_list1->modes = rs->tx_range_list[i].modes;
+        rig->caps->tx_range_list1->low_power = rs->tx_range_list[i].low_power;
+        rig->caps->tx_range_list1->high_power = rs->tx_range_list[i].high_power;
+        rig->caps->tx_range_list1->vfo = rs->tx_range_list[i].vfo;
+        rig->caps->tx_range_list1->ant = rs->tx_range_list[i].ant;
     }
 
     for (i = 0; i < HAMLIB_TSLSTSIZ; i++)
@@ -584,9 +594,9 @@ static int netrigctl_open(RIG *rig)
             }
             else if (strcmp(setting, "targetable_vfo") == 0)
             {
-                int has = strtol(value, NULL, 0);
-
-                if (!has) { rig->caps->targetable_vfo = strtol(value, NULL, 0); }
+                rig->caps->targetable_vfo = strtol(value, NULL, 0);
+                rig_debug(RIG_DEBUG_ERR, "%s: targetable_vfo=0x%2x\n", __func__,
+                          rig->caps->targetable_vfo);
             }
             else if (strcmp(setting, "has_set_vfo") == 0)
             {
@@ -611,6 +621,12 @@ static int netrigctl_open(RIG *rig)
                 int has = strtol(value, NULL, 0);
 
                 if (!has) { rig->caps->get_freq = NULL; }
+            }
+            else if (strcmp(setting, "timeout") == 0)
+            {
+                // use the rig's timeout value pluse 200ms for potential network delays
+                rig->caps->timeout = strtol(value, NULL, 0) + 200;
+                rig_debug(RIG_DEBUG_TRACE, "%s: timeout value = '%s', final timeout=%d\n", __func__, value, rig->caps->timeout);
             }
             else
             {
@@ -871,13 +887,16 @@ static int netrigctl_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
     char buf[BUF_MAX];
     char vfostr[16] = "";
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s, ptt=%d\n", __func__,
+              rig_strvfo(vfo), ptt);
 
     ret = netrigctl_vfostr(rig, vfostr, sizeof(vfostr), RIG_VFO_A);
 
     if (ret != RIG_OK) { return ret; }
 
     len = sprintf(cmd, "T%s %d\n", vfostr, ptt);
+
+    rig_debug(RIG_DEBUG_TRACE, "%s: cmd=%s", __func__, cmd);
 
     ret = netrigctl_transaction(rig, cmd, len, buf);
 
@@ -2285,7 +2304,7 @@ struct rig_caps netrigctl_caps =
     RIG_MODEL(RIG_MODEL_NETRIGCTL),
     .model_name =     "NET rigctl",
     .mfg_name =       "Hamlib",
-    .version =        "20210207.0",
+    .version =        "20210409.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,
@@ -2293,7 +2312,7 @@ struct rig_caps netrigctl_caps =
     .ptt_type =       RIG_PTT_RIG_MICDATA,
     .dcd_type =       RIG_DCD_RIG,
     .port_type =      RIG_PORT_NETWORK,
-    .timeout = 1000,  /* enough for the worst rig we have */
+    .timeout = 3000,  /* enough for the worst rig we have */
     .retry =   5,     /* 5 seconds total */
 
     /* following fields updated in rig_state at opening time */

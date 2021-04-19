@@ -351,6 +351,7 @@ int HAMLIB_API sprintf_freq(char *str, int nlen, freq_t freq)
 {
     double f;
     char *hz;
+    int decplaces = 10;
 
     // too verbose
     //rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -364,19 +365,22 @@ int HAMLIB_API sprintf_freq(char *str, int nlen, freq_t freq)
     {
         hz = "MHz";
         f = (double)freq / MHz(1);
+        decplaces = 7;
     }
     else if (llabs(freq) >= kHz(1))
     {
         hz = "kHz";
         f = (double)freq / kHz(1);
+        decplaces = 4;
     }
     else
     {
         hz = "Hz";
         f = (double)freq;
+        decplaces = 1;
     }
 
-    return sprintf(str, "%g %s", f, hz);
+    return sprintf(str, "%.*f %s", decplaces, f, hz);
 }
 
 
@@ -1629,10 +1633,13 @@ int HAMLIB_API rig_set_cache_timeout_ms(RIG *rig, hamlib_cache_t selection,
     return RIG_OK;
 }
 
-
+// we're mappping our VFO here to work with either VFO A/B rigs or Main/Sub
+// Hamlib uses VFO_A  and VFO_B as TX/RX as of 2021-04-13
+// So we map these to Main/Sub as required
 vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo)
 {
-    rig_debug(RIG_DEBUG_TRACE, "%s: vfo=%s\n", __func__, rig_strvfo(vfo));
+    rig_debug(RIG_DEBUG_TRACE, "%s: vfo=%s, vfo_curr=%s\n", __func__,
+              rig_strvfo(vfo), rig_strvfo(rig->state.current_vfo));
 
     if (vfo == RIG_VFO_CURR)
     {
@@ -1640,7 +1647,7 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo)
         return vfo;  // don't modify vfo for RIG_VFO_CURR
     }
 
-    if (vfo == RIG_VFO_RX)
+    if (vfo == RIG_VFO_RX || vfo == RIG_VFO_A)
     {
         vfo = RIG_VFO_A;
 
@@ -1649,7 +1656,7 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo)
         if (VFO_HAS_MAIN_SUB_A_B_ONLY) { vfo = RIG_VFO_MAIN; }
     }
 
-    if (vfo == RIG_VFO_TX)
+    else if (vfo == RIG_VFO_TX || vfo == RIG_VFO_B)
     {
         int retval;
         split_t split = 0;
@@ -1666,24 +1673,29 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo)
         }
 
         int satmode = rig->state.cache.satmode;
-        vfo = RIG_VFO_A;
+
+        if (vfo == RIG_VFO_TX) { vfo = RIG_VFO_A; }
 
         if (split) { vfo = RIG_VFO_B; }
 
-        if (VFO_HAS_MAIN_SUB_ONLY && !split && !satmode) { vfo = RIG_VFO_MAIN; }
+        if (VFO_HAS_MAIN_SUB_ONLY && !split && !satmode && vfo != RIG_VFO_B) { vfo = RIG_VFO_MAIN; }
 
-        if (VFO_HAS_MAIN_SUB_ONLY && (split || satmode)) { vfo = RIG_VFO_SUB; }
+        else if (VFO_HAS_MAIN_SUB_ONLY && (split || satmode || vfo == RIG_VFO_B)) { vfo = RIG_VFO_SUB; }
 
-        if (VFO_HAS_MAIN_SUB_A_B_ONLY && split) { vfo = RIG_VFO_B; }
+        else if (VFO_HAS_MAIN_SUB_A_B_ONLY && split) { vfo = RIG_VFO_B; }
 
-        if (VFO_HAS_MAIN_SUB_A_B_ONLY && satmode) { vfo = RIG_VFO_SUB; }
+        else if (VFO_HAS_MAIN_SUB_A_B_ONLY && satmode) { vfo = RIG_VFO_SUB; }
 
         rig_debug(RIG_DEBUG_TRACE,
                   "%s: RIG_VFO_TX changed to %s, split=%d, satmode=%d\n", __func__,
                   rig_strvfo(vfo), split, satmode);
     }
+    else if (vfo == RIG_VFO_B)
 
-    rig_debug(RIG_DEBUG_TRACE, "%s: final vfo=%s\n", __func__, rig_strvfo(vfo));
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: final vfo=%s\n", __func__, rig_strvfo(vfo));
+    }
+
     return vfo;
 }
 
@@ -1877,8 +1889,8 @@ const char *HAMLIB_API rot_strstatus(rot_status_t status)
  * \param RIG* and rig_function_e
  * \return the corresponding function pointer
  */
-void *rig_get_function_ptr(rig_model_t rig_model,
-                           enum rig_function_e rig_function)
+void *HAMLIB_API rig_get_function_ptr(rig_model_t rig_model,
+                                      enum rig_function_e rig_function)
 {
     const struct rig_caps *caps = rig_get_caps(rig_model);
 
@@ -2150,7 +2162,8 @@ void *rig_get_function_ptr(rig_model_t rig_model,
  * \param RIG* and rig_caps_int_e
  * \return the corresponding long value -- -RIG_EINVAL is the only error possible
  */
-long long rig_get_caps_int(rig_model_t rig_model, enum rig_caps_int_e rig_caps)
+long long HAMLIB_API rig_get_caps_int(rig_model_t rig_model,
+                                      enum rig_caps_int_e rig_caps)
 {
     const struct rig_caps *caps = rig_get_caps(rig_model);
 
@@ -2177,8 +2190,8 @@ long long rig_get_caps_int(rig_model_t rig_model, enum rig_caps_int_e rig_caps)
     }
 }
 
-const char *rig_get_caps_cptr(rig_model_t rig_model,
-                              enum rig_caps_cptr_e rig_caps)
+const char *HAMLIB_API rig_get_caps_cptr(rig_model_t rig_model,
+        enum rig_caps_cptr_e rig_caps)
 {
     const struct rig_caps *caps = rig_get_caps(rig_model);
 
@@ -2207,6 +2220,29 @@ void errmsg(int err, char *s, const char *func, const char *file, int line)
 {
     rig_debug(RIG_DEBUG_ERR, "%s(%s:%d): %s: %s\b", __func__, file, line, s,
               rigerror(err));
+}
+
+uint32_t CRC32_function(uint8_t *buf, uint32_t len)
+{
+
+    uint32_t val, crc;
+    uint8_t i;
+
+    crc = 0xFFFFFFFF;
+
+    while (len--)
+    {
+        val = (crc^*buf++) & 0xFF;
+
+        for (i = 0; i < 8; i++)
+        {
+            val = val & 1 ? (val >> 1) ^ 0xEDB88320 : val >> 1;
+        }
+
+        crc = val ^ crc >> 8;
+    }
+
+    return crc ^ 0xFFFFFFFF;
 }
 
 

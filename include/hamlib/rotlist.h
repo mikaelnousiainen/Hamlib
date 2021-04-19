@@ -605,13 +605,30 @@
 
 
 /**
- *  \def ROT_MODEL_OH3AAROT
- *  \brief A macro that returns the model number of the OH3AA rotator controller backend.
+<<<<<<< HEAD
+ * \brief A macro that returns the model number of the RADANT backend.
  *
- *  The OH3AA rotator controller backend can be used with rotators that support the OH3AA
- *  protocol and alike.
+ * \def ROT_MODEL_RADANT
+ *
+ * The RADANT backend can be used with rotators that support the MS232
+ * interface.
  */
-#define ROT_OH3AAROT 22
+//! @cond Doxygen_Suppress
+#define ROT_RADANT 22
+#define ROT_BACKEND_RADANT "radant"
+//! @endcond
+#define ROT_MODEL_RADANT ROT_MAKE_MODEL(ROT_RADANT, 1)
+
+/**
+ * \brief A macro that returns the model number of the OH3AA backend.
+ *
+ * \def ROT_MODEL_OH3AAROT
+ * \brief A macro that returns the model number of the OH3AA rotator controller backend.
+ *
+ * The OH3AA rotator controller backend can be used with rotators that support the OH3AA
+ * protocol and alike.
+ */
+#define ROT_OH3AAROT 23
 #define ROT_BACKEND_OH3AAROT "oh3aarot"
 #define ROT_MODEL_OH3AAROT1 ROT_MAKE_MODEL(ROT_OH3AAROT, 1)
 

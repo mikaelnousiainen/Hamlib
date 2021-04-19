@@ -168,7 +168,8 @@ enum rig_debug_level_e {
     RIG_DEBUG_ERR,      /*!< error case (e.g. protocol, memory allocation) */
     RIG_DEBUG_WARN,     /*!< warning */
     RIG_DEBUG_VERBOSE,  /*!< verbose */
-    RIG_DEBUG_TRACE     /*!< tracing */
+    RIG_DEBUG_TRACE,    /*!< tracing */
+    RIG_DEBUG_CACHE     /*!< caching */
 };
 
 
@@ -490,7 +491,7 @@ typedef unsigned int vfo_t;
 //! @cond Doxygen_Suppress
 #define RIG_TARGETABLE_NONE 0
 #define RIG_TARGETABLE_FREQ (1<<0)
-#define RIG_TARGETABLE_MODE (1<<1)
+#define RIG_TARGETABLE_MODE (1<<1) // mode by vfo or same mode on both vfos
 #define RIG_TARGETABLE_PURE (1<<2) // deprecated -- not used -- reuse it
 #define RIG_TARGETABLE_TONE (1<<3)
 #define RIG_TARGETABLE_FUNC (1<<4)
@@ -1968,7 +1969,7 @@ enum rig_function_e {
  *
  */
 //! @cond Doxygen_Suppress
-extern void *rig_get_function_ptr(rig_model_t rig_model, enum rig_function_e rig_function);
+extern HAMLIB_EXPORT (void *) rig_get_function_ptr(rig_model_t rig_model, enum rig_function_e rig_function);
 
 /**
  * \brief Enumeration of rig->caps values
@@ -1996,14 +1997,14 @@ enum rig_caps_cptr_e {
  * Does not support > 32-bit rig_caps values
  */
 //! @cond Doxygen_Suppress
-extern long long rig_get_caps_int(rig_model_t rig_model, enum rig_caps_int_e rig_caps);
+extern HAMLIB_EXPORT (long long) rig_get_caps_int(rig_model_t rig_model, enum rig_caps_int_e rig_caps);
 
 /**
  * \brief Function to return char pointer value from rig->caps
  *
  */
 //! @cond Doxygen_Suppress
-extern const char* rig_get_caps_cptr(rig_model_t rig_model, enum rig_caps_cptr_e rig_caps);
+extern HAMLIB_EXPORT (const char *) rig_get_caps_cptr(rig_model_t rig_model, enum rig_caps_cptr_e rig_caps);
 
 /**
  * \brief Port definition
@@ -2085,8 +2086,14 @@ typedef enum {
     HAMLIB_CACHE_FREQ,
     HAMLIB_CACHE_MODE,
     HAMLIB_CACHE_PTT,
-    HAMLIB_CACHE_SPLIT
+    HAMLIB_CACHE_SPLIT,
+    HAMLIB_CACHE_WIDTH
 } hamlib_cache_t;
+
+typedef enum {
+    TWIDDLE_OFF,
+    TWIDDLE_ON
+} twiddle_state_t;
 
 /**
  * \brief Rig cache data
@@ -2252,6 +2259,7 @@ struct rig_state {
     int power_max;              /*!< Maximum RF power level in rig units */
     unsigned char disable_yaesu_bandselect; /*!< Disables Yaeus band select logic */
     int twiddle_rit;            /*!< Suppresses VFOB reading (cached value used) so RIT control can be used */
+    int twiddle_state;          /*!< keeps track of twiddle status */
 };
 
 //! @cond Doxygen_Suppress

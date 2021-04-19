@@ -27,7 +27,7 @@
 
 
 //! @cond Doxygen_Suppress
-class BACKEND_IMPEXP Amplifier
+class HAMLIB_CPP_IMPEXP Amplifier
 {
 private:
     AMP *theAmp;  // Global ref. to the amp
@@ -38,10 +38,12 @@ public:
 
     virtual ~Amplifier();
 
+#if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201103L) || __cplusplus >= 201103L)
     Amplifier(const Amplifier&) = default;
     Amplifier(Amplifier&&) = default;
     Amplifier& operator=(const Amplifier&) = default;
     Amplifier& operator=(Amplifier&&) = default;
+#endif
 
     const struct amp_caps *caps;
 

@@ -1651,6 +1651,11 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
     }
 
     rig_debug(RIG_DEBUG_TRACE, "%s: vfo_opt=%d\n", __func__, *vfo_opt);
+    if (my_rig->state.comm_state == 0)
+    {
+        rig_debug(RIG_DEBUG_WARN, "%s: rig not open...trying to reopen\n", __func__);
+        rig_open(my_rig);
+    }
     retcode = (*cmd_entry->rig_routine)(my_rig,
                                         fout,
                                         fin,
@@ -2232,8 +2237,10 @@ declare_proto_rig(get_vfo_info)
         rig_debug(RIG_DEBUG_ERR, "%s: vfo=%s\n", __func__, rig_strvfo(vfo));
     }
 
-    const char * modestr = rig_strrmode(mode);
-    if (strlen(modestr) == 0) modestr = "None";
+    const char *modestr = rig_strrmode(mode);
+
+    if (strlen(modestr) == 0) { modestr = "None"; }
+
     if ((interactive && prompt) || (interactive && !prompt && ext_resp))
     {
         fprintf(fout, "%s: %.0f\n", cmd->arg1, freq);
@@ -4317,6 +4324,7 @@ declare_proto_rig(dump_state)
         fprintf(fout, "has_get_vfo=%d\n", rig->caps->get_vfo != NULL);
         fprintf(fout, "has_set_freq=%d\n", rig->caps->set_freq != NULL);
         fprintf(fout, "has_get_freq=%d\n", rig->caps->get_freq != NULL);
+        fprintf(fout, "timeout=%d\n", rig->caps->timeout);
         fprintf(fout, "done\n");
     }
 
