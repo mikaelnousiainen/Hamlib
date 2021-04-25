@@ -897,13 +897,13 @@ typedef uint64_t rig_level_e;
 #define RIG_LEVEL_METER      CONSTANT_64BIT_FLAG(20)      /*!< \c METER -- Display meter, arg int (see enum meter_level_e) */
 #define RIG_LEVEL_VOXGAIN    CONSTANT_64BIT_FLAG(21)      /*!< \c VOXGAIN -- VOX gain level, arg float [0.0 ... 1.0] */
 #define RIG_LEVEL_ANTIVOX    CONSTANT_64BIT_FLAG(22)      /*!< \c ANTIVOX -- anti-VOX level, arg float [0.0 ... 1.0] */
-#define RIG_LEVEL_SLOPE_LOW  CONSTANT_64BIT_FLAG(23)      /*!< \c SLOPE_LOW -- Slope tune, low frequency cut, */
-#define RIG_LEVEL_SLOPE_HIGH CONSTANT_64BIT_FLAG(24)      /*!< \c SLOPE_HIGH -- Slope tune, high frequency cut, */
+#define RIG_LEVEL_SLOPE_LOW  CONSTANT_64BIT_FLAG(23)      /*!< \c SLOPE_LOW -- Slope tune, low frequency cut, arg int (Hz) */
+#define RIG_LEVEL_SLOPE_HIGH CONSTANT_64BIT_FLAG(24)      /*!< \c SLOPE_HIGH -- Slope tune, high frequency cut, arg int (Hz) */
 #define RIG_LEVEL_BKIN_DLYMS CONSTANT_64BIT_FLAG(25)      /*!< \c BKIN_DLYMS -- BKin Delay, arg int Milliseconds */
 
     /*!< These are not settable */
 #define RIG_LEVEL_RAWSTR     CONSTANT_64BIT_FLAG(26)      /*!< \c RAWSTR -- Raw (A/D) value for signal strength, specific to each rig, arg int */
-#define RIG_LEVEL_SQLSTAT    CONSTANT_64BIT_FLAG(27)      /*!< \c SQLSTAT -- SQL status, arg int (open=1/closed=0). Deprecated, use get_dcd instead */
+//#define RIG_LEVEL_SQLSTAT    CONSTANT_64BIT_FLAG(27)      /*!< \c SQLSTAT -- SQL status, arg int (open=1/closed=0). Deprecated, use get_dcd instead */
 #define RIG_LEVEL_SWR        CONSTANT_64BIT_FLAG(28)      /*!< \c SWR -- SWR, arg float [0.0 ... infinite] */
 #define RIG_LEVEL_ALC        CONSTANT_64BIT_FLAG(29)      /*!< \c ALC -- ALC, arg float */
 #define RIG_LEVEL_STRENGTH   CONSTANT_64BIT_FLAG(30)      /*!< \c STRENGTH -- Effective (calibrated) signal strength relative to S9, arg int (dB) */
@@ -945,7 +945,7 @@ typedef uint64_t rig_level_e;
 //! @cond Doxygen_Suppress
 #define RIG_LEVEL_FLOAT_LIST (RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_APF|RIG_LEVEL_NR|RIG_LEVEL_PBT_IN|RIG_LEVEL_PBT_OUT|RIG_LEVEL_RFPOWER|RIG_LEVEL_MICGAIN|RIG_LEVEL_COMP|RIG_LEVEL_BALANCE|RIG_LEVEL_SWR|RIG_LEVEL_ALC|RIG_LEVEL_VOXGAIN|RIG_LEVEL_ANTIVOX|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_RFPOWER_METER_WATTS|RIG_LEVEL_COMP_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_ID_METER|RIG_LEVEL_NOTCHF_RAW|RIG_LEVEL_MONITOR_GAIN|RIG_LEVEL_NB)
 
-#define RIG_LEVEL_READONLY_LIST (RIG_LEVEL_SQLSTAT|RIG_LEVEL_SWR|RIG_LEVEL_ALC|RIG_LEVEL_STRENGTH|RIG_LEVEL_RAWSTR|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_COMP_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_ID_METER)
+#define RIG_LEVEL_READONLY_LIST (RIG_LEVEL_SWR|RIG_LEVEL_ALC|RIG_LEVEL_STRENGTH|RIG_LEVEL_RAWSTR|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_COMP_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_ID_METER)
 
 #define RIG_LEVEL_IS_FLOAT(l) ((l)&RIG_LEVEL_FLOAT_LIST)
 #define RIG_LEVEL_SET(l) ((l)&~RIG_LEVEL_READONLY_LIST)
