@@ -28,7 +28,7 @@
 #include "token.h"
 #include "misc.h"
 
-#define BACKEND_VER "20210423"
+#define BACKEND_VER "20210427"
 
 #define EOM_KEN ';'
 #define EOM_TH '\r'
@@ -50,7 +50,7 @@
 #define TOK_FUNC_FILTER_WIDTH_DATA TOKEN_BACKEND(6) // Data communications mode that affects SL/SH/FW commands
 
 /* Token structure assigned to .cfgparams in rig_caps */
-extern const struct confparams kenwood_cfg_params[];
+extern struct confparams kenwood_cfg_params[];
 
 
 /*
@@ -154,6 +154,7 @@ struct kenwood_priv_data
     char last_if_response[KENWOOD_MAX_BUF_LEN];
     int poweron;   /* to avoid powering on more than once */
     int ag_format; /* which AG command is being used...see LEVEL_AF in kenwood.c*/
+    int has_rit2; /* rig has set 2 rit command -- can set rit 0-99999 directly */
     int micgain_min, micgain_max; /* varies by rig so we figure it out automagically */
     int is_k2;
     int is_k3;
@@ -172,8 +173,8 @@ struct kenwood_priv_data
 
 extern rmode_t kenwood_mode_table[KENWOOD_MODE_TABLE_MAX];
 
-extern const tone_t kenwood38_ctcss_list[];
-extern const tone_t kenwood42_ctcss_list[];
+extern tone_t kenwood38_ctcss_list[];
+extern tone_t kenwood42_ctcss_list[];
 
 int kenwood_transaction(RIG *rig, const char *cmdstr, char *data, size_t datasize);
 int kenwood_safe_transaction(RIG *rig, const char *cmd, char *buf,

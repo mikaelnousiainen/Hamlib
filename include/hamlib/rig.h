@@ -214,6 +214,8 @@ typedef struct s_rig RIG;
  *
  * Digitally-Coded Squelch codes are simple direct integers.
  */
+#define CTCSS_LIST_SIZE 60
+#define DCS_LIST_SIZE 128
 typedef unsigned int tone_t;
 
 
@@ -1639,8 +1641,8 @@ struct rig_caps {
     const struct confparams *extfuncs; /*!< Extension func list, \sa ext.c */
     int *ext_tokens;                    /*!< Extension token list */
 
-    const tone_t *ctcss_list;   /*!< CTCSS tones list, zero ended */
-    const tone_t *dcs_list;     /*!< DCS code list, zero ended */
+    tone_t *ctcss_list;   /*!< CTCSS tones list, zero ended */
+    tone_t *dcs_list;     /*!< DCS code list, zero ended */
 
     int preamp[HAMLIB_MAXDBLSTSIZ];    /*!< Preamp list in dB, 0 terminated */
     int attenuator[HAMLIB_MAXDBLSTSIZ];    /*!< Preamp list in dB, 0 terminated */
@@ -2376,7 +2378,12 @@ rig_get_vfo HAMLIB_PARAMS((RIG *rig,
 
 extern HAMLIB_EXPORT(int)
 rig_get_vfo_info HAMLIB_PARAMS((RIG *rig,
-                           vfo_t vfo, freq_t *freq, rmode_t *mode, pbwidth_t *width, split_t *split));
+                           vfo_t vfo, 
+                           freq_t *freq, 
+                           rmode_t *mode, 
+                           pbwidth_t *width, 
+                           split_t *split,
+                           int *satmode));
 
 extern HAMLIB_EXPORT(int)
 rig_get_vfo_list HAMLIB_PARAMS((RIG *rig, char *buf, int buflen));
@@ -3017,7 +3024,8 @@ extern HAMLIB_EXPORT(int) rig_get_cache_timeout_ms(RIG *rig, hamlib_cache_t sele
 extern HAMLIB_EXPORT(int) rig_set_cache_timeout_ms(RIG *rig, hamlib_cache_t selection, int ms);
 
 extern HAMLIB_EXPORT(int) rig_set_vfo_opt(RIG *rig, int status);
-extern HAMLIB_EXPORT(int) rig_get_vfo_info(RIG *rig, vfo_t vfo, freq_t *freq, rmode_t *mode, pbwidth_t *width, split_t *split);
+extern HAMLIB_EXPORT(int) rig_get_vfo_info(RIG *rig, vfo_t vfo, freq_t *freq, rmode_t *mode, pbwidth_t *width, split_t *split, int *satmode);
+extern HAMLIB_EXPORT(int) rig_get_rig_info(RIG *rig, char *response, int max_response_len);
 extern HAMLIB_EXPORT(int) rig_get_cache(RIG *rig, vfo_t vfo, freq_t *freq, int * cache_ms_freq, rmode_t *mode, int *cache_ms_mode, pbwidth_t *width, int *cache_ms_width);
 
 
