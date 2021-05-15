@@ -1977,7 +1977,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     cache_show(rig, __func__, __LINE__);
 
-    if (freq != 0 && cache_ms_freq < rig->state.cache.timeout_ms)
+    if (*freq != 0 && cache_ms_freq < rig->state.cache.timeout_ms)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: %s cache hit age=%dms, freq=%.0f\n", __func__,
                   rig_strvfo(vfo), cache_ms_freq, *freq);
@@ -6326,11 +6326,13 @@ int HAMLIB_API rig_get_rig_info(RIG *rig, char *response, int max_response_len)
     rxb = !rxa;
     txb = split == 1;
     snprintf(response, max_response_len,
-             "VFO=%s Freq=%.0f Mode=%s Width=%d RX=%d TX=%d\nVFO=%s Freq=%.0f Mode=%s Width=%d RX=%d TX=%d\nSplit=%d SatMode=%d\nRig=%s\nApp=Hamlib\nVersion=20210429\n",
+             "VFO=%s Freq=%.0f Mode=%s Width=%d RX=%d TX=%d\nVFO=%s Freq=%.0f Mode=%s Width=%d RX=%d TX=%d\nSplit=%d SatMode=%d\nRig=%s\nApp=Hamlib\nVersion=20210506\nCRC=0x00000000\n",
              rig_strvfo(vfoA), freqA, modeAstr, (int)widthA, rxa, txa, rig_strvfo(vfoB),
              freqB, modeBstr, (int)widthB, rxb, txb, split, satmode, rig->caps->model_name);
     unsigned long crc = gen_crc((unsigned char *)response, strlen(response));
-    sprintf(crcstr, "CRC=0x%08lx\n", crc);
+    char *p = strstr(response,"CRC=");
+    if (p)
+    sprintf(p, "CRC=0x%08lx\n", crc);
     strcat(response, crcstr);
     RETURNFUNC(RIG_OK);
 }

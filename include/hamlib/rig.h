@@ -355,7 +355,7 @@ typedef double freq_t;
 /**
  * \brief printf(3) format to be used for freq_t type
  */
-#define PRIfreq "f"
+#define PRIfreq ".0f"
 
 /**
  * \brief scanf(3) format to be used for freq_t type
@@ -503,6 +503,7 @@ typedef unsigned int vfo_t;
 #define RIG_TARGETABLE_MEM (1<<8)
 #define RIG_TARGETABLE_BANK (1<<9)
 #define RIG_TARGETABLE_ANT (1<<10)
+#define RIG_TARGETABLE_ROOFING (1<<11) // roofing filter targetable by VFO
 #define RIG_TARGETABLE_COMMON (RIG_TARGETABLE_RITXIT | RIG_TARGETABLE_PTT | RIG_TARGETABLE_MEM | RIG_TARGETABLE_BANK)
 #define RIG_TARGETABLE_ALL  0x7fffffff
 //! @endcond
