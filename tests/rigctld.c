@@ -76,6 +76,7 @@
 #include "iofunc.h"
 #include "serial.h"
 #include "sprintflst.h"
+#include "network.h"
 
 #include "rigctl_parse.h"
 
@@ -109,6 +110,7 @@ static struct option long_options[] =
     {"twiddle_timeout", 1, 0, 'W'},
     {"uplink",          1, 0, 'x'},
     {"debug-time-stamps", 0, 0, 'Z'},
+    {"multicast-addr",  1, 0, 'M'},
     {0, 0, 0, 0}
 };
 
@@ -142,6 +144,7 @@ static int volatile ctrl_c;
 
 const char *portno = "4532";
 const char *src_addr = NULL; /* INADDR_ANY */
+const char *multicast_addr = "224.0.1.1";
 
 #define MAXCONFLEN 1024
 
@@ -542,6 +545,16 @@ int main(int argc, char *argv[])
             rig_set_debug_time_stamp(1);
             break;
 
+        case 'M':
+            if (!optarg)
+            {
+                usage();    /* wrong arg count */
+                exit(1);
+            }
+
+            multicast_addr = optarg;
+            break;
+
         default:
             usage();    /* unknown option? */
             exit(1);
@@ -653,7 +666,7 @@ int main(int argc, char *argv[])
 
     if (retcode != RIG_OK)
     {
-        fprintf(stderr, "rig_open: error = %s \n", rigerror(retcode));
+        fprintf(stderr, "rig_open: error = %s %s %s \n", rigerror(retcode), rig_file, strerror(errno));
         exit(2);
     }
 
@@ -732,6 +745,16 @@ int main(int argc, char *argv[])
     }
 
     saved_result = result;
+
+    enum multicast_item_e items = RIG_MULTICAST_POLL|RIG_MULTICAST_TRANSCEIVE|RIG_MULTICAST_SPECTRUM;
+    retcode = network_multicast_server(my_rig, multicast_addr, 4532, items);
+
+    if (retcode != RIG_OK)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: network_multicast_server failed: %s\n", __FILE__,
+                  rigerror(retcode));
+        // we will consider this non-fatal for now
+    }
 
     do
     {
@@ -887,11 +910,19 @@ int main(int argc, char *argv[])
         timeout.tv_usec = 0;
         retcode = select(sock_listen + 1, &set, NULL, NULL, &timeout);
 
-        if (-1 == retcode)
+        if (retcode == -1)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: select\n", __func__);
+            int errno_stored = errno;
+            rig_debug(RIG_DEBUG_ERR, "%s: select() failed: %s\n", __func__, strerror(errno_stored));
+
+            // TODO: FIXME: Why does this select() return EINTR after any command when set_trn RIG is enabled?
+            if (errno == EINTR)
+            {
+                rig_debug(RIG_DEBUG_VERBOSE, "%s: ignoring interrupted system call\n", __func__);
+                retcode = 0;
+            }
         }
-        else if (!retcode)
+        else if (retcode == 0)
         {
             if (ctrl_c)
             {
@@ -1016,11 +1047,13 @@ void *handle_socket(void *arg)
     int ext_resp = 0;
     char resp_sep = '\n';
 
+    ENTERFUNC;
+
     fsockin = get_fsockin(handle_data_arg);
 
     if (!fsockin)
     {
-        rig_debug(RIG_DEBUG_ERR, "fdopen(0x%d) in: %s\n", handle_data_arg->sock,
+        rig_debug(RIG_DEBUG_ERR, "%s: fdopen(0x%d) in: %s\n", __func__, handle_data_arg->sock,
                   strerror(errno));
         goto handle_exit;
     }
@@ -1029,7 +1062,7 @@ void *handle_socket(void *arg)
 
     if (!fsockout)
     {
-        rig_debug(RIG_DEBUG_ERR, "fdopen out: %s\n", strerror(errno));
+        rig_debug(RIG_DEBUG_ERR, "%s: fdopen out: %s\n", __func__, strerror(errno));
         fclose(fsockin);
 
         goto handle_exit;
@@ -1219,9 +1252,10 @@ void usage(void)
         "  -o, --vfo                     do not default to VFO_CURR, require extra vfo arg\n"
         "  -v, --verbose                 set verbose mode, cumulative (-v to -vvvvv)\n"
         "  -W, --twiddle_timeout         timeout after detecting vfo manual change\n"
-        "  -W, --twiddle_rit             suppress VFOB getfreq so RIT can be twiddled"
+        "  -W, --twiddle_rit             suppress VFOB getfreq so RIT can be twiddled\n"
         "  -x, --uplink                  set uplink get_freq ignore, 1=Sub, 2=Main\n"
         "  -Z, --debug-time-stamps       enable time stamps for debug messages\n"
+        "  -M, --multicast-addr=addr     set multicast addr, default 224.0.1.1\n"
         "  -h, --help                    display this help and exit\n"
         "  -V, --version                 output version information and exit\n\n",
         portno);

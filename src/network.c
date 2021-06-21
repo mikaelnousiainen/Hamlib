@@ -44,6 +44,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <pthread.h>
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
@@ -121,26 +122,8 @@ static void handle_error(enum rig_debug_level_e lvl, const char *msg)
 #endif
 }
 
-/**
- * \brief Open network port using rig.state data
- *
- * Open Open network port using rig.state data.
- * NB: The signal PIPE will be ignored for the whole application.
- *
- * \param rp Port data structure (must spec port id eg hostname:port)
- * \param default_port Default network socket port
- * \return RIG_OK or < 0 if error
- */
-int network_open(hamlib_port_t *rp, int default_port)
+int network_init()
 {
-    int fd;             /* File descriptor for the port */
-    int status;
-    struct addrinfo hints, *res, *saved_res;
-    struct in6_addr serveraddr;
-    char hoststr[256], portstr[6] = "";
-
-    ENTERFUNC;
-
 #ifdef __MINGW32__
     WSADATA wsadata;
     int ret;
@@ -163,6 +146,32 @@ int network_open(hamlib_port_t *rp, int default_port)
     }
 
 #endif
+    return RIG_OK;
+}
+
+/**
+ * \brief Open network port using rig.state data
+ *
+ * Open Open network port using rig.state data.
+ * NB: The signal PIPE will be ignored for the whole application.
+ *
+ * \param rp Port data structure (must spec port id eg hostname:port)
+ * \param default_port Default network socket port
+ * \return RIG_OK or < 0 if error
+ */
+int network_open(hamlib_port_t *rp, int default_port)
+{
+    int fd;             /* File descriptor for the port */
+    int status;
+    struct addrinfo hints, *res, *saved_res;
+    struct in6_addr serveraddr;
+    char hoststr[256], portstr[6] = "";
+
+    ENTERFUNC;
+
+    status = network_init();
+
+    if (status != RIG_OK) { RETURNFUNC(status); }
 
     if (!rp)
     {
@@ -387,5 +396,66 @@ int network_close(hamlib_port_t *rp)
     RETURNFUNC(ret);
 }
 //! @endcond
+
+volatile int multicast_server_run = 1;
+pthread_t multicast_server_threadId;
+
+//! @cond Doxygen_Suppress
+// our multicast server loop
+static void *multicast_server(void *arg)
+{
+    rig_debug(RIG_DEBUG_TRACE, "%s(%d): Starting multicast server\n", __FILE__, __LINE__);
+    do {
+        rig_debug(RIG_DEBUG_TRACE, "%s(%d): Multicast server poll\n", __FILE__, __LINE__);
+        hl_usleep(1000*1000);
+    } while(multicast_server_run);
+    rig_debug(RIG_DEBUG_TRACE, "%s(%d): Stopping multicast server\n", __FILE__, __LINE__);
+    return NULL;
+}
+//! @endcond
+
+/**
+ * \brief Open multicast server using rig.state data
+ *
+ * Open Open multicast server using rig.state data.
+ * NB: The signal PIPE will be ignored for the whole application.
+ *
+ * \param rp Port data structure (must spec port id eg hostname:port -- hostname defaults to 224.0.1.1)
+ * \param default_port Default network socket port
+ * \return RIG_OK or < 0 if error
+ */
+int network_multicast_server(RIG *rig, const char *multicast_addr, int default_port, enum multicast_item_e items)
+{
+    int status;
+
+    ENTERFUNC;
+    rig_debug(RIG_DEBUG_VERBOSE, "%s(%d):network_multicast_server under development\n", __FILE__, __LINE__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s(%d):ADDR=%s, port=%d\n", __FILE__, __LINE__, multicast_addr, default_port);
+    status = network_init();
+
+    if (status != RIG_OK) { RETURNFUNC(status); }
+
+    if (items && RIG_MULTICAST_TRANSCEIVE)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d) MULTICAST_TRANSCEIVE enabled\n", __FILE__, __LINE__);
+    }
+    if (items && RIG_MULTICAST_SPECTRUM)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d) MULTICAST_SPECTRUM enabled\n", __FILE__, __LINE__);
+    }
+    else
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s(%d) unknown MULTICAST item requested=0x%x\n", __FILE__, __LINE__, items);
+    }
+
+    int err = pthread_create(&multicast_server_threadId, NULL, multicast_server, NULL);
+    if (err)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s(%d) pthread_create error %s\n", __FILE__, __LINE__, strerror(errno));
+        return -RIG_EINTERNAL;
+    }
+
+    RETURNFUNC(RIG_OK);
+}
 
 /** @} */

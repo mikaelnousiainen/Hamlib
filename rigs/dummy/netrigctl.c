@@ -806,7 +806,7 @@ static int netrigctl_close(RIG *rig)
         return ret;
     }
 
-    rig_debug(RIG_DEBUG_ERR, "%s: done status=%s\n", __func__, rigerror(ret));
+    rig_debug(RIG_DEBUG_ERR, "%s: done\n", __func__);
     usleep(10 * 1000);
 
     return RIG_OK;
@@ -982,6 +982,7 @@ static int netrigctl_set_vfo(RIG *rig, vfo_t vfo)
     }
 
     priv->vfo_curr = vfo; // remember our vfo
+    rig->state.current_vfo = vfo;
     return ret;
 }
 
@@ -2542,7 +2543,7 @@ struct rig_caps netrigctl_caps =
     RIG_MODEL(RIG_MODEL_NETRIGCTL),
     .model_name =     "NET rigctl",
     .mfg_name =       "Hamlib",
-    .version =        "20210428.0",
+    .version =        "20210613.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,
