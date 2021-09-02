@@ -35,7 +35,13 @@
 
 #include "hamlib/rig.h"
 #include "serial.h"
+#include "misc.h"
 
+#define RSHFIQ_INIT_RETRY 5
+
+#define RSHFIQ_LEVEL_ALL (RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_TEMP_METER)
+
+int rshfiq_version_major, rshfiq_version_minor;
 
 static int rshfiq_open(RIG *rig)
 {
@@ -79,22 +85,16 @@ static int rshfiq_open(RIG *rig)
         }
     }
 
-    rig_flush(&rig->state.rigport);
+    //There is a delay between when the port is open and the RS-HFIQ can receive and respond.
+    //Make a few attempts at getting the version string just in case the RS-HFIQ has to catch up first.
+    retval = -RIG_ETIMEOUT;
 
-    snprintf(versionstr, sizeof(versionstr), "*w\r");
-    rig_debug(RIG_DEBUG_TRACE, "%s: cmdstr = %s\n", __func__, versionstr);
-    retval = write_block(&rig->state.rigport, versionstr, strlen(versionstr));
-
-    if (retval != RIG_OK)
+    for (int init_retry_count = 0; (init_retry_count < RSHFIQ_INIT_RETRY)
+            && (retval == -RIG_ETIMEOUT); init_retry_count++)
     {
-        return retval;
-    }
-
-    retval = read_string(&rig->state.rigport, versionstr, 20, stopset, 2);
-
-    if (retval <= 0)
-    {
-        // Just one retry if the arduino is just booting
+        rig_flush(&rig->state.rigport);
+        snprintf(versionstr, sizeof(versionstr), "*w\r");
+        rig_debug(RIG_DEBUG_TRACE, "%s: cmdstr = %s\n", __func__, versionstr);
         retval = write_block(&rig->state.rigport, versionstr, strlen(versionstr));
 
         if (retval != RIG_OK)
@@ -103,12 +103,14 @@ static int rshfiq_open(RIG *rig)
         }
 
         retval = read_string(&rig->state.rigport, versionstr, 20, stopset, 2);
-
-        if (retval <= 0)
-        {
-            return retval;
-        }
     }
+
+    if (retval <= 0)
+    {
+        return retval;
+    }
+
+    rig_flush(&rig->state.rigport);
 
     versionstr[retval] = 0;
     rig_debug(RIG_DEBUG_TRACE, "%s: Rigversion = %s\n", __func__, versionstr);
@@ -117,6 +119,29 @@ static int rshfiq_open(RIG *rig)
     {
         rig_debug(RIG_DEBUG_WARN, "%s: Invalid Rigversion: %s\n", __func__, versionstr);
         return -RIG_ECONF;
+    }
+
+    retval = sscanf(versionstr, "RS-HFIQ FW %d.%d", &rshfiq_version_major,
+                    &rshfiq_version_minor);
+
+    if (retval <= 0)
+    {
+        rig_debug(RIG_DEBUG_WARN,
+                  "%s: Failed to parse RS-HFIQ firmware version string. Defaulting to 2.0.\n",
+                  __func__);
+        rshfiq_version_major = 2;
+        rshfiq_version_minor = 0;
+    }
+
+    rig_debug(RIG_DEBUG_VERBOSE,
+              "RS-HFIQ returned firmware version major=%d minor=%d\n", rshfiq_version_major,
+              rshfiq_version_minor);
+
+    if (rshfiq_version_major < 4)
+    {
+        rig_debug(RIG_DEBUG_WARN,
+                  "%s: RS-HFIQ firmware major version is less than 4. RFPOWER_METER support will be unavailable.\n",
+                  __func__);
     }
 
     return RIG_OK;
@@ -173,6 +198,8 @@ static int rshfiq_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         return retval;
     }
 
+    rig_debug(RIG_DEBUG_TRACE, "%s: reply = %s\n", __func__, cmdstr);
+
     cmdstr[retval] = 0;
     *freq = atoi(cmdstr);
 
@@ -209,14 +236,119 @@ static int rshfiq_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
     return retval;
 }
 
+static int rshfiq_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
+{
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called. level type =%"PRIll"\n", __func__,
+              level);
+
+    char cmdstr[15];
+    char stopset[2];
+    int retval;
+
+    if (!val)
+    {
+        return -RIG_EINVAL;
+    }
+
+    switch (level)
+    {
+    //Requires RS-HFIQ firmware version 4 or later
+    case RIG_LEVEL_RFPOWER_METER:
+
+        if (rshfiq_version_major <= 3)
+        {
+            return -RIG_ENAVAIL;
+        }
+
+        rig_flush(&rig->state.rigport);
+
+        snprintf(cmdstr, sizeof(cmdstr), "*L\r");
+
+        rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_RFPOWER_METER command=%s\n", cmdstr);
+
+        retval = write_block(&rig->state.rigport, cmdstr, strlen(cmdstr));
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        stopset[0] = '\r';
+        stopset[1] = '\n';
+
+        retval = read_string(&rig->state.rigport, cmdstr, 9, stopset, 2);
+
+        rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_RFPOWER_METER reply=%s\n", cmdstr);
+
+        if (retval <= 0)
+        {
+            return retval;
+        }
+
+        cmdstr[retval] = 0;
+
+        //Range is 0-110. Unit is percent
+        val->i = atoi(cmdstr);
+        val->f = (float)(val->i) / 100;
+
+        rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_RFPOWER_METER val=%f\n", val->f);
+
+        return RIG_OK;
+        break;
+
+    case RIG_LEVEL_TEMP_METER:
+
+        rig_flush(&rig->state.rigport);
+
+        snprintf(cmdstr, sizeof(cmdstr), "*T\r");
+
+        rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_TEMP_METER command=%s\n", cmdstr);
+
+        retval = write_block(&rig->state.rigport, cmdstr, strlen(cmdstr));
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        stopset[0] = '\r';
+        stopset[1] = '\n';
+
+        retval = read_string(&rig->state.rigport, cmdstr, 9, stopset, 2);
+
+        rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_TEMP_METER reply=%s\n", cmdstr);
+
+        if (retval <= 0)
+        {
+            return retval;
+        }
+
+        cmdstr[retval] = 0;
+
+        sscanf(cmdstr, "%d.", &val->i);
+
+        rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_TEMP_METER val=%d\n", val->i);
+
+        return RIG_OK;
+        break;
+        break;
+
+    default:
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: Unrecognized RIG_LEVEL_* enum: %"PRIll"\n",
+                  __func__, level);
+        return -RIG_EDOM;
+        break;
+    }
+}
+
 const struct rig_caps rshfiq_caps =
 {
     RIG_MODEL(RIG_MODEL_RSHFIQ),
     .model_name =     "RS-HFIQ",
     .mfg_name =       "HobbyPCB",
-    .version =        "20191209.0",
+    .version =        "20210805.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_BETA,
+    .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_TRANSCEIVER,
     .ptt_type =       RIG_PTT_RIG,
     .port_type =      RIG_PORT_SERIAL,
@@ -231,6 +363,8 @@ const struct rig_caps rshfiq_caps =
     .post_write_delay =  1,
     .timeout =  1000,
     .retry =  3,
+
+    .has_get_level = RSHFIQ_LEVEL_ALL,
 
     .rx_range_list1 =  { {.startf = kHz(3500), .endf = MHz(30), .modes = RIG_MODE_NONE, .low_power = -1, .high_power = -1, RIG_VFO_A},
         RIG_FRNG_END,
@@ -253,6 +387,7 @@ const struct rig_caps rshfiq_caps =
     .get_freq =     rshfiq_get_freq,
     .set_freq =     rshfiq_set_freq,
     .set_ptt  =     rshfiq_set_ptt,
+    .get_level =     rshfiq_get_level,
 
 };
 

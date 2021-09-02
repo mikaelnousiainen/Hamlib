@@ -413,7 +413,7 @@ const char *HAMLIB_API rig_strstatus(enum rig_status_e status)
 }
 
 
-static struct
+static const struct
 {
     rmode_t mode;
     const char *str;
@@ -453,6 +453,7 @@ static struct
     { RIG_MODE_PSKR, "PSKR"},
     { RIG_MODE_C4FM, "C4FM"},
     { RIG_MODE_SPEC, "SPEC"},
+    { RIG_MODE_CWN, "CWN"},
     { RIG_MODE_NONE, "" },
 };
 
@@ -553,7 +554,7 @@ int HAMLIB_API rig_strrmodes(rmode_t modes, char *buf, int buflen)
 }
 
 
-static struct
+static const struct
 {
     vfo_t vfo;
     const char *str;
@@ -632,7 +633,7 @@ const char *HAMLIB_API rig_strvfo(vfo_t vfo)
 }
 
 
-static struct
+static const struct
 {
     setting_t func;
     const char *str;
@@ -686,7 +687,7 @@ static struct
 };
 
 
-static struct
+static const struct
 {
     setting_t func;
     const char *str;
@@ -817,7 +818,7 @@ const char *HAMLIB_API rot_strfunc(setting_t func)
 }
 
 
-static struct
+static const struct
 {
     setting_t level;
     const char *str;
@@ -869,11 +870,12 @@ static struct
     { RIG_LEVEL_SPECTRUM_REF, "SPECTRUM_REF" },
     { RIG_LEVEL_SPECTRUM_AVG, "SPECTRUM_AVG" },
     { RIG_LEVEL_SPECTRUM_ATT, "SPECTRUM_ATT" },
+    { RIG_LEVEL_TEMP_METER, "TEMP_METER" },
     { RIG_LEVEL_NONE, "" },
 };
 
 
-static struct
+static const struct
 {
     setting_t level;
     const char *str;
@@ -884,7 +886,7 @@ static struct
 };
 
 
-static struct
+static const struct
 {
     setting_t level;
     const char *str;
@@ -1073,7 +1075,7 @@ const char *HAMLIB_API amp_strlevel(setting_t level)
 }
 
 
-static struct
+static const struct
 {
     setting_t parm;
     const char *str;
@@ -1091,7 +1093,7 @@ static struct
 };
 
 
-static struct
+static const struct
 {
     setting_t parm;
     const char *str;
@@ -1210,7 +1212,7 @@ const char *HAMLIB_API rot_strparm(setting_t parm)
     return "";
 }
 
-static struct
+static const struct
 {
     enum agc_level_e level;
     const char *str;
@@ -1252,7 +1254,7 @@ const char *HAMLIB_API rig_stragclevel(enum agc_level_e level)
 }
 
 
-static struct
+static const struct
 {
     vfo_op_t vfo_op;
     const char *str;
@@ -1326,7 +1328,7 @@ const char *HAMLIB_API rig_strvfop(vfo_op_t op)
 }
 
 
-static struct
+static const struct
 {
     scan_t rscan;
     const char *str;
@@ -1450,7 +1452,7 @@ rptr_shift_t HAMLIB_API rig_parse_rptr_shift(const char *s)
 }
 
 
-static struct
+static const struct
 {
     chan_type_t mtype;
     const char *str;
@@ -1521,7 +1523,7 @@ const char *HAMLIB_API rig_strmtype(chan_type_t mtype)
     return "";
 }
 
-static struct
+static const struct
 {
     enum rig_spectrum_mode_e mode;
     const char *str;
@@ -1724,7 +1726,7 @@ int HAMLIB_API rig_set_cache_timeout_ms(RIG *rig, hamlib_cache_t selection,
 // we're mappping our VFO here to work with either VFO A/B rigs or Main/Sub
 // Hamlib uses VFO_A  and VFO_B as TX/RX as of 2021-04-13
 // So we map these to Main/Sub as required
-vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo)
+vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 {
     rig_debug(RIG_DEBUG_TRACE, "%s: vfo=%s, vfo_curr=%s\n", __func__,
               rig_strvfo(vfo), rig_strvfo(rig->state.current_vfo));
@@ -1735,17 +1737,18 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo)
         return vfo;  // don't modify vfo for RIG_VFO_CURR
     }
 
-    if (vfo == RIG_VFO_RX || vfo == RIG_VFO_A)
+    if (vfo == RIG_VFO_RX || vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
     {
-        vfo = RIG_VFO_A;
+        vfo = RIG_VFO_A; // default to mapping VFO_MAIN to VFO_A
 
         if (VFO_HAS_MAIN_SUB_ONLY) { vfo = RIG_VFO_MAIN; }
 
         if (VFO_HAS_MAIN_SUB_A_B_ONLY) { vfo = RIG_VFO_MAIN; }
     }
 
-    else if (vfo == RIG_VFO_TX || vfo == RIG_VFO_B)
+    else if (vfo == RIG_VFO_TX)
     {
+#if 0
         int retval;
         split_t split = 0;
         // get split if we can -- it will default to off otherwise
@@ -1760,11 +1763,11 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo)
             split = rig->state.cache.split;
         }
 
+#endif
+
         int satmode = rig->state.cache.satmode;
 
-        if (vfo == RIG_VFO_TX) { vfo = RIG_VFO_A; }
-
-        if (split) { vfo = RIG_VFO_B; }
+        if (split && vfo == RIG_VFO_TX) { vfo = RIG_VFO_B; }
 
         if (VFO_HAS_MAIN_SUB_ONLY && !split && !satmode && vfo != RIG_VFO_B) { vfo = RIG_VFO_MAIN; }
 
@@ -1781,6 +1784,10 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo)
     else if (vfo == RIG_VFO_B)
 
     {
+        if (VFO_HAS_MAIN_SUB_ONLY) { vfo = RIG_VFO_SUB; }
+
+        if (VFO_HAS_MAIN_SUB_A_B_ONLY) { vfo = RIG_VFO_SUB; }
+
         rig_debug(RIG_DEBUG_TRACE, "%s: final vfo=%s\n", __func__, rig_strvfo(vfo));
     }
 
@@ -1904,7 +1911,8 @@ int HAMLIB_API parse_hoststr(char *hoststr, char host[256], char port[6])
     return -1;
 }
 
-#define RIG_FLUSH_REMOVE
+//K3 was showing stacked command replies so re-enabling this
+//#define RIG_FLUSH_REMOVE
 int HAMLIB_API rig_flush(hamlib_port_t *port)
 {
 #ifndef RIG_FLUSH_REMOVE
@@ -1931,7 +1939,7 @@ int HAMLIB_API rig_flush(hamlib_port_t *port)
 }
 
 
-static struct
+static const struct
 {
     rot_status_t status;
     const char *str;
@@ -2345,8 +2353,9 @@ char *date_strget(char *buf, int buflen)
     struct tm *mytm;
     time_t t;
     struct timeval tv;
+    struct tm result;
     t = time(NULL);
-    mytm = gmtime(&t);
+    mytm = gmtime_r(&t, &result);
     strftime(buf, buflen, "%Y-%m-%d:%H:%M:%S.", mytm);
     gettimeofday(&tv, NULL);
     sprintf(tmp, "%06ld", (long)tv.tv_usec);

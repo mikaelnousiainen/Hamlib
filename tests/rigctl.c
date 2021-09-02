@@ -86,7 +86,7 @@ static void usage(void);
  * NB: do NOT use -W since it's reserved by POSIX.
  * TODO: add an option to read from a file
  */
-#define SHORT_OPTIONS "+m:r:p:d:P:D:s:c:t:lC:LuonvhVZ!"
+#define SHORT_OPTIONS "+m:r:p:d:P:D:s:c:t:lC:LuonvhVYZ!"
 static struct option long_options[] =
 {
     {"model",           1, 0, 'm'},
@@ -104,7 +104,7 @@ static struct option long_options[] =
     {"dump-caps",       0, 0, 'u'},
     {"vfo",             0, 0, 'o'},
     {"no-restore-ai",   0, 0, 'n'},
-    {"ignore rig open error", 0, 0, 'Y'},
+    {"ignore-err",      0, 0, 'Y'},
     {"debug-time-stamps", 0, 0, 'Z'},
 #ifdef HAVE_READLINE_HISTORY
     {"read-history",    0, 0, 'i'},
@@ -153,6 +153,8 @@ int main(int argc, char *argv[])
     char send_cmd_term = '\r';  /* send_cmd termination char */
     int ext_resp = 0;
     char resp_sep = '\n';
+    int i;
+    char rigstartup[1024];
 
     while (1)
     {
@@ -176,6 +178,7 @@ int main(int argc, char *argv[])
         case '!':
             cookie_use = 1;
             break;
+
         case 'h':
             usage();
             exit(0);
@@ -424,6 +427,7 @@ int main(int argc, char *argv[])
 
         case 'Y':
             ignore_rig_open_error = 1;
+            break;
 
         case 'Z':
             rig_set_debug_time_stamp(1);
@@ -436,6 +440,13 @@ int main(int argc, char *argv[])
     }
 
     rig_set_debug(verbose);
+
+    snprintf(rigstartup, sizeof(rigstartup), "%s(%d) Startup:", __FILE__, __LINE__);
+
+    for (i = 0; i < argc; ++i) { strcat(rigstartup, " "); strcat(rigstartup, argv[i]); }
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s\n", rigstartup);
+
 
     rig_debug(RIG_DEBUG_VERBOSE, "rigctl %s\n", hamlib_version2);
     rig_debug(RIG_DEBUG_VERBOSE, "%s",
@@ -552,7 +563,8 @@ int main(int argc, char *argv[])
 
     if (retcode != RIG_OK)
     {
-        fprintf(stderr, "rig_open: error = %s %s %s \n", rigerror(retcode), rig_file, strerror(errno));
+        fprintf(stderr, "rig_open: error = %s %s %s \n", rigerror(retcode), rig_file,
+                strerror(errno));
 
         if (!ignore_rig_open_error) { exit(2); }
     }
@@ -717,7 +729,7 @@ void usage(void)
         "  -I, --save-history            save current interactive session history\n"
 #endif
         "  -v, --verbose                 set verbose mode, cumulative (-v to -vvvvv)\n"
-        "  -Y, --ignore_err              ignore rig_open errors\n"
+        "  -Y, --ignore-err              ignore rig_open errors\n"
         "  -Z, --debug-time-stamps       enable time stamps for debug messages\n"
         "  -h, --help                    display this help and exit\n"
         "  -V, --version                 output version information and exit\n"

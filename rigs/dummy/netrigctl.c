@@ -670,12 +670,19 @@ static int netrigctl_open(RIG *rig)
                     rig->caps->ptt_type = temp;
                 }
             }
+
+            // setting targetable_vfo this way breaks WSJTX in rig split with rigctld
+            // Ends up putting VFOB freq on VFOA
+            // Have to figure out why but disabling this fixes it for now
+#if 0
             else if (strcmp(setting, "targetable_vfo") == 0)
             {
                 rig->caps->targetable_vfo = strtol(value, NULL, 0);
                 rig_debug(RIG_DEBUG_ERR, "%s: targetable_vfo=0x%2x\n", __func__,
                           rig->caps->targetable_vfo);
             }
+
+#endif
             else if (strcmp(setting, "has_set_vfo") == 0)
             {
                 int has = strtol(value, NULL, 0);
@@ -742,8 +749,8 @@ static int netrigctl_open(RIG *rig)
             }
             else if (strcmp(setting, "timeout") == 0)
             {
-                // use the rig's timeout value pluse 200ms for potential network delays
-                rig->caps->timeout = strtol(value, NULL, 0) + 200;
+                // use the rig's timeout value pluse 500ms for potential network delays
+                rig->caps->timeout = strtol(value, NULL, 0) + 500;
                 rig_debug(RIG_DEBUG_TRACE, "%s: timeout value = '%s', final timeout=%d\n",
                           __func__, value, rig->caps->timeout);
             }
@@ -2106,8 +2113,6 @@ static int netrigctl_get_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t *option,
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    *ant_tx = *ant_rx = RIG_ANT_UNKNOWN;
-
     ret = netrigctl_vfostr(rig, vfostr, sizeof(vfostr), vfo);
 
     if (ret != RIG_OK) { return ret; }
@@ -2543,7 +2548,7 @@ struct rig_caps netrigctl_caps =
     RIG_MODEL(RIG_MODEL_NETRIGCTL),
     .model_name =     "NET rigctl",
     .mfg_name =       "Hamlib",
-    .version =        "20210613.0",
+    .version =        "20210712.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,
@@ -2551,8 +2556,8 @@ struct rig_caps netrigctl_caps =
     .ptt_type =       RIG_PTT_RIG_MICDATA,
     .dcd_type =       RIG_DCD_RIG,
     .port_type =      RIG_PORT_NETWORK,
-    .timeout = 3000,  /* enough for the worst rig we have */
-    .retry =   5,     /* 5 seconds total */
+    .timeout = 10000,  /* enough for the worst rig we have */
+    .retry =   5,
 
     /* following fields updated in rig_state at opening time */
     .has_get_func =   RIG_FUNC_NONE,

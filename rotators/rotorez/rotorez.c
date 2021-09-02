@@ -90,6 +90,7 @@ struct rotorez_rot_priv_data
  */
 
 static int rotorez_send_priv_cmd(ROT *rot, const char *cmd);
+static int rotorez_send_priv_cmd2(ROT *rot, const char *cmd);
 static int rotorez_flush_buffer(ROT *rot);
 
 /*
@@ -309,9 +310,9 @@ const struct rot_caps rt21_rot_caps =
     ROT_MODEL(ROT_MODEL_RT21),
     .model_name =       "RT-21",
     .mfg_name =     "Green Heron",
-    .version =      "20140914.0",
+    .version =      "20210801.0",
     .copyright =        "LGPL",
-    .status =       RIG_STATUS_ALPHA,
+    .status =       RIG_STATUS_STABLE,
     .rot_type =     ROT_TYPE_OTHER,
     .port_type =        RIG_PORT_SERIAL,
     .serial_rate_min =  4800,
@@ -328,7 +329,7 @@ const struct rot_caps rt21_rot_caps =
     .min_az =       0,
     .max_az =       359.9,
     .min_el =       0,
-    .max_el =       0,
+    .max_el =       90,
 
     .priv =         NULL,   /* priv */
 //  .cfgparams =        rotorez_cfg_params,
@@ -482,6 +483,19 @@ static int rt21_rot_set_position(ROT *rot, azimuth_t azimuth,
 
     sprintf(cmdstr, "AP1%05.1f\r;", azimuth);   /* Total field width of 5 chars */
     err = rotorez_send_priv_cmd(rot, cmdstr);
+
+    if (err != RIG_OK)
+    {
+        return err;
+    }
+
+    if (rot->state.rotport2.pathname[0] != 0)
+    {
+        sprintf(cmdstr, "AP1%05.1f\r;",
+                elevation);    /* Total field width of 5 chars */
+    }
+
+    err = rotorez_send_priv_cmd2(rot, cmdstr);
 
     if (err != RIG_OK)
     {
@@ -994,6 +1008,30 @@ static int rotorez_send_priv_cmd(ROT *rot, const char *cmdstr)
 
     rs = &rot->state;
     err = write_block(&rs->rotport, cmdstr, strlen(cmdstr));
+
+    if (err != RIG_OK)
+    {
+        return err;
+    }
+
+    return RIG_OK;
+}
+
+// send command to 2nd rotator port
+static int rotorez_send_priv_cmd2(ROT *rot, const char *cmdstr)
+{
+    struct rot_state *rs;
+    int err;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (!rot)
+    {
+        return -RIG_EINVAL;
+    }
+
+    rs = &rot->state;
+    err = write_block(&rs->rotport2, cmdstr, strlen(cmdstr));
 
     if (err != RIG_OK)
     {

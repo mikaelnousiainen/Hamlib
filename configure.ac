@@ -14,7 +14,7 @@ dnl Please do not use '-' in the version number, as package managers will fail,
 dnl however, the use of '~' should be fine as apt (others?) will treat
 dnl it as an earlier version than the actual release.  TNX KA6MAL
 dnl PACKAGE_NAME + " " + PACKAGE_VERSION must not exceed 20 chars!
-AC_INIT([Hamlib],[4.3~git],[hamlib-developer@lists.sourceforge.net],[hamlib],[http://www.hamlib.org])
+AC_INIT([Hamlib],[4.4~git],[hamlib-developer@lists.sourceforge.net],[hamlib],[http://www.hamlib.org])
 
 AC_CONFIG_SRCDIR([include/hamlib/rig.h])
 AC_CONFIG_MACRO_DIR([macros])
@@ -56,7 +56,7 @@ dnl See README.release on setting these values
 # Values given to -version-info when linking.  See libtool documentation.
 # Set them here to keep c++/Makefile and src/Makefile in sync.
 ABI_VERSION=4
-ABI_REVISION=3
+ABI_REVISION=4
 ABI_AGE=0
 
 AC_DEFINE_UNQUOTED([ABI_VERSION], [$ABI_VERSION], [Frontend ABI version])
@@ -315,6 +315,7 @@ AC_ARG_WITH([libusb],
     )
 
 AC_MSG_RESULT([$cf_with_libusb])
+AM_CONDITIONAL([HAVE_LIBUSB], [test x"${cf_with_libusb}" = "xyes"])
 
 LIBUSB=""
 AC_ARG_VAR([LIBUSB_CFLAGS], [C compiler flags for libusb, overriding configure defaults])
@@ -727,6 +728,9 @@ AS_IF([test x"${DL_LIBS}" = "x-ldl"],
       [AC_CHECK_HEADERS([dlfcn.h])])
 
 AC_SUBST([DL_LIBS])
+
+dnl check for c++11
+AX_CXX_COMPILE_STDCXX([11],[noext],[mandatory])
 
 
 dnl stuff that requires C++ support

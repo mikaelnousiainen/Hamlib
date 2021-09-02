@@ -74,6 +74,23 @@
 #include "tones.h"
 #include "bandplan.h"
 
+struct ft857_priv_data
+{
+    /* rx status */
+    struct timeval rx_status_tv;
+    unsigned char rx_status;
+
+    /* tx status */
+    struct timeval tx_status_tv;
+    unsigned char tx_status;
+
+    /* freq & mode status */
+    struct timeval fm_status_tv;
+    unsigned char fm_status[YAESU_CMD_LENGTH + 1];
+};
+
+
+
 /* Native ft857 cmd set prototypes. These are READ ONLY as each */
 /* rig instance will copy from these and modify if required . */
 /* Complete sequences (1) can be read and used directly as a cmd sequence . */
@@ -297,19 +314,12 @@ const struct rig_caps ft857_caps =
 
 int ft857_init(RIG *rig)
 {
-    struct ft857_priv_data *priv;
-
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called \n", __func__);
 
     if ((rig->state.priv = calloc(1, sizeof(struct ft857_priv_data))) == NULL)
     {
         return -RIG_ENOMEM;
     }
-
-    priv = rig->state.priv;
-
-    /* Copy complete native cmd set to private cmd storage area */
-    memcpy(priv->pcs, ncmd, sizeof(ncmd));
 
     return RIG_OK;
 }
@@ -381,12 +391,11 @@ static int check_cache_timeout(struct timeval *tv)
 
 static int ft857_read_eeprom(RIG *rig, unsigned short addr, unsigned char *out)
 {
-    struct ft857_priv_data *p = (struct ft857_priv_data *) rig->state.priv;
     unsigned char data[YAESU_CMD_LENGTH];
     int n;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called \n", __func__);
-    memcpy(data, (char *)p->pcs[FT857_NATIVE_CAT_EEPROM_READ].nseq,
+    memcpy(data, (char *)ncmd[FT857_NATIVE_CAT_EEPROM_READ].nseq,
            YAESU_CMD_LENGTH);
 
     data[0] = addr >> 8;
@@ -446,7 +455,7 @@ static int ft857_get_status(RIG *rig, int status)
 
     rig_flush(&rig->state.rigport);
 
-    write_block(&rig->state.rigport, (char *) p->pcs[status].nseq,
+    write_block(&rig->state.rigport, (char *) ncmd[status].nseq,
                 YAESU_CMD_LENGTH);
 
     if ((n = read_block(&rig->state.rigport, (char *) data, len)) < 0)
@@ -480,17 +489,15 @@ static int ft857_get_status(RIG *rig, int status)
  */
 static int ft857_send_cmd(RIG *rig, int index)
 {
-    struct ft857_priv_data *p = (struct ft857_priv_data *) rig->state.priv;
-
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called \n", __func__);
 
-    if (p->pcs[index].ncomp == 0)
+    if (ncmd[index].ncomp == 0)
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: incomplete sequence\n", __func__);
         return -RIG_EINTERNAL;
     }
 
-    write_block(&rig->state.rigport, (char *) p->pcs[index].nseq, YAESU_CMD_LENGTH);
+    write_block(&rig->state.rigport, (char *) ncmd[index].nseq, YAESU_CMD_LENGTH);
     return ft817_read_ack(rig);
 }
 
@@ -499,18 +506,17 @@ static int ft857_send_cmd(RIG *rig, int index)
  */
 static int ft857_send_icmd(RIG *rig, int index, unsigned char *data)
 {
-    struct ft857_priv_data *p = (struct ft857_priv_data *) rig->state.priv;
     unsigned char cmd[YAESU_CMD_LENGTH];
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called \n", __func__);
 
-    if (p->pcs[index].ncomp == 1)
+    if (ncmd[index].ncomp == 1)
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: complete sequence\n", __func__);
         return -RIG_EINTERNAL;
     }
 
-    cmd[YAESU_CMD_LENGTH - 1] = p->pcs[index].nseq[YAESU_CMD_LENGTH - 1];
+    cmd[YAESU_CMD_LENGTH - 1] = ncmd[index].nseq[YAESU_CMD_LENGTH - 1];
     memcpy(cmd, data, YAESU_CMD_LENGTH - 1);
 
     write_block(&rig->state.rigport, (char *) cmd, YAESU_CMD_LENGTH);

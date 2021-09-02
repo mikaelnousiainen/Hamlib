@@ -144,7 +144,7 @@ const struct rig_caps flrig_caps =
     RIG_MODEL(RIG_MODEL_FLRIG),
     .model_name = "FLRig",
     .mfg_name = "FLRig",
-    .version = "20210607",
+    .version = "202100814",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -272,7 +272,8 @@ static int check_vfo(vfo_t vfo)
 * So we'll hand craft them
 * xml_build takes a value and return an xml string for FLRig
 */
-static char *xml_build(char *cmd, char *value, char *xmlbuf, int xmlbuflen)
+static char *xml_build(RIG *rig, char *cmd, char *value, char *xmlbuf,
+                       int xmlbuflen)
 {
     char xml[4096]; // we shouldn't need more the 4096 bytes for this
     char tmp[32];
@@ -297,7 +298,9 @@ static char *xml_build(char *cmd, char *value, char *xmlbuf, int xmlbuflen)
                   __func__, (int)strlen(header), n);
     }
 
-    n = snprintf(xml, sizeof(xml), "<?xml version=\"1.0\"?>\r\n");
+    n = snprintf(xml, sizeof(xml),
+                 "<?xml version=\"1.0\"?>\r\n<?clientid=\"hamlib(%d)\"?>\r\n",
+                 rig->state.rigport.client_port);
 
     if (n != strlen(xml))
     {
@@ -571,7 +574,7 @@ static int flrig_transaction(RIG *rig, char *cmd, char *cmd_arg, char *value,
             rig_debug(RIG_DEBUG_VERBOSE, "%s: cmd=%s, retry=%d\n", __func__, cmd, retry);
         }
 
-        pxml = xml_build(cmd, cmd_arg, xml, sizeof(xml));
+        pxml = xml_build(rig, cmd, cmd_arg, xml, sizeof(xml));
         retval = write_transaction(rig, pxml, strlen(pxml));
 
         if (retval != RIG_OK)
@@ -1414,7 +1417,17 @@ static int flrig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     }
 
     // Set the mode
-    ttmode = strdup(modeMapGetFLRig(mode));
+    if (modeMapGetFLRig(mode))
+    {
+        ttmode = strdup(modeMapGetFLRig(mode));
+    }
+    else
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: modeMapGetFlRig failed on mode=%d\n", __func__,
+                  (int)mode);
+        RETURNFUNC(-RIG_EINVAL);
+    }
+
     rig_debug(RIG_DEBUG_TRACE, "%s: got ttmode = %s\n", __func__,
               ttmode == NULL ? "NULL" : ttmode);
 

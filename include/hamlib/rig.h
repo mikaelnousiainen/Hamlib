@@ -24,6 +24,7 @@
 #ifndef _RIG_H
 #define _RIG_H 1
 
+#define TRACE rig_debug(RIG_DEBUG_TRACE,"%s(%d) trace\n", __FILE__, __LINE__)
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
 #include <stdio.h>
@@ -942,6 +943,7 @@ typedef uint64_t rig_level_e;
 #define RIG_LEVEL_SPECTRUM_REF         CONSTANT_64BIT_FLAG(45)      /*!< \c SPECTRUM_REF -- Spectrum scope reference display level, arg float (dB, define rig-specific granularity) */
 #define RIG_LEVEL_SPECTRUM_AVG         CONSTANT_64BIT_FLAG(46)      /*!< \c SPECTRUM_AVG -- Spectrum scope averaging mode, arg int (see struct rig_spectrum_avg_mode). Supported averaging modes defined in rig caps. */
 #define RIG_LEVEL_SPECTRUM_ATT         CONSTANT_64BIT_FLAG(47)      /*!< \c SPECTRUM_ATT -- Spectrum scope attenuator, arg int (dB). Supported attenuator values defined in rig caps. */
+#define RIG_LEVEL_TEMP_METER           CONSTANT_64BIT_FLAG(48)      /*!< \c TEMP_METER -- arg int (C, centigrade) */
 #define RIG_LEVEL_48           CONSTANT_64BIT_FLAG(48)      /*!< \c Future use */
 #define RIG_LEVEL_49           CONSTANT_64BIT_FLAG(49)      /*!< \c Future use */
 #define RIG_LEVEL_50           CONSTANT_64BIT_FLAG(50)      /*!< \c Future use */
@@ -1222,7 +1224,7 @@ typedef uint64_t rmode_t;
 #define    RIG_MODE_C4FM      CONSTANT_64BIT_FLAG (33)  /*!< \c Yaesu C4FM mode */
 #define    RIG_MODE_PKTFMN    CONSTANT_64BIT_FLAG (34)  /*!< \c Yaesu DATA-FM-N */
 #define    RIG_MODE_SPEC      CONSTANT_64BIT_FLAG (35)  /*!< \c Unfiltered as in PowerSDR */
-#define    RIG_MODE_BIT36     CONSTANT_64BIT_FLAG (36)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_CWN       CONSTANT_64BIT_FLAG (36)  /*!< \c CWN -- Narrow band CW (FT-736R) */
 #define    RIG_MODE_BIT37     CONSTANT_64BIT_FLAG (37)  /*!< \c reserved for future expansion */
 #define    RIG_MODE_BIT38     CONSTANT_64BIT_FLAG (38)  /*!< \c reserved for future expansion */
 #define    RIG_MODE_BIT39     CONSTANT_64BIT_FLAG (39)  /*!< \c reserved for future expansion */
@@ -2179,6 +2181,7 @@ typedef struct hamlib_port {
             int value;      /*!< Toggle PTT ON or OFF */
         } gpio;             /*!< GPIO attributes */
     } parm;                 /*!< Port parameter union */
+    int client_port;      /*!< client socket port for tcp connection */
 } hamlib_port_t;
 //! @endcond
 
@@ -2482,9 +2485,16 @@ rig_get_mode HAMLIB_PARAMS((RIG *rig,
                             rmode_t *mode,
                             pbwidth_t *width));
 
+#if 0
+#define rig_set_vfo(r,v) rig_set_vfo(r,v,__builtin_FUNCTION())
+extern HAMLIB_EXPORT(int)
+rig_set_vfo HAMLIB_PARAMS((RIG *rig,
+                           vfo_t vfo, const char *func));
+#else
 extern HAMLIB_EXPORT(int)
 rig_set_vfo HAMLIB_PARAMS((RIG *rig,
                            vfo_t vfo));
+#endif
 extern HAMLIB_EXPORT(int)
 rig_get_vfo HAMLIB_PARAMS((RIG *rig,
                            vfo_t *vfo));

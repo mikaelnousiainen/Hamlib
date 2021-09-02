@@ -909,7 +909,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             // remove the split check here -- hopefully works OK
             //&& !rig->state.cache.split
             // seems some rigs are problematic
-            && !(is_ftdx3000)
+            // && !(is_ftdx3000)
             // some rigs can't do BS command on 60M
             // && !(is_ftdx3000 && newcat_band_index(freq) == 2)
             && !(is_ft2000 && newcat_band_index(freq) == 2)
@@ -920,13 +920,26 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     {
         if (rig->state.current_vfo != vfo)
         {
-            // then we need to change vfos, BS, and change back
-            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS1;BS%02d;VS0;",
-                     newcat_band_index(freq));
+            int vfo1 = 1, vfo2 = 0;
 
             if (vfo  == RIG_VFO_A || vfo == RIG_VFO_MAIN)
-                snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS0;BS%02d;VS1;",
-                         newcat_band_index(freq));
+            {
+                vfo1 = 0;
+                vfo2 = 1;
+            }
+
+            // we need to change vfos, BS, and change back
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS%d;BS%02d",
+                     vfo1, newcat_band_index(freq));
+
+            if (RIG_OK != (err = newcat_set_cmd(rig)))
+            {
+                rig_debug(RIG_DEBUG_ERR, "%s: Unexpected error with BS command#1=%s\n",
+                          __func__, rigerror(err));
+            }
+
+            hl_usleep(50 * 1000); // wait for BS to do it's thing and swap back
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS%d;", vfo2);
         }
         else
         {
@@ -936,9 +949,8 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
         if (RIG_OK != (err = newcat_set_cmd(rig)))
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: Unexpected error with BS command#1=%s\n",
-                      __func__,
-                      rigerror(err));
+            rig_debug(RIG_DEBUG_ERR, "%s: Unexpected error with BS command#2=%s\n",
+                      __func__, rigerror(err));
         }
 
 #if 0 // disable for testing
@@ -979,7 +991,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
                 if (RIG_OK != (err = newcat_set_cmd(rig)))
                 {
-                    rig_debug(RIG_DEBUG_ERR, "%s: Unexpected error with BS command#2=%s\n",
+                    rig_debug(RIG_DEBUG_ERR, "%s: Unexpected error with BS command#3=%s\n",
                               __func__,
                               rigerror(err));
                 }
@@ -2229,7 +2241,7 @@ int newcat_get_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t *offs)
     /* chop term */
     priv->ret_data[ret_data_len - 1] = '\0';
 
-    *offs = atoi(retoffs) * step;
+    *offs = atol(retoffs) * step;
 
     RETURNFUNC(RIG_OK);
 }
@@ -3376,8 +3388,6 @@ int newcat_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
 
     ENTERFUNC;
 
-    option->i = 0;  // default to no options
-
     if (!newcat_valid_command(rig, command))
     {
         RETURNFUNC(-RIG_ENAVAIL);
@@ -3430,7 +3440,6 @@ int newcat_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
         break;
 
     default:
-        *ant_curr = RIG_ANT_UNKNOWN;
         RETURNFUNC(-RIG_EPROTO);
     }
 
@@ -4675,6 +4684,22 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         else
         {
             snprintf(priv->cmd_str, sizeof(priv->cmd_str), "ML1%c", cat_term);
+        }
+
+        break;
+
+    case RIG_LEVEL_TEMP_METER:
+        if (is_ftdx9000)
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM11%c", cat_term);
+        }
+        else if (is_ftdx101d || is_ftdx101mp)
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM9%c", cat_term);
+        }
+        else
+        {
+            RETURNFUNC(-RIG_EINVAL);
         }
 
         break;
@@ -10059,16 +10084,13 @@ rmode_t newcat_rmode_width(RIG *rig, vfo_t vfo, char mode, pbwidth_t *width)
 
     ENTERFUNC;
 
-    if (width != NULL)
-    {
-        *width = RIG_PASSBAND_NORMAL;
-    }
+    *width = RIG_PASSBAND_NORMAL;
 
     for (i = 0; i < sizeof(newcat_mode_conv) / sizeof(newcat_mode_conv[0]); i++)
     {
         if (newcat_mode_conv[i].modechar == mode)
         {
-            if (newcat_mode_conv[i].chk_width == TRUE && width != NULL)
+            if (newcat_mode_conv[i].chk_width == TRUE)
             {
                 if (newcat_is_rig(rig, RIG_MODEL_FT991)
                         && mode == 'E') // crude fix because 991 hangs on NA0; command while in C4FM

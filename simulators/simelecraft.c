@@ -36,7 +36,7 @@ typedef enum nc_rigid_e
 int
 getmyline(int fd, char *buf)
 {
-    int c;
+    char c;
     int i = 0;
     memset(buf, 0, BUFSIZE);
 
@@ -96,11 +96,15 @@ int main(int argc, char *argv[])
     char *pbuf;
     int n;
     int fd = openPort(argv[1]);
+    int modea, modeb = 0;
+    int freqa = 14074000, freqb = 14073500;
 
     while (1)
     {
-        getmyline(fd, buf);
-        printf("Cmd:%s\n", buf);
+        buf[0] = 0;
+
+        if (getmyline(fd, buf) > 0) { printf("Cmd:%s\n", buf); }
+        else { return 0; }
 
         if (strcmp(buf, "RM5;") == 0)
         {
@@ -113,7 +117,7 @@ int main(int argc, char *argv[])
             if (n <= 0) { perror("RM5"); }
         }
 
-        if (strcmp(buf, "AN0;") == 0)
+        else if (strcmp(buf, "AN0;") == 0)
         {
             printf("%s\n", buf);
             usleep(50 * 1000);
@@ -137,8 +141,8 @@ int main(int argc, char *argv[])
         {
             printf("%s\n", buf);
             usleep(50 * 1000);
-            int id = NC_RIGID_FTDX3000;
-            snprintf(buf,sizeof(buf),"ID%03d;", id);
+            int id = 24;
+            snprintf(buf, sizeof(buf), "ID%03d;", id);
             n = snprintf(buf, sizeof(buf), "ID%03d;", id);
             n = write(fd, buf, strlen(buf));
             printf("n=%d\n", n);
@@ -183,7 +187,66 @@ int main(int argc, char *argv[])
 
             if (n < 0) { perror("EX032"); }
         }
+        else if (strcmp(buf, "OM;") == 0)
+        {
+            // KPA3 snprintf(buf, sizeof(buf), "OM AP----L-----;");
+            // K4+KPA3
+            snprintf(buf, sizeof(buf), "OM AP-S----4---;");
+            n = write(fd, buf, strlen(buf));
+            printf("n=%d\n", n);
 
+            if (n < 0) { perror("OM"); }
+        }
+        else if (strcmp(buf, "K2;") == 0)
+        {
+            write(fd, "K20;", 4);
+        }
+        else if (strcmp(buf, "K3;") == 0)
+        {
+            write(fd, "K30;", 4);
+        }
+        else if (strcmp(buf, "RVM;") == 0)
+        {
+            write(fd, "RV02.37;", 8);
+        }
+        else if (strcmp(buf, "AI;") == 0)
+        {
+            write(fd, "AI0;", 4);
+        }
+        else if (strcmp(buf, "MD;") == 0)
+        {
+            snprintf(buf, sizeof(buf), "MD%d;", modea);
+            write(fd, buf, strlen(buf));
+        }
+        else if (strcmp(buf, "MD$;") == 0)
+        {
+            snprintf(buf, sizeof(buf), "MD$%d;", modeb);
+            write(fd, buf, strlen(buf));
+        }
+        else if (strncmp(buf, "MD", 2) == 0)
+        {
+            if (buf[2] == '$') { sscanf(buf, "MD$%d;", &modeb); }
+            else { sscanf(buf, "MD%d;", &modea); }
+        }
+        else if (strcmp(buf, "FA;") == 0)
+        {
+            sprintf(buf, "FA%011d;", freqa);
+            write(fd, buf, strlen(buf));
+        }
+        else if (strcmp(buf, "FB;") == 0)
+        {
+            sprintf(buf, "FB%011d;", freqb);
+            write(fd, buf, strlen(buf));
+        }
+
+        else if (strncmp(buf, "FA", 2) == 0)
+        {
+            sscanf(buf, "FA%d", &freqa);
+        }
+        else if (strncmp(buf, "FB", 2) == 0)
+        {
+            sscanf(buf, "FB%d", &freqb);
+        }
         else if (strlen(buf) > 0)
         {
             fprintf(stderr, "Unknown command: %s\n", buf);

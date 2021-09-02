@@ -37,11 +37,14 @@ public:
     explicit Rig(rig_model_t rig_model);
 
     virtual ~Rig();
+#if __cplusplus >= 201103L
+    Rig(const Rig&) = delete;
+    Rig& operator=(const Rig&) = delete;
+#else
+    Rig(const Rig&);
+    Rig& operator=(const Rig&);
+#endif
 
-    Rig(const Rig&) = default;
-    Rig(Rig&&) = default;
-    Rig& operator=(const Rig&) = default;
-    Rig& operator=(Rig&&) = default;
 
     const struct rig_caps *caps;
 
@@ -292,6 +295,8 @@ inline void THROW(const RigException *e)
 #else
     throw *e;
 #endif
+#elif defined(_MSC_VER)
+    throw* e;
 #elif defined(__SUNPRO_CC)
     genericerror(1, ((e != 0) ? (char *)(e->message) : ""));
 #else

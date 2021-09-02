@@ -60,8 +60,27 @@
 #include "bandplan.h"
 #include "tones.h"
 
-/* prototypes */
+/*
+ * ft847 instance - private data
+ *
+ */
 
+struct ft847_priv_data
+{
+    split_t sat_mode;
+
+    unsigned char rx_status;  /* tx returned data */
+    unsigned char tx_status;  /* rx returned data */
+    /* for early ft847's we keep our own memory items */
+    /* Early rigs are one-way com to the rig */
+    freq_t freqA, freqB;
+    mode_t mode;
+    pbwidth_t width;
+    ptt_t ptt;
+};
+
+
+/* prototypes */
 static int ft847_send_priv_cmd(RIG *rig, int cmd_index);
 
 
@@ -626,15 +645,6 @@ int ft847_close(RIG *rig)
 
 static int ft847_send_priv_cmd(RIG *rig, int cmd_index)
 {
-
-    struct rig_state *rig_s;
-    unsigned char *cmd;       /* points to sequence to send */
-
-    if (!rig)
-    {
-        return -RIG_EINVAL;
-    }
-
     if (! ncmd[cmd_index].ncomp)
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: attempt to send incomplete sequence\n",
@@ -642,11 +652,7 @@ static int ft847_send_priv_cmd(RIG *rig, int cmd_index)
         return -RIG_EINVAL;
     }
 
-    rig_s = &rig->state;
-
-    cmd = (unsigned char *) ncmd[cmd_index].nseq; /* get native sequence */
-
-    return write_block(&rig_s->rigport, (char *) cmd, YAESU_CMD_LENGTH);
+    return write_block(&rig->state.rigport, (char *) ncmd[cmd_index].nseq, YAESU_CMD_LENGTH);
 }
 
 
@@ -698,7 +704,6 @@ static int opcode_vfo(RIG *rig, unsigned char *cmd, int cmd_index, vfo_t vfo)
 
 int ft847_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
-    struct rig_state *rig_s;
     unsigned char p_cmd[YAESU_CMD_LENGTH]; /* sequence to send */
     int ret;
     // cppcheck-suppress *
@@ -708,8 +713,6 @@ int ft847_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     {
         return -RIG_EINVAL;
     }
-
-    rig_s = &rig->state;
 
     rig_debug(RIG_DEBUG_VERBOSE, "ft847: requested freq = %"PRIfreq" Hz, vfo=%s\n",
               freq, rig_strvfo(vfo));
@@ -742,7 +745,7 @@ int ft847_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         }
     }
 
-    return write_block(&rig_s->rigport, (char *)p_cmd, YAESU_CMD_LENGTH);
+    return write_block(&rig->state.rigport, (char *)p_cmd, YAESU_CMD_LENGTH);
 }
 
 #define MD_LSB  0x00

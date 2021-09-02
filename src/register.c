@@ -40,6 +40,7 @@
 #include <register.h>
 
 #include <hamlib/rig.h>
+#include "misc.h"
 
 //! @cond Doxygen_Suppress
 #ifndef PATH_MAX
@@ -221,7 +222,7 @@ int HAMLIB_API rig_register(const struct rig_caps *caps)
     p->next = rig_hash_table[hval];
     rig_hash_table[hval] = p;
 
-    return RIG_OK;
+    RETURNFUNC(RIG_OK);
 }
 //! @endcond
 
@@ -261,6 +262,7 @@ static int rig_lookup_backend(rig_model_t rig_model)
     {
         if (RIG_BACKEND_NUM(rig_model) ==
                 rig_backend_list[i].be_num)
+
         {
             return i;
         }
@@ -282,6 +284,7 @@ int HAMLIB_API rig_check_backend(rig_model_t rig_model)
     const struct rig_caps *caps;
     int be_idx;
     int retval;
+    int i, n;
 
     /* already loaded ? */
     caps = rig_get_caps(rig_model);
@@ -289,6 +292,19 @@ int HAMLIB_API rig_check_backend(rig_model_t rig_model)
     if (caps)
     {
         return RIG_OK;
+    }
+
+    // hmmm...no caps so did we already load the rigs?
+    for (n = 0, i = 0; i < RIGLSTHASHSZ; i++)
+    {
+        if (rig_hash_table[i]) { ++n; }
+    }
+
+    if (n > 1)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: rig model %d not found and rig count=%d\n",
+                  __func__, rig_model, n);
+        return -RIG_ENAVAIL;
     }
 
     be_idx = rig_lookup_backend(rig_model);
@@ -305,7 +321,18 @@ int HAMLIB_API rig_check_backend(rig_model_t rig_model)
         return -RIG_ENAVAIL;
     }
 
-    retval = rig_load_backend(rig_backend_list[be_idx].be_name);
+    // do we need to load the backend?
+//    if (rig_backend_list[be_idx].be_init_all == 0)
+    {
+        retval = rig_load_backend(rig_backend_list[be_idx].be_name);
+    }
+#if 0
+    else
+    {
+        retval = RIG_OK;
+    }
+
+#endif
 
     return retval;
 }
