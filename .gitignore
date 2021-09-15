@@ -57,6 +57,9 @@ tests/rigsmtr
 tests/rigswr
 tests/rotctl
 tests/rotctld
+tests/testlibusb
 src/hamlibdatetime.h
 .gdbinit
 build/
+libs/
+obj/

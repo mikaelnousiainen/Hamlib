@@ -2326,13 +2326,14 @@ void errmsg(int err, char *s, const char *func, const char *file, int line)
 uint32_t CRC32_function(uint8_t *buf, uint32_t len)
 {
 
-    uint32_t val, crc;
+    uint32_t crc;
     uint8_t i;
 
     crc = 0xFFFFFFFF;
 
     while (len--)
     {
+        uint32_t val;
         val = (crc^*buf++) & 0xFF;
 
         for (i = 0; i < 8; i++)
@@ -2345,6 +2346,27 @@ uint32_t CRC32_function(uint8_t *buf, uint32_t len)
 
     return crc ^ 0xFFFFFFFF;
 }
+
+#if defined(_WIN32)
+// gmtime_r can be defined by mingw
+#ifndef gmtime_r
+static struct tm *gmtime_r(const time_t *t, struct tm *r)
+{
+    // gmtime is threadsafe in windows because it uses TLS
+    struct tm *theTm = gmtime(t);
+
+    if (theTm)
+    {
+        *r = *theTm;
+        return r;
+    }
+    else
+    {
+        return 0;
+    }
+}
+#endif // gmtime_r
+#endif // _WIN32
 
 //! @cond Doxygen_Suppress
 char *date_strget(char *buf, int buflen)
