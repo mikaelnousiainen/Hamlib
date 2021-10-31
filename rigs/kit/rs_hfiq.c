@@ -341,12 +341,19 @@ static int rshfiq_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     }
 }
 
+static int rshfiq_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
+{
+    *mode = RIG_MODE_IQ;
+    return RIG_OK;
+}
+
+
 const struct rig_caps rshfiq_caps =
 {
     RIG_MODEL(RIG_MODEL_RSHFIQ),
     .model_name =     "RS-HFIQ",
     .mfg_name =       "HobbyPCB",
-    .version =        "20210805.0",
+    .version =        "20211020.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_TRANSCEIVER,
@@ -366,28 +373,28 @@ const struct rig_caps rshfiq_caps =
 
     .has_get_level = RSHFIQ_LEVEL_ALL,
 
-    .rx_range_list1 =  { {.startf = kHz(3500), .endf = MHz(30), .modes = RIG_MODE_NONE, .low_power = -1, .high_power = -1, RIG_VFO_A},
+    .rx_range_list1 =  { {.startf = kHz(3500), .endf = MHz(30), .modes = RIG_MODE_IQ, .low_power = -1, .high_power = -1, RIG_VFO_A},
         RIG_FRNG_END,
     },
-    .rx_range_list2 =  { {.startf = kHz(3500), .endf = MHz(30), .modes = RIG_MODE_NONE, .low_power = -1, .high_power = -1, RIG_VFO_A},
+    .rx_range_list2 =  { {.startf = kHz(3500), .endf = MHz(30), .modes = RIG_MODE_IQ, .low_power = -1, .high_power = -1, RIG_VFO_A},
         RIG_FRNG_END,
     },
-    .tx_range_list1 =   { {.startf = kHz(3500), .endf = kHz(3800), .modes = RIG_MODE_NONE, .low_power = -1, .high_power = -1, RIG_VFO_A},
-        {.startf = kHz(7000), .endf = kHz(7200), .modes = RIG_MODE_NONE, .low_power = -1, .high_power = -1, RIG_VFO_A},
-        {.startf = kHz(10100), .endf = kHz(10150), .modes = RIG_MODE_NONE, .low_power = -1, .high_power = -1, RIG_VFO_A},
-        {.startf = MHz(14), .endf = kHz(14350), .modes = RIG_MODE_NONE, .low_power = -1, .high_power = -1, RIG_VFO_A},
-        {.startf = MHz(21), .endf = kHz(21450), .modes = RIG_MODE_NONE, .low_power = -1, .high_power = -1, RIG_VFO_A},
-        {.startf = kHz(24890), .endf = kHz(24990), .modes = RIG_MODE_NONE, .low_power = -1, .high_power = -1, RIG_VFO_A},
-        {.startf = MHz(28), .endf = kHz(29700), .modes = RIG_MODE_NONE, .low_power = -1, .high_power = -1, RIG_VFO_A},
+    .tx_range_list1 =   { {.startf = kHz(3500), .endf = kHz(3800), .modes = RIG_MODE_IQ, .low_power = -1, .high_power = -1, RIG_VFO_A},
+        {.startf = kHz(7000), .endf = kHz(7200), .modes = RIG_MODE_IQ, .low_power = -1, .high_power = -1, RIG_VFO_A},
+        {.startf = kHz(10100), .endf = kHz(10150), .modes = RIG_MODE_IQ, .low_power = -1, .high_power = -1, RIG_VFO_A},
+        {.startf = MHz(14), .endf = kHz(14350), .modes = RIG_MODE_IQ, .low_power = -1, .high_power = -1, RIG_VFO_A},
+        {.startf = MHz(21), .endf = kHz(21450), .modes = RIG_MODE_IQ, .low_power = -1, .high_power = -1, RIG_VFO_A},
+        {.startf = kHz(24890), .endf = kHz(24990), .modes = RIG_MODE_IQ, .low_power = -1, .high_power = -1, RIG_VFO_A},
+        {.startf = MHz(28), .endf = kHz(29700), .modes = RIG_MODE_IQ, .low_power = -1, .high_power = -1, RIG_VFO_A},
         RIG_FRNG_END,
     },
-    .tuning_steps =  { {RIG_MODE_NONE, Hz(1)}, RIG_TS_END, },
+    .tuning_steps =  { {RIG_MODE_IQ, Hz(1)}, RIG_TS_END, },
 
     .rig_open =     rshfiq_open,
     .get_freq =     rshfiq_get_freq,
     .set_freq =     rshfiq_set_freq,
     .set_ptt  =     rshfiq_set_ptt,
     .get_level =     rshfiq_get_level,
-
+    .get_mode =     rshfiq_get_mode,
 };
 

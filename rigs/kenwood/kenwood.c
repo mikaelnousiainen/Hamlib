@@ -367,7 +367,7 @@ transaction_write:
 
 transaction_read:
     /* allow room for most any response */
-    len = min(datasize ? datasize + 1 : strlen(priv->verify_cmd) + 32,
+    len = min(datasize ? datasize + 1 : strlen(priv->verify_cmd) + 48,
               KENWOOD_MAX_BUF_LEN);
     retval = read_string(&rs->rigport, buffer, len, cmdtrm_str, strlen(cmdtrm_str));
     rig_debug(RIG_DEBUG_TRACE, "%s: read_string(len=%d)='%s'\n", __func__,
@@ -466,6 +466,11 @@ transaction_read:
             {
                 rig_debug(RIG_DEBUG_ERR, "%s: Unknown command or rig busy '%s'\n", __func__,
                           cmdstr);
+                // sometimes IF; command after TX; will return ? but still return IF response
+                if (retry_read++ <= 1) {
+                    hl_usleep(100*1000);
+                    goto transaction_read;
+                }
             }
 
             if (retry_read++ < rs->rigport.retry)
@@ -962,13 +967,6 @@ int kenwood_open(RIG *rig)
 
             rig->state.rigport.retry = retry_save;
 
-            // Default to 1st VFO and split off -- but only 1 time
-            if (rig->caps->set_vfo && priv->opened == 0)
-            {
-                rig_set_vfo(rig, vfo_fixup(rig, RIG_VFO_A, 0));
-                priv->opened = 1;
-            }
-
             RETURNFUNC(RIG_OK);
         }
 
@@ -1068,6 +1066,12 @@ int kenwood_set_vfo(RIG *rig, vfo_t vfo)
      * We'll do this once if curr_mode has not been set yet
      */
     if (priv->is_emulation && priv->curr_mode > 0) { RETURNFUNC(RIG_OK); }
+
+    if (rig->state.current_vfo == vfo)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: vfo already is %s...skipping\n", __func__, rig_strvfo(vfo));
+        RETURNFUNC(RIG_OK);
+    }
 
     switch (vfo)
     {
@@ -1235,6 +1239,7 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
     char cmdbuf[12];
     int retval;
     unsigned char vfo_function;
+    split_t tsplit;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -1331,14 +1336,30 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
        they impact output power when transmitting
        and all other rigs don't need to set it if it's already set correctly
     */
-    if (RIG_OK == (retval = kenwood_safe_transaction(rig, "FT", cmdbuf,
-                            sizeof(cmdbuf), 3)))
+    tsplit = RIG_SPLIT_OFF; // default in case rig does not set split status
+    retval = rig_get_split(rig, vfo, &tsplit);
+    // and it should be OK to do a SPLIT_OFF at any time so we won's skip that
+    if (retval == RIG_OK && split == RIG_SPLIT_ON && tsplit == RIG_SPLIT_ON)
     {
-        if (cmdbuf[2] == vfo_function) { RETURNFUNC(RIG_OK); }
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: already set split=%d\n", __func__, tsplit);
+        RETURNFUNC(RIG_OK); 
     }
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: split is=%d, split wants=%d\n", __func__, tsplit, split);
 
     /* set TX VFO */
-    snprintf(cmdbuf, sizeof(cmdbuf), "FT%c", vfo_function);
+    // if turning on split need to do some VFOB setup on Elecraft rigs to avoid SPLIT N/A and ER59 messages
+    if (rig->caps->rig_model == RIG_MODEL_K4 //  Elecraft needs VFOB to be same band as VFOA
+      ||rig->caps->rig_model == RIG_MODEL_K3
+      ||rig->caps->rig_model == RIG_MODEL_KX2
+      ||rig->caps->rig_model == RIG_MODEL_KX3)
+    {
+        rig_set_freq(rig, RIG_VFO_B, rig->state.cache.freqMainA);
+        snprintf(cmdbuf, sizeof(cmdbuf), "FT%c", vfo_function);
+    }
+    else
+    {
+        snprintf(cmdbuf, sizeof(cmdbuf), "FT%c", vfo_function);
+    }
     retval = kenwood_transaction(rig, cmdbuf, NULL, 0);
 
     if (retval != RIG_OK)
@@ -2320,8 +2341,16 @@ int kenwood_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     }
     else
     {
-        snprintf(cmd, sizeof(cmd), "MD");
-        offs = 2;
+        if (vfo == RIG_VFO_B && rig->caps->rig_model == RIG_MODEL_K4) // K4 new MD$ command for VFOB
+        {
+            snprintf(cmd, sizeof(cmd), "MD$");
+            offs = 3;
+        }
+        else
+        {
+            snprintf(cmd, sizeof(cmd), "MD");
+            offs = 2;
+        }
     }
 
     retval = kenwood_safe_transaction(rig, cmd, modebuf, 6, offs + 1);

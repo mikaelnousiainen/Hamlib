@@ -98,7 +98,7 @@
    constant from a constant number literal using ull */
 // #define CONSTANT_64BIT_FLAG(BIT) (1 << (BIT))
 // #define SWIGLUAHIDE
-/* But this appears to have been fixed so we'll use the correct one now 
+/* But this appears to have been fixed so we'll use the correct one now
    If you have the older version of SWIG comment out this line and use
    the two above */
 // This 1ul definition works on swig 4.0.1 and lua 5.3.5
@@ -463,6 +463,9 @@ typedef unsigned int vfo_t;
 /** \brief \c MainC -- alias for MAIN_C */
 #define RIG_VFO_MAIN_C      RIG_VFO_N(4)
 
+/** \brief \c Other -- alias for OTHER -- e.g. Icom rigs without get_vfo capability */
+#define RIG_VFO_OTHER       RIG_VFO_N(5)
+
 /** \brief \c Sub -- alias for SUB */
 #define RIG_VFO_SUB         RIG_VFO_N(25)
 
@@ -774,7 +777,7 @@ typedef enum {
 /**
  * \brief Antenna number
  * \def RIG_ANT_NONE
- * No antenna set yet or unknown 
+ * No antenna set yet or unknown
  */
 /**
  * \brief Antenna conversion macro
@@ -1000,9 +1003,9 @@ enum rig_parm_e {
  *
  */
 enum cookie_e {
-    RIG_COOKIE_GET,
-    RIG_COOKIE_RELEASE,
-    RIG_COOKIE_RENEW,
+    RIG_COOKIE_GET,     /*!< Setup a cookie */
+    RIG_COOKIE_RELEASE, /*!< Release a cookie */
+    RIG_COOKIE_RENEW,   /*!< Renew a cookie */
 };
 
 /**
@@ -1225,7 +1228,7 @@ typedef uint64_t rmode_t;
 #define    RIG_MODE_PKTFMN    CONSTANT_64BIT_FLAG (34)  /*!< \c Yaesu DATA-FM-N */
 #define    RIG_MODE_SPEC      CONSTANT_64BIT_FLAG (35)  /*!< \c Unfiltered as in PowerSDR */
 #define    RIG_MODE_CWN       CONSTANT_64BIT_FLAG (36)  /*!< \c CWN -- Narrow band CW (FT-736R) */
-#define    RIG_MODE_BIT37     CONSTANT_64BIT_FLAG (37)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_IQ        CONSTANT_64BIT_FLAG (37)  /*!< \c IQ mode for a couple of kit rigs */
 #define    RIG_MODE_BIT38     CONSTANT_64BIT_FLAG (38)  /*!< \c reserved for future expansion */
 #define    RIG_MODE_BIT39     CONSTANT_64BIT_FLAG (39)  /*!< \c reserved for future expansion */
 #define    RIG_MODE_BIT40     CONSTANT_64BIT_FLAG (40)  /*!< \c reserved for future expansion */
@@ -1769,7 +1772,7 @@ struct rig_caps {
     // As of 2020-02-12 we know of 5 models from Icom USA, EUR, ITR, TPE, KOR for the IC-9700
     // So we currently have 5 ranges we need to deal with
     // The backend for the model should fill in the label field to explain what model it is
-    // The the IC-9700 in ic7300.c for an example 
+    // The the IC-9700 in ic7300.c for an example
     freq_range_t rx_range_list1[HAMLIB_FRQRANGESIZ];   /*!< Receive frequency range list #1 */
     freq_range_t tx_range_list1[HAMLIB_FRQRANGESIZ];   /*!< Transmit frequency range list #1 */
     freq_range_t rx_range_list2[HAMLIB_FRQRANGESIZ];   /*!< Receive frequency range list #2 */
@@ -2057,7 +2060,6 @@ enum rig_function_e {
     RIG_FUNCTION_SEND_MORSE,
     RIG_FUNCTION_STOP_MORSE,
     RIG_FUNCTION_WAIT_MORSE,
-    RIG_FUNCTION_SEND_VOICE_MEM,
     RIG_FUNCTION_SET_BANK,
     RIG_FUNCTION_SET_MEM,
     RIG_FUNCTION_GET_MEM,
@@ -2073,7 +2075,7 @@ enum rig_function_e {
     RIG_FUNCTION_GET_CHAN_ALL_CB,
     RIG_FUNCTION_SET_MEM_ALL_CB,
     RIG_FUNCTION_GET_MEM_ALL_CB,
-    RIG_FUNCTION_SET_VFO_OPT
+    RIG_FUNCTION_SET_VFO_OPT,
 };
 
 /**
@@ -2182,6 +2184,7 @@ typedef struct hamlib_port {
         } gpio;             /*!< GPIO attributes */
     } parm;                 /*!< Port parameter union */
     int client_port;      /*!< client socket port for tcp connection */
+    RIG *rig;             /*!< our parent RIG device */
 } hamlib_port_t;
 //! @endcond
 
@@ -2210,7 +2213,7 @@ typedef enum {
 
 /**
  * \brief Rig cache data
- * 
+ *
  * This struct contains all the items we cache at the highest level
  */
 struct rig_cache {
@@ -2230,7 +2233,7 @@ struct rig_cache {
     freq_t freqSubA;  // VFO_SUBA -- only for rigs with dual Sub VFOs
     freq_t freqSubB;  // VFO_SUBB -- only for rigs with dual Sub VFOs
     freq_t freqSubC;  // VFO_SUBC -- only for rigs with 3 Sub VFOs
-    freq_t freqMem;   // VFO_MEM -- last MEM channel 
+    freq_t freqMem;   // VFO_MEM -- last MEM channel
     rmode_t modeMainA;
     rmode_t modeMainB;
     rmode_t modeMainC;
@@ -2347,7 +2350,7 @@ struct rig_state {
     pbwidth_t current_width;    /*!< Passband width currently set */
     vfo_t tx_vfo;               /*!< Tx VFO currently set */
     rmode_t mode_list;              /*!< Complete list of modes for this rig */
-    // mode_list is used by some 
+    // mode_list is used by some
     // so anything added to this structure must be below here
     int transmit;               /*!< rig should be transmitting i.e. hard
                                      wired PTT asserted - used by rigs that
@@ -2501,10 +2504,10 @@ rig_get_vfo HAMLIB_PARAMS((RIG *rig,
 
 extern HAMLIB_EXPORT(int)
 rig_get_vfo_info HAMLIB_PARAMS((RIG *rig,
-                           vfo_t vfo, 
-                           freq_t *freq, 
-                           rmode_t *mode, 
-                           pbwidth_t *width, 
+                           vfo_t vfo,
+                           freq_t *freq,
+                           rmode_t *mode,
+                           pbwidth_t *width,
                            split_t *split,
                            int *satmode));
 
@@ -2904,30 +2907,30 @@ rig_has_scan HAMLIB_PARAMS((RIG *rig,
                             scan_t scan));
 
 extern HAMLIB_EXPORT(int)
-rig_set_channel HAMLIB_PARAMS((RIG *rig, 
+rig_set_channel HAMLIB_PARAMS((RIG *rig,
                                vfo_t vfo,
                                const channel_t *chan)); /* mem */
 extern HAMLIB_EXPORT(int)
-rig_get_channel HAMLIB_PARAMS((RIG *rig, 
+rig_get_channel HAMLIB_PARAMS((RIG *rig,
                                vfo_t vfo,
                                channel_t *chan, int read_only));
 
 extern HAMLIB_EXPORT(int)
-rig_set_chan_all HAMLIB_PARAMS((RIG *rig, 
+rig_set_chan_all HAMLIB_PARAMS((RIG *rig,
                                 vfo_t vfo,
                                 const channel_t chans[]));
 extern HAMLIB_EXPORT(int)
-rig_get_chan_all HAMLIB_PARAMS((RIG *rig, 
+rig_get_chan_all HAMLIB_PARAMS((RIG *rig,
                                 vfo_t vfo,
                                 channel_t chans[]));
 
 extern HAMLIB_EXPORT(int)
-rig_set_chan_all_cb HAMLIB_PARAMS((RIG *rig, 
+rig_set_chan_all_cb HAMLIB_PARAMS((RIG *rig,
                                    vfo_t vfo,
                                    chan_cb_t chan_cb,
                                    rig_ptr_t));
 extern HAMLIB_EXPORT(int)
-rig_get_chan_all_cb HAMLIB_PARAMS((RIG *rig, 
+rig_get_chan_all_cb HAMLIB_PARAMS((RIG *rig,
                                    vfo_t vfo,
                                    chan_cb_t chan_cb,
                                    rig_ptr_t));
@@ -2939,7 +2942,7 @@ rig_set_mem_all_cb HAMLIB_PARAMS((RIG *rig,
                                   confval_cb_t parm_cb,
                                   rig_ptr_t));
 extern HAMLIB_EXPORT(int)
-rig_get_mem_all_cb HAMLIB_PARAMS((RIG *rig, 
+rig_get_mem_all_cb HAMLIB_PARAMS((RIG *rig,
                                   vfo_t vfo,
                                   chan_cb_t chan_cb,
                                   confval_cb_t parm_cb,

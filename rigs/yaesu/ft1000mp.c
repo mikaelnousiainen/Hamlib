@@ -117,6 +117,7 @@ static int ft1000mp_open(RIG *rig);
 static int ft1000mp_set_freq(RIG *rig, vfo_t vfo, freq_t freq);
 static int ft1000mp_get_freq(RIG *rig, vfo_t vfo, freq_t *freq);
 static int ft1000mp_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq);
+static int ft1000mp_set_split_freq_mode(RIG *rig, vfo_t vfo, freq_t freq, rmode_t mode, pbwidth_t width);
 static int ft1000mp_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq);
 static int ft1000mp_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo);
 static int ft1000mp_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo);
@@ -310,7 +311,7 @@ const struct rig_caps ft1000mp_caps =
     RIG_MODEL(RIG_MODEL_FT1000MP),
     .model_name =         "FT-1000MP",
     .mfg_name =           "Yaesu",
-    .version =            "20210913.0",
+    .version =            "20211023.0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -422,6 +423,7 @@ const struct rig_caps ft1000mp_caps =
 
     .set_split_freq =     ft1000mp_set_split_freq,
     .get_split_freq =     ft1000mp_get_split_freq,
+    .set_split_freq_mode =ft1000mp_set_split_freq_mode,
     .set_split_vfo =      ft1000mp_set_split_vfo,
     .get_split_vfo =      ft1000mp_get_split_vfo,
 
@@ -444,7 +446,7 @@ const struct rig_caps ft1000mpmkv_caps =
     RIG_MODEL(RIG_MODEL_FT1000MPMKV),
     .model_name =         "MARK-V FT-1000MP",
     .mfg_name =           "Yaesu",
-    .version =            "20210318.0",
+    .version =            "20211014.0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -556,6 +558,7 @@ const struct rig_caps ft1000mpmkv_caps =
 
     .set_split_freq =     ft1000mp_set_split_freq,
     .get_split_freq =     ft1000mp_get_split_freq,
+    .set_split_freq_mode =ft1000mp_set_split_freq_mode,
     .set_split_vfo =      ft1000mp_set_split_vfo,
     .get_split_vfo =      ft1000mp_get_split_vfo,
 
@@ -578,7 +581,7 @@ const struct rig_caps ft1000mpmkvfld_caps =
     RIG_MODEL(RIG_MODEL_FT1000MPMKVFLD),
     .model_name =         "MARK-V Field FT-1000MP",
     .mfg_name =           "Yaesu",
-    .version =            "20210318.0",
+    .version =            "20211014.0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -690,6 +693,7 @@ const struct rig_caps ft1000mpmkvfld_caps =
 
     .set_split_freq =     ft1000mp_set_split_freq,
     .get_split_freq =     ft1000mp_get_split_freq,
+    .set_split_freq_mode =ft1000mp_set_split_freq_mode,
     .set_split_vfo =      ft1000mp_set_split_vfo,
     .get_split_vfo =      ft1000mp_get_split_vfo,
 
@@ -848,7 +852,6 @@ static int ft1000mp_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     to_bcd(p->p_cmd, freq / 10, 8); /* store bcd format in in p_cmd */
 
-    // cppcheck-suppress *
     rig_debug(RIG_DEBUG_TRACE, "%s: freq = %"PRIfreq" Hz\n", __func__,
               (freq_t)from_bcd(p->p_cmd, 8) * 10);
 
@@ -1314,7 +1317,7 @@ static int ft1000mp_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 
         cmd = priv->p_cmd;
 
-        write_block(&rs->rigport, (char *) cmd, YAESU_CMD_LENGTH);        break;
+        write_block(&rs->rigport, (char *) cmd, YAESU_CMD_LENGTH);
         RETURNFUNC(RIG_OK);
 
     default:
@@ -1692,10 +1695,7 @@ static int ft1000mp_send_priv_cmd(RIG *rig, unsigned char ci)
 
 static int ft1000mp_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
 {
-    // FT1000 transmits on A and receives on B
-
     unsigned char cmd_index = 0;      /* index of sequence to send */
-    freq_t tx_freq;
 
     ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s called rx_vfo=%s, tx_vfo=%s\n", __func__,
@@ -1716,14 +1716,12 @@ static int ft1000mp_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_v
         RETURNFUNC(-RIG_EINVAL);         /* sorry, wrong VFO */
     }
 
-    rig_get_freq(rig, RIG_VFO_B, &tx_freq);
     // manual says VFO_A=Tx and VFO_B=Rx but testing shows otherwise
     rig->state.current_vfo = RIG_VFO_A;
     rig->state.tx_vfo = RIG_VFO_B;
-    ft1000mp_send_priv_cmd(rig, FT1000MP_NATIVE_AB); // Copy A to B
     ft1000mp_send_priv_cmd(rig, FT1000MP_NATIVE_VFO_A); // make A active
+    ft1000mp_send_priv_cmd(rig, FT1000MP_NATIVE_AB); // Copy A to B
     ft1000mp_send_priv_cmd(rig, cmd_index);
-    rig_set_freq(rig, RIG_VFO_B, tx_freq); // restore orig frequency
 
     RETURNFUNC(RIG_OK);
 }
@@ -1773,6 +1771,12 @@ static int ft1000mp_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
     if (retval != RIG_OK) { RETURNFUNC(retval); }
 
     RETURNFUNC(ft1000mp_set_freq(rig, RIG_VFO_B, tx_freq));
+}
+
+static int ft1000mp_set_split_freq_mode(RIG *rig, vfo_t vfo, freq_t freq, rmode_t mode, pbwidth_t width)
+{
+    // don't believe mode on VFOB can be different than mode on VFOA
+    return ft1000mp_set_split_freq(rig, vfo, freq);
 }
 
 static int ft1000mp_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq)

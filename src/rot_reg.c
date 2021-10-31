@@ -90,6 +90,9 @@ DEFINE_INITROT_BACKEND(oh3aarot);
 #if HAVE_LIBINDI
 DEFINE_INITROT_BACKEND(indi);
 #endif
+#if defined(ANDROID) || defined(__ANDROID__)
+DEFINE_INITROT_BACKEND(androidsensor);
+#endif
 //! @endcond
 
 /**
@@ -134,6 +137,9 @@ static struct
     { ROT_OH3AAROT, ROT_BACKEND_OH3AAROT, ROT_FUNCNAMA(oh3aarot) },
 #if HAVE_LIBINDI
     { ROT_INDI, ROT_BACKEND_INDI, ROT_FUNCNAMA(indi) },
+#endif
+#if defined(ANDROID) || defined(__ANDROID__)
+    { ROT_ANDROIDSENSOR, ROT_BACKEND_ANDROIDSENSOR, ROT_FUNCNAMA(androidsensor) },
 #endif
     { 0, NULL }, /* end */
 };

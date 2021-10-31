@@ -633,6 +633,11 @@
 #define ROT_MODEL_OH3AAROT1 ROT_MAKE_MODEL(ROT_OH3AAROT, 1)
 
 
+#define ROT_ANDROIDSENSOR 23
+#define ROT_BACKEND_ANDROIDSENSOR "androidsensor"
+#define ROT_MODEL_ANDROIDSENSOR ROT_MAKE_MODEL(ROT_ANDROIDSENSOR, 1)
+
+
 /**
  * \brief Convenience type definition for a rotator model.
  *

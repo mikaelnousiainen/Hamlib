@@ -75,6 +75,7 @@ static int funcubepro_get_level(RIG *rig, vfo_t vfo, setting_t level,
                                 value_t *val);
 
 static const char *funcube_get_info(RIG *rig);
+static int funcube_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width);
 
 static const struct confparams funcube_cfg_params[] =
 {
@@ -107,7 +108,7 @@ const struct rig_caps funcube_caps =
     RIG_MODEL(RIG_MODEL_FUNCUBEDONGLE),
     .model_name =       "FUNcube Dongle",
     .mfg_name =     "AMSAT-UK",
-    .version =      BACKEND_VER ".0",
+    .version =      BACKEND_VER ".1",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TUNER,
@@ -162,6 +163,7 @@ const struct rig_caps funcube_caps =
     .get_level =        funcube_get_level,
     .set_level =        funcube_set_level,
     .get_info =     funcube_get_info,
+    .get_mode =     funcube_get_mode,
 };
 
 
@@ -170,7 +172,7 @@ const struct rig_caps funcubeplus_caps =
     RIG_MODEL(RIG_MODEL_FUNCUBEDONGLEPLUS),
     .model_name =       "FUNcube Dongle Pro+",
     .mfg_name =     "AMSAT-UK",
-    .version =      BACKEND_VER ".0",
+    .version =      BACKEND_VER ".1",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TUNER,
@@ -206,15 +208,15 @@ const struct rig_caps funcubeplus_caps =
     .chan_list = { RIG_CHAN_END, },
 
     .rx_range_list1 = {
-        {kHz(150), MHz(1900), RIG_MODE_USB, -1, -1, RIG_VFO_A},
+        {kHz(150), MHz(1900), RIG_MODE_IQ, -1, -1, RIG_VFO_A},
         RIG_FRNG_END,
     },
     .tuning_steps = {
-        {RIG_MODE_USB, kHz(1)},
+        {RIG_MODE_IQ, kHz(1)},
         RIG_TS_END,
     },
     .filters = {
-        {RIG_MODE_USB, kHz(192)},
+        {RIG_MODE_IQ, kHz(192)},
         RIG_FLT_END,
     },
     .cfgparams =        funcube_cfg_params,
@@ -226,6 +228,7 @@ const struct rig_caps funcubeplus_caps =
     .get_level =        funcubepro_get_level,
     .set_level =        funcubepro_set_level,
     .get_info =     funcube_get_info,
+    .get_mode =     funcube_get_mode,
 };
 
 int funcube_init(RIG *rig)
@@ -937,6 +940,20 @@ int funcubepro_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         return -RIG_EINVAL;
     }
 
+    return RIG_OK;
+}
+
+static int funcube_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
+{
+    if (rig->caps->rig_model == RIG_MODEL_FUNCUBEDONGLE)
+    {
+        *mode = RIG_MODE_USB;
+    }
+    else
+    {
+        *mode = RIG_MODE_IQ;
+    }
+    *width = 192000;
     return RIG_OK;
 }
 

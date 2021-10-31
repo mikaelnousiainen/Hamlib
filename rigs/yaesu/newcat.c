@@ -837,7 +837,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
            and select the correct VFO before setting the frequency
         */
         // Plus we can't do the VFO swap if transmitting
-        if (target_vfo == 'B' && rig->state.cache.ptt == RIG_PTT_ON) { RETURNFUNC(-RIG_ENTARGET); }
+        if (target_vfo == '1' && rig->state.cache.ptt == RIG_PTT_ON) { RETURNFUNC(-RIG_ENTARGET); }
 
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS%c", cat_term);
 
@@ -849,6 +849,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
         if (priv->ret_data[2] != target_vfo)
         {
+            TRACE;
             snprintf(priv->cmd_str, sizeof(priv->cmd_str), "VS%c%c", target_vfo, cat_term);
             rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
 
@@ -918,6 +919,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             && rig->caps->get_vfo != NULL
             && rig->caps->set_vfo != NULL) // gotta' have get_vfo too
     {
+        TRACE;
         if (rig->state.current_vfo != vfo)
         {
             int vfo1 = 1, vfo2 = 0;
@@ -3669,8 +3671,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         {
             RETURNFUNC(-RIG_ENAVAIL);
         }
-
         snprintf(priv->cmd_str, sizeof(priv->cmd_str), "KS%03d%c", val.i, cat_term);
+
         break;
 
     case RIG_LEVEL_MICGAIN:
@@ -4590,8 +4592,14 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         {
             RETURNFUNC(-RIG_ENAVAIL);
         }
-
-        snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM3%c", cat_term);
+        if (is_ftdx9000)
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM06%c", cat_term);
+        }
+        else
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM3%c", cat_term);
+        }
         break;
 
     case RIG_LEVEL_VD_METER:
@@ -4599,8 +4607,14 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         {
             RETURNFUNC(-RIG_ENAVAIL);
         }
-
-        snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM8%c", cat_term);
+        if (is_ftdx9000)
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM11%c", cat_term);
+        }
+        else
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM8%c", cat_term);
+        }
         break;
 
     case RIG_LEVEL_ID_METER:
@@ -4608,8 +4622,14 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         {
             RETURNFUNC(-RIG_ENAVAIL);
         }
-
-        snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM7%c", cat_term);
+        if (is_ftdx9000)
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM10%c", cat_term);
+        }
+        else
+        {
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM7%c", cat_term);
+        }
         break;
 
     case RIG_LEVEL_ANTIVOX:
@@ -4647,7 +4667,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
         else
         {
-            RETURNFUNC(-RIG_EINVAL);
+            RETURNFUNC(-RIG_ENAVAIL);
         }
 
         break;
@@ -4691,7 +4711,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     case RIG_LEVEL_TEMP_METER:
         if (is_ftdx9000)
         {
-            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM11%c", cat_term);
+            snprintf(priv->cmd_str, sizeof(priv->cmd_str), "RM14%c", cat_term);
         }
         else if (is_ftdx101d || is_ftdx101mp)
         {
@@ -4699,7 +4719,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
         else
         {
-            RETURNFUNC(-RIG_EINVAL);
+            RETURNFUNC(-RIG_ENAVAIL);
         }
 
         break;
@@ -5021,7 +5041,14 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     case RIG_LEVEL_RAWSTR:
     case RIG_LEVEL_KEYSPD:
-        val->i = atoi(retlvl);
+        if (rig->caps->rig_model == RIG_MODEL_TS570D || rig->caps->rig_model == RIG_MODEL_TS570S)
+        { // TS570 uses 010-~060 scale according to manual
+            val->i = atoi(retlvl)/2 + 10;
+        }
+        else
+        {
+            val->i = atoi(retlvl);
+        }
         break;
 
     case RIG_LEVEL_IF:
@@ -5941,9 +5968,22 @@ int newcat_recv_dtmf(RIG *rig, vfo_t vfo, char *digits, int *length)
 
 int newcat_send_morse(RIG *rig, vfo_t vfo, const char *msg)
 {
+    struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
+    int rc;
+    char *s = strdup(msg);
     ENTERFUNC;
-
-    RETURNFUNC(-RIG_ENAVAIL);
+    if (newcat_is_rig(rig, RIG_MODEL_FT450))
+    {
+        // 450 manual says 1/2/3 playback needs P1=6/7/8
+        s[0] += 5;
+    }
+    else
+    {
+        snprintf(priv->cmd_str, sizeof(priv->cmd_str), "KY%c%c", s[0], cat_term);
+    }
+    rc = newcat_set_cmd(rig);
+    free(s);
+    RETURNFUNC(rc);
 }
 
 
@@ -10125,3 +10165,18 @@ rmode_t newcat_rmode_width(RIG *rig, vfo_t vfo, char mode, pbwidth_t *width)
 
     RETURNFUNC('0');
 }
+
+int newcat_send_voice_mem(RIG *rig, vfo_t vfo, int ch)
+{
+    char *p1 = "0";  // newer rigs have 2 bytes where is fixed at zero e.g. FT991
+    struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
+    if (!newcat_valid_command(rig, "PB"))
+    {
+        RETURNFUNC(-RIG_ENAVAIL);
+    }
+    // we don't do any channel checking -- varies by rig -- could do it but not critical
+
+    snprintf(priv->cmd_str, sizeof(priv->cmd_str), "PB%s%d%c", p1, ch, cat_term);
+    RETURNFUNC(newcat_set_cmd(rig));
+}
+
