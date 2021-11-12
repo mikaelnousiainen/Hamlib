@@ -1342,6 +1342,8 @@ int icom_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     case RIG_VFO_SUB: priv->sub_freq = freq; break;
 
+    case RIG_VFO_NONE: // VFO_NONE will become VFO_CURR
+        rig->state.current_vfo = RIG_VFO_CURR;
     case RIG_VFO_CURR: priv->curr_freq = freq; break;
 
     case RIG_VFO_OTHER: priv->other_freq = freq; break;
@@ -1618,6 +1620,8 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     case RIG_VFO_OTHER: priv->other_freq = *freq; break;
 
+    case RIG_VFO_NONE: // VFO_NONE will become VFO_CURR
+        rig->state.current_vfo = RIG_VFO_CURR;
     case RIG_VFO_CURR: priv->curr_freq = *freq; break;
 
     default:
@@ -2023,6 +2027,7 @@ int icom_set_mode_with_data(RIG *rig, vfo_t vfo, rmode_t mode,
     ENTERFUNC;
 
     // if our current mode and width is not changing do nothing
+    // this also sets priv->filter to current filter#
     retval = rig_get_mode(rig, vfo, &tmode, &twidth);
 
     if (retval != RIG_OK)
@@ -2087,6 +2092,7 @@ int icom_set_mode_with_data(RIG *rig, vfo_t vfo, rmode_t mode,
         unsigned char datamode[2];
         unsigned char mode_icom; // Not used, we only need the width
         signed char width_icom;
+        struct icom_priv_data *priv = rig->state.priv;
 
         TRACE;
 
@@ -2097,14 +2103,12 @@ int icom_set_mode_with_data(RIG *rig, vfo_t vfo, rmode_t mode,
         case RIG_MODE_PKTFM:
         case RIG_MODE_PKTAM:
             datamode[0] = 0x01;
-            datamode[1] = 0x02; // default to filter 2
-            if(width == RIG_PASSBAND_NOCHANGE) datamode[1] = twidth;
+            datamode[1] = priv->filter; // we won't change the current filter
             break;
 
         default:
             datamode[0] = 0x00;
-            datamode[1] = 0x02; // default to filter 2
-            if(width == RIG_PASSBAND_NOCHANGE) datamode[1] = twidth;
+            datamode[1] = priv->filter; // we won't change the current filter
             break;
         }
 
@@ -2842,6 +2846,7 @@ int icom_set_vfo(RIG *rig, vfo_t vfo)
         break;
 
     default:
+        if (!priv->x25cmdfails)
         rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__,
                   rig_strvfo(vfo));
         RETURNFUNC(-RIG_EINVAL);

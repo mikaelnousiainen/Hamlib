@@ -167,6 +167,9 @@ int k3_get_bar_graph_level(RIG *rig, float *smeter, float *pwr, float *alc,
                            int *mode_tx);
 int kx3_get_bar_graph_level(RIG *rig, float *level);
 
+/* K4 functions */
+int k4_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt);
+int k4_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt);
 
 /*
  * K3 rig capabilities.
@@ -183,7 +186,7 @@ const struct rig_caps k3_caps =
     RIG_MODEL(RIG_MODEL_K3),
     .model_name =       "K3",
     .mfg_name =     "Elecraft",
-    .version =      BACKEND_VER ".18",
+    .version =      BACKEND_VER ".19",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TRANSCEIVER,
@@ -197,7 +200,7 @@ const struct rig_caps k3_caps =
     .serial_parity =    RIG_PARITY_NONE,
     .serial_handshake = RIG_HANDSHAKE_NONE,
     .write_delay =      0,  /* Timing between bytes */
-    .post_write_delay = 0,  /* Timing between command strings */
+    .post_write_delay = 10,  /* Timing between command strings */
     .timeout =      1000,   /* FA and FB make take up to 500 ms on band change */
     .retry =        5,
 
@@ -334,7 +337,7 @@ const struct rig_caps k3s_caps =
     RIG_MODEL(RIG_MODEL_K3S),
     .model_name =       "K3S",
     .mfg_name =     "Elecraft",
-    .version =      BACKEND_VER ".14",
+    .version =      BACKEND_VER ".15",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TRANSCEIVER,
@@ -348,7 +351,7 @@ const struct rig_caps k3s_caps =
     .serial_parity =    RIG_PARITY_NONE,
     .serial_handshake = RIG_HANDSHAKE_NONE,
     .write_delay =      0,  /* Timing between bytes */
-    .post_write_delay = 0,  /* Timing between command strings */
+    .post_write_delay = 10,  /* Timing between command strings */
     .timeout =      1000,   /* FA and FB make take up to 500 ms on band change */
     .retry =        5,
 
@@ -484,7 +487,7 @@ const struct rig_caps k4_caps =
     RIG_MODEL(RIG_MODEL_K4),
     .model_name =       "K4",
     .mfg_name =     "Elecraft",
-    .version =      BACKEND_VER ".17",
+    .version =      BACKEND_VER ".18",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TRANSCEIVER,
@@ -497,7 +500,7 @@ const struct rig_caps k4_caps =
     .serial_stop_bits = 1,
     .serial_parity =    RIG_PARITY_NONE,
     .serial_handshake = RIG_HANDSHAKE_NONE,
-    .write_delay =      10, /* Timing between bytes */
+    .write_delay =      0, /* Timing between bytes */
     .post_write_delay = 0,  /* Timing between command strings */
     .timeout =      1000,   /* FA and FB make take up to 500 ms on band change */
     .retry =        5,
@@ -597,7 +600,7 @@ const struct rig_caps k4_caps =
     .set_mode =     k3_set_mode,
     .get_mode =     k3_get_mode,
     .set_vfo =      k3_set_vfo,
-    .get_vfo =      k3_get_vfo,
+    .get_vfo =      elecraft_get_vfo_tq,
     .set_split_mode =   k3_set_split_mode,
     .get_split_mode =   k3_get_split_mode,
     .set_split_vfo =    kenwood_set_split_vfo,
@@ -606,8 +609,8 @@ const struct rig_caps k4_caps =
     .get_rit =      kenwood_get_rit,
     .set_xit =      k3_set_xit,
     .get_xit =      kenwood_get_xit,
-    .get_ptt =      kenwood_get_ptt,
-    .set_ptt =      kenwood_set_ptt,
+    .get_ptt =      k4_get_ptt,
+    .set_ptt =      k4_set_ptt,
     .get_dcd =      kenwood_get_dcd,
     .set_func =     k3_set_func,
     .get_func =     k3_get_func,
@@ -2655,6 +2658,71 @@ int kx3_get_bar_graph_level(RIG *rig, float *level)
     {
         return -RIG_EPROTO;
     }
+
+    return RIG_OK;
+}
+
+int k4_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
+{
+    char pttbuf[6];
+    int retval;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (!ptt)
+    {
+        return -RIG_EINVAL;
+    }
+
+    retval = kenwood_safe_transaction(rig, "TQ", pttbuf, 6, 3);
+
+    if (retval != RIG_OK)
+    {
+        return retval;
+    }
+
+    *ptt = pttbuf[2] == '1' ? RIG_PTT_ON : RIG_PTT_OFF;
+    // we're not caching this for now
+    return RIG_OK;
+}
+
+
+// The K4 has a problem in Fake It mode where the FA command is ignored
+// We will use it's special TQ command to try and ensure PTT is really off
+int k4_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
+{
+    char pttbuf[6];
+    int retval;
+    ptt_t ptt2;
+    char cmd[4];
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    snprintf(cmd, sizeof(cmd), "RX");
+    if (ptt) cmd[0] = 'T';
+    retval = kenwood_transaction(rig, cmd, NULL, 0);
+
+    if (retval != RIG_OK)
+    {
+        return retval;
+    }
+
+    do
+    {
+        hl_usleep(10*1000);
+        retval = kenwood_safe_transaction(rig, "TQ", pttbuf, 6, 3);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+        ptt2 = pttbuf[2] == '1'? RIG_PTT_ON : RIG_PTT_OFF;
+        if (ptt2 != ptt)
+        {
+            rig_debug(RIG_DEBUG_TRACE, "%s: ptt=%d, expected=%d\n", __func__, ptt2, ptt);
+        }
+
+    } while (ptt != ptt2);  
 
     return RIG_OK;
 }

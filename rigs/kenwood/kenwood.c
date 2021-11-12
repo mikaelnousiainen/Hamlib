@@ -369,7 +369,7 @@ transaction_read:
     /* allow room for most any response */
     len = min(datasize ? datasize + 1 : strlen(priv->verify_cmd) + 48,
               KENWOOD_MAX_BUF_LEN);
-    retval = read_string(&rs->rigport, buffer, len, cmdtrm_str, strlen(cmdtrm_str));
+    retval = read_string(&rs->rigport, buffer, len, cmdtrm_str, strlen(cmdtrm_str), 0);
     rig_debug(RIG_DEBUG_TRACE, "%s: read_string(len=%d)='%s'\n", __func__,
               (int)strlen(buffer), buffer);
 
@@ -1239,9 +1239,9 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
     char cmdbuf[12];
     int retval;
     unsigned char vfo_function;
-    split_t tsplit;
+    split_t tsplit=0;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called %s,%d,%s\n", __func__, rig_strvfo(vfo), split, rig_strvfo(txvfo));
 
     if (RIG_IS_TS990S)
     {
@@ -1257,8 +1257,8 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
         RETURNFUNC(kenwood_transaction(rig, cmdbuf, NULL, 0));
     }
 
-    if (vfo != RIG_VFO_CURR)
-    {
+    if (vfo == RIG_VFO_CURR) vfo = rig->state.current_vfo;
+
         switch (vfo)
         {
         case RIG_VFO_A: vfo_function = '0'; break;
@@ -1270,6 +1270,14 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
         default:
             rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
             RETURNFUNC(-RIG_EINVAL);
+        }
+
+        rig_get_split(rig, vfo, &tsplit);
+
+        if (tsplit == split)
+        {
+            rig_debug(RIG_DEBUG_TRACE, "%s: split already set\n", __func__);
+            RETURNFUNC(RIG_OK);
         }
 
         /* set RX VFO */
@@ -1297,7 +1305,9 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
         {
             RETURNFUNC(retval);
         }
-    }
+        rig->state.cache.split = split;
+        rig->state.cache.split_vfo = txvfo;
+        elapsed_ms(&rig->state.cache.time_split, HAMLIB_ELAPSED_SET);
 
     /* Split off means Rx and Tx are the same */
     if (split == RIG_SPLIT_OFF)
@@ -1315,6 +1325,14 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
         }
     }
 
+    if (txvfo == RIG_VFO_CURR && vfo == RIG_VFO_A) {
+        if (vfo == RIG_VFO_A) txvfo = RIG_VFO_B;
+        else if (vfo == RIG_VFO_B) txvfo = RIG_VFO_A;
+        else {
+            rig_debug(RIG_DEBUG_ERR, "%s: unsupported split VFO=%s\n", __func__, rig_strvfo(txvfo));
+            RETURNFUNC(-RIG_EINVAL);
+        }
+    }
     switch (txvfo)
     {
     case RIG_VFO_VFO:
@@ -1578,6 +1596,7 @@ int kenwood_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     char freqbuf[16];
     unsigned char vfo_letter = '\0';
     vfo_t tvfo;
+    freq_t tfreq = 0;
     int err;
     struct kenwood_priv_data *priv = rig->state.priv;
 
@@ -1595,6 +1614,13 @@ int kenwood_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         err = rig_get_vfo(rig, &tvfo);
 
         if (RIG_OK != err) { RETURNFUNC(err); }
+    }
+
+    rig_get_freq(rig, tvfo, &tfreq);
+    if (tfreq == freq)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: no freq change needed\n", __func__);
+        RETURNFUNC(RIG_OK);
     }
 
     switch (tvfo)
@@ -2487,7 +2513,7 @@ static int kenwood_get_micgain_minmax(RIG *rig, int *micgain_now,
 
     if (retval != RIG_OK) { RETURNFUNC(retval); }
 
-    retval = read_string(&rs->rigport, levelbuf, sizeof(levelbuf), NULL, 0);
+    retval = read_string(&rs->rigport, levelbuf, sizeof(levelbuf), NULL, 0, 0);
 
     rig_debug(RIG_DEBUG_TRACE, "%s: retval=%d\n", __func__, retval);
 
@@ -2586,7 +2612,7 @@ static int kenwood_get_power_minmax(RIG *rig, int *power_now, int *power_min,
 
     if (retval != RIG_OK) { RETURNFUNC(retval); }
 
-    retval = read_string(&rs->rigport, levelbuf, sizeof(levelbuf), NULL, 0);
+    retval = read_string(&rs->rigport, levelbuf, sizeof(levelbuf), NULL, 0, 0);
 
     rig_debug(RIG_DEBUG_TRACE, "%s: retval=%d\n", __func__, retval);
 
@@ -5253,7 +5279,7 @@ DECLARE_PROBERIG_BACKEND(kenwood)
         }
 
         retval = write_block(port, "ID;", 3);
-        id_len = read_string(port, idbuf, IDBUFSZ, ";\r", 2);
+        id_len = read_string(port, idbuf, IDBUFSZ, ";\r", 2, 0);
         close(port->fd);
 
         if (retval != RIG_OK || id_len < 0)
@@ -5320,7 +5346,7 @@ DECLARE_PROBERIG_BACKEND(kenwood)
         }
 
         retval = write_block(port, "K2;", 3);
-        id_len = read_string(port, idbuf, IDBUFSZ, ";\r", 2);
+        id_len = read_string(port, idbuf, IDBUFSZ, ";\r", 2, 0);
         close(port->fd);
 
         if (retval != RIG_OK)
