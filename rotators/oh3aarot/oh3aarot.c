@@ -62,7 +62,7 @@ static int oh3aarot_transaction(ROT *rot, char *cmd, char *resp)
         return ret;
     }
 
-    ret = read_string(&rot->state.rotport, resp, BUF_MAX, "\n", sizeof("\n"));
+    ret = read_string(&rot->state.rotport, resp, BUF_MAX, "\n", sizeof("\n"), 0);
     rig_debug(RIG_DEBUG_VERBOSE, "function %s(2): ret=%d response=%s\n", __func__, ret, resp);
     if (ret < 0) {
         return ret;
