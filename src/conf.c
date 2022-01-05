@@ -170,7 +170,7 @@ static const struct confparams frontend_cfg_params[] =
     },
     {
         TOK_ASYNC, "async", "Asynchronous data transfer support",
-        "True enables asynchronous data transfer for backends that support it. This enabled handling of transceive and spectrum data, for example.",
+        "True enables asynchronous data transfer for backends that support it. This enables handling of transceive and spectrum data, for example.",
         "0", RIG_CONF_CHECKBUTTON, { }
     },
 
