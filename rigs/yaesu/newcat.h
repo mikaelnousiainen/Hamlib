@@ -50,7 +50,7 @@
 typedef char ncboolean;
 
 /* shared function version */
-#define NEWCAT_VER "20211114"
+#define NEWCAT_VER "20220117"
 
 /* Hopefully large enough for future use, 128 chars plus '\0' */
 #define NEWCAT_DATA_LEN                 129
@@ -102,9 +102,6 @@ struct newcat_priv_caps
  */
 struct newcat_priv_data
 {
-    unsigned int
-    read_update_delay;              /* depends on pacing value */
-//    vfo_t               current_vfo;                    /* active VFO from last cmd */
     char                cmd_str[NEWCAT_DATA_LEN];       /* command string buffer */
     char
     ret_data[NEWCAT_DATA_LEN];      /* returned data--max value, most are less */
@@ -163,6 +160,7 @@ int newcat_close(RIG *rig);
 
 int newcat_set_conf(RIG *rig, token_t token, const char *val);
 int newcat_get_conf(RIG *rig, token_t token, char *val);
+int newcat_get_conf2(RIG *rig, token_t token, char *val, int val_len);
 
 int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq);
 int newcat_get_freq(RIG *rig, vfo_t vfo, freq_t *freq);
@@ -222,6 +220,11 @@ int newcat_get_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t *val);
 
 int newcat_send_morse(RIG *rig, vfo_t vfo, const char *msg);
 int newcat_send_voice_mem(RIG *rig, vfo_t vfo, int ch);
+int newcat_set_clock(RIG *rig, int year, int month, int day, int hour, int min,
+                     int sec, double msec, int utc_offset);
+int newcat_get_clock(RIG *rig, int *year, int *month, int *day, int *hour,
+                     int *min, int *sec, double *msec, int *utc_offset);
+
 
 #define TOKEN_BACKEND(t) (t)
 

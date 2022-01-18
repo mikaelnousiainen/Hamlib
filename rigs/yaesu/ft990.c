@@ -48,61 +48,62 @@
 #include "ft990.h"
 
 // FT990 native commands
-enum ft990_native_cmd_e {
-  FT990_NATIVE_SPLIT_OFF = 0,
-  FT990_NATIVE_SPLIT_ON,
-  FT990_NATIVE_RECALL_MEM,
-  FT990_NATIVE_VFO_TO_MEM,
-  FT990_NATIVE_LOCK_OFF,
-  FT990_NATIVE_LOCK_ON,
-  FT990_NATIVE_VFO_A,
-  FT990_NATIVE_VFO_B,
-  FT990_NATIVE_MEM_TO_VFO,
-  FT990_NATIVE_VFO_STEP_UP,
-  FT990_NATIVE_VFO_STEP_UP_FAST,
-  FT990_NATIVE_VFO_STEP_DOWN,
-  FT990_NATIVE_VFO_STEP_DOWN_FAST,
-  FT990_NATIVE_RX_CLARIFIER_OFF,
-  FT990_NATIVE_RX_CLARIFIER_ON,
-  FT990_NATIVE_TX_CLARIFIER_OFF,
-  FT990_NATIVE_TX_CLARIFIER_ON,
-  FT990_NATIVE_CLEAR_CLARIFIER_OFFSET,
-  FT990_NATIVE_CLARIFIER_OPS,
-  FT990_NATIVE_FREQ_SET,
-  FT990_NATIVE_MODE_SET_LSB,
-  FT990_NATIVE_MODE_SET_USB,
-  FT990_NATIVE_MODE_SET_CW_W,
-  FT990_NATIVE_MODE_SET_CW_N,
-  FT990_NATIVE_MODE_SET_AM_W,
-  FT990_NATIVE_MODE_SET_AM_N,
-  FT990_NATIVE_MODE_SET_FM,
-  FT990_NATIVE_MODE_SET_RTTY_LSB,
-  FT990_NATIVE_MODE_SET_RTTY_USB,
-  FT990_NATIVE_MODE_SET_PKT_LSB,
-  FT990_NATIVE_MODE_SET_PKT_FM,
-  FT990_NATIVE_PACING,
-  FT990_NATIVE_PTT_OFF,
-  FT990_NATIVE_PTT_ON,
-  FT990_NATIVE_UPDATE_ALL_DATA,
-  FT990_NATIVE_UPDATE_MEM_CHNL,
-  FT990_NATIVE_UPDATE_OP_DATA,
-  FT990_NATIVE_UPDATE_VFO_DATA,
-  FT990_NATIVE_UPDATE_MEM_CHNL_DATA,
-  FT990_NATIVE_TUNER_OFF,
-  FT990_NATIVE_TUNER_ON,
-  FT990_NATIVE_TUNER_START,
-  FT990_NATIVE_RPTR_SHIFT_NONE,
-  FT990_NATIVE_RPTR_SHIFT_MINUS,
-  FT990_NATIVE_RPTR_SHIFT_PLUS,
-  FT990_NATIVE_VFO_TO_VFO,
-  FT990_NATIVE_BANDWIDTH,
-  FT990_NATIVE_OP_FREQ_STEP_UP,
-  FT990_NATIVE_OP_FREQ_STEP_DOWN,
-  FT990_NATIVE_READ_METER,
-  FT990_NATIVE_DIM_LEVEL,
-  FT990_NATIVE_RPTR_OFFSET,
-  FT990_NATIVE_READ_FLAGS,
-  FT990_NATIVE_SIZE
+enum ft990_native_cmd_e
+{
+    FT990_NATIVE_SPLIT_OFF = 0,
+    FT990_NATIVE_SPLIT_ON,
+    FT990_NATIVE_RECALL_MEM,
+    FT990_NATIVE_VFO_TO_MEM,
+    FT990_NATIVE_LOCK_OFF,
+    FT990_NATIVE_LOCK_ON,
+    FT990_NATIVE_VFO_A,
+    FT990_NATIVE_VFO_B,
+    FT990_NATIVE_MEM_TO_VFO,
+    FT990_NATIVE_VFO_STEP_UP,
+    FT990_NATIVE_VFO_STEP_UP_FAST,
+    FT990_NATIVE_VFO_STEP_DOWN,
+    FT990_NATIVE_VFO_STEP_DOWN_FAST,
+    FT990_NATIVE_RX_CLARIFIER_OFF,
+    FT990_NATIVE_RX_CLARIFIER_ON,
+    FT990_NATIVE_TX_CLARIFIER_OFF,
+    FT990_NATIVE_TX_CLARIFIER_ON,
+    FT990_NATIVE_CLEAR_CLARIFIER_OFFSET,
+    FT990_NATIVE_CLARIFIER_OPS,
+    FT990_NATIVE_FREQ_SET,
+    FT990_NATIVE_MODE_SET_LSB,
+    FT990_NATIVE_MODE_SET_USB,
+    FT990_NATIVE_MODE_SET_CW_W,
+    FT990_NATIVE_MODE_SET_CW_N,
+    FT990_NATIVE_MODE_SET_AM_W,
+    FT990_NATIVE_MODE_SET_AM_N,
+    FT990_NATIVE_MODE_SET_FM,
+    FT990_NATIVE_MODE_SET_RTTY_LSB,
+    FT990_NATIVE_MODE_SET_RTTY_USB,
+    FT990_NATIVE_MODE_SET_PKT_LSB,
+    FT990_NATIVE_MODE_SET_PKT_FM,
+    FT990_NATIVE_PACING,
+    FT990_NATIVE_PTT_OFF,
+    FT990_NATIVE_PTT_ON,
+    FT990_NATIVE_UPDATE_ALL_DATA,
+    FT990_NATIVE_UPDATE_MEM_CHNL,
+    FT990_NATIVE_UPDATE_OP_DATA,
+    FT990_NATIVE_UPDATE_VFO_DATA,
+    FT990_NATIVE_UPDATE_MEM_CHNL_DATA,
+    FT990_NATIVE_TUNER_OFF,
+    FT990_NATIVE_TUNER_ON,
+    FT990_NATIVE_TUNER_START,
+    FT990_NATIVE_RPTR_SHIFT_NONE,
+    FT990_NATIVE_RPTR_SHIFT_MINUS,
+    FT990_NATIVE_RPTR_SHIFT_PLUS,
+    FT990_NATIVE_VFO_TO_VFO,
+    FT990_NATIVE_BANDWIDTH,
+    FT990_NATIVE_OP_FREQ_STEP_UP,
+    FT990_NATIVE_OP_FREQ_STEP_DOWN,
+    FT990_NATIVE_READ_METER,
+    FT990_NATIVE_DIM_LEVEL,
+    FT990_NATIVE_RPTR_OFFSET,
+    FT990_NATIVE_READ_FLAGS,
+    FT990_NATIVE_SIZE
 };
 
 
@@ -122,8 +123,10 @@ static int ft990_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt);
 static int ft990_set_rptr_shift(RIG *rig, vfo_t vfo, rptr_shift_t rptr_shift);
 static int ft990_get_rptr_shift(RIG *rig, vfo_t vfo, rptr_shift_t *rptr_shift);
 static int ft990_set_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t offs);
-static int ft990_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo);
-static int ft990_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo);
+static int ft990_set_split_vfo(RIG *rig, vfo_t vfo, split_t split,
+                               vfo_t tx_vfo);
+static int ft990_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split,
+                               vfo_t *tx_vfo);
 static int ft990_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit);
 static int ft990_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit);
 static int ft990_set_func(RIG *rig, vfo_t vfo, setting_t func, int status);
@@ -135,8 +138,9 @@ static int ft990_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
 static int ft990_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op);
 static int ft990_set_mem(RIG *rig, vfo_t vfo, int ch);
 static int ft990_get_mem(RIG *rig, vfo_t vfo, int *ch);
-static int ft990_set_channel (RIG *rig, vfo_t vfo, const channel_t *chan);
-static int ft990_get_channel (RIG *rig, vfo_t vfo, channel_t *chan, int read_only);
+static int ft990_set_channel(RIG *rig, vfo_t vfo, const channel_t *chan);
+static int ft990_get_channel(RIG *rig, vfo_t vfo, channel_t *chan,
+                             int read_only);
 
 
 
@@ -214,7 +218,6 @@ static const yaesu_cmd_set_t ncmd[] =
 struct ft990_priv_data
 {
     unsigned char pacing;                     /* pacing value */
-    unsigned int read_update_delay;           /* depends on pacing value */
     vfo_t current_vfo;                        /* active VFO from last cmd */
     unsigned char p_cmd[YAESU_CMD_LENGTH];    /* private copy of CAT cmd */
     ft990_update_data_t update_data;          /* returned data */
@@ -238,9 +241,9 @@ const struct rig_caps ft990_caps =
     RIG_MODEL(RIG_MODEL_FT990),
     .model_name =         "FT-990",
     .mfg_name =           "Yaesu",
-    .version =            "20201009.0",
+    .version =            "20211231.0",
     .copyright =          "LGPL",
-    .status =             RIG_STATUS_ALPHA,
+    .status =             RIG_STATUS_BETA,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
     .ptt_type =           RIG_PTT_RIG,
     .dcd_type =           RIG_DCD_NONE,
@@ -404,9 +407,6 @@ int ft990_init(RIG *rig)
     // Set default pacing value
     priv->pacing = FT990_PACING_DEFAULT_VALUE;
 
-    // Set update timeout
-    priv->read_update_delay = FT990_DEFAULT_READ_TIMEOUT;
-
     // Set operating vfo mode to current VFO
     priv->current_vfo =  RIG_VFO_MAIN;
 
@@ -519,6 +519,7 @@ int ft990_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
     struct ft990_priv_data *priv;
     int err;
+    vfo_t vfo_save;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -537,6 +538,7 @@ int ft990_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     }
 
     priv = (struct ft990_priv_data *)rig->state.priv;
+    vfo_save = priv->current_vfo;
 
     // Set to selected VFO
     if (vfo == RIG_VFO_CURR)
@@ -547,7 +549,7 @@ int ft990_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     }
     else
     {
-        if (vfo != priv->current_vfo)
+        if (vfo != vfo_save)
         {
             err = ft990_set_vfo(rig, vfo);
 
@@ -564,6 +566,16 @@ int ft990_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     {
         return err;
     }
+
+        if (vfo != vfo_save)
+        {
+            err = ft990_set_vfo(rig, vfo_save);
+
+            if (err != RIG_OK)
+            {
+                return err;
+            }
+        }
 
     return RIG_OK;
 }
@@ -2415,7 +2427,7 @@ int ft990_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *value)
         return err;
     }
 
-    err = read_block(&rig->state.rigport, (char *) mdata, FT990_READ_METER_LENGTH);
+    err = read_block(&rig->state.rigport, mdata, FT990_READ_METER_LENGTH);
 
     if (err < 0)
     {
@@ -3218,8 +3230,8 @@ int ft990_get_update_data(RIG *rig, unsigned char ci, unsigned short ch)
     int n;
     int err;
     int rl;
-    char temp[5];
-    char *p;
+    unsigned char temp[5];
+    unsigned char *p;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
     rig_debug(RIG_DEBUG_TRACE, "%s: passed ci 0x%02x\n", __func__, ci);
@@ -3254,22 +3266,22 @@ int ft990_get_update_data(RIG *rig, unsigned char ci, unsigned short ch)
         break;
 
     case FT990_NATIVE_UPDATE_MEM_CHNL:
-        p = (char *) &priv->update_data.channelnumber;
+        p = (unsigned char *) &priv->update_data.channelnumber;
         rl = FT990_MEM_CHNL_LENGTH;
         break;
 
     case FT990_NATIVE_UPDATE_OP_DATA:
-        p = (char *) &priv->update_data.current_front;
+        p = (unsigned char *) &priv->update_data.current_front;
         rl = FT990_OP_DATA_LENGTH;
         break;
 
     case FT990_NATIVE_UPDATE_VFO_DATA:
-        p = (char *) &priv->update_data.vfoa;
+        p = (unsigned char *) &priv->update_data.vfoa;
         rl = FT990_VFO_DATA_LENGTH;
         break;
 
     case FT990_NATIVE_UPDATE_MEM_CHNL_DATA:
-        p = (char *) &priv->update_data.channel[ch];
+        p = (unsigned char *) &priv->update_data.channel[ch];
         rl = FT990_MEM_CHNL_DATA_LENGTH;
         break;
 
@@ -3328,8 +3340,7 @@ int ft990_send_static_cmd(RIG *rig, unsigned char ci)
         return -RIG_EINVAL;
     }
 
-    err = write_block(&rig->state.rigport, (char *) ncmd[ci].nseq,
-                      YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, ncmd[ci].nseq, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -3387,8 +3398,7 @@ int ft990_send_dynamic_cmd(RIG *rig, unsigned char ci,
     priv->p_cmd[1] = p3;
     priv->p_cmd[0] = p4;
 
-    err = write_block(&rig->state.rigport, (char *) &priv->p_cmd,
-                      YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -3446,8 +3456,7 @@ int ft990_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     rig_debug(RIG_DEBUG_TRACE, fmt, __func__, (int64_t)from_bcd(priv->p_cmd,
               FT990_BCD_DIAL) * 10);
 
-    err = write_block(&rig->state.rigport, (char *) &priv->p_cmd,
-                      YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -3511,8 +3520,7 @@ int ft990_send_rit_freq(RIG *rig, unsigned char ci, shortfreq_t rit)
     // Store bcd format into privat command storage area
     to_bcd(priv->p_cmd, labs(rit) / 10, FT990_BCD_RIT);
 
-    err = write_block(&rig->state.rigport, (char *) &priv->p_cmd,
-                      YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {

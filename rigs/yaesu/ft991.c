@@ -143,7 +143,7 @@ const struct rig_caps ft991_caps =
     RIG_MODEL(RIG_MODEL_FT991),
     .model_name =         "FT-991",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".7",
+    .version =            NEWCAT_VER ".9",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -181,7 +181,7 @@ const struct rig_caps ft991_caps =
     .max_xit =            Hz(9999),
     .max_ifshift =        Hz(1200),
     .vfo_ops =            FT991_VFO_OPS,
-    .targetable_vfo =     RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE,
+    .targetable_vfo =     RIG_TARGETABLE_FREQ,
     .transceive =         RIG_TRN_OFF,        /* May enable later as the 950 has an Auto Info command */
     .bank_qty =           0,
     .chan_desc_sz =       0,
@@ -329,6 +329,8 @@ const struct rig_caps ft991_caps =
     .get_ext_level =      newcat_get_ext_level,
     .send_morse =         newcat_send_morse,
     .send_voice_mem =     newcat_send_voice_mem,
+    .set_clock =          newcat_set_clock,
+    .get_clock =          newcat_get_clock
 };
 
 
@@ -452,7 +454,7 @@ ft991_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq)
  */
 
 static int ft991_get_split_mode(RIG *rig, vfo_t vfo, rmode_t *tx_mode,
-                         pbwidth_t *tx_width)
+                                pbwidth_t *tx_width)
 {
     struct newcat_priv_data *priv;
     int err;
@@ -538,7 +540,7 @@ static void debug_ft991info_data(const ft991info *rdata)
  */
 
 static int ft991_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode,
-                         pbwidth_t tx_width)
+                                pbwidth_t tx_width)
 {
     struct newcat_priv_data *priv;
     struct rig_state *state;

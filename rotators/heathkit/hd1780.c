@@ -67,7 +67,7 @@ const struct rot_caps hd1780_rot_caps =
     ROT_MODEL(ROT_MODEL_HD1780),
     .model_name =         "HD 1780 Intellirotor",
     .mfg_name =           "Heathkit",
-    .version =            "20200112.0",
+    .version =            "20220109.0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rot_type =           ROT_TYPE_OTHER,
@@ -190,7 +190,7 @@ static int hd1780_rot_set_position(ROT *rot, azimuth_t azimuth,
 
     if (azimuth < 0) { azimuth = azimuth + 360; }
 
-    sprintf(cmdstr, "%03.0f", azimuth);    /* Target bearing */
+    snprintf(cmdstr, sizeof(cmdstr), "%03.0f", azimuth);    /* Target bearing */
     err = hd1780_send_priv_cmd(rot, cmdstr);
 
     if (err != RIG_OK)
@@ -209,7 +209,7 @@ static int hd1780_rot_set_position(ROT *rot, azimuth_t azimuth,
      * sends a <CR> when it is finished rotating.
      */
     rs = &rot->state;
-    err = read_block(&rs->rotport, ok, 2);
+    err = read_block(&rs->rotport, (unsigned char *) ok, 2);
 
     if (err != 2)
     {
@@ -258,7 +258,7 @@ static int hd1780_rot_get_position(ROT *rot, azimuth_t *azimuth,
     }
 
     rs = &rot->state;
-    err = read_block(&rs->rotport, az, AZ_READ_LEN);
+    err = read_block(&rs->rotport, (unsigned char *) az, AZ_READ_LEN);
 
     if (err != AZ_READ_LEN)
     {
@@ -317,7 +317,7 @@ static int hd1780_send_priv_cmd(ROT *rot, const char *cmdstr)
 
     rs = &rot->state;
 
-    err = write_block(&rs->rotport, cmdstr, strlen(cmdstr));
+    err = write_block(&rs->rotport, (unsigned char *) cmdstr, strlen(cmdstr));
 
     if (err != RIG_OK)
     {

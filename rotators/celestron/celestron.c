@@ -71,7 +71,7 @@ transaction_write:
 
     if (cmdstr)
     {
-        retval = write_block(&rs->rotport, cmdstr, strlen(cmdstr));
+        retval = write_block(&rs->rotport, (unsigned char *) cmdstr, strlen(cmdstr));
 
         if (retval != RIG_OK)
         {
@@ -92,7 +92,8 @@ transaction_write:
 
     /* the answer */
     memset(data, 0, data_len);
-    retval = read_string(&rs->rotport, data, data_len, ACK, strlen(ACK), 0);
+    retval = read_string(&rs->rotport, (unsigned char *) data, data_len,
+            ACK, strlen(ACK), 0, 1);
 
     if (retval < 0)
     {
@@ -135,7 +136,7 @@ celestron_set_position(ROT *rot, azimuth_t az, elevation_t el)
           tube is perpendicular to the azimuth axis.
      */
 
-    sprintf(cmdstr, "B%04X,%04X",
+    snprintf(cmdstr, sizeof(cmdstr), "B%04X,%04X",
             (unsigned)((az / 360.) * 65535),
             (unsigned)((el / 360.) * 65535));
 
@@ -197,7 +198,7 @@ celestron_stop(ROT *rot)
 static const char *
 celestron_get_info(ROT *rot)
 {
-    static char info[16];
+    static char info[32];
     char str[8];
 
     rig_debug(RIG_DEBUG_TRACE, "%s called\n", __func__);
@@ -207,7 +208,7 @@ celestron_get_info(ROT *rot)
         return NULL;
     }
 
-    sprintf(info, "V%c.%c", str[0], str[1]);
+    snprintf(info, sizeof(info), "V%c.%c", str[0], str[1]);
 
     return info;
 }
@@ -230,7 +231,7 @@ const struct rot_caps nexstar_rot_caps =
     ROT_MODEL(ROT_MODEL_NEXSTAR),
     .model_name =     "NexStar",  // Any Celestron starting with version 1.2
     .mfg_name =       "Celestron",
-    .version =        "20110821.0",
+    .version =        "20220109.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_UNTESTED,
     .rot_type =       ROT_TYPE_AZEL,

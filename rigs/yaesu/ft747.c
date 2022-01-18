@@ -52,35 +52,36 @@
  *
  */
 
-enum ft747_native_cmd_e {
-  FT_747_NATIVE_SPLIT_OFF = 0,
-  FT_747_NATIVE_SPLIT_ON,
-  FT_747_NATIVE_RECALL_MEM,
-  FT_747_NATIVE_VFO_TO_MEM,
-  FT_747_NATIVE_DLOCK_OFF,
-  FT_747_NATIVE_DLOCK_ON,
-  FT_747_NATIVE_VFO_A,
-  FT_747_NATIVE_VFO_B,
-  FT_747_NATIVE_M_TO_VFO,
-  FT_747_NATIVE_UP_500K,
-  FT_747_NATIVE_DOWN_500K,
-  FT_747_NATIVE_CLARIFY_OFF,
-  FT_747_NATIVE_CLARIFY_ON,
-  FT_747_NATIVE_FREQ_SET,
-  FT_747_NATIVE_MODE_SET_LSB,
-  FT_747_NATIVE_MODE_SET_USB,
-  FT_747_NATIVE_MODE_SET_CWW,
-  FT_747_NATIVE_MODE_SET_CWN,
-  FT_747_NATIVE_MODE_SET_AMW,
-  FT_747_NATIVE_MODE_SET_AMN,
-  FT_747_NATIVE_MODE_SET_FMW,
-  FT_747_NATIVE_MODE_SET_FMN,
-  FT_747_NATIVE_PACING,
-  FT_747_NATIVE_PTT_OFF,
-  FT_747_NATIVE_PTT_ON,
-  FT_747_NATIVE_UPDATE,
-  FT_747_NATIVE_SIZE		/* end marker, value indicates number of */
-				/* native cmd entries */
+enum ft747_native_cmd_e
+{
+    FT_747_NATIVE_SPLIT_OFF = 0,
+    FT_747_NATIVE_SPLIT_ON,
+    FT_747_NATIVE_RECALL_MEM,
+    FT_747_NATIVE_VFO_TO_MEM,
+    FT_747_NATIVE_DLOCK_OFF,
+    FT_747_NATIVE_DLOCK_ON,
+    FT_747_NATIVE_VFO_A,
+    FT_747_NATIVE_VFO_B,
+    FT_747_NATIVE_M_TO_VFO,
+    FT_747_NATIVE_UP_500K,
+    FT_747_NATIVE_DOWN_500K,
+    FT_747_NATIVE_CLARIFY_OFF,
+    FT_747_NATIVE_CLARIFY_ON,
+    FT_747_NATIVE_FREQ_SET,
+    FT_747_NATIVE_MODE_SET_LSB,
+    FT_747_NATIVE_MODE_SET_USB,
+    FT_747_NATIVE_MODE_SET_CWW,
+    FT_747_NATIVE_MODE_SET_CWN,
+    FT_747_NATIVE_MODE_SET_AMW,
+    FT_747_NATIVE_MODE_SET_AMN,
+    FT_747_NATIVE_MODE_SET_FMW,
+    FT_747_NATIVE_MODE_SET_FMN,
+    FT_747_NATIVE_PACING,
+    FT_747_NATIVE_PTT_OFF,
+    FT_747_NATIVE_PTT_ON,
+    FT_747_NATIVE_UPDATE,
+    FT_747_NATIVE_SIZE        /* end marker, value indicates number of */
+    /* native cmd entries */
 
 };
 
@@ -169,8 +170,10 @@ static int ft747_close(RIG *rig);
 static int ft747_set_freq(RIG *rig, vfo_t vfo, freq_t freq);
 static int ft747_get_freq(RIG *rig, vfo_t vfo, freq_t *freq);
 
-static int ft747_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width); /* select mode */
-static int ft747_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width); /* get mode */
+static int ft747_set_mode(RIG *rig, vfo_t vfo, rmode_t mode,
+                          pbwidth_t width); /* select mode */
+static int ft747_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode,
+                          pbwidth_t *width); /* get mode */
 
 static int ft747_set_vfo(RIG *rig, vfo_t vfo); /* select vfo */
 static int ft747_get_vfo(RIG *rig, vfo_t *vfo); /* get vfo */
@@ -431,6 +434,7 @@ const struct rig_caps ft747_caps =
     .set_ptt =    ft747_set_ptt,      /* set ptt */
     .set_mem =    ft747_set_mem,      /* set mem */
     .get_mem =    ft747_get_mem,      /* get mem */
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 
@@ -508,7 +512,7 @@ int ft747_open(RIG *rig)
 
     /* send PACING cmd to rig, once for all */
 
-    ret = write_block(&rig->state.rigport, (char *)p->p_cmd, YAESU_CMD_LENGTH);
+    ret = write_block(&rig->state.rigport, p->p_cmd, YAESU_CMD_LENGTH);
 
     if (ret < 0)
     {
@@ -568,7 +572,7 @@ int ft747_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     rig_force_cache_timeout(&p->status_tv);
 
     cmd = p->p_cmd; /* get native sequence */
-    return write_block(&rig->state.rigport, (char *) cmd, YAESU_CMD_LENGTH);
+    return write_block(&rig->state.rigport, cmd, YAESU_CMD_LENGTH);
 }
 
 
@@ -946,7 +950,7 @@ int ft747_set_mem(RIG *rig, vfo_t vfo, int ch)
 
     rig_force_cache_timeout(&p->status_tv);
 
-    return write_block(&rig->state.rigport, (char *) p->p_cmd, YAESU_CMD_LENGTH);
+    return write_block(&rig->state.rigport, p->p_cmd, YAESU_CMD_LENGTH);
 }
 
 int ft747_get_mem(RIG *rig, vfo_t vfo, int *ch)
@@ -988,7 +992,7 @@ static int ft747_get_update_data(RIG *rig)
 {
     hamlib_port_t *rigport;
     struct ft747_priv_data *p;
-    char last_byte;
+    unsigned char last_byte;
 
     p = (struct ft747_priv_data *)rig->state.priv;
     rigport = &rig->state.rigport;
@@ -1013,7 +1017,7 @@ static int ft747_get_update_data(RIG *rig)
             return ret;
         }
 
-        ret = read_block(rigport, (char *) p->update_data,
+        ret = read_block(rigport, p->update_data,
                          FT747_STATUS_UPDATE_DATA_LENGTH);
 
         if (ret < 0)
@@ -1042,14 +1046,14 @@ static int ft747_get_update_data(RIG *rig)
 
 static int ft747_send_priv_cmd(RIG *rig, unsigned char ci)
 {
-    if (! ft747_ncmd[ci].ncomp)
+    if (!ft747_ncmd[ci].ncomp)
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: attempt to send incomplete sequence\n",
                   __func__);
         return -RIG_EINVAL;
     }
 
-    return write_block(&rig->state.rigport, (char *) ft747_ncmd[ci].nseq, YAESU_CMD_LENGTH);
+    return write_block(&rig->state.rigport, ft747_ncmd[ci].nseq, YAESU_CMD_LENGTH);
 
 }
 

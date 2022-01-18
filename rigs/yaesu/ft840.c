@@ -45,31 +45,32 @@
  *
  */
 
-enum ft840_native_cmd_e {
-  FT840_NATIVE_SPLIT_OFF = 0,
-  FT840_NATIVE_SPLIT_ON,
-  FT840_NATIVE_RECALL_MEM,
-  FT840_NATIVE_VFO_TO_MEM,
-  FT840_NATIVE_VFO_A,
-  FT840_NATIVE_VFO_B,
-  FT840_NATIVE_MEM_TO_VFO,
-  FT840_NATIVE_CLARIFIER_OPS,
-  FT840_NATIVE_FREQ_SET,
-  FT840_NATIVE_MODE_SET,
-  FT840_NATIVE_PACING,
-  FT840_NATIVE_PTT_OFF,
-  FT840_NATIVE_PTT_ON,
-  FT840_NATIVE_MEM_CHNL,
-  FT840_NATIVE_OP_DATA,
-  FT840_NATIVE_VFO_DATA,
-  FT840_NATIVE_MEM_CHNL_DATA,
-  FT840_NATIVE_TUNER_OFF,
-  FT840_NATIVE_TUNER_ON,
-  FT840_NATIVE_TUNER_START,
-  FT840_NATIVE_READ_METER,
-  FT840_NATIVE_READ_FLAGS,
-  FT840_NATIVE_SIZE             /* end marker, value indicates number of */
-				                /* native cmd entries */
+enum ft840_native_cmd_e
+{
+    FT840_NATIVE_SPLIT_OFF = 0,
+    FT840_NATIVE_SPLIT_ON,
+    FT840_NATIVE_RECALL_MEM,
+    FT840_NATIVE_VFO_TO_MEM,
+    FT840_NATIVE_VFO_A,
+    FT840_NATIVE_VFO_B,
+    FT840_NATIVE_MEM_TO_VFO,
+    FT840_NATIVE_CLARIFIER_OPS,
+    FT840_NATIVE_FREQ_SET,
+    FT840_NATIVE_MODE_SET,
+    FT840_NATIVE_PACING,
+    FT840_NATIVE_PTT_OFF,
+    FT840_NATIVE_PTT_ON,
+    FT840_NATIVE_MEM_CHNL,
+    FT840_NATIVE_OP_DATA,
+    FT840_NATIVE_VFO_DATA,
+    FT840_NATIVE_MEM_CHNL_DATA,
+    FT840_NATIVE_TUNER_OFF,
+    FT840_NATIVE_TUNER_ON,
+    FT840_NATIVE_TUNER_START,
+    FT840_NATIVE_READ_METER,
+    FT840_NATIVE_READ_FLAGS,
+    FT840_NATIVE_SIZE             /* end marker, value indicates number of */
+    /* native cmd entries */
 };
 
 /*
@@ -229,7 +230,6 @@ static const yaesu_cmd_set_t ncmd[] =
 struct ft840_priv_data
 {
     unsigned char pacing;                     /* pacing value */
-    unsigned int read_update_delay;           /* depends on pacing value */
     vfo_t current_vfo;                        /* active VFO from last cmd */
     unsigned char
     p_cmd[YAESU_CMD_LENGTH];    /* private copy of 1 constructed CAT cmd */
@@ -399,8 +399,6 @@ static int ft840_init(RIG *rig)
 
     /* TODO: read pacing from preferences */
     priv->pacing = FT840_PACING_DEFAULT_VALUE; /* set pacing to minimum for now */
-    priv->read_update_delay =
-        FT840_DEFAULT_READ_TIMEOUT; /* set update timeout to safe value */
     priv->current_vfo =  RIG_VFO_MAIN;  /* default to whatever */
 
     return RIG_OK;
@@ -1748,7 +1746,7 @@ static int ft840_get_update_data(RIG *rig, unsigned char ci, unsigned char rl)
         return err;
     }
 
-    n = read_block(&rig->state.rigport, (char *) priv->update_data, rl);
+    n = read_block(&rig->state.rigport, priv->update_data, rl);
 
     if (n < 0)
     {
@@ -1791,7 +1789,7 @@ static int ft840_send_static_cmd(RIG *rig, unsigned char ci)
         return -RIG_EINVAL;
     }
 
-    err = write_block(&rig->state.rigport, (char *) ncmd[ci].nseq,
+    err = write_block(&rig->state.rigport, ncmd[ci].nseq,
                       YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
@@ -1852,8 +1850,7 @@ static int ft840_send_dynamic_cmd(RIG *rig, unsigned char ci,
     priv->p_cmd[P3] = p3;
     priv->p_cmd[P4] = p4;
 
-    err = write_block(&rig->state.rigport, (char *) &priv->p_cmd,
-                      YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -1913,8 +1910,7 @@ static int ft840_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     rig_debug(RIG_DEBUG_TRACE, fmt, __func__, (int64_t)from_bcd(priv->p_cmd,
               FT840_BCD_DIAL) * 10);
 
-    err = write_block(&rig->state.rigport, (char *) &priv->p_cmd,
-                      YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {

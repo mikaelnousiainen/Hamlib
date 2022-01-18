@@ -63,8 +63,10 @@ static int ft757_set_freq(RIG *rig, vfo_t vfo, freq_t freq);
 static int ft757_get_freq(RIG *rig, vfo_t vfo, freq_t *freq);
 static int ft757gx_get_freq(RIG *rig, vfo_t vfo, freq_t *freq);
 
-static int ft757_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width); /* select mode */
-static int ft757_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width); /* get mode */
+static int ft757_set_mode(RIG *rig, vfo_t vfo, rmode_t mode,
+                          pbwidth_t width); /* select mode */
+static int ft757_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode,
+                          pbwidth_t *width); /* get mode */
 
 static int ft757_set_vfo(RIG *rig, vfo_t vfo); /* select vfo */
 static int ft757_get_vfo(RIG *rig, vfo_t *vfo); /* get vfo */
@@ -86,7 +88,6 @@ static int rig2mode(RIG *rig, int md, rmode_t *mode, pbwidth_t *width);
 struct ft757_priv_data
 {
     unsigned char pacing;       /* pacing value */
-    unsigned int read_update_delay; /* depends on pacing value */
     unsigned char
     current_vfo;  /* active VFO from last cmd , can be either RIG_VFO_A or RIG_VFO_B only */
     unsigned char
@@ -215,7 +216,8 @@ const struct rig_caps ft757gx_caps =
 
     .cfgparams =        ft757gx_cfg_params,
     .set_conf =     ft757gx_set_conf,
-    .get_conf =     ft757gx_get_conf
+    .get_conf =     ft757gx_get_conf,
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 /*
@@ -338,6 +340,7 @@ const struct rig_caps ft757gx2_caps =
     .get_vfo =      ft757_get_vfo,  /* get vfo */
     .get_level =        ft757_get_level,
     .get_ptt =      ft757_get_ptt,  /* get ptt */
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 
@@ -373,8 +376,6 @@ static int ft757_init(RIG *rig)
 
     priv->pacing =
         FT757GX_PACING_DEFAULT_VALUE;   /* set pacing to minimum for now */
-    priv->read_update_delay =
-        FT757GX_DEFAULT_READ_TIMEOUT;    /* set update timeout to safe value */
     priv->current_vfo =  RIG_VFO_A;            /* default to VFO_A ? */
 
     return RIG_OK;
@@ -449,7 +450,7 @@ static int ft757_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     to_bcd(cmd, freq / 10, BCD_LEN);
 
     priv->curfreq = freq;
-    return write_block(&rig->state.rigport, (char *)cmd, YAESU_CMD_LENGTH);
+    return write_block(&rig->state.rigport, cmd, YAESU_CMD_LENGTH);
 }
 
 
@@ -475,7 +476,7 @@ static int ft757_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     /* fill in p1 */
     cmd[3] = mode2rig(rig, mode, width);
 
-    return write_block(&rig->state.rigport, (char *)cmd, YAESU_CMD_LENGTH);
+    return write_block(&rig->state.rigport, cmd, YAESU_CMD_LENGTH);
 }
 
 
@@ -603,7 +604,7 @@ static int ft757_set_vfo(RIG *rig, vfo_t vfo)
 
     priv->current_vfo = vfo;
 
-    return write_block(&rig->state.rigport, (char *)cmd, YAESU_CMD_LENGTH);
+    return write_block(&rig->state.rigport, cmd, YAESU_CMD_LENGTH);
 }
 
 
@@ -677,7 +678,7 @@ static int ft757_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     rig_flush(&rig->state.rigport);
 
     /* send READ STATUS(Meter only) cmd to rig  */
-    retval = write_block(&rig->state.rigport, (char *)cmd, YAESU_CMD_LENGTH);
+    retval = write_block(&rig->state.rigport, cmd, YAESU_CMD_LENGTH);
 
     if (retval < 0)
     {
@@ -685,7 +686,7 @@ static int ft757_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     }
 
     /* read back the 1 byte */
-    retval = read_block(&rig->state.rigport, (char *)cmd, 1);
+    retval = read_block(&rig->state.rigport, cmd, 1);
 
     if (retval != 1)
     {
@@ -727,7 +728,7 @@ static int ft757_get_update_data(RIG *rig)
         rig_flush(&rig->state.rigport);
 
         /* send READ STATUS cmd to rig  */
-        retval = write_block(&rig->state.rigport, (char *)cmd, YAESU_CMD_LENGTH);
+        retval = write_block(&rig->state.rigport, cmd, YAESU_CMD_LENGTH);
 
         if (retval < 0)
         {
@@ -736,7 +737,7 @@ static int ft757_get_update_data(RIG *rig)
 
         /* read back the 75 status bytes */
         retval = read_block(&rig->state.rigport,
-                            (char *)priv->update_data,
+                            priv->update_data,
                             FT757GX_STATUS_UPDATE_DATA_LENGTH);
 
         if (retval == FT757GX_STATUS_UPDATE_DATA_LENGTH)
@@ -872,7 +873,7 @@ static int rig2mode(RIG *rig, int md, rmode_t *mode, pbwidth_t *width)
 /*
  * Assumes rig!=NULL, rig->state.priv!=NULL
  */
-static int ft757gx_get_conf(RIG *rig, token_t token, char *val)
+static int ft757gx_get_conf2(RIG *rig, token_t token, char *val, int val_len)
 {
     struct ft757_priv_data *priv;
     struct rig_state *rs;
@@ -887,7 +888,7 @@ static int ft757gx_get_conf(RIG *rig, token_t token, char *val)
     switch (token)
     {
     case TOK_FAKEFREQ:
-        sprintf(val, "%d", priv->fakefreq);
+        SNPRINTF(val, val_len, "%d", priv->fakefreq);
         break;
 
     default:
@@ -897,6 +898,12 @@ static int ft757gx_get_conf(RIG *rig, token_t token, char *val)
 
     return RIG_OK;
 }
+
+static int ft757gx_get_conf(RIG *rig, token_t token, char *val)
+{
+    return ft757gx_get_conf2(rig, token, val, 128);
+}
+
 /*
  * Assumes rig!=NULL, rig->state.priv!=NULL
  */

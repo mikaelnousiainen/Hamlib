@@ -240,7 +240,6 @@ static int rig2ctcss(RIG *rig, unsigned char tn, tone_t *tone);
 struct ft767_priv_data
 {
     unsigned char pacing;     /* pacing value */
-    unsigned int read_update_delay;    /* depends on pacing value */
     unsigned char
     current_vfo;    /* active VFO from last cmd , can be either RIG_VFO_A or RIG_VFO_B only */
     unsigned char
@@ -413,8 +412,6 @@ int ft767_init(RIG *rig)
     /* TODO: read pacing from preferences */
 
     priv->pacing = FT767GX_PACING_DEFAULT_VALUE; /* set pacing to minimum for now */
-    priv->read_update_delay =
-        FT767GX_DEFAULT_READ_TIMEOUT; /* set update timeout to safe value */
     priv->current_vfo =  RIG_VFO_A;  /* default to VFO_A ? */
     priv->ack_cmd[0] = 00;
     priv->ack_cmd[1] = 00;
@@ -1477,11 +1474,11 @@ int ft767_send_block_and_ack(RIG *rig, unsigned char *cmd, size_t length)
     }
 
     /* send the command block */
-    write_block(&rig->state.rigport, (char *) cmd, YAESU_CMD_LENGTH);
+    write_block(&rig->state.rigport, cmd, YAESU_CMD_LENGTH);
 
     /* read back the command block echo */
     retval = read_block(&rig->state.rigport,
-                        (char *) cmd_echo_buf,
+                        cmd_echo_buf,
                         YAESU_CMD_LENGTH);
 
     if (retval < 0)
@@ -1500,11 +1497,11 @@ int ft767_send_block_and_ack(RIG *rig, unsigned char *cmd, size_t length)
     }
 
     /* send the ACK */
-    write_block(&rig->state.rigport, (char *) priv->ack_cmd, YAESU_CMD_LENGTH);
+    write_block(&rig->state.rigport, priv->ack_cmd, YAESU_CMD_LENGTH);
 
     /* read back the response (status bytes) */
     retval = read_block(&rig->state.rigport,
-                        (char *) priv->rx_data,
+                        priv->rx_data,
                         replylen);
 
     // update data

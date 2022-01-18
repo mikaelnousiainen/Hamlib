@@ -248,7 +248,7 @@ int xg3_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         }
 
         /* XXX check level range */
-        sprintf(levelbuf, "L,%02d", (int)val.f);
+        SNPRINTF(levelbuf, sizeof(levelbuf), "L,%02d", (int)val.f);
         break;
 
     default:
@@ -275,8 +275,8 @@ int xg3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     switch (level)
     {
     case RIG_LEVEL_RFPOWER:
-        sprintf(cmdbuf, "L;");
-        retval = write_block(&rs->rigport, cmdbuf, strlen(cmdbuf));
+        SNPRINTF(cmdbuf, sizeof(cmdbuf), "L;");
+        retval = write_block(&rs->rigport, (unsigned char *) cmdbuf, strlen(cmdbuf));
 
         if (retval != RIG_OK)
         {
@@ -285,7 +285,8 @@ int xg3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             return retval;
         }
 
-        retval = read_string(&rs->rigport, replybuf, replysize, ";", 1, 0);
+        retval = read_string(&rs->rigport, (unsigned char *) replybuf, replysize,
+                ";", 1, 0, 1);
 
         if (retval < 0)
         {
@@ -394,11 +395,11 @@ int xg3_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     {
         int ch;
         xg3_get_mem(rig, vfo, &ch);
-        sprintf(cmdbuf, "M,%02d,%011ld", ch, (long)freq);
+        SNPRINTF(cmdbuf, sizeof(cmdbuf), "M,%02d,%011ld", ch, (long)freq);
     }
     else
     {
-        sprintf(cmdbuf, "F,%011ld", (long)freq);
+        SNPRINTF(cmdbuf, sizeof(cmdbuf), "F,%011ld", (long)freq);
     }
 
     err = kenwood_transaction(rig, cmdbuf, NULL, 0);
@@ -447,14 +448,14 @@ int xg3_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     {
         int ch;
         xg3_get_mem(rig, vfo, &ch);
-        sprintf(cmdbuf, "M,%02d;", ch);
+        SNPRINTF(cmdbuf, sizeof(cmdbuf), "M,%02d;", ch);
     }
     else
     {
-        sprintf(cmdbuf, "F;");
+        SNPRINTF(cmdbuf, sizeof(cmdbuf), "F;");
     }
 
-    retval = write_block(&rs->rigport, cmdbuf, strlen(cmdbuf));
+    retval = write_block(&rs->rigport, (unsigned char *) cmdbuf, strlen(cmdbuf));
 
     if (retval != RIG_OK)
     {
@@ -462,7 +463,8 @@ int xg3_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         return retval;
     }
 
-    retval = read_string(&rs->rigport, freqbuf, freqsize, ";", 1, 0);
+    retval = read_string(&rs->rigport, (unsigned char *) freqbuf, freqsize,
+            ";", 1, 0, 1);
 
     if (retval < 0)
     {
@@ -514,7 +516,8 @@ int xg3_get_powerstat(RIG *rig, powerstat_t *status)
     if (retval == RIG_OK)
     {
         char reply[32];
-        retval = read_string(&rs->rigport, reply, sizeof(reply), ";", 1, 0);
+        retval = read_string(&rs->rigport, (unsigned char *) reply, sizeof(reply),
+                ";", 1, 0, 1);
         *status = RIG_POWER_ON;
         priv->powerstat = RIG_POWER_ON;
     }
@@ -545,7 +548,7 @@ int xg3_set_mem(RIG *rig, vfo_t vfo, int ch)
         return -RIG_EINVAL;
     }
 
-    sprintf(cmdbuf, "C,%02d;", ch);
+    SNPRINTF(cmdbuf, sizeof(cmdbuf), "C,%02d;", ch);
     retval = kenwood_transaction(rig, cmdbuf, NULL, 0);
 
     if (retval != RIG_OK)
@@ -570,7 +573,7 @@ int xg3_get_mem(RIG *rig, vfo_t vfo, int *ch)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    sprintf(cmdbuf, "C;");
+    SNPRINTF(cmdbuf, sizeof(cmdbuf), "C;");
     retval = kenwood_transaction(rig, cmdbuf, NULL, 0);
 
     if (retval != RIG_OK)
@@ -578,7 +581,8 @@ int xg3_get_mem(RIG *rig, vfo_t vfo, int *ch)
         return retval;
     }
 
-    retval = read_string(&rs->rigport, reply, sizeof(reply), ";", 1, 0);
+    retval = read_string(&rs->rigport, (unsigned char *) reply, sizeof(reply),
+            ";", 1, 0, 1);
 
     if (retval < 0)
     {
@@ -656,7 +660,7 @@ int xg3_set_parm(RIG *rig, setting_t parm, value_t val)
     case RIG_PARM_BACKLIGHT:
         ival = 3 - (int)(val.f * 3); // gives us 0-3 bright-to-dim
         rig_debug(RIG_DEBUG_ERR, "%s: BACKLIGHT %d\n", __func__, ival);
-        sprintf(cmdbuf, "G,%02d", ival);
+        SNPRINTF(cmdbuf, sizeof(cmdbuf), "G,%02d", ival);
         retval = kenwood_simple_transaction(rig, cmdbuf, 0);
         break;
 
@@ -688,7 +692,7 @@ int xg3_get_parm(RIG *rig, setting_t parm, value_t *val)
         if (retval == RIG_OK)
         {
             sscanf(&replybuf[3], "%d", &ival);
-            (*val).f = (3 - ival) / 3.0;
+            val->f = (3.0f - (float) ival) / 3.0f;
         }
 
         break;

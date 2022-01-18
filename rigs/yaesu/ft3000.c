@@ -246,7 +246,7 @@ const struct rig_caps ftdx3000_caps =
     RIG_MODEL(RIG_MODEL_FTDX3000),
     .model_name =         "FTDX-3000",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".5",
+    .version =            NEWCAT_VER ".6",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -259,7 +259,9 @@ const struct rig_caps ftdx3000_caps =
     .serial_stop_bits =   2,            /* Assumed since manual makes no mention */
     .serial_parity =      RIG_PARITY_NONE,
     .serial_handshake =   RIG_HANDSHAKE_HARDWARE,
-    .write_delay =        FTDX5000_WRITE_DELAY,
+    // write_delay 5ms or less was causing VS1;VS; to answer with VS0 instead of VS1 even though change did occur
+    // see https://github.com/Hamlib/Hamlib/issues/906
+    .write_delay =        0, 
     .post_write_delay =   FTDX5000_POST_WRITE_DELAY,
     .timeout =            2000,
     .retry =              3,
@@ -365,7 +367,7 @@ const struct rig_caps ftdx3000_caps =
 
     .cfgparams =          newcat_cfg_params,
     .set_conf =           newcat_set_conf,
-    .get_conf =           newcat_get_conf,
+    .get_conf2 =          newcat_get_conf2,
     .set_freq =           newcat_set_freq,
     .get_freq =           newcat_get_freq,
     .set_mode =           newcat_set_mode,
@@ -411,5 +413,6 @@ const struct rig_caps ftdx3000_caps =
     .set_ext_level =      newcat_set_ext_level,
     .get_ext_level =      newcat_get_ext_level,
     .send_morse =         newcat_send_morse,
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 

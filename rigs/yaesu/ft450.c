@@ -162,7 +162,7 @@ const struct rig_caps ft450_caps =
 
     .cfgparams =          newcat_cfg_params,
     .set_conf =           newcat_set_conf,
-    .get_conf =           newcat_get_conf,
+    .get_conf2 =          newcat_get_conf2,
     .set_freq =           newcat_set_freq,
     .get_freq =           newcat_get_freq,
     .set_mode =           newcat_set_mode,
@@ -202,4 +202,5 @@ const struct rig_caps ft450_caps =
     .set_channel =        newcat_set_channel,
     .get_channel =        newcat_get_channel,
     .send_morse =         newcat_send_morse,
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };

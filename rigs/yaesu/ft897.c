@@ -81,48 +81,50 @@
 #include "tones.h"
 #include "bandplan.h"
 
-enum ft897_native_cmd_e {
-  FT897_NATIVE_CAT_LOCK_ON = 0,
-  FT897_NATIVE_CAT_LOCK_OFF,
-  FT897_NATIVE_CAT_PTT_ON,
-  FT897_NATIVE_CAT_PTT_OFF,
-  FT897_NATIVE_CAT_SET_FREQ,
-  FT897_NATIVE_CAT_SET_MODE_LSB,
-  FT897_NATIVE_CAT_SET_MODE_USB,
-  FT897_NATIVE_CAT_SET_MODE_CW,
-  FT897_NATIVE_CAT_SET_MODE_CWR,
-  FT897_NATIVE_CAT_SET_MODE_AM,
-  FT897_NATIVE_CAT_SET_MODE_FM,
-  FT897_NATIVE_CAT_SET_MODE_FM_N,
-  FT897_NATIVE_CAT_SET_MODE_DIG,
-  FT897_NATIVE_CAT_SET_MODE_PKT,
-  FT897_NATIVE_CAT_CLAR_ON,
-  FT897_NATIVE_CAT_CLAR_OFF,
-  FT897_NATIVE_CAT_SET_CLAR_FREQ,
-  FT897_NATIVE_CAT_SET_VFOAB,
-  FT897_NATIVE_CAT_SPLIT_ON,
-  FT897_NATIVE_CAT_SPLIT_OFF,
-  FT897_NATIVE_CAT_SET_RPT_SHIFT_MINUS,
-  FT897_NATIVE_CAT_SET_RPT_SHIFT_PLUS,
-  FT897_NATIVE_CAT_SET_RPT_SHIFT_SIMPLEX,
-  FT897_NATIVE_CAT_SET_RPT_OFFSET,
-  FT897_NATIVE_CAT_SET_DCS_ON,
-  FT897_NATIVE_CAT_SET_DCS_DEC_ON,
-  FT897_NATIVE_CAT_SET_DCS_ENC_ON,
-  FT897_NATIVE_CAT_SET_CTCSS_ON,
-  FT897_NATIVE_CAT_SET_CTCSS_DEC_ON,
-  FT897_NATIVE_CAT_SET_CTCSS_ENC_ON,
-  FT897_NATIVE_CAT_SET_CTCSS_DCS_OFF,
-  FT897_NATIVE_CAT_SET_CTCSS_FREQ,
-  FT897_NATIVE_CAT_SET_DCS_CODE,
-  FT897_NATIVE_CAT_GET_RX_STATUS,
-  FT897_NATIVE_CAT_GET_TX_STATUS,
-  FT897_NATIVE_CAT_GET_FREQ_MODE_STATUS,
-  FT897_NATIVE_CAT_PWR_WAKE,
-  FT897_NATIVE_CAT_PWR_ON,
-  FT897_NATIVE_CAT_PWR_OFF,
-  FT897_NATIVE_CAT_EEPROM_READ,
-  FT897_NATIVE_SIZE		/* end marker */
+enum ft897_native_cmd_e
+{
+    FT897_NATIVE_CAT_LOCK_ON = 0,
+    FT897_NATIVE_CAT_LOCK_OFF,
+    FT897_NATIVE_CAT_PTT_ON,
+    FT897_NATIVE_CAT_PTT_OFF,
+    FT897_NATIVE_CAT_SET_FREQ,
+    FT897_NATIVE_CAT_SET_MODE_LSB,
+    FT897_NATIVE_CAT_SET_MODE_USB,
+    FT897_NATIVE_CAT_SET_MODE_CW,
+    FT897_NATIVE_CAT_SET_MODE_CWR,
+    FT897_NATIVE_CAT_SET_MODE_AM,
+    FT897_NATIVE_CAT_SET_MODE_FM,
+    FT897_NATIVE_CAT_SET_MODE_FM_N,
+    FT897_NATIVE_CAT_SET_MODE_DIG,
+    FT897_NATIVE_CAT_SET_MODE_PKT,
+    FT897_NATIVE_CAT_CLAR_ON,
+    FT897_NATIVE_CAT_CLAR_OFF,
+    FT897_NATIVE_CAT_SET_CLAR_FREQ,
+    FT897_NATIVE_CAT_SET_VFOAB,
+    FT897_NATIVE_CAT_SPLIT_ON,
+    FT897_NATIVE_CAT_SPLIT_OFF,
+    FT897_NATIVE_CAT_SET_RPT_SHIFT_MINUS,
+    FT897_NATIVE_CAT_SET_RPT_SHIFT_PLUS,
+    FT897_NATIVE_CAT_SET_RPT_SHIFT_SIMPLEX,
+    FT897_NATIVE_CAT_SET_RPT_OFFSET,
+    FT897_NATIVE_CAT_SET_DCS_ON,
+    FT897_NATIVE_CAT_SET_DCS_DEC_ON,
+    FT897_NATIVE_CAT_SET_DCS_ENC_ON,
+    FT897_NATIVE_CAT_SET_CTCSS_ON,
+    FT897_NATIVE_CAT_SET_CTCSS_DEC_ON,
+    FT897_NATIVE_CAT_SET_CTCSS_ENC_ON,
+    FT897_NATIVE_CAT_SET_CTCSS_DCS_OFF,
+    FT897_NATIVE_CAT_SET_CTCSS_FREQ,
+    FT897_NATIVE_CAT_SET_DCS_CODE,
+    FT897_NATIVE_CAT_GET_RX_STATUS,
+    FT897_NATIVE_CAT_GET_TX_STATUS,
+    FT897_NATIVE_CAT_GET_FREQ_MODE_STATUS,
+    FT897_NATIVE_CAT_PWR_WAKE,
+    FT897_NATIVE_CAT_PWR_ON,
+    FT897_NATIVE_CAT_PWR_OFF,
+    FT897_NATIVE_CAT_EEPROM_READ,
+    FT897_NATIVE_CAT_GET_TX_METER,
+    FT897_NATIVE_SIZE     /* end marker */
 };
 
 struct ft897_priv_data
@@ -138,6 +140,10 @@ struct ft897_priv_data
     /* freq & mode status */
     struct timeval fm_status_tv;
     unsigned char fm_status[YAESU_CMD_LENGTH + 1];
+
+    /* tx meter status */
+    struct timeval tm_status_tv;
+    unsigned char tm_status[3];
 };
 
 
@@ -220,6 +226,7 @@ static const yaesu_cmd_set_t ncmd[] =
     { 1, { 0x00, 0x00, 0x00, 0x00, 0x0f } }, /* pwr on */
     { 1, { 0x00, 0x00, 0x00, 0x00, 0x8f } }, /* pwr off */
     { 0, { 0x00, 0x00, 0x00, 0x00, 0xbb } }, /* eeprom read */
+    { 1, { 0x00, 0x00, 0x00, 0x00, 0xbd } }, /* tx meter status, i.e ALC, MOD, PWR, SWR */
 };
 
 enum ft897_digi
@@ -249,7 +256,7 @@ const struct rig_caps ft897_caps =
     RIG_MODEL(RIG_MODEL_FT897),
     .model_name =     "FT-897",
     .mfg_name =       "Yaesu",
-    .version =        "20201215.0",
+    .version =        "20210103.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_TRANSCEIVER,
@@ -268,7 +275,7 @@ const struct rig_caps ft897_caps =
     .retry =      0,
     .has_get_func =       RIG_FUNC_NONE,
     .has_set_func =   RIG_FUNC_LOCK | RIG_FUNC_TONE | RIG_FUNC_TSQL,
-    .has_get_level =  RIG_LEVEL_STRENGTH | RIG_LEVEL_RFPOWER | RIG_LEVEL_SWR | RIG_LEVEL_RAWSTR,
+    .has_get_level =  RIG_LEVEL_STRENGTH | RIG_LEVEL_RFPOWER | RIG_LEVEL_SWR | RIG_LEVEL_RAWSTR | RIG_LEVEL_ALC,
     .has_set_level =  RIG_LEVEL_NONE,
     .has_get_parm =   RIG_PARM_NONE,
     .has_set_parm =   RIG_PARM_NONE,
@@ -411,7 +418,7 @@ const struct rig_caps ft897d_caps =
     .retry =      0,
     .has_get_func =       RIG_FUNC_NONE,
     .has_set_func =   RIG_FUNC_LOCK | RIG_FUNC_TONE | RIG_FUNC_TSQL,
-    .has_get_level =  RIG_LEVEL_STRENGTH | RIG_LEVEL_RFPOWER | RIG_LEVEL_SWR | RIG_LEVEL_RAWSTR,
+    .has_get_level =  RIG_LEVEL_STRENGTH | RIG_LEVEL_RFPOWER | RIG_LEVEL_SWR | RIG_LEVEL_RAWSTR | RIG_LEVEL_ALC,
     .has_set_level =  RIG_LEVEL_NONE,
     .has_get_parm =   RIG_PARM_NONE,
     .has_set_parm =   RIG_PARM_NONE,
@@ -619,9 +626,9 @@ static int ft897_read_eeprom(RIG *rig, unsigned short addr, unsigned char *out)
     data[0] = addr >> 8;
     data[1] = addr & 0xfe;
 
-    write_block(&rig->state.rigport, (char *) data, YAESU_CMD_LENGTH);
+    write_block(&rig->state.rigport, data, YAESU_CMD_LENGTH);
 
-    if ((n = read_block(&rig->state.rigport, (char *) data, 2)) < 0)
+    if ((n = read_block(&rig->state.rigport, data, 2)) < 0)
     {
         return n;
     }
@@ -666,6 +673,13 @@ static int ft897_get_status(RIG *rig, int status)
         tv   = &p->tx_status_tv;
         break;
 
+    case FT897_NATIVE_CAT_GET_TX_METER:
+        data = p->tm_status;
+        len = 2;
+        tv = &p->tm_status_tv;
+        break;
+
+
     default:
         rig_debug(RIG_DEBUG_ERR, "%s: internal error!\n", __func__);
         return -RIG_EINTERNAL;
@@ -673,10 +687,10 @@ static int ft897_get_status(RIG *rig, int status)
 
     rig_flush(&rig->state.rigport);
 
-    write_block(&rig->state.rigport, (char *) ncmd[status].nseq,
+    write_block(&rig->state.rigport, ncmd[status].nseq,
                 YAESU_CMD_LENGTH);
 
-    if ((n = read_block(&rig->state.rigport, (char *) data, len)) < 0)
+    if ((n = read_block(&rig->state.rigport, data, len)) < 0)
     {
         return n;
     }
@@ -928,6 +942,42 @@ static int ft897_get_rawstr_level(RIG *rig, value_t *val)
     return RIG_OK;
 }
 
+static int ft897_get_alc_level(RIG *rig, value_t *val)
+{
+    struct ft897_priv_data *p = (struct ft897_priv_data *) rig->state.priv;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+
+    /* have to check PTT first - only 1 byte (0xff) returned in RX
+       and two bytes returned in TX */
+    if ((p->tx_status & 0x80) == 0)
+    {
+        if (check_cache_timeout(&p->tm_status_tv))
+        {
+            int n;
+
+            if ((n = ft897_get_status(rig, FT897_NATIVE_CAT_GET_TX_METER)) < 0)
+            {
+                return n;
+            }
+        }
+
+        /* returns 2 bytes when in TX mode:
+           byte[0]: bits 7:4 --> power
+           byte[0]: bits 3:0 --> ALC
+           byte[1]: bits 7:4 --> SWR
+           byte[1]: bits 3:0 --> MOD */
+
+        val->f = p->tm_status[0] >> 4;
+    }
+    else
+    {
+        val->f = 0;
+    }
+
+    return RIG_OK;
+}
+
 int ft897_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
@@ -945,6 +995,9 @@ int ft897_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     case RIG_LEVEL_SWR:
         return ft897_get_swr_level(rig, val);
+
+    case RIG_LEVEL_ALC:
+        return ft897_get_alc_level(rig, val);
 
     default:
         return -RIG_EINVAL;
@@ -996,7 +1049,7 @@ static int ft897_send_cmd(RIG *rig, int index)
         return -RIG_EINTERNAL;
     }
 
-    write_block(&rig->state.rigport, (char *) ncmd[index].nseq, YAESU_CMD_LENGTH);
+    write_block(&rig->state.rigport, ncmd[index].nseq, YAESU_CMD_LENGTH);
     return ft817_read_ack(rig);
 }
 
@@ -1018,7 +1071,7 @@ static int ft897_send_icmd(RIG *rig, int index, unsigned char *data)
     cmd[YAESU_CMD_LENGTH - 1] = ncmd[index].nseq[YAESU_CMD_LENGTH - 1];
     memcpy(cmd, data, YAESU_CMD_LENGTH - 1);
 
-    write_block(&rig->state.rigport, (char *) cmd, YAESU_CMD_LENGTH);
+    write_block(&rig->state.rigport, cmd, YAESU_CMD_LENGTH);
     return ft817_read_ack(rig);
 }
 

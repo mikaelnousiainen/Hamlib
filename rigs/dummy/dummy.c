@@ -1123,11 +1123,11 @@ static int dummy_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
     if (RIG_LEVEL_IS_FLOAT(level))
     {
-        sprintf(lstr, "%f", val.f);
+        SNPRINTF(lstr, sizeof(lstr), "%f", val.f);
     }
     else
     {
-        sprintf(lstr, "%d", val.i);
+        SNPRINTF(lstr, sizeof(lstr), "%d", val.i);
     }
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s %s\n", __func__,
@@ -1296,15 +1296,15 @@ static int dummy_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
         break;
 
     case RIG_CONF_COMBO:
-        sprintf(lstr, "%d", val.i);
+        SNPRINTF(lstr, sizeof(lstr), "%d", val.i);
         break;
 
     case RIG_CONF_NUMERIC:
-        sprintf(lstr, "%f", val.f);
+        SNPRINTF(lstr, sizeof(lstr), "%f", val.f);
         break;
 
     case RIG_CONF_CHECKBUTTON:
-        sprintf(lstr, "%s", val.i ? "ON" : "OFF");
+        SNPRINTF(lstr, sizeof(lstr), "%s", val.i ? "ON" : "OFF");
         break;
 
     case RIG_CONF_BUTTON:
@@ -1505,11 +1505,11 @@ static int dummy_set_parm(RIG *rig, setting_t parm, value_t val)
 
     if (RIG_PARM_IS_FLOAT(parm))
     {
-        sprintf(pstr, "%f", val.f);
+        SNPRINTF(pstr, sizeof(pstr), "%f", val.f);
     }
     else
     {
-        sprintf(pstr, "%d", val.i);
+        SNPRINTF(pstr, sizeof(pstr), "%d", val.i);
     }
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s %s\n", __func__,
@@ -1571,15 +1571,15 @@ static int dummy_set_ext_parm(RIG *rig, token_t token, value_t val)
         break;
 
     case RIG_CONF_COMBO:
-        sprintf(lstr, "%d", val.i);
+        SNPRINTF(lstr, sizeof(lstr), "%d", val.i);
         break;
 
     case RIG_CONF_NUMERIC:
-        sprintf(lstr, "%f", val.f);
+        SNPRINTF(lstr, sizeof(lstr), "%f", val.f);
         break;
 
     case RIG_CONF_CHECKBUTTON:
-        sprintf(lstr, "%s", val.i ? "ON" : "OFF");
+        SNPRINTF(lstr, sizeof(lstr), "%s", val.i ? "ON" : "OFF");
         break;
 
     case RIG_CONF_BUTTON:
@@ -2104,6 +2104,13 @@ static int dummy_send_morse(RIG *rig, vfo_t vfo, const char *msg)
     RETURNFUNC(RIG_OK);
 }
 
+static int dummy_send_voice_mem(RIG *rig, vfo_t vfo, int ch)
+{
+    ENTERFUNC;
+
+    RETURNFUNC(RIG_OK);
+}
+
 static int dummy_power2mW(RIG *rig, unsigned int *mwpower, float power,
                           freq_t freq, rmode_t mode)
 {
@@ -2138,6 +2145,55 @@ static int dummy_mW2power(RIG *rig, float *power, unsigned int mwpower,
     *power = ((float)mwpower / 100000);
 
     RETURNFUNC(RIG_OK);
+}
+
+static int m_year, m_month, m_day, m_hour, m_min, m_sec, m_utc_offset;
+static double m_msec;
+
+int dummy_set_clock(RIG *rig, int year, int month, int day, int hour, int min,
+                    int sec, double msec, int utc_offset)
+{
+    int retval = RIG_OK;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: %04d-%02d-%02dT%02d:%02d:%02d.%.03f%s%02d\n",
+              __func__, year,
+              month, day, hour, min, sec, msec, utc_offset >= 0 ? "+" : "-",
+              (unsigned)(abs(utc_offset)));
+    m_year = year;
+    m_month = month;
+    m_day = day;
+
+    if (hour >= 0)
+    {
+        m_hour = hour;
+        m_min = min;
+        m_sec = sec;
+        m_msec = msec;
+        m_utc_offset = utc_offset;
+    }
+
+    return retval;
+}
+
+int dummy_get_clock(RIG *rig, int *year, int *month, int *day, int *hour,
+                    int *min, int *sec, double *msec, int *utc_offset)
+{
+    int retval = RIG_OK;
+
+    *year = m_year;
+    *month = m_month;
+    *day = m_day;
+    *hour = m_hour;
+    *min = m_min;
+    *sec = m_sec;
+    *msec = m_msec;
+    *utc_offset = m_utc_offset;
+
+    rig_debug(RIG_DEBUG_VERBOSE,
+              "%s: %02d-%02d-%02dT%02d:%02d:%02d:%0.3lf%s%02d\n'",
+              __func__, *year, *month, *day, *hour, *min, *sec, *msec,
+              *utc_offset >= 0 ? "+" : "-", (unsigned)abs(*utc_offset));
+    return retval;
 }
 
 
@@ -2195,12 +2251,12 @@ struct rig_caps dummy_caps =
     RIG_MODEL(RIG_MODEL_DUMMY),
     .model_name =     "Dummy",
     .mfg_name =       "Hamlib",
-    .version =        "20210705.0",
+    .version =        "20211213.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,
     .targetable_vfo = RIG_TARGETABLE_PTT | RIG_TARGETABLE_RITXIT | RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE | RIG_TARGETABLE_SPECTRUM,
-    .ptt_type =       RIG_PTT_RIG,
+    .ptt_type =       RIG_PTT_NONE,
     .dcd_type =       RIG_DCD_RIG,
     .port_type =      RIG_PORT_NONE,
     .has_get_func =   DUMMY_FUNC,
@@ -2409,12 +2465,16 @@ struct rig_caps dummy_caps =
     .send_dtmf =  dummy_send_dtmf,
     .recv_dtmf =  dummy_recv_dtmf,
     .send_morse =  dummy_send_morse,
+    .send_voice_mem =  dummy_send_voice_mem,
     .set_channel =    dummy_set_channel,
     .get_channel =    dummy_get_channel,
     .set_trn =    dummy_set_trn,
     .get_trn =    dummy_get_trn,
     .power2mW =   dummy_power2mW,
     .mW2power =   dummy_mW2power,
+    .set_clock = dummy_set_clock,
+    .get_clock = dummy_get_clock,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 struct rig_caps dummy_no_vfo_caps =
@@ -2574,12 +2634,16 @@ struct rig_caps dummy_no_vfo_caps =
     .send_dtmf =  dummy_send_dtmf,
     .recv_dtmf =  dummy_recv_dtmf,
     .send_morse =  dummy_send_morse,
+    .send_voice_mem =  dummy_send_voice_mem,
     .set_channel =    dummy_set_channel,
     .get_channel =    dummy_get_channel,
     .set_trn =    dummy_set_trn,
     .get_trn =    dummy_get_trn,
     .power2mW =   dummy_power2mW,
     .mW2power =   dummy_mW2power,
+    .set_clock = dummy_set_clock,
+    .get_clock = dummy_get_clock,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 DECLARE_INITRIG_BACKEND(dummy)
@@ -2592,6 +2656,7 @@ DECLARE_INITRIG_BACKEND(dummy)
     rig_register(&flrig_caps);
     rig_register(&trxmanager_caps);
     rig_register(&dummy_no_vfo_caps);
+    rig_register(&tci1x_caps);
 
     RETURNFUNC(RIG_OK);
 }

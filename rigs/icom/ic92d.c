@@ -217,6 +217,7 @@ const struct rig_caps ic92d_caps =
 
     .get_info =  ic92d_get_info,
 
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 const char *ic92d_get_info(RIG *rig)
@@ -249,7 +250,7 @@ const char *ic92d_get_info(RIG *rig)
         return NULL;
     }
 
-    sprintf(info, "ID %02x%02x%02x\n", ackbuf[1], ackbuf[2], ackbuf[3]);
+    SNPRINTF(info, sizeof(info), "ID %02x%02x%02x\n", ackbuf[1], ackbuf[2], ackbuf[3]);
 
     return info;
 }

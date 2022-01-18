@@ -31,8 +31,8 @@
  * thus not ensure mutual exclusion.
  * Fix it when making Hamlib reentrant!  --SF
  */
-#define Hold_Decode(rig) {(rig)->state.hold_decode = 1;}
-#define Unhold_Decode(rig) {(rig)->state.hold_decode = 0;}
+#define set_transaction_active(rig) {(rig)->state.transaction_active = 1;}
+#define set_transaction_inactive(rig) {(rig)->state.transaction_active = 0;}
 
 __BEGIN_DECLS
 
@@ -71,6 +71,11 @@ extern HAMLIB_EXPORT(unsigned char *) to_bcd_be(unsigned char bcd_data[],
 extern HAMLIB_EXPORT(unsigned long long) from_bcd_be(const unsigned char
                                                      bcd_data[],
                                                      unsigned bcd_len);
+
+extern HAMLIB_EXPORT(size_t) to_hex(size_t source_length,
+                                    const unsigned char *source_data,
+                                    size_t dest_length,
+                                    char *dest_data);
 
 extern HAMLIB_EXPORT(double) morse_code_dot_to_millis(int wpm);
 extern HAMLIB_EXPORT(int) dot10ths_to_millis(int dot10ths, int wpm);
@@ -114,7 +119,7 @@ extern HAMLIB_EXPORT(int) parse_hoststr(char *hoststr, char host[256], char port
 
 extern HAMLIB_EXPORT(uint32_t) CRC32_function(uint8_t *buf, uint32_t len);
 
-extern char *date_strget(char *buf, int buflen);
+extern HAMLIB_EXPORT(char *)date_strget(char *buf, int buflen, int localtime);
 
 #ifdef PRId64
 /** \brief printf(3) format to be used for long long (64bits) type */
@@ -152,7 +157,7 @@ void errmsg(int err, char *s, const char *func, const char *file, int line);
 // could be a function call 
 #define RETURNFUNC(rc) do { \
 			            int rctmp = rc; \
-                        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d):%s return(%ld)\n", __FILENAME__, __LINE__, __func__, (long int) (rctmp)); \
+                        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d):%s return(%ld) %s\n", __FILENAME__, __LINE__, __func__, (long int) (rctmp), rctmp<0?rigerror(rctmp):""); \
                         return (rctmp); \
                        } while(0)
 

@@ -135,7 +135,7 @@ const struct rot_caps rotorez_rot_caps =
     ROT_MODEL(ROT_MODEL_ROTOREZ),
     .model_name =       "Rotor-EZ",
     .mfg_name =         "Idiom Press",
-    .version =          "20100214.0",
+    .version =          "20220109.0",
     .copyright =        "LGPL",
     .status =           RIG_STATUS_STABLE,
     .rot_type =         ROT_TYPE_OTHER,
@@ -310,7 +310,7 @@ const struct rot_caps rt21_rot_caps =
     ROT_MODEL(ROT_MODEL_RT21),
     .model_name =       "RT-21",
     .mfg_name =     "Green Heron",
-    .version =      "20210801.0",
+    .version =      "20220104.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rot_type =     ROT_TYPE_OTHER,
@@ -338,7 +338,7 @@ const struct rot_caps rt21_rot_caps =
     .rot_cleanup =      rotorez_rot_cleanup,
     .set_position =     rt21_rot_set_position,
     .get_position =     rt21_rot_get_position,
-//  .stop =             rotorez_rot_stop,
+    .stop =             rotorez_rot_stop,
 //  .set_conf =         rotorez_rot_set_conf,
 //  .get_info =         rotorez_rot_get_info,
 
@@ -436,7 +436,7 @@ static int rotorez_rot_set_position(ROT *rot, azimuth_t azimuth,
         azimuth = 0;
     }
 
-    sprintf(cmdstr, "AP1%03.0f;", azimuth);     /* Target bearing */
+    snprintf(cmdstr, sizeof(cmdstr), "AP1%03.0f;", azimuth);     /* Target bearing */
     err = rotorez_send_priv_cmd(rot, cmdstr);
 
     if (err != RIG_OK)
@@ -481,7 +481,7 @@ static int rt21_rot_set_position(ROT *rot, azimuth_t azimuth,
         return -RIG_EINVAL;
     }
 
-    sprintf(cmdstr, "AP1%05.1f\r;", azimuth);   /* Total field width of 5 chars */
+    snprintf(cmdstr, sizeof(cmdstr), "AP1%05.1f\r;", azimuth);   /* Total field width of 5 chars */
     err = rotorez_send_priv_cmd(rot, cmdstr);
 
     if (err != RIG_OK)
@@ -491,17 +491,16 @@ static int rt21_rot_set_position(ROT *rot, azimuth_t azimuth,
 
     if (rot->state.rotport2.pathname[0] != 0)
     {
-        sprintf(cmdstr, "AP1%05.1f\r;",
+        snprintf(cmdstr, sizeof(cmdstr), "AP1%05.1f\r;",
                 elevation);    /* Total field width of 5 chars */
+
+        err = rotorez_send_priv_cmd2(rot, cmdstr);
+
+        if (err != RIG_OK)
+        {
+            return err;
+        }
     }
-
-    err = rotorez_send_priv_cmd2(rot, cmdstr);
-
-    if (err != RIG_OK)
-    {
-        return err;
-    }
-
     return RIG_OK;
 }
 
@@ -541,7 +540,7 @@ static int rotorez_rot_get_position(ROT *rot, azimuth_t *azimuth,
 
         rs = &rot->state;
 
-        err = read_block(&rs->rotport, az, AZ_READ_LEN);
+        err = read_block(&rs->rotport, (unsigned char *) az, AZ_READ_LEN);
 
         if (err != AZ_READ_LEN)
         {
@@ -647,7 +646,7 @@ static int erc_rot_get_position(ROT *rot, azimuth_t *azimuth,
 
         rs = &rot->state;
 
-        err = read_block(&rs->rotport, az, AZ_READ_LEN);
+        err = read_block(&rs->rotport, (unsigned char *) az, AZ_READ_LEN);
 
         if (err != AZ_READ_LEN)
         {
@@ -763,7 +762,7 @@ static int rt21_rot_get_position(ROT *rot, azimuth_t *azimuth,
 
     rs = &rot->state;
 
-    err = read_string(&rs->rotport, az, RT21_AZ_LEN + 1, ";", strlen(";"), 0);
+    err = read_string(&rs->rotport, (unsigned char *) az, RT21_AZ_LEN + 1, ";", strlen(";"), 0, 1);
 
     if (err < 0)    /* read_string returns negative on error. */
     {
@@ -1007,7 +1006,7 @@ static int rotorez_send_priv_cmd(ROT *rot, const char *cmdstr)
     }
 
     rs = &rot->state;
-    err = write_block(&rs->rotport, cmdstr, strlen(cmdstr));
+    err = write_block(&rs->rotport, (unsigned char *) cmdstr, strlen(cmdstr));
 
     if (err != RIG_OK)
     {
@@ -1031,7 +1030,7 @@ static int rotorez_send_priv_cmd2(ROT *rot, const char *cmdstr)
     }
 
     rs = &rot->state;
-    err = write_block(&rs->rotport2, cmdstr, strlen(cmdstr));
+    err = write_block(&rs->rotport2, (unsigned char *) cmdstr, strlen(cmdstr));
 
     if (err != RIG_OK)
     {
@@ -1071,7 +1070,7 @@ static int rotorez_flush_buffer(ROT *rot)
 
     do
     {
-        err = read_block(&rs->rotport, garbage, MAX);
+        err = read_block(&rs->rotport, (unsigned char *) garbage, MAX);
 
         /* Oops!  An IO error was encountered.  Bail out! */
         if (err == -RIG_EIO)
@@ -1101,3 +1100,4 @@ DECLARE_INITROT_BACKEND(rotorez)
 
     return RIG_OK;
 }
+

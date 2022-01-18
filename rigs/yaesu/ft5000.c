@@ -142,7 +142,7 @@ const struct rig_caps ftdx5000_caps =
     RIG_MODEL(RIG_MODEL_FTDX5000),
     .model_name =         "FTDX-5000",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".1",
+    .version =            NEWCAT_VER ".2",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -184,6 +184,7 @@ const struct rig_caps ftdx5000_caps =
     .transceive =         RIG_TRN_OFF,        /* May enable later as the 5000 has an Auto Info command */
     .bank_qty =           0,
     .chan_desc_sz =       0,
+    .rfpower_meter_cal =  FT5000_RFPOWER_METER_CAL,
     .str_cal =            FTDX5000_STR_CAL,
     .chan_list =          {
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
@@ -262,7 +263,7 @@ const struct rig_caps ftdx5000_caps =
 
     .cfgparams =          newcat_cfg_params,
     .set_conf =           newcat_set_conf,
-    .get_conf =           newcat_get_conf,
+    .get_conf2 =          newcat_get_conf2,
     .set_freq =           newcat_set_freq,
     .get_freq =           newcat_get_freq,
     .set_mode =           newcat_set_mode,
@@ -308,4 +309,5 @@ const struct rig_caps ftdx5000_caps =
     .set_ext_level =      newcat_set_ext_level,
     .get_ext_level =      newcat_get_ext_level,
     .send_morse =         newcat_send_morse,
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };

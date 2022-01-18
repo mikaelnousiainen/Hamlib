@@ -58,6 +58,13 @@
 #include "serial.h"
 #include "network.h"
 
+#if defined(_WIN32)
+#  include <time.h>
+#  ifndef localtime_r
+#    define localtime_r(T,Tm) (localtime_s(Tm,T) ? NULL : Tm)
+#  endif
+#endif
+
 #ifdef __APPLE__
 
 #include <time.h>
@@ -286,6 +293,34 @@ unsigned long long HAMLIB_API from_bcd_be(const unsigned char bcd_data[],
     }
 
     return f;
+}
+
+size_t HAMLIB_API to_hex(size_t source_length, const unsigned char *source_data,
+                         size_t dest_length, char *dest_data)
+{
+    size_t i;
+    size_t length = source_length;
+    const unsigned char *source = source_data;
+    char *dest = dest_data;
+
+    if (source_length == 0 || dest_length == 0)
+    {
+        return 0;
+    }
+
+    if (source_length * 2 > dest_length)
+    {
+        length = dest_length / 2 - 1;
+    }
+
+    for (i = 0; i < length; i++)
+    {
+        sprintf(dest, "%02X", source[0]);
+        source++;
+        dest += 2;
+    }
+
+    return length;
 }
 
 /**
@@ -586,7 +621,7 @@ static const struct
     { RIG_VFO_SUB_C, "SubC" },
     { RIG_VFO_NONE, "None" },
     { RIG_VFO_OTHER, "otherVFO" },
-    { 0xffffff, "" },
+    { 0xffffffff, "" },
 };
 
 
@@ -607,10 +642,14 @@ vfo_t HAMLIB_API rig_parse_vfo(const char *s)
     {
         if (!strcmp(s, vfo_str[i].str))
         {
+            rig_debug(RIG_DEBUG_CACHE, "%s: str='%s' vfo='%s'\n", __func__, vfo_str[i].str,
+                      rig_strvfo(vfo_str[i].vfo));
             return vfo_str[i].vfo;
         }
     }
 
+    rig_debug(RIG_DEBUG_ERR, "%s: '%s' not found so vfo='%s'\n", __func__, s,
+              rig_strvfo(RIG_VFO_NONE));
     return RIG_VFO_NONE;
 }
 
@@ -692,6 +731,8 @@ static const struct
     { RIG_FUNC_TRANSCEIVE, "TRANSCEIVE" },
     { RIG_FUNC_SPECTRUM, "SPECTRUM" },
     { RIG_FUNC_SPECTRUM_HOLD, "SPECTRUM_HOLD" },
+    { RIG_FUNC_SEND_MORSE, "SEND_MORSE" },
+    { RIG_FUNC_SEND_VOICE_MEM, "SEND_VOICE_MEM" },
     { RIG_FUNC_NONE, "" },
 };
 
@@ -1262,6 +1303,77 @@ const char *HAMLIB_API rig_stragclevel(enum agc_level_e level)
     return "";
 }
 
+/**
+ * \brief Convert a enum agc_level_e to value
+ * \param integer...
+ * \return agc_level_e value
+ */
+value_t rig_valueagclevel(enum agc_level_e agcLevel)
+{
+    value_t value;
+
+    if (agcLevel == RIG_AGC_OFF) { value.i = 0; }
+    else if (agcLevel == RIG_AGC_SUPERFAST) { value.i = 1; }
+    else if (agcLevel == RIG_AGC_FAST) { value.i = 2; }
+    else if (agcLevel == RIG_AGC_SLOW) { value.i = 3; }
+    else if (agcLevel == RIG_AGC_USER) { value.i = 4; }
+    else if (agcLevel == RIG_AGC_MEDIUM) { value.i = 5; }
+    else { value.i = 6; } //RIG_AGC_AUTO
+
+    return value;
+}
+
+/**
+ * \brief Convert a value to agc_level_e -- constrains the range
+ * \param integer...
+ * \return agc_level_e
+ */
+enum agc_level_e rig_levelagcvalue(int agcValue)
+{
+    enum agc_level_e agcLevel;
+
+    switch (agcValue)
+    {
+    case 0: agcLevel = RIG_AGC_OFF; break;
+
+    case 1: agcLevel = RIG_AGC_SUPERFAST; break;
+
+    case 2: agcLevel = RIG_AGC_FAST; break;
+
+    case 3: agcLevel = RIG_AGC_SLOW; break;
+
+    case 4: agcLevel = RIG_AGC_USER; break;
+
+    case 5: agcLevel = RIG_AGC_MEDIUM; break;
+
+    case 6: agcLevel = RIG_AGC_AUTO; break;
+
+    default: agcLevel = RIG_AGC_AUTO; break;
+    }
+
+    return agcLevel;
+}
+
+/**
+ * \brief Convert AGC string... to agc_level_e
+ * \param mode AGC string...
+ * \return agc_level_e
+ */
+enum agc_level_e rig_levelagcstr(char *agcString)
+{
+    enum agc_level_e agcLevel;
+
+    if (strcmp(agcString, "OFF") == 0) { agcLevel = RIG_AGC_OFF; }
+    else if (strcmp(agcString, "SUPERFAST") == 0) { agcLevel = RIG_AGC_SUPERFAST; }
+    else if (strcmp(agcString, "FAST") == 0) { agcLevel = RIG_AGC_FAST; }
+    else if (strcmp(agcString, "SLOW") == 0) { agcLevel = RIG_AGC_SLOW; }
+    else if (strcmp(agcString, "USER") == 0) { agcLevel = RIG_AGC_USER; }
+    else if (strcmp(agcString, "MEDIUM") == 0) { agcLevel = RIG_AGC_MEDIUM; }
+    else { agcLevel = RIG_AGC_AUTO; }
+
+    return agcLevel;
+}
+
 
 static const struct
 {
@@ -1736,11 +1848,12 @@ static char *funcname = "Unknown";
 static int linenum = 0;
 
 #undef vfo_fixup
-vfo_t HAMLIB_API vfo_fixup2a(RIG *rig, vfo_t vfo, split_t split, const char *func, int line)
+vfo_t HAMLIB_API vfo_fixup2a(RIG *rig, vfo_t vfo, split_t split,
+                             const char *func, int line)
 {
-    funcname = (char*)func;
+    funcname = (char *)func;
     linenum = (int)line;
-    return vfo_fixup(rig,vfo,split);
+    return vfo_fixup(rig, vfo, split);
 }
 
 // we're mappping our VFO here to work with either VFO A/B rigs or Main/Sub
@@ -1748,7 +1861,8 @@ vfo_t HAMLIB_API vfo_fixup2a(RIG *rig, vfo_t vfo, split_t split, const char *fun
 // So we map these to Main/Sub as required
 vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 {
-    rig_debug(RIG_DEBUG_TRACE, "%s:(from %s:%d) vfo=%s, vfo_curr=%s, split=%d\n", __func__, funcname, linenum,
+    rig_debug(RIG_DEBUG_TRACE, "%s:(from %s:%d) vfo=%s, vfo_curr=%s, split=%d\n",
+              __func__, funcname, linenum,
               rig_strvfo(vfo), rig_strvfo(rig->state.current_vfo), split);
 
     if (vfo == RIG_VFO_CURR)
@@ -1756,22 +1870,28 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
         rig_debug(RIG_DEBUG_TRACE, "%s: Leaving currVFO alone\n", __func__);
         return vfo;  // don't modify vfo for RIG_VFO_CURR
     }
+
     if (vfo == RIG_VFO_OTHER)
     {
-        switch(rig->state.current_vfo)
+        switch (rig->state.current_vfo)
         {
-            case RIG_VFO_A:
-                return RIG_VFO_B;
-            case RIG_VFO_MAIN:
-                return RIG_VFO_SUB;
-            case RIG_VFO_B:
-                return RIG_VFO_A;
-            case RIG_VFO_SUB:
-                return RIG_VFO_MAIN;
-            case RIG_VFO_SUB_A:
-                return RIG_VFO_SUB_B;
-            case RIG_VFO_SUB_B:
-                return RIG_VFO_SUB_A;
+        case RIG_VFO_A:
+            return RIG_VFO_B;
+
+        case RIG_VFO_MAIN:
+            return RIG_VFO_SUB;
+
+        case RIG_VFO_B:
+            return RIG_VFO_A;
+
+        case RIG_VFO_SUB:
+            return RIG_VFO_MAIN;
+
+        case RIG_VFO_SUB_A:
+            return RIG_VFO_SUB_B;
+
+        case RIG_VFO_SUB_B:
+            return RIG_VFO_SUB_A;
         }
     }
 
@@ -1779,7 +1899,7 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
     {
         vfo = rig->state.rx_vfo;
     }
-    else if (vfo == RIG_VFO_RX || vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
+    else if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
     {
         vfo = RIG_VFO_A; // default to mapping VFO_MAIN to VFO_A
 
@@ -1787,7 +1907,6 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 
         if (VFO_HAS_MAIN_SUB_A_B_ONLY) { vfo = RIG_VFO_MAIN; }
     }
-
     else if (vfo == RIG_VFO_TX)
     {
 #if 0
@@ -1809,6 +1928,9 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 
         int satmode = rig->state.cache.satmode;
 
+        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): split=%d, vfo==%s tx_vfo=%s\n", __func__,
+                  __LINE__, split, rig_strvfo(vfo), rig_strvfo(rig->state.tx_vfo));
+
         if (split && vfo == RIG_VFO_TX) { vfo = rig->state.tx_vfo; }
 
         if (VFO_HAS_MAIN_SUB_ONLY && !split && !satmode && vfo != RIG_VFO_B) { vfo = RIG_VFO_MAIN; }
@@ -1823,9 +1945,10 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
                   "%s: RIG_VFO_TX changed to %s, split=%d, satmode=%d\n", __func__,
                   rig_strvfo(vfo), split, satmode);
     }
-    else if (vfo == RIG_VFO_B)
-
+    else if (vfo == RIG_VFO_B || vfo == RIG_VFO_SUB)
     {
+        vfo = RIG_VFO_B;  // default to VFO_B
+
         if (VFO_HAS_MAIN_SUB_ONLY) { vfo = RIG_VFO_SUB; }
 
         if (VFO_HAS_MAIN_SUB_A_B_ONLY) { vfo = RIG_VFO_SUB; }
@@ -2228,6 +2351,9 @@ void *HAMLIB_API rig_get_function_ptr(rig_model_t rig_model,
     case RIG_FUNCTION_GET_CONF:
         return caps->get_conf;
 
+    case RIG_FUNCTION_GET_CONF2:
+        return caps->get_conf2;
+
     case RIG_FUNCTION_SEND_DTMF:
         return caps->send_dtmf;
 
@@ -2239,6 +2365,9 @@ void *HAMLIB_API rig_get_function_ptr(rig_model_t rig_model,
 
     case RIG_FUNCTION_WAIT_MORSE:
         return caps->wait_morse;
+
+    case RIG_FUNCTION_SEND_VOICE_MEM:
+        return caps->send_voice_mem;
 
     case RIG_FUNCTION_SET_BANK:
         return caps->set_bank;
@@ -2287,6 +2416,15 @@ void *HAMLIB_API rig_get_function_ptr(rig_model_t rig_model,
 
     case RIG_FUNCTION_SET_VFO_OPT:
         return caps->set_vfo_opt;
+
+    case RIG_FUNCTION_READ_FRAME_DIRECT:
+        return caps->read_frame_direct;
+
+    case RIG_FUNCTION_IS_ASYNC_FRAME:
+        return caps->is_async_frame;
+
+    case RIG_FUNCTION_PROCESS_ASYNC_FRAME:
+        return caps->process_async_frame;
 
     default:
         rig_debug(RIG_DEBUG_ERR, "Unknown function?? function=%d\n", rig_function);
@@ -2408,19 +2546,35 @@ static struct tm *gmtime_r(const time_t *t, struct tm *r)
 #endif // _WIN32
 
 //! @cond Doxygen_Suppress
-char *date_strget(char *buf, int buflen)
+char *date_strget(char *buf, int buflen, int localtime)
 {
-    char tmp[16];
+    char tmpbuf[64];
     struct tm *mytm;
     time_t t;
     struct timeval tv;
     struct tm result;
+    int mytimezone;
+
     t = time(NULL);
-    mytm = gmtime_r(&t, &result);
-    strftime(buf, buflen, "%Y-%m-%d:%H:%M:%S.", mytm);
+
+    if (localtime)
+    {
+        mytm = localtime_r(&t, &result);
+        mytimezone = timezone;
+    }
+    else
+    {
+        mytm = gmtime_r(&t, &result);
+        mytimezone = 0;
+    }
+
+    strftime(buf, buflen, "%Y-%m-%dT%H:%M:%S.", mytm);
     gettimeofday(&tv, NULL);
-    sprintf(tmp, "%06ld", (long)tv.tv_usec);
-    strcat(buf, tmp);
+    snprintf(tmpbuf, sizeof(tmpbuf), "%06ld", (long)tv.tv_usec);
+    strcat(buf, tmpbuf);
+    snprintf(tmpbuf, sizeof(tmpbuf), "%s%04d", mytimezone >= 0 ? "-" : "+",
+             ((int)abs(mytimezone) / 3600) * 100);
+    strcat(buf, tmpbuf);
     return buf;
 }
 

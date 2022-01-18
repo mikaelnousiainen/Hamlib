@@ -71,7 +71,7 @@ static int ts140_set_vfo(RIG *rig, vfo_t vfo)
         return -RIG_EINVAL;
     }
 
-    sprintf(cmdbuf, "FN%c",
+    SNPRINTF(cmdbuf, sizeof(cmdbuf), "FN%c",
             vfo_function); /* The 680 and 140 need this to set the VFO on the radio */
     return kenwood_transaction(rig, cmdbuf, NULL, 0);
 }
@@ -191,6 +191,7 @@ const struct rig_caps ts140_caps =
     .get_mem = kenwood_get_mem_if,
     .reset =  kenwood_reset,
 
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 /*

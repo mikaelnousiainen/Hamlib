@@ -194,6 +194,14 @@ void frameParse(int fd, unsigned char *frame, int len)
             frame[7] = 0xfd;
             write(fd, frame, 8);
             break;
+
+        case 0x04: // IC7200 data mode
+            frame[6] = 0;
+            frame[7] = 0;
+            frame[8] = 0xfd;
+            write(fd, frame, 9);
+            break;
+
         case 0x07: // satmode
             frame[6] = 0;
             frame[7] = 0xfd;
@@ -204,7 +212,7 @@ void frameParse(int fd, unsigned char *frame, int len)
 
         break;
 
-#if 0
+#if 1
 
     case 0x25:
         if (frame[6] == 0xfd)
@@ -237,6 +245,7 @@ void frameParse(int fd, unsigned char *frame, int len)
 
         break;
 #else
+
     case 0x25:
         frame[4] = 0xfa;
         frame[5] = 0xfd;

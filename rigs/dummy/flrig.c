@@ -144,7 +144,7 @@ const struct rig_caps flrig_caps =
     RIG_MODEL(RIG_MODEL_FLRIG),
     .model_name = "FLRig",
     .mfg_name = "FLRig",
-    .version = "202101014.0",
+    .version = "20211206.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -212,7 +212,8 @@ const struct rig_caps flrig_caps =
     .set_ext_parm =  flrig_set_ext_parm,
     .get_ext_parm =  flrig_get_ext_parm,
     .power2mW =   flrig_power2mW,
-    .mW2power =   flrig_mW2power
+    .mW2power =   flrig_mW2power,
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 //Structure for mapping flrig dynmamic modes to hamlib modes
@@ -455,8 +456,8 @@ static int read_transaction(RIG *rig, char *xml, int xml_len)
             rig_debug(RIG_DEBUG_WARN, "%s: retry needed? retry=%d\n", __func__, retry);
         }
 
-        int len = read_string(&rs->rigport, tmp_buf, sizeof(tmp_buf), delims,
-                              strlen(delims), 0);
+        int len = read_string(&rs->rigport, (unsigned char *) tmp_buf, sizeof(tmp_buf), delims,
+                              strlen(delims), 0, 1);
         rig_debug(RIG_DEBUG_TRACE, "%s: string='%s'\n", __func__, tmp_buf);
 
         // if our first response we should see the HTTP header
@@ -540,7 +541,7 @@ static int write_transaction(RIG *rig, char *xml, int xml_len)
 
     while (try-- >= 0 && retval != RIG_OK)
         {
-            retval = write_block(&rs->rigport, xml, strlen(xml));
+            retval = write_block(&rs->rigport, (unsigned char *) xml, strlen(xml));
 
             if (retval  < 0)
             {
@@ -555,9 +556,10 @@ static int flrig_transaction(RIG *rig, char *cmd, char *cmd_arg, char *value,
                              int value_len)
 {
     char xml[MAXXMLLEN];
-    int retry = 5;
+    int retry = 3;
 
     ENTERFUNC;
+    ELAPSED1;
 
     if (value)
     {
@@ -569,7 +571,7 @@ static int flrig_transaction(RIG *rig, char *cmd, char *cmd_arg, char *value,
         char *pxml;
         int retval;
 
-        if (retry < 2)
+        if (retry != 3)
         {
             rig_debug(RIG_DEBUG_VERBOSE, "%s: cmd=%s, retry=%d\n", __func__, cmd, retry);
         }
@@ -601,8 +603,13 @@ static int flrig_transaction(RIG *rig, char *cmd, char *cmd_arg, char *value,
     while (((value && strlen(value) == 0) || (strlen(xml) == 0))
             && retry--); // we'll do retries if needed
 
-    if (value && strlen(value) == 0) { RETURNFUNC(RIG_EPROTO); }
+    if (value && strlen(value) == 0)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: no value returned\n", __func__);
+        RETURNFUNC(RIG_EPROTO);
+    }
 
+    ELAPSED2;
     RETURNFUNC(RIG_OK);
 }
 
@@ -673,7 +680,8 @@ static const char *modeMapGetFLRig(rmode_t modeHamlib)
 
     for (i = 0; modeMap[i].mode_hamlib != 0; ++i)
     {
-        if (modeMap[i].mode_flrig == NULL) continue;
+        if (modeMap[i].mode_flrig == NULL) { continue; }
+
         rig_debug(RIG_DEBUG_TRACE,
                   "%s: checking modeMap[%d]=%.0f to modeHamlib=%.0f, mode_flrig='%s'\n", __func__,
                   i, (double)modeMap[i].mode_hamlib, (double)modeHamlib, modeMap[i].mode_flrig);
@@ -797,12 +805,13 @@ static int flrig_open(RIG *rig)
 
     if (retval != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: get_version failed: %s\nAssuming version < 1.3.54", __func__,
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: get_version failed: %s\nAssuming version < 1.3.54", __func__,
                   rigerror(retval));
         // we fall through and assume old version
     }
 
-    int v1=0, v2=0, v3=0, v4=0;
+    int v1 = 0, v2 = 0, v3 = 0, v4 = 0;
     sscanf(value, "%d.%d.%d.%d", &v1, &v2, &v3, &v4);
 
     if (v1 >= 1 && v2 >= 3 && v3 >= 54)
@@ -1189,7 +1198,7 @@ static int flrig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         vfo = RIG_VFO_B; // if split always TX on VFOB
     }
 
-    sprintf(cmd_arg,
+    SNPRINTF(cmd_arg, sizeof(cmd_arg),
             "<params><param><value><double>%.0f</double></value></param></params>", freq);
 
     value_t val;
@@ -1246,7 +1255,7 @@ static int flrig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
         RETURNFUNC(-RIG_EINVAL);
     }
 
-    sprintf(cmd_arg,
+    SNPRINTF(cmd_arg, sizeof(cmd_arg),
             "<params><param><value><i4>%d</i4></value></param></params>",
             ptt);
 
@@ -1448,7 +1457,7 @@ static int flrig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     if (p) { *p = 0; } // remove any other pipe
 
-    sprintf(cmd_arg, "<params><param><value>%s</value></param></params>", pttmode);
+    SNPRINTF(cmd_arg, sizeof(cmd_arg), "<params><param><value>%s</value></param></params>", pttmode);
     free(ttmode);
 
     if (!priv->has_get_modeA)
@@ -1504,7 +1513,7 @@ static int flrig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     // Need to update the bandwidth
     if (width > 0 && needBW)
     {
-        sprintf(cmd_arg, "<params><param><value><i4>%ld</i4></value></param></params>",
+        SNPRINTF(cmd_arg, sizeof(cmd_arg), "<params><param><value><i4>%ld</i4></value></param></params>",
                 width);
 
         retval = flrig_transaction(rig, "rig.set_bandwidth", cmd_arg, NULL, 0);
@@ -1741,7 +1750,7 @@ static int flrig_set_vfo(RIG *rig, vfo_t vfo)
         vfo = rig->state.current_vfo;
     }
 
-    sprintf(cmd_arg, "<params><param><value>%s</value></param></params>",
+    SNPRINTF(cmd_arg, sizeof(cmd_arg), "<params><param><value>%s</value></param></params>",
             vfo == RIG_VFO_A ? "A" : "B");
     retval = flrig_transaction(rig, "rig.set_AB", cmd_arg, NULL, 0);
 
@@ -1759,7 +1768,7 @@ static int flrig_set_vfo(RIG *rig, vfo_t vfo)
     /* so if we are in split and asked for A we have to turn split back on */
     if (priv->split && vfo == RIG_VFO_A)
     {
-        sprintf(cmd_arg, "<params><param><value><i4>%d</i4></value></param></params>",
+        SNPRINTF(cmd_arg, sizeof(cmd_arg), "<params><param><value><i4>%d</i4></value></param></params>",
                 priv->split);
         retval = flrig_transaction(rig, "rig.set_split", cmd_arg, NULL, 0);
 
@@ -1852,7 +1861,7 @@ static int flrig_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
 
     if (tx_freq == qtx_freq) { RETURNFUNC(RIG_OK); }
 
-    sprintf(cmd_arg,
+    SNPRINTF(cmd_arg, sizeof(cmd_arg),
             "<params><param><value><double>%.6f</double></value></param></params>",
             tx_freq);
     retval = flrig_transaction(rig, "rig.set_vfoB", cmd_arg, NULL, 0);
@@ -1913,7 +1922,7 @@ static int flrig_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
         RETURNFUNC(RIG_OK);  // just return OK and ignore this
     }
 
-    sprintf(cmd_arg, "<params><param><value><i4>%d</i4></value></param></params>",
+    SNPRINTF(cmd_arg, sizeof(cmd_arg), "<params><param><value><i4>%d</i4></value></param></params>",
             split);
     retval = flrig_transaction(rig, "rig.set_split", cmd_arg, NULL, 0);
 
@@ -2063,7 +2072,7 @@ static int flrig_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         RETURNFUNC(-RIG_EINVAL);
     }
 
-    sprintf(cmd_arg,
+    SNPRINTF(cmd_arg, sizeof(cmd_arg),
             "<params><param><value><%s>%d</%s></value></param></params>",
             param_type, (int)val.f, param_type);
 
@@ -2239,15 +2248,15 @@ static int flrig_set_ext_parm(RIG *rig, token_t token, value_t val)
 
 
     case RIG_CONF_COMBO:
-        sprintf(lstr, "%d", val.i);
+        SNPRINTF(lstr, sizeof(lstr), "%d", val.i);
         break;
 
     case RIG_CONF_NUMERIC:
-        sprintf(lstr, "%f", val.f);
+        SNPRINTF(lstr, sizeof(lstr), "%f", val.f);
         break;
 
     case RIG_CONF_CHECKBUTTON:
-        sprintf(lstr, "%s", val.i ? "ON" : "OFF");
+        SNPRINTF(lstr, sizeof(lstr), "%s", val.i ? "ON" : "OFF");
         break;
 
     case RIG_CONF_BUTTON:
@@ -2335,11 +2344,11 @@ static int flrig_set_ext_parm(RIG *rig, setting_t parm, value_t val)
 
     if (RIG_PARM_IS_FLOAT(parm))
     {
-        sprintf(pstr, "%f", val.f);
+        SNPRINTF(pstr, sizeof(pstr), "%f", val.f);
     }
     else
     {
-        sprintf(pstr, "%d", val.i);
+        SNPRINTF(pstr, sizeof(pstr), "%d", val.i);
     }
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s %s\n", __func__,

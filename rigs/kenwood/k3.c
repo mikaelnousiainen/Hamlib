@@ -328,8 +328,9 @@ const struct rig_caps k3_caps =
     .set_ant =      kenwood_set_ant_no_ack,
     .get_ant =      kenwood_get_ant,
     .send_morse =       kenwood_send_morse,
-    .wait_morse =       rig_wait_morse
+    .wait_morse =       rig_wait_morse,
 
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 const struct rig_caps k3s_caps =
@@ -478,7 +479,8 @@ const struct rig_caps k3s_caps =
     .set_ant =      kenwood_set_ant_no_ack,
     .get_ant =      kenwood_get_ant,
     .send_morse =       kenwood_send_morse,
-    .wait_morse =       rig_wait_morse
+    .wait_morse =       rig_wait_morse,
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 // How similar is this to the K3S?
@@ -628,7 +630,8 @@ const struct rig_caps k4_caps =
     .set_ant =      kenwood_set_ant_no_ack,
     .get_ant =      kenwood_get_ant,
     .send_morse =       kenwood_send_morse,
-    .wait_morse =       rig_wait_morse
+    .wait_morse =       rig_wait_morse,
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 const struct rig_caps kx3_caps =
@@ -777,7 +780,8 @@ const struct rig_caps kx3_caps =
     .set_ant =      kenwood_set_ant_no_ack,
     .get_ant =      kenwood_get_ant,
     .send_morse =       kenwood_send_morse,
-    .wait_morse =       rig_wait_morse
+    .wait_morse =       rig_wait_morse,
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 const struct rig_caps kx2_caps =
@@ -926,7 +930,8 @@ const struct rig_caps kx2_caps =
     .set_ant =      kenwood_set_ant_no_ack,
     .get_ant =      kenwood_get_ant,
     .send_morse =       kenwood_send_morse,
-    .wait_morse =       rig_wait_morse
+    .wait_morse =       rig_wait_morse,
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 /*
@@ -959,6 +964,7 @@ int k3_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
         cmd_bw_len = 7;
 
     }
+
     if (!mode || !width)
     {
         return -RIG_EINVAL;
@@ -978,7 +984,8 @@ int k3_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 
     if (temp_m == RIG_MODE_RTTY)
     {
-        err = kenwood_safe_transaction(rig, cmd_mode, buf, KENWOOD_MAX_BUF_LEN, strlen(cmd_mode)+1);
+        err = kenwood_safe_transaction(rig, cmd_mode, buf, KENWOOD_MAX_BUF_LEN,
+                                       strlen(cmd_mode) + 1);
 
         if (err != RIG_OK)
         {
@@ -1005,7 +1012,8 @@ int k3_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     }
     else if (temp_m == RIG_MODE_RTTYR)
     {
-        err = kenwood_safe_transaction(rig, cmd_mode, buf, KENWOOD_MAX_BUF_LEN, strlen(cmd_mode)+1);
+        err = kenwood_safe_transaction(rig, cmd_mode, buf, KENWOOD_MAX_BUF_LEN,
+                                       strlen(cmd_mode) + 1);
 
         if (err != RIG_OK)
         {
@@ -1039,7 +1047,8 @@ int k3_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     /* The K3 is not limited to specific filter widths so we can query
      * the actual bandwidth using the BW command
      */
-    err = kenwood_safe_transaction(rig, cmd_bw, buf, KENWOOD_MAX_BUF_LEN, cmd_bw_len);
+    err = kenwood_safe_transaction(rig, cmd_bw, buf, KENWOOD_MAX_BUF_LEN,
+                                   cmd_bw_len);
 
     if (err != RIG_OK)
     {
@@ -1047,7 +1056,7 @@ int k3_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
         return err;
     }
 
-    *width = atoi(&buf[cmd_bw_len-4]) * 10;
+    *width = atoi(&buf[cmd_bw_len - 4]) * 10;
 
     return RIG_OK;
 }
@@ -1086,28 +1095,30 @@ int k3_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 
 int k3_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
-    int err,err2;
+    int err, err2;
     char cmd_m[5];
     char buf[KENWOOD_MAX_BUF_LEN];
     char *dtcmd;
     struct kenwood_priv_caps *caps = kenwood_caps(rig);
     struct kenwood_priv_data *priv = rig->state.priv;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s mode=%s width=%d\n", __func__, rig_strvfo(vfo), rig_strrmode(mode), (int)width);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s mode=%s width=%d\n", __func__,
+              rig_strvfo(vfo), rig_strrmode(mode), (int)width);
 
     if (vfo == RIG_VFO_CURR)
     {
         vfo = rig->state.current_vfo;
     }
 
-    rmode_t tmodeA,tmodeB;
+    rmode_t tmodeA, tmodeB;
     pbwidth_t twidth;
     err = k3_get_mode(rig, RIG_VFO_A, &tmodeA, &twidth);
     err2 = k3_get_mode(rig, RIG_VFO_B, &tmodeB, &twidth);
 
     // we keep both vfos in the same mode -- any reason they should ever be differnet?  If so, fix this
     // if we change mode on one VFO we'll also change the other
-    if (err == RIG_OK && err2 == RIG_OK && tmodeA == mode && tmodeB == mode && width == RIG_PASSBAND_NOCHANGE)
+    if (err == RIG_OK && err2 == RIG_OK && tmodeA == mode && tmodeB == mode
+            && width == RIG_PASSBAND_NOCHANGE)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s(%d): mode/width no change, skipping\n", __FILE__,
                   __LINE__);
@@ -1116,11 +1127,14 @@ int k3_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     else
     {
         rig_debug(RIG_DEBUG_TRACE,
-                  "%s(%d): changing oldmode=A=%s B=%s, to mode=%s, oldwidth=%ld, to width=%ld\n", __FILE__,
-                  __LINE__, rig_strrmode(tmodeA), rig_strrmode(tmodeB), rig_strrmode(mode), twidth, width);
+                  "%s(%d): changing oldmode=A=%s B=%s, to mode=%s, oldwidth=%ld, to width=%ld\n",
+                  __FILE__,
+                  __LINE__, rig_strrmode(tmodeA), rig_strrmode(tmodeB), rig_strrmode(mode),
+                  twidth, width);
     }
 
     dtcmd = "DT";
+
     if ((priv->is_k4 || priv->is_k4d || priv->is_k4hd)  && vfo == RIG_VFO_B)
     {
         dtcmd = "DT$";
@@ -1595,7 +1609,7 @@ int k3_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode, pbwidth_t tx_width)
         return -RIG_EINVAL;
     }
 
-    sprintf(buf, "MD$%c", '0' + kmode);
+    snprintf(buf, sizeof(buf), "MD$%c", '0' + kmode);
     err = kenwood_transaction(rig, buf, NULL, 0);
 
     if (err != RIG_OK)
@@ -2699,7 +2713,9 @@ int k4_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     snprintf(cmd, sizeof(cmd), "RX");
-    if (ptt) cmd[0] = 'T';
+
+    if (ptt) { cmd[0] = 'T'; }
+
     retval = kenwood_transaction(rig, cmd, NULL, 0);
 
     if (retval != RIG_OK)
@@ -2709,20 +2725,23 @@ int k4_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 
     do
     {
-        hl_usleep(10*1000);
+        hl_usleep(10 * 1000);
         retval = kenwood_safe_transaction(rig, "TQ", pttbuf, 6, 3);
 
         if (retval != RIG_OK)
         {
             return retval;
         }
-        ptt2 = pttbuf[2] == '1'? RIG_PTT_ON : RIG_PTT_OFF;
+
+        ptt2 = pttbuf[2] == '1' ? RIG_PTT_ON : RIG_PTT_OFF;
+
         if (ptt2 != ptt)
         {
             rig_debug(RIG_DEBUG_TRACE, "%s: ptt=%d, expected=%d\n", __func__, ptt2, ptt);
         }
 
-    } while (ptt != ptt2);  
+    }
+    while (ptt != ptt2);
 
     return RIG_OK;
 }

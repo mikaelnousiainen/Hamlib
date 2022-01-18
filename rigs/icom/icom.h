@@ -30,7 +30,7 @@
 #include <sys/time.h>
 #endif
 
-#define BACKEND_VER "20211115"
+#define BACKEND_VER "20220116"
 
 #define ICOM_IS_SECONDARY_VFO(vfo) ((vfo) & (RIG_VFO_B | RIG_VFO_SUB | RIG_VFO_SUB_B | RIG_VFO_MAIN_B))
 #define ICOM_GET_VFO_NUMBER(vfo) (ICOM_IS_SECONDARY_VFO(vfo) ? 0x01 : 0x00)
@@ -181,7 +181,7 @@ struct icom_spectrum_scope_cache
     freq_t spectrum_span_freq; /*!< The frequency span of the current spectrum scope line being received */
     freq_t spectrum_low_edge_freq; /*!< The low edge frequency of the current spectrum scope line being received */
     freq_t spectrum_high_edge_freq; /*!< The high edge frequency of the current spectrum scope line being received */
-    int spectrum_data_length;     /*!< Number of bytes of 8-bit spectrum data in the data buffer. The amount of data may vary if the rig has multiple spectrum scopes, depending on the scope. */
+    size_t spectrum_data_length;     /*!< Number of bytes of 8-bit spectrum data in the data buffer. The amount of data may vary if the rig has multiple spectrum scopes, depending on the scope. */
     unsigned char *spectrum_data; /*!< Dynamically allocated buffer for raw spectrum data */
 };
 
@@ -398,8 +398,9 @@ int icom_set_custom_parm_time(RIG *rig, int parmbuflen, unsigned char *parmbuf,
 int icom_get_custom_parm_time(RIG *rig, int parmbuflen, unsigned char *parmbuf,
                               int *seconds);
 int icom_get_freq_range(RIG *rig);
-int icom_is_async_frame(RIG *rig, int frame_len, const unsigned char *frame);
-int icom_process_async_frame(RIG *rig, int frame_len, const unsigned char *frame);
+int icom_is_async_frame(RIG *rig, size_t frame_length, const unsigned char *frame);
+int icom_process_async_frame(RIG *rig, size_t frame_length, const unsigned char *frame);
+int icom_read_frame_direct(RIG *rig, size_t buffer_length, const unsigned char *buffer);
 
 extern const struct confparams icom_cfg_params[];
 extern const struct confparams icom_ext_levels[];
@@ -468,6 +469,7 @@ extern const struct rig_caps ic471_caps;
 extern const struct rig_caps ic475_caps;
 extern const struct rig_caps ic575_caps;
 extern const struct rig_caps ic1275_caps;
+extern const struct rig_caps icf8101_caps;
 
 extern const struct rig_caps omnivip_caps;
 extern const struct rig_caps delta2_caps;
@@ -486,6 +488,8 @@ extern const struct rig_caps ic2730_caps;
 extern const struct rig_caps perseus_caps;
 
 extern const struct rig_caps x108g_caps;
+extern const struct rig_caps x6100_caps;
+extern const struct rig_caps g90_caps;
 
 extern const struct rig_caps icr8600_caps;
 extern const struct rig_caps icr30_caps;

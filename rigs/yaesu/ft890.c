@@ -75,31 +75,32 @@
  *
  */
 
-enum ft890_native_cmd_e {
-  FT890_NATIVE_SPLIT_OFF = 0,
-  FT890_NATIVE_SPLIT_ON,
-  FT890_NATIVE_RECALL_MEM,
-  FT890_NATIVE_VFO_TO_MEM,
-  FT890_NATIVE_VFO_A,
-  FT890_NATIVE_VFO_B,
-  FT890_NATIVE_MEM_TO_VFO,
-  FT890_NATIVE_CLARIFIER_OPS,
-  FT890_NATIVE_FREQ_SET,
-  FT890_NATIVE_MODE_SET,
-  FT890_NATIVE_PACING,
-  FT890_NATIVE_PTT_OFF,
-  FT890_NATIVE_PTT_ON,
-  FT890_NATIVE_MEM_CHNL,
-  FT890_NATIVE_OP_DATA,
-  FT890_NATIVE_VFO_DATA,
-  FT890_NATIVE_MEM_CHNL_DATA,
-  FT890_NATIVE_TUNER_OFF,
-  FT890_NATIVE_TUNER_ON,
-  FT890_NATIVE_TUNER_START,
-  FT890_NATIVE_READ_METER,
-  FT890_NATIVE_READ_FLAGS,
-  FT890_NATIVE_SIZE             /* end marker, value indicates number of */
-				                /* native cmd entries */
+enum ft890_native_cmd_e
+{
+    FT890_NATIVE_SPLIT_OFF = 0,
+    FT890_NATIVE_SPLIT_ON,
+    FT890_NATIVE_RECALL_MEM,
+    FT890_NATIVE_VFO_TO_MEM,
+    FT890_NATIVE_VFO_A,
+    FT890_NATIVE_VFO_B,
+    FT890_NATIVE_MEM_TO_VFO,
+    FT890_NATIVE_CLARIFIER_OPS,
+    FT890_NATIVE_FREQ_SET,
+    FT890_NATIVE_MODE_SET,
+    FT890_NATIVE_PACING,
+    FT890_NATIVE_PTT_OFF,
+    FT890_NATIVE_PTT_ON,
+    FT890_NATIVE_MEM_CHNL,
+    FT890_NATIVE_OP_DATA,
+    FT890_NATIVE_VFO_DATA,
+    FT890_NATIVE_MEM_CHNL_DATA,
+    FT890_NATIVE_TUNER_OFF,
+    FT890_NATIVE_TUNER_ON,
+    FT890_NATIVE_TUNER_START,
+    FT890_NATIVE_READ_METER,
+    FT890_NATIVE_READ_FLAGS,
+    FT890_NATIVE_SIZE             /* end marker, value indicates number of */
+    /* native cmd entries */
 };
 
 typedef enum ft890_native_cmd_e ft890_native_cmd_t;
@@ -302,8 +303,10 @@ static int ft890_get_vfo(RIG *rig, vfo_t *vfo);
 static int ft890_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt);
 static int ft890_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt);
 
-static int ft890_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo);
-static int ft890_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo);
+static int ft890_set_split_vfo(RIG *rig, vfo_t vfo, split_t split,
+                               vfo_t tx_vfo);
+static int ft890_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split,
+                               vfo_t *tx_vfo);
 
 static int ft890_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit);
 static int ft890_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit);
@@ -379,7 +382,6 @@ static const yaesu_cmd_set_t ncmd[] =
 struct ft890_priv_data
 {
     unsigned char pacing;                     /* pacing value */
-    unsigned int read_update_delay;           /* depends on pacing value */
     vfo_t current_vfo;                        /* active VFO from last cmd */
     unsigned char
     p_cmd[YAESU_CMD_LENGTH];    /* private copy of 1 constructed CAT cmd */
@@ -547,8 +549,6 @@ static int ft890_init(RIG *rig)
 
     /* TODO: read pacing from preferences */
     priv->pacing = FT890_PACING_DEFAULT_VALUE; /* set pacing to minimum for now */
-    priv->read_update_delay =
-        FT890_DEFAULT_READ_TIMEOUT; /* set update timeout to safe value */
     priv->current_vfo =  RIG_VFO_MAIN;  /* default to whatever */
 
     return RIG_OK;
@@ -1899,7 +1899,7 @@ static int ft890_get_update_data(RIG *rig, unsigned char ci, unsigned char rl)
         return err;
     }
 
-    n = read_block(&rig->state.rigport, (char *) priv->update_data, rl);
+    n = read_block(&rig->state.rigport, priv->update_data, rl);
 
     if (n < 0)
     {
@@ -1942,8 +1942,7 @@ static int ft890_send_static_cmd(RIG *rig, unsigned char ci)
         return -RIG_EINVAL;
     }
 
-    err = write_block(&rig->state.rigport, (char *) ncmd[ci].nseq,
-                      YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, ncmd[ci].nseq, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -2003,8 +2002,7 @@ static int ft890_send_dynamic_cmd(RIG *rig, unsigned char ci,
     priv->p_cmd[P3] = p3;
     priv->p_cmd[P4] = p4;
 
-    err = write_block(&rig->state.rigport, (char *) &priv->p_cmd,
-                      YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -2064,8 +2062,7 @@ static int ft890_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     rig_debug(RIG_DEBUG_TRACE, fmt, __func__, (int64_t)from_bcd(priv->p_cmd,
               FT890_BCD_DIAL) * 10);
 
-    err = write_block(&rig->state.rigport, (char *) &priv->p_cmd,
-                      YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -2145,8 +2142,7 @@ static int ft890_send_rit_freq(RIG *rig, unsigned char ci, shortfreq_t rit)
     priv->p_cmd[P1] = p1;         /* ick */
     priv->p_cmd[P2] = p2;
 
-    err = write_block(&rig->state.rigport, (char *) &priv->p_cmd,
-                      YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {

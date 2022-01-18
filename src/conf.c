@@ -89,9 +89,9 @@ static const struct confparams frontend_cfg_params[] =
         "0", RIG_CONF_NUMERIC, { .n = { 0.0, 1000.0, .001 } }
     },
     {
-        TOK_POLL_INTERVAL, "poll_interval", "Polling interval",
-        "Polling interval in millisecond for transceive emulation",
-        "500", RIG_CONF_NUMERIC, { .n = { 0, 1000000, 1 } }
+        TOK_POLL_INTERVAL, "poll_interval", "Rig state poll interval in milliseconds",
+        "Polling interval in milliseconds for transceive emulation, value of 0 disables polling",
+        "0", RIG_CONF_NUMERIC, { .n = { 0, 1000000, 1 } }
     },
     {
         TOK_PTT_TYPE, "ptt_type", "PTT type",
@@ -167,6 +167,11 @@ static const struct confparams frontend_cfg_params[] =
         TOK_TWIDDLE_RIT, "twiddle_rit", "RIT twiddle",
         "Suppress get_freq on VFOB for RIT tuning satellites",
         "Unset", RIG_CONF_COMBO, { .c = {{ "Unset", "ON", "OFF", NULL }} }
+    },
+    {
+        TOK_ASYNC, "async", "Asynchronous data transfer support",
+        "True enables asynchronous data transfer for backends that support it. This allows use of transceive and spectrum data.",
+        "0", RIG_CONF_CHECKBUTTON, { }
     },
 
     { RIG_CONF_END, NULL, }
@@ -582,6 +587,8 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
 
     case TOK_POLL_INTERVAL:
         rs->poll_interval = atof(val);
+        // Make sure cache times out before next poll cycle
+        rig_set_cache_timeout_ms(rig, HAMLIB_CACHE_ALL, atol(val));
         break;
 
     case TOK_LO_FREQ:
@@ -664,6 +671,15 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
         rs->twiddle_rit = val_i ? 1 : 0;
         break;
 
+    case TOK_ASYNC:
+        if (1 != sscanf(val, "%d", &val_i))
+        {
+            return -RIG_EINVAL; //value format error
+        }
+
+        rs->async_data_enabled = val_i ? 1 : 0;
+        break;
+
     default:
         return -RIG_EINVAL;
     }
@@ -676,7 +692,7 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
  * frontend_get_conf
  * assumes rig!=NULL, val!=NULL
  */
-static int frontend_get_conf(RIG *rig, token_t token, char *val)
+static int frontend_get_conf2(RIG *rig, token_t token, char *val, int val_len)
 {
     struct rig_state *rs;
     const char *s = "";
@@ -1008,6 +1024,9 @@ static int frontend_get_conf(RIG *rig, token_t token, char *val)
         sprintf(val, "%d", rs->twiddle_rit);
         break;
 
+    case TOK_ASYNC:
+        sprintf(val, "%d", rs->async_data_enabled);
+        break;
 
     default:
         return -RIG_EINVAL;
@@ -1091,7 +1110,7 @@ const struct confparams *HAMLIB_API rig_confparam_lookup(RIG *rig,
     const struct confparams *cfp;
     token_t token;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called for %s\n", __func__, name);
 
     if (!rig || !rig->caps)
     {
@@ -1145,7 +1164,7 @@ token_t HAMLIB_API rig_token_lookup(RIG *rig, const char *name)
 {
     const struct confparams *cfp;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called for %s\n", __func__, name);
 
     cfp = rig_confparam_lookup(rig, name);
 
@@ -1227,6 +1246,11 @@ int HAMLIB_API rig_set_conf(RIG *rig, token_t token, const char *val)
  */
 int HAMLIB_API rig_get_conf(RIG *rig, token_t token, char *val)
 {
+    return rig_get_conf2(rig, token, val, 128);
+}
+
+int HAMLIB_API rig_get_conf2(RIG *rig, token_t token, char *val, int val_len)
+{
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (!rig || !rig->caps || !val)
@@ -1236,7 +1260,12 @@ int HAMLIB_API rig_get_conf(RIG *rig, token_t token, char *val)
 
     if (IS_TOKEN_FRONTEND(token))
     {
-        return frontend_get_conf(rig, token, val);
+        return frontend_get_conf2(rig, token, val, val_len);
+    }
+    
+    if (rig->caps->get_conf2)
+    {
+        return rig->caps->get_conf2(rig, token, val, val_len);
     }
 
     if (rig->caps->get_conf == NULL)

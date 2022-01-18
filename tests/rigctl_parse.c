@@ -244,6 +244,8 @@ declare_proto_rig(halt);
 declare_proto_rig(pause);
 declare_proto_rig(password);
 declare_proto_rig(set_password);
+declare_proto_rig(set_clock);
+declare_proto_rig(get_clock);
 
 
 /*
@@ -344,11 +346,14 @@ static struct test_table test_list[] =
     { 0xf5, "get_rig_info",     ACTION(get_rig_info),   ARG_NOVFO | ARG_OUT, "RigInfo" }, /* get several vfo parameters at once */
     { 0xf4, "get_vfo_list",    ACTION(get_vfo_list),   ARG_OUT | ARG_NOVFO, "VFOs" },
     { 0xf6, "get_modes",       ACTION(get_modes),   ARG_OUT | ARG_NOVFO, "Modes" },
-    { 0xf7, "get_mode_bandwidths", ACTION(get_mode_bandwidths),   ARG_IN | ARG_NOVFO, "Mode" },
+//    { 0xf9, "get_clock",        ACTION(get_clock),      ARG_IN | ARG_NOVFO, "local/utc" },
+    { 0xf9, "get_clock",        ACTION(get_clock),      ARG_NOVFO },
+    { 0xf8, "set_clock",        ACTION(set_clock),      ARG_IN | ARG_NOVFO, "YYYYMMDDHHMMSS.sss+ZZ" },
     { 0xf1, "halt",             ACTION(halt),           ARG_NOVFO },   /* rigctld only--halt the daemon */
     { 0x8c, "pause",            ACTION(pause),          ARG_IN, "Seconds" },
     { 0x98, "password",         ACTION(password),       ARG_IN, "Password" },
     { 0x99, "set_password",     ACTION(set_password),   ARG_IN, "Password" },
+    { 0xf7, "get_mode_bandwidths", ACTION(get_mode_bandwidths),   ARG_IN | ARG_NOVFO, "Mode" },
     { 0x00, "", NULL },
 };
 
@@ -408,11 +413,11 @@ void hash_add_model(int id,
     s = (struct mod_lst *)malloc(sizeof(struct mod_lst));
 
     s->id = id;
-    snprintf(s->mfg_name, sizeof(s->mfg_name), "%s", mfg_name);
-    snprintf(s->model_name, sizeof(s->model_name), "%s", model_name);
-    snprintf(s->version, sizeof(s->version), "%s", version);
-    snprintf(s->status, sizeof(s->status), "%s", status);
-    snprintf(s->macro_name, sizeof(s->macro_name), "%s", macro_name);
+    SNPRINTF(s->mfg_name, sizeof(s->mfg_name), "%s", mfg_name);
+    SNPRINTF(s->model_name, sizeof(s->model_name), "%s", model_name);
+    SNPRINTF(s->version, sizeof(s->version), "%s", version);
+    SNPRINTF(s->status, sizeof(s->status), "%s", status);
+    SNPRINTF(s->macro_name, sizeof(s->macro_name), "%s", macro_name);
 
     HASH_ADD_INT(models, id, s);    /* id: name of key field */
 }
@@ -1219,7 +1224,7 @@ readline_repeat:
             /* The starting position of the source string is the first
              * character past the initial '\'.
              */
-            snprintf(cmd_name, sizeof(cmd_name), "%s", parsed_input[0] + 1);
+            SNPRINTF(cmd_name, sizeof(cmd_name), "%s", parsed_input[0] + 1);
 
             /* Sanity check as valid multiple character commands consist of
              * alphanumeric characters and the underscore ('_') character.
@@ -2257,6 +2262,7 @@ declare_proto_rig(get_vfo_info)
     int retval;
 
     ENTERFUNC;
+    ELAPSED1;
 
     if (!strcmp(arg1, "?"))
     {
@@ -2296,6 +2302,7 @@ declare_proto_rig(get_vfo_info)
         fprintf(fout, "%.0f\n%s\n%d\n", freq, modestr, (int)width);
     }
 
+    ELAPSED2;
     RETURNFUNC(retval);
 }
 
@@ -2386,14 +2393,14 @@ declare_proto_rig(get_mode_bandwidths)
         }
 
 //        sprintf_freq(freqbuf, sizeof(freqbuf), pbnorm);
-        snprintf(freqbuf, sizeof(freqbuf), "%ldHz", pbnorm);
+        SNPRINTF(freqbuf, sizeof(freqbuf), "%ldHz", pbnorm);
         fprintf(fout, "Mode=%s\n", rig_strrmode(i));
         fprintf(fout, "Normal=%s\n", freqbuf);
 
-        snprintf(freqbuf, sizeof(freqbuf), "%ldHz", rig_passband_narrow(rig, i));
+        SNPRINTF(freqbuf, sizeof(freqbuf), "%ldHz", rig_passband_narrow(rig, i));
         fprintf(fout, "Narrow=%s\n", freqbuf);
 
-        snprintf(freqbuf, sizeof(freqbuf), "%ldHz", rig_passband_wide(rig, i));
+        SNPRINTF(freqbuf, sizeof(freqbuf), "%ldHz", rig_passband_wide(rig, i));
         fprintf(fout, "Wide=%s", freqbuf);
     }
 
@@ -2798,7 +2805,7 @@ declare_proto_rig(set_split_mode)
     }
 
     // mode could be RIG_MODE_NONE here
-    // we treat it as non-fatal 
+    // we treat it as non-fatal
     // rig_parse_mode will spit out error msg
     mode = rig_parse_mode(arg1);
     CHKSCN1ARG(sscanf(arg2, "%d", &width));
@@ -3633,6 +3640,8 @@ declare_proto_rig(vfo_op)
 
     if (RIG_OP_NONE == op)
     {
+        rig_debug(RIG_DEBUG_ERR, "%s: rig_parse_vfo failed with '%s'\n", __func__,
+                  arg1);
         RETURNFUNC(-RIG_EINVAL);
     }
 
@@ -4023,217 +4032,25 @@ declare_proto_rig(get_channel)
 }
 
 
-static int myfreq_event(RIG *rig, vfo_t vfo, freq_t freq, rig_ptr_t arg)
-{
-    ENTERFUNC;
-
-    printf("Event: freq changed to %"PRIll"Hz on %s\n",
-           (int64_t)freq,
-           rig_strvfo(vfo));
-
-    RETURNFUNC(0);
-}
-
-
-static int mymode_event(RIG *rig,
-                        vfo_t vfo,
-                        rmode_t mode,
-                        pbwidth_t width,
-                        rig_ptr_t arg)
-{
-    ENTERFUNC;
-
-    printf("Event: mode changed to %s, width %liHz on %s\n",
-           rig_strrmode(mode),
-           width, rig_strvfo(vfo));
-
-    RETURNFUNC(0);
-}
-
-
-static int myvfo_event(RIG *rig, vfo_t vfo, rig_ptr_t arg)
-{
-    ENTERFUNC;
-
-    printf("Event: vfo changed to %s\n", rig_strvfo(vfo));
-    RETURNFUNC(0);
-}
-
-
-static int myptt_event(RIG *rig, vfo_t vfo, ptt_t ptt, rig_ptr_t arg)
-{
-    ENTERFUNC;
-
-    printf("Event: PTT changed to %i on %s\n", ptt, rig_strvfo(vfo));
-
-    RETURNFUNC(0);
-}
-
-
-static int mydcd_event(RIG *rig, vfo_t vfo, dcd_t dcd, rig_ptr_t arg)
-{
-    ENTERFUNC;
-
-    printf("Event: DCD changed to %i on %s\n", dcd, rig_strvfo(vfo));
-
-    RETURNFUNC(0);
-}
-
-
-static int print_spectrum_line(char *str, size_t length,
-                               struct rig_spectrum_line *line)
-{
-    int data_level_max = line->data_level_max / 2;
-    int aggregate_count = line->spectrum_data_length / 120;
-    int aggregate_value = 0;
-    int i, c;
-    int charlen = strlen("█");
-
-    str[0] = '\0';
-
-    for (i = 0, c = 0; i < line->spectrum_data_length; i++)
-    {
-        int current = line->spectrum_data[i];
-        aggregate_value = current > aggregate_value ? current : aggregate_value;
-
-        if (i > 0 && i % aggregate_count == 0)
-        {
-            if (c + charlen >= length)
-            {
-                break;
-            }
-
-            int level = aggregate_value * 10 / data_level_max;
-
-            if (level >= 8)
-            {
-                strcpy(str + c, "█");
-                c += charlen;
-            }
-            else if (level >= 6)
-            {
-                strcpy(str + c, "▓");
-                c += charlen;
-            }
-            else if (level >= 4)
-            {
-                strcpy(str + c, "▒");
-                c += charlen;
-            }
-            else if (level >= 2)
-            {
-                strcpy(str + c, "░");
-                c += charlen;
-            }
-            else if (level >= 0)
-            {
-                strcpy(str + c, " ");
-                c += 1;
-            }
-
-            aggregate_value = 0;
-        }
-    }
-
-    return c;
-}
-
-
-static int myspectrum_event(RIG *rig, struct rig_spectrum_line *line,
-                            rig_ptr_t arg)
-{
-    ENTERFUNC;
-
-    if (rig_need_debug(RIG_DEBUG_TRACE))
-    {
-        char spectrum_debug[line->spectrum_data_length * 4];
-        print_spectrum_line(spectrum_debug, sizeof(spectrum_debug), line);
-        rig_debug(RIG_DEBUG_TRACE, "%s: ASCII Spectrum Scope: %s\n", __func__,
-                  spectrum_debug);
-    }
-
-    // TODO: Push out spectrum data via multicast server once it is implemented
-
-    RETURNFUNC(0);
-}
-
-
 /* 'A' */
+/**
+ * \deprecated Function deprecated. Use the new async data functionality instead.
+ */
 declare_proto_rig(set_trn)
 {
-    int trn;
-
     ENTERFUNC;
-
-    if (!strcmp(arg1, "?"))
-    {
-        fprintf(fout, "OFF RIG POLL\n");
-        RETURNFUNC(RIG_OK);
-    }
-
-    if (!strcmp(arg1, "OFF"))
-    {
-        trn = RIG_TRN_OFF;
-    }
-    else if (!strcmp(arg1, "RIG") || !strcmp(arg1, "ON"))
-    {
-        trn = RIG_TRN_RIG;
-    }
-    else if (!strcmp(arg1, "POLL"))
-    {
-        trn = RIG_TRN_POLL;
-    }
-    else
-    {
-        RETURNFUNC(-RIG_EINVAL);
-    }
-
-    if (trn != RIG_TRN_OFF)
-    {
-        rig_set_freq_callback(rig, myfreq_event, NULL);
-        rig_set_mode_callback(rig, mymode_event, NULL);
-        rig_set_vfo_callback(rig, myvfo_event, NULL);
-        rig_set_ptt_callback(rig, myptt_event, NULL);
-        rig_set_dcd_callback(rig, mydcd_event, NULL);
-        rig_set_spectrum_callback(rig, myspectrum_event, NULL);
-    }
-
-    RETURNFUNC(rig_set_trn(rig, trn));
+    RETURNFUNC(-RIG_EDEPRECATED);
 }
 
 
 /* 'a' */
+/**
+ * \deprecated Function deprecated. Use the new async data functionality instead.
+ */
 declare_proto_rig(get_trn)
 {
-    int status;
-    int trn;
-    static const char *trn_txt[] =
-    {
-        "OFF",
-        "RIG",
-        "POLL"
-    };
-
     ENTERFUNC;
-
-    status = rig_get_trn(rig, &trn);
-
-    if (status != RIG_OK)
-    {
-        RETURNFUNC(status);
-    }
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg1);
-    }
-
-    if (trn >= 0 && trn <= 2)
-    {
-        fprintf(fout, "%s%c", trn_txt[trn], resp_sep);
-    }
-
-    RETURNFUNC(status);
+    RETURNFUNC(-RIG_EDEPRECATED);
 }
 
 
@@ -4381,15 +4198,15 @@ int dump_chan(FILE *fout, RIG *rig, channel_t *chan)
             break;
 
         case RIG_CONF_COMBO:
-            sprintf(lstr, "%d", chan->ext_levels[idx].val.i);
+            SNPRINTF(lstr, sizeof(lstr), "%d", chan->ext_levels[idx].val.i);
             break;
 
         case RIG_CONF_NUMERIC:
-            sprintf(lstr, "%f", chan->ext_levels[idx].val.f);
+            SNPRINTF(lstr, sizeof(lstr), "%f", chan->ext_levels[idx].val.f);
             break;
 
         case RIG_CONF_CHECKBUTTON:
-            sprintf(lstr, "%s", chan->ext_levels[idx].val.i ? "ON" : "OFF");
+            SNPRINTF(lstr, sizeof(lstr), "%s", chan->ext_levels[idx].val.i ? "ON" : "OFF");
             break;
 
         case RIG_CONF_BUTTON:
@@ -4548,6 +4365,8 @@ declare_proto_rig(dump_state)
         fprintf(fout, "has_power2mW=%d\n", rig->caps->power2mW != NULL);
         fprintf(fout, "has_mW2power=%d\n", rig->caps->mW2power != NULL);
         fprintf(fout, "timeout=%d\n", rig->caps->timeout);
+        fprintf(fout, "rig_model=%d\n", rig->caps->rig_model);
+        fprintf(fout, "rigctld_version=%s\n", hamlib_version2);
 
         if (rig->caps->ctcss_list)
         {
@@ -4886,16 +4705,16 @@ declare_proto_rig(send_cmd)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: we're netrigctl#2\n", __func__);
 
-        //snprintf(bufcmd, sizeof(bufcmd), "%s %s\n", cmd->cmd, arg1);
+        //SNPRINTF(bufcmd, sizeof(bufcmd), "%s %s\n", cmd->cmd, arg1);
         if (cmd->cmd == 'w')
         {
-            snprintf(bufcmd, sizeof(bufcmd), "%c %s\n", cmd->cmd, arg1);
+            SNPRINTF(bufcmd, sizeof(bufcmd), "%c %s\n", cmd->cmd, arg1);
         }
         else
         {
             int nbytes = 0;
             sscanf(arg2, "%d", &nbytes);
-            snprintf(bufcmd, sizeof(bufcmd), "%c %s %d\n", cmd->cmd, arg1, nbytes);
+            SNPRINTF(bufcmd, sizeof(bufcmd), "%c %s %d\n", cmd->cmd, arg1, nbytes);
         }
 
         cmd_len = strlen(bufcmd);
@@ -4919,7 +4738,7 @@ declare_proto_rig(send_cmd)
 
         eom_buf[2] = send_cmd_term;
 
-        snprintf(tmpbuf, sizeof(tmpbuf), "0x%02x 0x%02x 0x%02x", eom_buf[0], eom_buf[1],
+        SNPRINTF(tmpbuf, sizeof(tmpbuf), "0x%02x 0x%02x 0x%02x", eom_buf[0], eom_buf[1],
                  eom_buf[2]);
 
         rig_debug(RIG_DEBUG_TRACE, "%s: text protocol, send_cmd_term=%s\n", __func__,
@@ -4932,7 +4751,7 @@ declare_proto_rig(send_cmd)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: rigport=%d, bufcmd=%s, cmd_len=%d\n", __func__,
               rs->rigport.fd, hasbinary(bufcmd, cmd_len) ? "BINARY" : bufcmd, cmd_len);
-    retval = write_block(&rs->rigport, (char *)bufcmd, cmd_len);
+    retval = write_block(&rs->rigport, (unsigned char *) bufcmd, cmd_len);
 
     if (retval != RIG_OK)
     {
@@ -4957,8 +4776,8 @@ declare_proto_rig(send_cmd)
         }
 
         /* Assumes CR or LF is end of line char for all ASCII protocols. */
-        retval = read_string(&rs->rigport, (char *)buf, rxbytes, eom_buf,
-                             strlen(eom_buf), 0);
+        retval = read_string(&rs->rigport, buf, rxbytes, eom_buf,
+                             strlen(eom_buf), 0, 1);
 
         if (retval < 0)
         {
@@ -4995,7 +4814,7 @@ declare_proto_rig(send_cmd)
 
             for (i = 0; i < retval; ++i)
             {
-                snprintf(hex, sizeof(hex), "\\0x%02X", (unsigned char)buf[i]);
+                SNPRINTF(hex, sizeof(hex), "\\0x%02X", (unsigned char)buf[i]);
 
                 if ((strlen(hexbuf) + strlen(hex) + 1) >= hexbufbytes)
                 {
@@ -5097,13 +4916,18 @@ char rig_passwd[256];
 declare_proto_rig(password)
 {
     const char *passwd = arg1;
-    if (strcmp(passwd,rig_passwd)==0) {
-    rig_debug(RIG_DEBUG_ERR, "%s: #1 password OK\n", __func__);
-    return(RIG_EINVAL);
+
+    if (strcmp(passwd, rig_passwd) == 0)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: #1 password OK\n", __func__);
+        return (RIG_EINVAL);
     }
-    else{
-    rig_debug(RIG_DEBUG_ERR, "%s: #2 password error, '%s'!='%s'\n", __func__,passwd,rig_passwd);
+    else
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: #2 password error, '%s'!='%s'\n", __func__,
+                  passwd, rig_passwd);
     }
+
     RETURNFUNC(RIG_OK);
 }
 
@@ -5111,7 +4935,7 @@ declare_proto_rig(password)
 declare_proto_rig(set_password)
 {
     const char *passwd = arg1;
-    strncpy(rig_passwd, passwd, sizeof(passwd)-1);
+    strncpy(rig_passwd, passwd, sizeof(passwd) - 1);
     rig_debug(RIG_DEBUG_ERR, "%s: set_password %s\n", __func__, rig_passwd);
     fprintf(fout, "set_password %s\n", rig_passwd);
     RETURNFUNC(RIG_OK);
@@ -5198,4 +5022,74 @@ declare_proto_rig(get_cache)
     fprintf(fout, "%d\n", ms);
 
     RETURNFUNC(RIG_OK);
+}
+
+/* '0xf8' */
+declare_proto_rig(set_clock)
+{
+    int year, mon, day, hour = -1, min = -1, sec = -1;
+    double msec;
+    int utc_offset = 0;
+    int n;
+    char timebuf[64];
+
+    ENTERFUNC;
+
+    if (arg1 && strcasecmp(arg1, "local") == 0)
+    {
+        date_strget(timebuf, sizeof(timebuf), 1);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: local time set = %s\n", __func__, timebuf);
+        n = sscanf(timebuf, "%04d-%02d-%02dT%02d:%02d:%02d%lf%d", &year, &mon, &day,
+                   &hour,
+                   &min, &sec, &msec, &utc_offset);
+    }
+    else if (arg1 && strcasecmp(arg1, "utc") == 0)
+    {
+        date_strget(timebuf, sizeof(timebuf), 0);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: utc time set = %s\n", __func__, timebuf);
+        n = sscanf(timebuf, "%04d-%02d-%02dT%02d:%02d:%02d%lf%d", &year, &mon, &day,
+                   &hour,
+                   &min, &sec, &msec, &utc_offset);
+    }
+    else
+    {
+        n = sscanf(arg1, "%04d-%02d-%02dT%02d:%02d:%02d%lf%d", &year, &mon, &day, &hour,
+                   &min, &sec, &msec, &utc_offset);
+    }
+
+    rig_debug(RIG_DEBUG_VERBOSE,
+              "%s: n=%d, %04d-%02d-%02dT%02d:%02d:%02d.%0.3f%s%02d\n",
+              __func__, n, year, mon, day, hour, min, sec, msec, utc_offset >= 0 ? "+" : "-",
+              (unsigned)abs(utc_offset));
+
+    rig_debug(RIG_DEBUG_ERR, "%s: utc_offset=%d\n", __func__, utc_offset);
+
+    if (utc_offset < 24) { utc_offset *= 100; } // allow for minutes offset too
+
+    rig_debug(RIG_DEBUG_ERR, "%s: utc_offset=%d\n", __func__, utc_offset);
+
+    RETURNFUNC(rig_set_clock(rig, year, mon, day, hour, min, sec, msec,
+                             utc_offset));
+}
+
+/* '0xf9' */
+declare_proto_rig(get_clock)
+{
+    //char option[64];
+    int year, month, day, hour, min, sec, utc_offset, aoffset;
+    int retval;
+    double msec;
+
+    ENTERFUNC;
+
+    //CHKSCN1ARG(sscanf(arg1, "%63s", option));
+
+    retval = rig_get_clock(rig, &year, &month, &day, &hour, &min, &sec, &msec,
+                           &utc_offset);
+    aoffset = abs(utc_offset);
+    fprintf(fout, "%04d-%02d-%02dT%02d:%02d:%06.3f%s%02d:%02d\n", year, month, day,
+            hour, min, sec + msec / 1000, utc_offset >= 0 ? "+" : "-",
+            aoffset / 100, aoffset % 100);
+
+    return retval;
 }

@@ -313,7 +313,7 @@ int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     {
     case RIG_LEVEL_RF:
         kenwood_val = val.f * 100;
-        sprintf(levelbuf, "RG%03d", kenwood_val);
+        SNPRINTF(levelbuf, sizeof(levelbuf), "RG%03d", kenwood_val);
         break;
 
     case RIG_LEVEL_AF:
@@ -321,7 +321,7 @@ int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
     case RIG_LEVEL_SQL:
         kenwood_val = val.f * 255;
-        sprintf(levelbuf, "SQ0%03d", kenwood_val);
+        SNPRINTF(levelbuf, sizeof(levelbuf), "SQ0%03d", kenwood_val);
         break;
 
     case RIG_LEVEL_AGC:
@@ -348,22 +348,22 @@ int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             return -RIG_EINVAL;
         }
 
-        sprintf(levelbuf, "GT%03d", kenwood_val);
+        SNPRINTF(levelbuf, sizeof(levelbuf), "GT%03d", kenwood_val);
         break;
 
     case RIG_LEVEL_MONITOR_GAIN:
         kenwood_val = val.f * 9.0;
-        sprintf(levelbuf, "ML%03d", kenwood_val);
+        SNPRINTF(levelbuf, sizeof(levelbuf), "ML%03d", kenwood_val);
         break;
 
     case RIG_LEVEL_NB:
         kenwood_val = val.f * 10.0;
-        sprintf(levelbuf, "NL%03d", kenwood_val);
+        SNPRINTF(levelbuf, sizeof(levelbuf), "NL%03d", kenwood_val);
         break;
 
     case RIG_LEVEL_NR:
         kenwood_val = val.f * 9.0;
-        sprintf(levelbuf, "RL%02d", kenwood_val);
+        SNPRINTF(levelbuf, sizeof(levelbuf), "RL%02d", kenwood_val);
         break;
 
     case RIG_LEVEL_PREAMP:
@@ -372,7 +372,7 @@ int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_EINVAL);
         }
 
-        sprintf(levelbuf, "PA%c", (val.i == 12) ? '1' : '0');
+        SNPRINTF(levelbuf, sizeof(levelbuf), "PA%c", (val.i == 12) ? '1' : '0');
         break;
 
     case RIG_LEVEL_ATT:
@@ -381,7 +381,7 @@ int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_EINVAL);
         }
 
-        sprintf(levelbuf, "RA%02d", (val.i == 12) ? 1 : 0);
+        SNPRINTF(levelbuf, sizeof(levelbuf), "RA%02d", (val.i == 12) ? 1 : 0);
         break;
 
     case RIG_LEVEL_METER:
@@ -403,7 +403,7 @@ int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_EINVAL);
         }
 
-        sprintf(levelbuf, "RM%d", kenwood_val);
+        SNPRINTF(levelbuf, sizeof(levelbuf), "RM%d", kenwood_val);
         break;
 
     case RIG_LEVEL_CWPITCH:
@@ -431,7 +431,7 @@ static int ts480_read_meters(RIG *rig, int *swr, int *comp, int *alc)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
 
-    retval = write_block(&rs->rigport, cmd, strlen(cmd));
+    retval = write_block(&rs->rigport, (unsigned char *) cmd, strlen(cmd));
 
     rig_debug(RIG_DEBUG_TRACE, "%s: write_block retval=%d\n", __func__, retval);
 
@@ -442,7 +442,7 @@ static int ts480_read_meters(RIG *rig, int *swr, int *comp, int *alc)
 
     // TS-480 returns values for all meters at the same time, for example: RM10000;RM20000;RM30000;
 
-    retval = read_string(&rs->rigport, ackbuf, expected_len + 1, NULL, 0, 0);
+    retval = read_string(&rs->rigport, (unsigned char *) ackbuf, expected_len + 1, NULL, 0, 0, 1);
 
     rig_debug(RIG_DEBUG_TRACE, "%s: read_string retval=%d\n", __func__, retval);
 
@@ -1436,6 +1436,7 @@ const struct rig_caps ts480_caps =
     .get_ext_func = ts480_get_ext_func,
     .send_morse = kenwood_send_morse,
     .vfo_op = kenwood_vfo_op,
+    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
 };
 
 /*

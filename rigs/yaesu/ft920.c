@@ -71,7 +71,8 @@
  *
  */
 
-enum ft920_native_cmd_e {
+enum ft920_native_cmd_e
+{
     FT920_NATIVE_SPLIT_OFF = 0,
     FT920_NATIVE_SPLIT_ON,
     FT920_NATIVE_RECALL_MEM,
@@ -99,7 +100,7 @@ enum ft920_native_cmd_e {
     FT920_NATIVE_VFO_B_PASSBAND_NAR,
     FT920_NATIVE_STATUS_FLAGS,
     FT920_NATIVE_SIZE   /* end marker, value indicates number of */
-                        /* native cmd entries */
+    /* native cmd entries */
 };
 
 /*
@@ -302,14 +303,18 @@ static int ft920_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width);
 static int ft920_set_vfo(RIG *rig, vfo_t vfo);
 static int ft920_get_vfo(RIG *rig, vfo_t *vfo);
 
-static int ft920_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo);
-static int ft920_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo);
+static int ft920_set_split_vfo(RIG *rig, vfo_t vfo, split_t split,
+                               vfo_t tx_vfo);
+static int ft920_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split,
+                               vfo_t *tx_vfo);
 
 static int ft920_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq);
 static int ft920_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq);
 
-static int ft920_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode, pbwidth_t tx_width);
-static int ft920_get_split_mode(RIG *rig, vfo_t vfo, rmode_t *tx_mode, pbwidth_t *tx_width);
+static int ft920_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode,
+                                pbwidth_t tx_width);
+static int ft920_get_split_mode(RIG *rig, vfo_t vfo, rmode_t *tx_mode,
+                                pbwidth_t *tx_width);
 
 static int ft920_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit);
 static int ft920_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit);
@@ -387,7 +392,6 @@ static const yaesu_cmd_set_t ncmd[] =
 struct ft920_priv_data
 {
     unsigned char pacing;                       /* pacing value */
-    unsigned int read_update_delay;             /* depends on pacing value */
     vfo_t current_vfo;                          /* active VFO from last cmd */
     vfo_t split_vfo;                            /* TX VFO in split mode */
     split_t split;                              /* split active or not */
@@ -642,8 +646,6 @@ static int ft920_init(RIG *rig)
     /* TODO: read pacing from preferences */
     priv->pacing =
         FT920_PACING_DEFAULT_VALUE;              /* set pacing to minimum for now */
-    priv->read_update_delay =
-        FT920_DEFAULT_READ_TIMEOUT;   /* set update timeout to safe value */
     priv->current_vfo =  RIG_VFO_A;                         /* default to VFO_A */
 
     return RIG_OK;
@@ -711,7 +713,7 @@ static int ft920_open(RIG *rig)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: read pacing = %i\n", __func__, priv->pacing);
 
-    err = write_block(&rig->state.rigport, (char *) priv->p_cmd, YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -2628,7 +2630,7 @@ static int ft920_get_update_data(RIG *rig, unsigned char ci, unsigned char rl)
         return err;
     }
 
-    n = read_block(&rig->state.rigport, (char *)priv->update_data, rl);
+    n = read_block(&rig->state.rigport, priv->update_data, rl);
 
     if (n < 0)
     {
@@ -2675,8 +2677,7 @@ static int ft920_send_static_cmd(RIG *rig, unsigned char ci)
         return -RIG_EINVAL;
     }
 
-    err = write_block(&rig->state.rigport, (char *) ncmd[ci].nseq,
-                      YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, ncmd[ci].nseq, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -2741,7 +2742,7 @@ static int ft920_send_dynamic_cmd(RIG *rig, unsigned char ci,
     priv->p_cmd[P3] = p3;
     priv->p_cmd[P4] = p4;
 
-    err = write_block(&rig->state.rigport, (char *) &priv->p_cmd, YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -2805,7 +2806,7 @@ static int ft920_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     rig_debug(RIG_DEBUG_TRACE, fmt, __func__, (int64_t)from_bcd(priv->p_cmd,
               FT920_BCD_DIAL) * 10);
 
-    err = write_block(&rig->state.rigport, (char *) &priv->p_cmd, YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -2888,7 +2889,7 @@ static int ft920_send_rit_freq(RIG *rig, unsigned char ci, shortfreq_t rit)
     priv->p_cmd[P1] = p1;               /* ick */
     priv->p_cmd[P2] = p2;
 
-    err = write_block(&rig->state.rigport, (char *) &priv->p_cmd, YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
