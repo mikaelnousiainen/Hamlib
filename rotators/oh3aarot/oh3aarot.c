@@ -56,13 +56,13 @@ static int oh3aarot_transaction(ROT *rot, char *cmd, char *resp)
 {
     int ret;
 
-    ret = write_block(&rot->state.rotport, cmd, strlen(cmd));
+    ret = write_block(&rot->state.rotport, (unsigned char *) cmd, strlen(cmd));
     rig_debug(RIG_DEBUG_VERBOSE, "function %s(1): ret=%d command=%s\n", __func__, ret, cmd);
     if (ret != 0) {
         return ret;
     }
 
-    ret = read_string(&rot->state.rotport, resp, BUF_MAX, "\n", sizeof("\n"), 0);
+    ret = read_string(&rot->state.rotport, (unsigned char *) resp, BUF_MAX, "\n", sizeof("\n"), 0, 1);
     rig_debug(RIG_DEBUG_VERBOSE, "function %s(2): ret=%d response=%s\n", __func__, ret, resp);
     if (ret < 0) {
         return ret;
@@ -168,7 +168,7 @@ static int oh3aarot_rot_close(ROT *rot)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    write_block(&rot->state.rotport, "\n", 1);
+    write_block(&rot->state.rotport, (unsigned char *) "\n", 1);
 
     return RIG_OK;
 }
