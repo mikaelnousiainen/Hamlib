@@ -2006,7 +2006,7 @@ struct rig_caps {
                                size_t frame_length,
                                const unsigned char *frame);
 // this will be used to check rigcaps structure is compatible with client
-    const char *hamlib_check_rig_caps;   // a constant value we can check for hamlib integrity
+    char *hamlib_check_rig_caps;   // a constant value we can check for hamlib integrity
     int (*get_conf2)(RIG *rig, token_t token, char *val, int val_len);
 };
 //! @endcond
@@ -3160,7 +3160,7 @@ extern HAMLIB_EXPORT_VAR(char) debugmsgsave3[DEBUGMSGSAVE_SIZE];  // last-2 debu
 #define ELAPSED2 rig_debug(RIG_DEBUG_TRACE, "%s: elapsed=%.0lfms\n", __func__, elapsed_ms(&__begin, HAMLIB_ELAPSED_GET));
 
 // use this instead of snprintf for automatic detection of buffer limit
-#define SNPRINTF(s,n,...) { snprintf(s,n,##__VA_ARGS__);if (strlen(s) > n-1) printf("%s(%d): buffer overflow\n", __func__, __LINE__); }
+#define SNPRINTF(s,n,...) { snprintf(s,n,##__VA_ARGS__);if (strlen(s) > n-1) fprintf(stderr,"****** %s(%d): buffer overflow ******\n", __func__, __LINE__); }
 
 extern HAMLIB_EXPORT(void)
 rig_debug HAMLIB_PARAMS((enum rig_debug_level_e debug_level,
