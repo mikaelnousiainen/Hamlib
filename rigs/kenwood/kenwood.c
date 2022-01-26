@@ -935,6 +935,9 @@ int kenwood_open(RIG *rig)
         rig_debug(RIG_DEBUG_TRACE, "%s: found match %s\n",
                   __func__, kenwood_id_string_list[i].id);
 
+        // current vfo is rx_vfo
+        rig_get_vfo(rig, &rig->state.rx_vfo);
+
         if (kenwood_id_string_list[i].model == rig->caps->rig_model)
         {
             int retval;
@@ -974,7 +977,7 @@ int kenwood_open(RIG *rig)
         }
 
         /* driver mismatch */
-        rig_debug(RIG_DEBUG_ERR,
+        rig_debug(RIG_DEBUG_VERBOSE,
                   "%s: not the right driver apparently (found %u, asked for %d, checked %s)\n",
                   __func__, rig->caps->rig_model,
                   kenwood_id_string_list[i].model,
@@ -983,7 +986,7 @@ int kenwood_open(RIG *rig)
         // we continue to search for other matching IDs/models
     }
 
-    rig_debug(RIG_DEBUG_ERR,
+    rig_debug(RIG_DEBUG_VERBOSE,
               "%s: your rig (%s) did not match but we will continue anyways\n",
               __func__, id);
 
@@ -1663,7 +1666,7 @@ int kenwood_get_vfo_if(RIG *rig, vfo_t *vfo)
     switch (priv->info[30])
     {
     case '0':
-        *vfo = priv->tx_vfo = split_and_transmitting ? RIG_VFO_B : RIG_VFO_A;
+        *vfo = rig->state.rx_vfo = rig->state.tx_vfo = priv->tx_vfo = split_and_transmitting ? RIG_VFO_B : RIG_VFO_A;
 
         if (priv->info[32] == '1') { priv->tx_vfo = RIG_VFO_B; }
 
@@ -2463,6 +2466,11 @@ static int kenwood_get_filter_width(RIG *rig, rmode_t mode, pbwidth_t *width)
                 RETURNFUNC(RIG_OK);
             }
         }
+    }
+    if (filter_value >=50) // then it's probably a custom filter width
+    {
+        *width = filter_value;
+        return (RIG_OK);
     }
 
     RETURNFUNC(-RIG_EINVAL);

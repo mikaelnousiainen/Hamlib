@@ -10116,10 +10116,18 @@ int newcat_set_cmd_validate(RIG *rig)
     if ((strncmp(priv->cmd_str, "FA", 2) == 0) && (strlen(priv->cmd_str) > 3))
     {
         strcpy(valcmd, "FA;"); 
+        if (priv->rig_id == NC_RIGID_FTDX3000)
+        {
+            strcpy(valcmd, ""); 
+        }
     }
     else if ((strncmp(priv->cmd_str, "FB", 2) == 0) && (strlen(priv->cmd_str) > 3))
     {
         strcpy(valcmd, "FB;"); 
+        if (priv->rig_id == NC_RIGID_FTDX3000)
+        {
+            strcpy(valcmd, ""); 
+        }
     }
     else if ((strncmp(priv->cmd_str, "MD", 2) == 0) && (strlen(priv->cmd_str) > 3))
     {
@@ -10142,6 +10150,11 @@ int newcat_set_cmd_validate(RIG *rig)
     else if ((strncmp(priv->cmd_str, "VS", 2) == 0) && (strlen(priv->cmd_str) > 3))
     {
         strcpy(valcmd, "VS;");
+        // Some models treat the 2nd VS as a mute request
+        if (is_ftdx3000 || is_ftdx9000)
+        {
+            strcpy(valcmd, ""); 
+        }
     }
     else if (strncmp(priv->cmd_str, "SV", 2) == 0)
     {

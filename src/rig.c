@@ -340,7 +340,7 @@ const char *HAMLIB_API rigerror(int errnum)
 
     if (*p == '\n') { *p = 0; }
 
-    snprintf(msg, sizeof(msg), "%.80s\n%.15000s%.15000s%.15000s",
+    SNPRINTF(msg, sizeof(msg), "%.80s\n%.15000s%.15000s%.15000s",
              rigerror_table[errnum],
              debugmsgsave3, debugmsgsave2, debugmsgsave);
     return msg;
@@ -451,6 +451,9 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
      * TODO: read the Preferences here!
      */
     rs = &rig->state;
+#ifdef HAVE_PTHREAD
+    pthread_mutex_init(&rs->mutex_set_transaction, NULL);
+#endif
 
     rs->async_data_enabled = 0;
     rs->rigport.fd = -1;
@@ -1070,10 +1073,12 @@ int HAMLIB_API rig_open(RIG *rig)
 
         if (status != RIG_OK)
         {
+            remove_opened_rig(rig);
 #ifdef ASYNC_BUG
             async_data_handler_stop(rig);
 #endif
             port_close(&rs->rigport, rs->rigport.type.rig);
+            rs->comm_state = 0;
             RETURNFUNC(status);
         }
     }
@@ -2379,6 +2384,7 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
     const struct rig_caps *caps;
     int retcode;
     freq_t curr_freq;
+    vfo_t curr_vfo;
 
     ELAPSED1;
     ENTERFUNC;
@@ -2403,6 +2409,13 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
     vfo = vfo_fixup(rig, vfo, rig->state.cache.split);
 
     if (vfo == RIG_VFO_CURR) { RETURNFUNC(RIG_OK); }
+
+    retcode = rig_get_vfo(rig, &curr_vfo);
+    if (retcode != RIG_OK)
+    {
+        rig_debug(RIG_DEBUG_WARN, "%s: rig_get_vfo error=%s\n", __func__, rigerror(retcode));
+    }
+    if (curr_vfo == vfo) { RETURNFUNC(RIG_OK); }
 
 #if 0 // removing this check 20210801 -- should be mapped already
 
@@ -2436,8 +2449,7 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: Ignoring set_vfo due to VFO twiddling\n",
                   __func__);
-        RETURNFUNC(
-            RIG_OK); // would be better as error but other software won't handle errors
+        RETURNFUNC(RIG_OK); // would be better as error but other software won't handle errors
     }
 
     TRACE;
@@ -6827,7 +6839,7 @@ int HAMLIB_API rig_cookie(RIG *rig, enum cookie_e cookie_cmd, char *cookie,
             size_t len = strlen(cookie);
             // add on our random number to ensure uniqueness
             // The cookie should never be longer then HAMLIB_COOKIE_SIZE
-            snprintf(cookie + len, HAMLIB_COOKIE_SIZE - len, " %d\n", rand());
+            SNPRINTF(cookie + len, HAMLIB_COOKIE_SIZE - len, " %d\n", rand());
             strcpy(cookie_save, cookie);
             time_last_used = time_curr;
             rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): %s new cookie request granted\n",
@@ -6985,15 +6997,16 @@ void *async_data_handler(void *arg)
 
         if (result < 0)
         {
-            // TODO: it may be necessary to have mutex locking on transaction_active flag
-            if (rs->transaction_active)
-            {
-                unsigned char data = (unsigned char) result;
-                write_block_sync_error(&rs->rigport, &data, 1);
-            }
-
+            // Timeouts occur always if there is nothing to receive, so they are not really errors in this case
             if (result != -RIG_ETIMEOUT)
             {
+                // TODO: it may be necessary to have mutex locking on transaction_active flag
+                if (rs->transaction_active)
+                {
+                    unsigned char data = (unsigned char) result;
+                    write_block_sync_error(&rs->rigport, &data, 1);
+                }
+
                 // TODO: error handling -> store errors in rig state -> to be exposed in async snapshot packets
                 rig_debug(RIG_DEBUG_ERR, "%s: read_frame_direct() failed, result=%d\n",
                           __func__, result);

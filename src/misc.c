@@ -577,7 +577,7 @@ int HAMLIB_API rig_strrmodes(rmode_t modes, char *buf, int buflen)
 
     if (modes == RIG_MODE_NONE)
     {
-        snprintf(buf, buflen, "NONE");
+        SNPRINTF(buf, buflen, "NONE");
         return RIG_OK;
     }
 
@@ -587,8 +587,8 @@ int HAMLIB_API rig_strrmodes(rmode_t modes, char *buf, int buflen)
         {
             char modebuf[16];
 
-            if (strlen(buf) == 0) { snprintf(modebuf, sizeof(modebuf), "%s", mode_str[i].str); }
-            else { snprintf(modebuf, sizeof(modebuf), " %s", mode_str[i].str); }
+            if (strlen(buf) == 0) { SNPRINTF(modebuf, sizeof(modebuf), "%s", mode_str[i].str); }
+            else { SNPRINTF(modebuf, sizeof(modebuf), " %s", mode_str[i].str); }
 
             strncat(buf, modebuf, buflen - strlen(buf) - 1);
 
@@ -1868,7 +1868,7 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
               __func__, funcname, linenum,
               rig_strvfo(vfo), rig_strvfo(rig->state.current_vfo), split);
 
-    if (vfo == RIG_VFO_CURR)
+    if (vfo == RIG_VFO_CURR || vfo == RIG_VFO_VFO)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: Leaving currVFO alone\n", __func__);
         return vfo;  // don't modify vfo for RIG_VFO_CURR
@@ -1934,7 +1934,7 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
         rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): split=%d, vfo==%s tx_vfo=%s\n", __func__,
                   __LINE__, split, rig_strvfo(vfo), rig_strvfo(rig->state.tx_vfo));
 
-        if (split && vfo == RIG_VFO_TX) { vfo = rig->state.tx_vfo; }
+        if (vfo == RIG_VFO_TX) { vfo = rig->state.tx_vfo; RETURNFUNC(RIG_OK); }
 
         if (VFO_HAS_MAIN_SUB_ONLY && !split && !satmode && vfo != RIG_VFO_B) { vfo = RIG_VFO_MAIN; }
 
@@ -2064,7 +2064,7 @@ int HAMLIB_API parse_hoststr(char *hoststr, int hoststr_len, char host[256], cha
     if (sscanf(hoststr, ":%5[0-9]%1s", port,
                dummy) == 1) // just a port if you please
     {
-        snprintf(hoststr, hoststr_len, "%s:%s\n", "localhost", port);
+        SNPRINTF(hoststr, hoststr_len, "%s:%s\n", "localhost", port);
         rig_debug(RIG_DEBUG_VERBOSE, "%s: hoststr=%s\n", __func__, hoststr);
         return RIG_OK;
     }
@@ -2573,9 +2573,9 @@ char *date_strget(char *buf, int buflen, int localtime)
 
     strftime(buf, buflen, "%Y-%m-%dT%H:%M:%S.", mytm);
     gettimeofday(&tv, NULL);
-    snprintf(tmpbuf, sizeof(tmpbuf), "%06ld", (long)tv.tv_usec);
+    SNPRINTF(tmpbuf, sizeof(tmpbuf), "%06ld", (long)tv.tv_usec);
     strcat(buf, tmpbuf);
-    snprintf(tmpbuf, sizeof(tmpbuf), "%s%04d", mytimezone >= 0 ? "-" : "+",
+    SNPRINTF(tmpbuf, sizeof(tmpbuf), "%s%04d", mytimezone >= 0 ? "-" : "+",
              ((int)abs(mytimezone) / 3600) * 100);
     strcat(buf, tmpbuf);
     return buf;
