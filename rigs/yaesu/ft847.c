@@ -401,7 +401,7 @@ const struct rig_caps ft847_caps =
     .has_get_func =  RIG_FUNC_NONE,
     .has_set_func =  FT847_FUNC_ALL,
     .has_get_level =  FT847_LEVEL_ALL,
-    .has_set_level =  RIG_LEVEL_NONE,
+    .has_set_level =  RIG_LEVEL_BAND_SELECT,
     .has_get_parm =  RIG_PARM_NONE,
     .has_set_parm =  RIG_PARM_NONE,
     .level_gran =  {},      /* granularity */
@@ -551,7 +551,7 @@ const struct rig_caps mchfqrp_caps =
     .has_get_func =  RIG_FUNC_NONE,
     .has_set_func =  FT847_FUNC_ALL,
     .has_get_level =  FT847_LEVEL_ALL,
-    .has_set_level =  RIG_LEVEL_NONE,
+    .has_set_level =  RIG_LEVEL_BAND_SELECT,
     .has_get_parm =  RIG_PARM_NONE,
     .has_set_parm =  RIG_PARM_NONE,
     .level_gran =  {},      /* granularity */
@@ -707,7 +707,7 @@ const struct rig_caps ft847uni_caps =
     .has_get_func =  RIG_FUNC_NONE,
     .has_set_func =  FT847_FUNC_ALL,
     .has_get_level =  FT847_LEVEL_ALL,
-    .has_set_level =  RIG_LEVEL_NONE,
+    .has_set_level =  RIG_LEVEL_BAND_SELECT,
     .has_get_parm =  RIG_PARM_NONE,
     .has_set_parm =  RIG_PARM_NONE,
     .level_gran =  {},      /* granularity */
@@ -913,7 +913,7 @@ static int ft847_open(RIG *rig)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     retval = ft847_send_priv_cmd(rig, FT_847_NATIVE_CAT_ON);
-    RETURNFUNC(retval);
+    RETURNFUNC2(retval);
 }
 
 /*
@@ -1360,7 +1360,7 @@ static int ft847_set_split_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
     int retval = rig_set_split_vfo(rig, RIG_VFO_A, RIG_SPLIT_ON, RIG_VFO_B);
 
-    if (retval != RIG_OK) { RETURNFUNC(retval); }
+    if (retval != RIG_OK) { RETURNFUNC2(retval); }
 
     return ft847_set_freq(rig, RIG_VFO_TX, freq);
 }

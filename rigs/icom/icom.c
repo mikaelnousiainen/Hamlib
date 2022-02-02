@@ -8775,6 +8775,7 @@ int icom_process_async_frame(RIG *rig, size_t frame_length,
         // TODO: rig_set_cache_timeout_ms(rig, HAMLIB_CACHE_FREQ, HAMLIB_CACHE_ALWAYS);
         freq_t freq = (freq_t) from_bcd(frame + 5, (priv->civ_731_mode ? 4 : 5) * 2);
         rig_fire_freq_event(rig, RIG_VFO_CURR, freq);
+        rs->use_cached_freq = 1;
         break;
     }
 
@@ -8783,6 +8784,7 @@ int icom_process_async_frame(RIG *rig, size_t frame_length,
         // TODO: rig_set_cache_timeout_ms(rig, HAMLIB_CACHE_MODE, HAMLIB_CACHE_ALWAYS);
         icom2rig_mode(rig, frame[5], frame[6], &mode, &width);
         rig_fire_mode_event(rig, RIG_VFO_CURR, mode, width);
+        rs->use_cached_mode = 1;
         break;
 
     case C_CTL_SCP:
@@ -9302,12 +9304,12 @@ DECLARE_PROBERIG_BACKEND(icom)
 
     if (!port)
     {
-        RETURNFUNC(RIG_MODEL_NONE);
+        return(RIG_MODEL_NONE);
     }
 
     if (port->type.rig != RIG_PORT_SERIAL)
     {
-        RETURNFUNC(RIG_MODEL_NONE);
+        return(RIG_MODEL_NONE);
     }
 
     port->write_delay = port->post_write_delay = 0;
@@ -9326,7 +9328,7 @@ DECLARE_PROBERIG_BACKEND(icom)
 
         if (retval != RIG_OK)
         {
-            RETURNFUNC(RIG_MODEL_NONE);
+            return(RIG_MODEL_NONE);
         }
 
         /*
@@ -9365,7 +9367,7 @@ DECLARE_PROBERIG_BACKEND(icom)
                  * is this a CI-V device?
                  */
                 close(port->fd);
-                RETURNFUNC(RIG_MODEL_NONE);
+                return(RIG_MODEL_NONE);
             }
             else if (buf[4] == NAK)
             {
@@ -9476,11 +9478,11 @@ DECLARE_PROBERIG_BACKEND(icom)
          */
         if (model != RIG_MODEL_NONE)
         {
-            RETURNFUNC(model);
+            return(model);
         }
     }
 
-    RETURNFUNC(model);
+    return(model);
 }
 
 /*
@@ -9578,5 +9580,5 @@ DECLARE_INITRIG_BACKEND(icom)
     rig_register(&x6100_caps);
     rig_register(&g90_caps);
 
-    RETURNFUNC(RIG_OK);
+    return(RIG_OK);
 }

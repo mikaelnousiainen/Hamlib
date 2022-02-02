@@ -439,7 +439,7 @@ static int newcat_band_index(freq_t freq)
     else if (freq >= MHz(0.5) && freq < MHz(1.705)) { band = 12; } // MW Medium Wave
 
     rig_debug(RIG_DEBUG_TRACE, "%s: freq=%g, band=%d\n", __func__, freq, band);
-    RETURNFUNC(band);
+    return(band);
 }
 
 /*
@@ -3521,6 +3521,34 @@ int newcat_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
     RETURNFUNC(RIG_OK);
 }
 
+static int band2rig (hamlib_band_t band)
+{
+    int retval = 0;
+    switch(band)
+    {
+        case RIG_BAND_160M:   retval = 0;break;
+        case RIG_BAND_80M:    retval = 1;break;
+        case RIG_BAND_60M:    retval = 2;break;
+        case RIG_BAND_40M:    retval = 3;break;
+        case RIG_BAND_30M:    retval = 4;break;
+        case RIG_BAND_20M:    retval = 5;break;
+        case RIG_BAND_17M:    retval = 6;break;
+        case RIG_BAND_15M:    retval = 7;break;
+        case RIG_BAND_12M:    retval = 8;break;
+        case RIG_BAND_10M:    retval = 9;break;
+        case RIG_BAND_6M:     retval = 10;break;
+        case RIG_BAND_144MHZ: retval = 15;break;
+        case RIG_BAND_430MHZ: retval = 16;break;
+        case RIG_BAND_GEN:    retval = 11;break;
+        case RIG_BAND_MW:     retval = 12;break;
+        case RIG_BAND_AIR:    retval = 14;break;
+        default:
+            rig_debug(RIG_DEBUG_ERR, "%s: unknown band index=%d\n", __func__, band);
+            retval = -RIG_EINVAL;
+            break;
+    }
+    return retval;
+}
 
 int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 {
@@ -3806,12 +3834,16 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
             if (vfo == RIG_VFO_SUB)
             {
-                format = "MS1%d";
+                format = "MS1%d;";
             }
+        }
+        else if (is_ftdx10)
+        {
+            format = "MS%d0;";
         }
         else
         {
-            format = "MS%d";
+            format = "MS%d;";
         }
 
         rig_debug(RIG_DEBUG_TRACE, "%s: format=%s\n", __func__, format);
@@ -4347,6 +4379,40 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
         break;
 
+    case RIG_LEVEL_BAND_SELECT:
+        if (newcat_valid_command(rig, "BS"))
+        {
+            int band = band2rig((hamlib_band_t)val.i);
+            if (band < 0)
+            {
+                RETURNFUNC(-RIG_EINVAL);
+            }
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "BS%02d%c", band, cat_term);
+        }
+        break;
+
+    case RIG_LEVEL_NB:
+        if (!newcat_valid_command(rig, "NL"))
+        {
+            RETURNFUNC(-RIG_ENAVAIL);
+        }
+
+        fpf = newcat_scale_float(10, val.f);
+
+        if (fpf < 0)
+        {
+            fpf = 0;
+        }
+
+        if (fpf > 10)
+        {
+            fpf = 10;
+        }
+
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "NL00%02d%c", fpf, cat_term);
+
+        break;
+
     default:
         RETURNFUNC(-RIG_EINVAL);
     }
@@ -4611,6 +4677,15 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "VG%c", cat_term);
+        break;
+
+    case RIG_LEVEL_NB:
+        if (!newcat_valid_command(rig, "NL"))
+        {
+            RETURNFUNC(-RIG_ENAVAIL);
+        }
+
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "NL0%c", cat_term);
         break;
 
     /*
@@ -5372,6 +5447,10 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
 
         val->f = (float)atoi(retlvl) / scale;
+        break;
+
+    case RIG_LEVEL_NB:
+        val->f = (float)(atoi(retlvl) / 10.);
         break;
 
     default:
@@ -7116,6 +7195,10 @@ ncboolean newcat_valid_command(RIG *rig, char const *const command)
             {
                 RETURNFUNC(TRUE);
             }
+            else if (is_ftdx3000dm && valid_commands[search_index].ft3000)
+            {
+                RETURNFUNC(TRUE);
+            }
             else if (is_ftdx101d && valid_commands[search_index].ft101d)
             {
                 RETURNFUNC(TRUE);
@@ -7325,6 +7408,16 @@ int newcat_set_vfo_from_alias(RIG *rig, vfo_t *vfo)
     ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s: alias vfo = %s\n", __func__, rig_strvfo(*vfo));
 
+    if (*vfo == RIG_VFO_NONE) 
+    {
+        int rc = rig_get_vfo(rig, vfo);
+        if (rc != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: rig_get_vfo failed: %s\n", __func__, rig_strvfo(*vfo));
+            RETURNFUNC(rc);
+        }
+        rig_debug(RIG_DEBUG_TRACE, "%s: vfo==None so get vfo=%s\n", __func__, rig_strvfo(*vfo));
+    }
     switch (*vfo)
     {
     case RIG_VFO_A:
@@ -9750,10 +9843,13 @@ int newcat_get_rigid(RIG *rig)
             s += 2;     /* ID0310, jump past ID */
             priv->rig_id = atoi(s);
         }
-    }
-
-    rig_debug(RIG_DEBUG_TRACE, "rig_id = %d, *s = %s\n", priv->rig_id,
+        rig_debug(RIG_DEBUG_TRACE, "rig_id = %d, idstr = %s\n", priv->rig_id,
               s == NULL ? "NULL" : s);
+    }
+    else
+    {
+        rig_debug(RIG_DEBUG_TRACE, "rig_id = %d\n", priv->rig_id)
+    }
 
     RETURNFUNC(priv->rig_id);
 }
@@ -10179,6 +10275,10 @@ int newcat_set_cmd_validate(RIG *rig)
     {
         strcpy(valcmd, ""); // nothing to validate
     }
+    else if (strncmp(priv->cmd_str, "MS", 2) == 0)
+    {
+        strcpy(valcmd, ""); // nothing to validate
+    }
     else
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: %s not implemented\n", __func__, priv->cmd_str);
@@ -10454,26 +10554,22 @@ rmode_t newcat_rmode(char mode)
 {
     int i;
 
-    ENTERFUNC;
-
     for (i = 0; i < sizeof(newcat_mode_conv) / sizeof(newcat_mode_conv[0]); i++)
     {
         if (newcat_mode_conv[i].modechar == mode)
         {
             rig_debug(RIG_DEBUG_TRACE, "%s: %s for %c\n", __func__,
                       rig_strrmode(newcat_mode_conv[i].mode), mode);
-            RETURNFUNC(newcat_mode_conv[i].mode);
+            return(newcat_mode_conv[i].mode);
         }
     }
 
-    RETURNFUNC(RIG_MODE_NONE);
+    return(RIG_MODE_NONE);
 }
 
 char newcat_modechar(rmode_t rmode)
 {
     int i;
-
-    ENTERFUNC;
 
     for (i = 0; i < sizeof(newcat_mode_conv) / sizeof(newcat_mode_conv[0]); i++)
     {
@@ -10481,11 +10577,11 @@ char newcat_modechar(rmode_t rmode)
         {
             rig_debug(RIG_DEBUG_TRACE, "%s: return %c for %s\n", __func__,
                       newcat_mode_conv[i].modechar, rig_strrmode(rmode));
-            RETURNFUNC(newcat_mode_conv[i].modechar);
+            return(newcat_mode_conv[i].modechar);
         }
     }
 
-    RETURNFUNC('0');
+    return('0');
 }
 
 rmode_t newcat_rmode_width(RIG *rig, vfo_t vfo, char mode, pbwidth_t *width)
