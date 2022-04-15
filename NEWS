@@ -1,8 +1,8 @@
 Hamlib -- History of visible changes.
 
 Copyright (C) 2000-2003  Frank Singleton
-Copyright (C) 2000-2021  Stephane Fillod, and others
-Copyright (C) 2000-2021  Michael Black W9MDB, and others
+Copyright (C) 2000-2022  Stephane Fillod, and others
+Copyright (C) 2000-2022  Michael Black W9MDB, and others
 
 Please send Hamlib bug reports to hamlib-developer@lists.sourceforge.net
 
@@ -20,7 +20,6 @@ Version 4.5
         * Rig state poll routine to serve commonly used data like frequency and mode from cache. Mikael, OH3BHX
         * deprecated hamlib_port_t at front of rig_state structure -- new one at end of structure
         * New RIG_LEVEL_BAND_SELECT for Yaesu rigs
-        * 202?-??-??
         * New rig_get_conf2 to replace rig_get_conf buffer overflow potential
         * New rot_get_conf2 to reaplce rot_get_conf buffer overflow potential
         * Added Barrett 4050 -- not functional yet

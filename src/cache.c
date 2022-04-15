@@ -454,4 +454,48 @@ void rig_cache_show(RIG *rig, const char *func, int line)
     }
 }
 
+void rig_set_cache_async_data(RIG *rig, int transceive_enabled)
+{
+    struct rig_state *rs = &rig->state;
+
+    rs->cache_async_data_enabled = rs->async_data_enabled && transceive_enabled;
+}
+
+// DONE: when to check for TRANSCEIVE status, as rig might be powered off at rig_open() time? -> could be simply in get_freq() and cache status of whether TRANSCEIVE has been checked
+// TEST: rig_set_freq(), rig_set_mode(), rig_set_ptt() etc should trigger UDP broadcasts (but not fire events)
+// TODO: should be called in rig_set_func() + rig_get_func() with RIG_FUNC_TRANSCEIVE
+int rig_check_cache_async_data(RIG *rig, vfo_t vfo)
+{
+    struct rig_state *rs = &rig->state;
+    int transceive_supported;
+    int transceive_enabled = 0;
+    int result = -RIG_ENAVAIL;
+
+    ENTERFUNC;
+
+    transceive_supported = rig_has_get_func(rig, RIG_FUNC_TRANSCEIVE) ? 1 : 0;
+    if (transceive_supported)
+    {
+        result = rig_get_func(rig, vfo, RIG_FUNC_TRANSCEIVE, &transceive_enabled);
+        if (RIG_IS_SOFT_ERRCODE(result))
+        {
+            rs->transceive_state_checked = 1;
+        }
+    }
+    else
+    {
+        rs->transceive_state_checked = 1;
+    }
+
+    rig_set_cache_async_data(rig, transceive_enabled && result == RIG_OK);
+
+    RETURNFUNC(result);
+}
+
+rig_cache_data_t rig_should_use_cache_for(RIG *rig, rig_cache_data_t cache_data_types)
+{
+    struct rig_state *rs = &rig->state;
+    return rs->cache_async_data_enabled && (rs->cache_async_data_types & cache_data_types);
+}
+
 /*! @} */

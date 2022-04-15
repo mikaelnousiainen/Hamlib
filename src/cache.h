@@ -28,5 +28,8 @@
 int rig_set_cache_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width);
 int rig_set_cache_freq(RIG *rig, vfo_t vfo, freq_t freq);
 void rig_cache_show(RIG *rig, const char *func, int line);
+void rig_set_cache_async_data(RIG *rig, int transceive_enabled);
+int rig_check_cache_async_data(RIG *rig, vfo_t vfo);
+rig_cache_data_t rig_should_use_cache_for(RIG *rig, rig_cache_data_t cache_data_types);
 
 #endif

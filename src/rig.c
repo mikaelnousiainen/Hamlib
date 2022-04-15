@@ -747,6 +747,13 @@ int HAMLIB_API rig_open(RIG *rig)
     rs->async_data_enabled = rs->async_data_enabled && caps->async_data_supported;
     rs->rigport.asyncio = rs->async_data_enabled;
 
+    rs->transceive_state_checked = 0;
+    rs->cache_async_data_enabled = 0;
+    if (rig->caps->cache_async_data_types != 0)
+    {
+        rs->cache_async_data_types = rig->caps->cache_async_data_types;
+    }
+
     if (strlen(rs->rigport.pathname) > 0)
     {
         char hoststr[256], portstr[6];
@@ -1150,6 +1157,8 @@ int HAMLIB_API rig_open(RIG *rig)
                       rig_strvfo(rs->current_vfo));
         }
     }
+
+    rig_check_cache_async_data(rig, rs->current_vfo);
 
     if (rs->auto_disable_screensaver)
     {
@@ -1716,6 +1725,11 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     rig_set_cache_freq(rig, vfo, freq_new);
 
+    if (retcode == RIG_OK)
+    {
+        network_publish_rig_transceive_data(rig);
+    }
+
     if (vfo != RIG_VFO_CURR)
     {
         TRACE;
@@ -1831,9 +1845,13 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     rig_cache_show(rig, __func__, __LINE__);
 
+    if (!rig->state.transceive_state_checked)
+    {
+        rig_check_cache_async_data(rig, vfo);
+    }
+
     if (*freq != 0 && (cache_ms_freq < rig->state.cache.timeout_ms
-                       || (rig->state.cache.timeout_ms == HAMLIB_CACHE_ALWAYS
-                           || rig->state.use_cached_freq)))
+                       || (rig->state.cache.timeout_ms == HAMLIB_CACHE_ALWAYS || rig_should_use_cache_for(rig, RIG_CACHE_DATA_FREQ))))
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: %s cache hit age=%dms, freq=%.0f\n", __func__,
                   rig_strvfo(vfo), cache_ms_freq, *freq);
@@ -2089,6 +2107,8 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     rig_set_cache_mode(rig, vfo, mode, width);
 
+    network_publish_rig_transceive_data(rig);
+
     ELAPSED2;
     RETURNFUNC2(retcode);
 }
@@ -2156,18 +2176,9 @@ int HAMLIB_API rig_get_mode(RIG *rig,
 
     rig_cache_show(rig, __func__, __LINE__);
 
-    if (rig->state.cache.timeout_ms == HAMLIB_CACHE_ALWAYS
-            || rig->state.use_cached_mode)
-    {
-        rig_debug(RIG_DEBUG_TRACE, "%s: cache hit age mode=%dms, width=%dms\n",
-                  __func__, cache_ms_mode, cache_ms_width);
-
-        ELAPSED2;
-        RETURNFUNC(RIG_OK);
-    }
-
-    if ((*mode != RIG_MODE_NONE && cache_ms_mode < rig->state.cache.timeout_ms)
-            && cache_ms_width < rig->state.cache.timeout_ms)
+    if (*mode != RIG_MODE_NONE
+        && ((cache_ms_mode < rig->state.cache.timeout_ms && cache_ms_width < rig->state.cache.timeout_ms)
+            || rig->state.cache.timeout_ms == HAMLIB_CACHE_ALWAYS || rig_should_use_cache_for(rig, RIG_CACHE_DATA_MODE)))
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: cache hit age mode=%dms, width=%dms\n",
                   __func__, cache_ms_mode, cache_ms_width);
@@ -2548,6 +2559,11 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
     elapsed_ms(&rig->state.cache.time_widthMainB, HAMLIB_ELAPSED_INVALIDATE);
     elapsed_ms(&rig->state.cache.time_widthMainC, HAMLIB_ELAPSED_INVALIDATE);
 #endif
+
+    if (retcode == RIG_OK)
+    {
+        network_publish_rig_transceive_data(rig);
+    }
 
     rig_debug(RIG_DEBUG_TRACE, "%s: return %d, vfo=%s, curr_vfo=%s\n", __func__,
               retcode,
@@ -2930,6 +2946,11 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
     memcpy(&rig->state.pttport_deprecated, &rig->state.pttport,
            sizeof(rig->state.pttport_deprecated));
     ELAPSED2;
+
+    if (retcode == RIG_OK)
+    {
+        network_publish_rig_transceive_data(rig);
+    }
 
     RETURNFUNC(retcode);
 }
@@ -3789,6 +3810,11 @@ int HAMLIB_API rig_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
         rc2 = caps->vfo_op(rig, vfo, RIG_OP_TOGGLE);
     }
 
+    if (retcode == RIG_OK)
+    {
+        network_publish_rig_transceive_data(rig);
+    }
+
     if (RIG_OK == retcode)
     {
         /* return the first error code */
@@ -4123,6 +4149,11 @@ int HAMLIB_API rig_set_split_mode(RIG *rig,
     else
     {
         rc2 = caps->vfo_op(rig, vfo, RIG_OP_TOGGLE);
+    }
+
+    if (retcode == RIG_OK)
+    {
+        network_publish_rig_transceive_data(rig);
     }
 
     if (RIG_OK == retcode)
@@ -4608,6 +4639,12 @@ int HAMLIB_API rig_set_split_vfo(RIG *rig,
     rig->state.cache.split_vfo = tx_vfo;
     elapsed_ms(&rig->state.cache.time_split, HAMLIB_ELAPSED_SET);
     ELAPSED2;
+
+    if (retcode == RIG_OK)
+    {
+        network_publish_rig_transceive_data(rig);
+    }
+
     RETURNFUNC(retcode);
 }
 

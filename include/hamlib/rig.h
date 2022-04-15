@@ -1726,6 +1726,21 @@ struct rig_spectrum_line
 };
 
 /**
+ * \brief Types of data that can be cached indefinitely
+ *
+ * Rig backends that support async I/O should declare the types of data that can be cached indefinitely.
+ * This requires that the rig informs about changes to the specified data types automatically through
+ * transceive-like data. For example, most Icom rigs indicate changes via transceive data to frequency and mode only.
+ */
+typedef enum {
+    RIG_CACHE_DATA_VFO = (1 << 0),      /*!< \c Rig indicates active VFO changes */
+    RIG_CACHE_DATA_FREQ = (1 << 1),     /*!< \c Rig indicates frequency changes */
+    RIG_CACHE_DATA_MODE = (1 << 2),     /*!< \c Rig indicates mode/passband changes */
+    RIG_CACHE_DATA_PTT = (1 << 3),      /*!< \c Rig indicates PTT changes */
+    RIG_CACHE_DATA_SPLIT = (1 << 4),    /*!< \c Rig indicates split changes */
+} rig_cache_data_t;
+
+/**
  * \brief Rig data structure.
  *
  * Basic rig type, can store some useful info about different radios.  Each
@@ -2038,10 +2053,12 @@ struct rig_caps {
     int (*process_async_frame)(RIG *rig,
                                size_t frame_length,
                                const unsigned char *frame);
-// this will be used to check rigcaps structure is compatible with client
-    char *hamlib_check_rig_caps;   // a constant value we can check for hamlib integrity
+
+    char *hamlib_check_rig_caps;   /*!< A constant value that can be checked for Hamlib integrity. This is used to check whther rig_caps structure is compatible with a client. */
     int (*get_conf2)(RIG *rig, token_t token, char *val, int val_len);
     int (*password)(RIG *rig, const unsigned char *key1, const unsigned char *key2); /*< Send encrypted password if rigctld is secured with -A/--password */
+
+    rig_cache_data_t cache_async_data_types; /*!< Bit flags instructing rig_get_* functions to use cached values when async I/O is enabled. */
 };
 //! @endcond
 
@@ -2257,7 +2274,7 @@ typedef struct hamlib_port {
     } parm;                 /*!< Port parameter union */
     int client_port;      /*!< client socket port for tcp connection */
     RIG *rig;             /*!< our parent RIG device */
-    int asyncio;            /*!< enable asynchronous data handling if true -- async collides with python keyword so _async is used */
+    int asyncio;            /*!< enable asynchronous data handling if true */
 #if defined(_WIN32)
     hamlib_async_pipe_t *sync_data_pipe;         /*!< pipe data structure for synchronous data */
     hamlib_async_pipe_t *sync_data_error_pipe;   /*!< pipe data structure for synchronous data error codes */
@@ -2560,11 +2577,10 @@ struct rig_state {
     hamlib_port_t dcdport;  /*!< DCD port (internal use). */
     /********* DO NOT ADD or CHANGE anything (or than to rename) ABOVE THIS LINE *********/
     /********* ENSURE ANY NEW ITEMS ARE ADDED AFTER HERE *********/
-    /* flags instructing the rig_get routines to use cached values when asyncio is in use */
-    int use_cached_freq; /*<! flag instructing rig_get_freq to use cached values when asyncio is in use */
-    int use_cached_mode; /*<! flag instructing rig_get_mode to use cached values when asyncio is in use */
-    int use_cached_ptt;  /*<! flag instructing rig_get_ptt to use cached values when asyncio is in use */
-    int depth; /*<! a depth counter to use for debug indentation and such */
+    int depth; /*!< A depth counter to use for debug indentation and such */
+    rig_cache_data_t cache_async_data_types; /*!< Bit flags instructing rig_get_* functions to use cached values when async I/O is enabled. Backends should copy value from caps or use default flags if unset (zero). */
+    int cache_async_data_enabled; /*!< True if cache should be used for all async data types specified by field cache_async_data_types */
+    int transceive_state_checked;
 };
 
 //! @cond Doxygen_Suppress
