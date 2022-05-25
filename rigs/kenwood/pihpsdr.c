@@ -20,9 +20,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -297,8 +295,7 @@ const struct rig_caps pihpsdr_caps =
     .get_powerstat =  kenwood_get_powerstat,
     .get_info =  kenwood_get_info,
     .reset =  kenwood_reset,
-
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -736,21 +733,21 @@ int pihspdr_set_channel(RIG *rig, vfo_t vfo, const channel_t *chan)
 
     /* P-number       2-3    4 5 6 7   8   9  101112  13 141516  */
     SNPRINTF(buf, sizeof(buf), "MW0%03d%011u%c%c%c%02d%02d%03d%c%c%09d0%c%c%s;",
-            chan->channel_num,
-            (unsigned) chan->freq,      /*  4 - frequency */
-            '0' + mode,                 /*  5 - mode */
-            (chan->flags & RIG_CHFLAG_SKIP) ? '1' : '0',    /*  6 - lockout status */
-            sqltype,                    /*  7 - squelch and tone type */
-            tone + 1,                   /*  8 - tone code */
-            code + 1,                   /*  9 - CTCSS code */
-            dcscode,                    /* 10 - DCS code */
-            (chan->funcs & RIG_FUNC_REV) ? '1' : '0', /* 11 - Reverse status */
-            shift,                      /* 12 - shift type */
-            (int) chan->rptr_offs,              /* 13 - offset frequency */
-            tstep + '0',                        /* 14 - Step size */
-            chan->scan_group + '0',         /* 15 - Memory group no */
-            chan->channel_desc              /* 16 - description */
-           );
+             chan->channel_num,
+             (unsigned) chan->freq,      /*  4 - frequency */
+             '0' + mode,                 /*  5 - mode */
+             (chan->flags & RIG_CHFLAG_SKIP) ? '1' : '0',    /*  6 - lockout status */
+             sqltype,                    /*  7 - squelch and tone type */
+             tone + 1,                   /*  8 - tone code */
+             code + 1,                   /*  9 - CTCSS code */
+             dcscode,                    /* 10 - DCS code */
+             (chan->funcs & RIG_FUNC_REV) ? '1' : '0', /* 11 - Reverse status */
+             shift,                      /* 12 - shift type */
+             (int) chan->rptr_offs,              /* 13 - offset frequency */
+             tstep + '0',                        /* 14 - Step size */
+             chan->scan_group + '0',         /* 15 - Memory group no */
+             chan->channel_desc              /* 16 - description */
+            );
     rig_debug(RIG_DEBUG_VERBOSE, "The command will be: %s\n", buf);
 
     err = kenwood_transaction(rig, buf, NULL, 0);

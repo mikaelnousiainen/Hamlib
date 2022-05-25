@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 
@@ -143,7 +141,7 @@ const struct rig_caps ic475_caps =
     .decode_event =  icom_decode_event,
     .set_mem =  icom_set_mem,
     .vfo_op =  icom_vfo_op,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 static const struct icom_priv_caps ic575_priv_caps =

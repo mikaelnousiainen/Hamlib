@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 
@@ -123,7 +121,6 @@ int ts450_open(RIG *rig)
  */
 const struct rig_caps ts450s_caps =
 {
-
     RIG_MODEL(RIG_MODEL_TS450S),
     .model_name = "TS-450S",
     .mfg_name   = "Kenwood",
@@ -266,5 +263,5 @@ const struct rig_caps ts450s_caps =
     .scan = kenwood_scan,
     .get_channel = kenwood_get_channel,
     .set_channel = kenwood_set_channel,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

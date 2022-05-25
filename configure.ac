@@ -18,7 +18,7 @@ AC_INIT([Hamlib],[4.5~git],[hamlib-developer@lists.sourceforge.net],[hamlib],[ht
 
 AC_CONFIG_SRCDIR([include/hamlib/rig.h])
 AC_CONFIG_MACRO_DIR([macros])
-AC_CONFIG_HEADERS([include/config.h])
+AC_CONFIG_HEADERS([include/hamlib/config.h])
 
 dnl Place build system provided programs in this directory.
 AC_CONFIG_AUX_DIR([build-aux])
@@ -47,8 +47,8 @@ dnl added to AC_CONFIG_FILES near the end of this file.  See README.developer
 dnl Beware of duplication should a backend directory include both rig and
 dnl rotor definitions, e.g. "dummy".  Optional backends will not be listed
 dnl here but will be added later, e.g. "winradio".
-RIG_BACKEND_LIST="rigs/adat rigs/alinco rigs/aor rigs/barrett rigs/codan rigs/dorji rigs/drake rigs/dummy rigs/elad rigs/flexradio rigs/icom rigs/icmarine rigs/jrc rigs/kachina rigs/kenwood rigs/kit rigs/lowe rigs/pcr rigs/prm80 rigs/racal rigs/rft rigs/rs rigs/skanti rigs/tapr rigs/tentec rigs/tuner rigs/uniden rigs/winradio rigs/wj rigs/yaesu"
-ROT_BACKEND_LIST="rotators/amsat rotators/ars rotators/celestron rotators/cnctrk rotators/easycomm rotators/ether6 rotators/fodtrack rotators/gs232a rotators/heathkit rotators/m2 rotators/meade rotators/rotorez rotators/sartek rotators/spid rotators/ts7400 rotators/prosistel rotators/ioptron rotators/satel rotators/radant rotators/oh3aarot"
+RIG_BACKEND_LIST="rigs/adat rigs/alinco rigs/aor rigs/barrett rigs/codan rigs/dorji rigs/drake rigs/dummy rigs/elad rigs/flexradio rigs/icom rigs/icmarine rigs/jrc rigs/kachina rigs/kenwood rigs/kit rigs/lowe rigs/pcr rigs/prm80 rigs/racal rigs/rft rigs/rs rigs/skanti rigs/tapr rigs/tentec rigs/tuner rigs/uniden rigs/winradio rigs/wj rigs/yaesu rigs/gomspace"
+ROT_BACKEND_LIST="rotators/amsat rotators/ars rotators/celestron rotators/cnctrk rotators/grbltrk rotators/easycomm rotators/ether6 rotators/fodtrack rotators/gs232a rotators/heathkit rotators/m2 rotators/meade rotators/rotorez rotators/sartek rotators/spid rotators/ts7400 rotators/prosistel rotators/ioptron rotators/satel rotators/radant rotators/oh3aarot"
 # Amplifiers are all in the amplifiers directory
 AMP_BACKEND_LIST="amplifiers/elecraft"
 
@@ -71,7 +71,7 @@ AC_SUBST([ABI_AGE])
 AM_CPPFLAGS="${AM_CPPFLAGS} -DIN_HAMLIB"
 
 # Add Hamlib header include paths
-AM_CPPFLAGS="${AM_CPPFLAGS} -I\$(top_srcdir)/include -I\$(top_srcdir)/src -I\$(top_srcdir)/lib"
+AM_CPPFLAGS="${AM_CPPFLAGS} -I\$(top_srcdir)/include -I\$(top_srcdir)/src -I\$(top_srcdir)/lib -I\$(top_builddir)/include"
 
 
 ## --------------- ##
@@ -589,11 +589,16 @@ AC_ARG_WITH([tcl-binding],
     [build_tcl=no])
 AC_MSG_RESULT([$build_tcl])
 
-dnl SC_PATH_TCLCONFIG and SC_LOAD_TCLCONFIG from macros/tcl.m4
+dnl tcl.pc or SC_PATH_TCLCONFIG and SC_LOAD_TCLCONFIG from macros/tcl.m4
 AS_IF([test x"${build_tcl}" = "xyes"],[
-    dnl Search for and load tclConfig.sh.
-    SC_PATH_TCLCONFIG
-    SC_LOAD_TCLCONFIG
+    dnl Search for and load tcl.pc or tclConfig.sh.
+    PKG_CHECK_MODULES([TCL], [tcl],
+        [],
+        [
+            AC_MSG_WARN([Unable to find Tcl pkgconfig])
+            SC_PATH_TCLCONFIG
+            SC_LOAD_TCLCONFIG
+        ])
 
     tcl_save_CPPFLAGS=$CPPFLAGS
     CPPFLAGS="$CPPFLAGS $TCL_INCLUDE_SPEC"
@@ -617,6 +622,9 @@ AC_SUBST([TCL_VERSION])
 AC_SUBST([TCL_LIB_SPEC])
 AC_SUBST([TCL_INCLUDE_SPEC])
 AC_SUBST([TCL_SHLIB_SUFFIX])
+dnl These variables are set once tcl.pc is found.
+AC_SUBST([TCL_LIBS])
+AC_SUBST([TCL_CFLAGS])
 
 
 dnl Check for lua availability, so we can enable HamlibLua
@@ -814,6 +822,7 @@ macros/Makefile
 include/Makefile
 lib/Makefile
 src/Makefile
+security/Makefile
 c++/Makefile
 bindings/Makefile
 doc/Makefile
@@ -822,6 +831,7 @@ rotators/amsat/Makefile
 rotators/ars/Makefile
 rotators/celestron/Makefile
 rotators/cnctrk/Makefile
+rotators/grbltrk/Makefile
 rotators/easycomm/Makefile
 rotators/ether6/Makefile
 rotators/fodtrack/Makefile
@@ -869,6 +879,7 @@ rigs/uniden/Makefile
 rigs/winradio/Makefile
 rigs/wj/Makefile
 rigs/yaesu/Makefile
+rigs/gomspace/Makefile
 tests/Makefile
 scripts/Makefile
 android/Makefile

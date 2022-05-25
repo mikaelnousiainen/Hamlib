@@ -18,9 +18,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,7 +91,7 @@ transaction_write:
     /* the answer */
     memset(data, 0, data_len);
     retval = read_string(&rs->rotport, (unsigned char *) data, data_len,
-            ACK, strlen(ACK), 0, 1);
+                         ACK, strlen(ACK), 0, 1);
 
     if (retval < 0)
     {
@@ -137,8 +135,8 @@ celestron_set_position(ROT *rot, azimuth_t az, elevation_t el)
      */
 
     SNPRINTF(cmdstr, sizeof(cmdstr), "B%04X,%04X",
-            (unsigned)((az / 360.) * 65535),
-            (unsigned)((el / 360.) * 65535));
+             (unsigned)((az / 360.) * 65535),
+             (unsigned)((el / 360.) * 65535));
 
     retval = celestron_transaction(rot, cmdstr, NULL, 0);
 
@@ -233,7 +231,7 @@ const struct rot_caps nexstar_rot_caps =
     .mfg_name =       "Celestron",
     .version =        "20220109.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_UNTESTED,
+    .status =         RIG_STATUS_BETA,
     .rot_type =       ROT_TYPE_AZEL,
     .port_type =      RIG_PORT_SERIAL,
     .serial_rate_min  = 9600,

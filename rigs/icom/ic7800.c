@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <string.h>  /* String function definitions */
 #include <stdlib.h>
@@ -333,7 +331,7 @@ const struct rig_caps ic7800_caps =
     .wait_morse = rig_wait_morse,
     .set_clock = ic7300_set_clock,
     .get_clock = ic7300_get_clock,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*

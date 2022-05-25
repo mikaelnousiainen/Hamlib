@@ -35,9 +35,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>     /* String function definitions */
@@ -70,6 +68,7 @@ static int ft757_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode,
 
 static int ft757_set_vfo(RIG *rig, vfo_t vfo); /* select vfo */
 static int ft757_get_vfo(RIG *rig, vfo_t *vfo); /* get vfo */
+static int ft757gx_get_vfo(RIG *rig, vfo_t *vfo); /* get vfo */
 
 static int ft757_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt);
 static int ft757_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
@@ -117,7 +116,7 @@ const struct rig_caps ft757gx_caps =
     RIG_MODEL(RIG_MODEL_FT757),
     .model_name =       "FT-757GX",
     .mfg_name =     "Yaesu",
-    .version =      "20200325.0",
+    .version =      "20220429.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_MOBILE,
@@ -209,6 +208,7 @@ const struct rig_caps ft757gx_caps =
     .get_freq =     ft757gx_get_freq,   /* get freq */
     .set_mode =     NULL,           /* set mode */
     .get_mode =     NULL,           /* get mode */
+    .get_vfo =      ft757gx_get_vfo,    /* set vfo */
     .set_vfo =      ft757_set_vfo,      /* set vfo */
 
     .set_ptt =      NULL,           /* set ptt */
@@ -217,7 +217,7 @@ const struct rig_caps ft757gx_caps =
     .cfgparams =        ft757gx_cfg_params,
     .set_conf =     ft757gx_set_conf,
     .get_conf =     ft757gx_get_conf,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -340,7 +340,7 @@ const struct rig_caps ft757gx2_caps =
     .get_vfo =      ft757_get_vfo,  /* get vfo */
     .get_level =        ft757_get_level,
     .get_ptt =      ft757_get_ptt,  /* get ptt */
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -408,14 +408,24 @@ static int ft757_cleanup(RIG *rig)
 
 static int ft757_open(RIG *rig)
 {
+    int retval;
     struct ft757_priv_data *priv = (struct ft757_priv_data *)rig->state.priv;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called.\n", __func__);
+
+    priv->fakefreq = 1; // turn this on by default
 
     /* FT757GX has a write-only serial port: don't try to read status data */
     if (rig->caps->rig_model == RIG_MODEL_FT757)
     {
         memset(priv->update_data, 0, FT757GX_STATUS_UPDATE_DATA_LENGTH);
+        retval = rig_set_vfo(rig, RIG_VFO_A);
+
+        if (retval != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: rig_set_vfo error: %s\n", __func__,
+                      rigerror(retval));
+        }
     }
     else
     {
@@ -483,6 +493,9 @@ static int ft757_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 static int ft757gx_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 {
     struct ft757_priv_data *priv = (struct ft757_priv_data *)rig->state.priv;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called. fakefreq=%d\n", __func__,
+              priv->fakefreq);
 
     if (priv->fakefreq)   // only return last freq set when fakeit is turned on
     {
@@ -583,12 +596,12 @@ static int ft757_set_vfo(RIG *rig, vfo_t vfo)
     unsigned char cmd[YAESU_CMD_LENGTH] = { 0x00, 0x00, 0x00, 0x00, 0x05};
     struct ft757_priv_data *priv = (struct ft757_priv_data *)rig->state.priv;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called.\n", __func__);
+    ENTERFUNC;
 
     switch (vfo)
     {
     case RIG_VFO_CURR:
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
 
     case RIG_VFO_A:
         cmd[3] = 0x00;          /* VFO A */
@@ -599,14 +612,21 @@ static int ft757_set_vfo(RIG *rig, vfo_t vfo)
         break;
 
     default:
-        return -RIG_EINVAL;     /* sorry, wrong VFO */
+        RETURNFUNC(-RIG_EINVAL);     /* sorry, wrong VFO */
     }
 
     priv->current_vfo = vfo;
 
-    return write_block(&rig->state.rigport, cmd, YAESU_CMD_LENGTH);
+    RETURNFUNC(write_block(&rig->state.rigport, cmd, YAESU_CMD_LENGTH));
 }
 
+static int ft757gx_get_vfo(RIG *rig, vfo_t *vfo)
+{
+    struct ft757_priv_data *priv = (struct ft757_priv_data *)rig->state.priv;
+    // we'll just use the cached vfo for the 757GX since we can't read it
+    *vfo = priv->current_vfo;
+    return RIG_OK;
+}
 
 static int ft757_get_vfo(RIG *rig, vfo_t *vfo)
 {

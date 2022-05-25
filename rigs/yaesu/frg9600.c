@@ -22,9 +22,7 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -59,7 +57,7 @@ const struct rig_caps frg9600_caps =
     .mfg_name =           "Yaesu",
     .version =            "20160409.0",
     .copyright =          "LGPL",
-    .status =             RIG_STATUS_UNTESTED,
+    .status =             RIG_STATUS_ALPHA,
     .rig_type =           RIG_TYPE_RECEIVER,
     .ptt_type =           RIG_PTT_NONE,
     .dcd_type =           RIG_DCD_NONE,
@@ -132,7 +130,7 @@ const struct rig_caps frg9600_caps =
     .set_freq =           frg9600_set_freq,
     .set_mode =           frg9600_set_mode,
 
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

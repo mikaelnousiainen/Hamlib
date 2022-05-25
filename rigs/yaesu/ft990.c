@@ -32,9 +32,7 @@
 */
 
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -243,7 +241,7 @@ const struct rig_caps ft990_caps =
     .mfg_name =           "Yaesu",
     .version =            "20211231.0",
     .copyright =          "LGPL",
-    .status =             RIG_STATUS_BETA,
+    .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
     .ptt_type =           RIG_PTT_RIG,
     .dcd_type =           RIG_DCD_NONE,
@@ -369,6 +367,7 @@ const struct rig_caps ft990_caps =
     .vfo_op =             ft990_vfo_op,
     .set_channel =        ft990_set_channel,
     .get_channel =        ft990_get_channel,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -567,15 +566,15 @@ int ft990_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         return err;
     }
 
-        if (vfo != vfo_save)
-        {
-            err = ft990_set_vfo(rig, vfo_save);
+    if (vfo != vfo_save)
+    {
+        err = ft990_set_vfo(rig, vfo_save);
 
-            if (err != RIG_OK)
-            {
-                return err;
-            }
+        if (err != RIG_OK)
+        {
+            return err;
         }
+    }
 
     return RIG_OK;
 }
@@ -3398,7 +3397,8 @@ int ft990_send_dynamic_cmd(RIG *rig, unsigned char ci,
     priv->p_cmd[1] = p3;
     priv->p_cmd[0] = p4;
 
-    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd,
+                      YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -3456,7 +3456,8 @@ int ft990_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     rig_debug(RIG_DEBUG_TRACE, fmt, __func__, (int64_t)from_bcd(priv->p_cmd,
               FT990_BCD_DIAL) * 10);
 
-    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd,
+                      YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -3520,7 +3521,8 @@ int ft990_send_rit_freq(RIG *rig, unsigned char ci, shortfreq_t rit)
     // Store bcd format into privat command storage area
     to_bcd(priv->p_cmd, labs(rit) / 10, FT990_BCD_RIT);
 
-    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd,
+                      YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {

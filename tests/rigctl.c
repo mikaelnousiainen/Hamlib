@@ -25,9 +25,7 @@
  */
 #include <hamlibdatetime.h>
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -118,6 +116,8 @@ static struct option long_options[] =
 
 };
 
+extern char rig_resp_sep;
+
 #define MAXCONFLEN 1024
 
 int main(int argc, char *argv[])
@@ -152,7 +152,6 @@ int main(int argc, char *argv[])
     int vfo_opt = 0;       /* vfo_opt = 0 means target VFO is 'currVFO' */
     char send_cmd_term = '\r';  /* send_cmd termination char */
     int ext_resp = 0;
-    char resp_sep = '\n';
     int i;
     char rigstartup[1024];
 
@@ -516,6 +515,7 @@ int main(int argc, char *argv[])
     if (serial_rate != 0)
     {
         my_rig->state.rigport.parm.serial.rate = serial_rate;
+        my_rig->state.rigport_deprecated.parm.serial.rate = serial_rate;
     }
 
     if (civaddr)
@@ -649,14 +649,14 @@ int main(int argc, char *argv[])
 
         retcode = rigctl_parse(my_rig, stdin, stdout, argv, argc, NULL,
                                interactive, prompt, &vfo_opt, send_cmd_term,
-                               &ext_resp, &resp_sep);
+                               &ext_resp, &rig_resp_sep, 0);
 
         // if we get a hard error we try to reopen the rig again
         // this should cover short dropouts that can occur
         if (retcode < 0 && !RIG_IS_SOFT_ERRCODE(-retcode))
         {
             int retry = 3;
-            rig_debug(RIG_DEBUG_ERR, "%s: i/o error\n", __func__)
+            rig_debug(RIG_DEBUG_ERR, "%s: i/o error\n", __func__);
 
             do
             {

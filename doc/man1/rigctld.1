@@ -202,6 +202,13 @@ is in decimal notation, unless prefixed by
 in which case it is hexadecimal.
 .
 .TP
+.BR \-S ", " \-\-separator = \fIchar\fP
+Use char as separator instead of line feed
+.IP
+The default is \n
+.IP
+.
+.TP
 .BR \-T ", " \-\-listen\-addr = \fIIPADDR\fP
 Use
 .I IPADDR
@@ -356,6 +363,10 @@ Enable time stamps for the debug messages.
 Use only in combination with the
 .B -v
 option as it generates no output on its own.
+.
+.TP
+.BR \-A ", " \-\-password
+Sets password on rigctld which requires hamlib to use rig_set_password and rigctl to use \\password to access rigctld.  A 32-char shared secret will be displayed to be used on the client side.
 .
 .TP
 .BR \-h ", " \-\-help

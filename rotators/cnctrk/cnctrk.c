@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <math.h>
 #include <stdlib.h>
@@ -50,7 +48,8 @@ cnctrk_set_position(ROT *rot, azimuth_t az, elevation_t el)
         return retval;
     }
 
-    SNPRINTF(axcmd, sizeof(axcmd), "/usr/bin/axis-remote --mdi 'G00 X %6.2f Y %6.2f' \n", az, el);
+    SNPRINTF(axcmd, sizeof(axcmd),
+             "/usr/bin/axis-remote --mdi 'G00 X %6.2f Y %6.2f' \n", az, el);
     return system(axcmd);
 }
 
@@ -64,7 +63,7 @@ const struct rot_caps cnctrk_rot_caps =
     .mfg_name =       "CNCTRK",
     .version =        "20220109.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_UNTESTED,
+    .status =         RIG_STATUS_BETA,
     .rot_type =       ROT_TYPE_OTHER,
     .port_type =      RIG_PORT_NONE,
     .write_delay =  0,

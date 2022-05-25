@@ -26,9 +26,7 @@
  * doc todo: Let's explain what's going on here!
  */
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <errno.h>
 #include <stdlib.h>
@@ -91,6 +89,7 @@ DEFINE_INITRIG_BACKEND(dorji);
 DEFINE_INITRIG_BACKEND(barrett);
 DEFINE_INITRIG_BACKEND(elad);
 DEFINE_INITRIG_BACKEND(codan);
+DEFINE_INITRIG_BACKEND(gomspace);
 //! @endcond
 
 #ifdef HAVE_WINRADIO
@@ -148,6 +147,7 @@ static struct
     { RIG_BARRETT, RIG_BACKEND_BARRETT, RIG_FUNCNAMA(barrett) },
     { RIG_ELAD, RIG_BACKEND_ELAD, RIG_FUNCNAMA(elad) },
     { RIG_CODAN, RIG_BACKEND_CODAN, RIG_FUNCNAMA(codan) },
+    { RIG_GOMSPACE, RIG_BACKEND_GOMSPACE, RIG_FUNCNAM(gomspace) },
     { 0, NULL }, /* end */
 };
 

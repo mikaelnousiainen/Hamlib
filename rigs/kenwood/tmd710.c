@@ -34,9 +34,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <math.h>
@@ -398,7 +396,7 @@ const struct rig_caps tmd710_caps =
     .get_rptr_offs = tmd710_get_rptr_offs,
 
     .decode_event =  th_decode_event,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /* appears to be tmd710 compatible */
@@ -409,7 +407,7 @@ const struct rig_caps tmv71_caps =
     .mfg_name =  "Kenwood",
     .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_BETA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_MOBILE | RIG_FLAG_APRS | RIG_FLAG_TNC,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,
@@ -554,7 +552,7 @@ const struct rig_caps tmv71_caps =
     .get_rptr_offs = tmd710_get_rptr_offs,
 
     .decode_event =  th_decode_event,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /* structure for handling FO radio command */

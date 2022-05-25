@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 
@@ -191,7 +189,7 @@ const struct rig_caps ts940_caps =
     .scan =  kenwood_scan,
     .set_channel = kenwood_set_channel,
     .get_channel = kenwood_get_channel,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*

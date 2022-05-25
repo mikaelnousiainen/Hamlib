@@ -30,9 +30,7 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -180,6 +178,8 @@ const struct rig_caps ft991_caps =
     .max_rit =            Hz(9999),
     .max_xit =            Hz(9999),
     .max_ifshift =        Hz(1200),
+    .agc_level_count = 5,
+    .agc_levels = { RIG_AGC_OFF, RIG_AGC_FAST, RIG_AGC_MEDIUM, RIG_AGC_SLOW, RIG_AGC_AUTO },
     .vfo_ops =            FT991_VFO_OPS,
     .targetable_vfo =     RIG_TARGETABLE_FREQ,
     .transceive =         RIG_TRN_OFF,        /* May enable later as the 950 has an Auto Info command */
@@ -187,6 +187,9 @@ const struct rig_caps ft991_caps =
     .chan_desc_sz =       0,
     .rfpower_meter_cal =  FT991_RFPOWER_METER_CAL,
     .str_cal =            FT991_STR_CAL,
+    .id_meter_cal =       FT991_ID_CAL,
+    .vd_meter_cal =       FT991_VD_CAL,
+    .comp_meter_cal =     FT991_COMP_CAL,
     .chan_list =          {
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
         { 100, 117, RIG_MTYPE_EDGE, NEWCAT_MEM_CAP },    /* two by two */
@@ -204,9 +207,9 @@ const struct rig_caps ft991_caps =
     .tx_range_list1 =     {
         {MHz(1.8), MHz(54), FT991_OTHER_TX_MODES, W(5), W(100), FT991_VFO_ALL, FT991_ANTS, "Operating"},
         {MHz(1.8), MHz(54), FT991_AM_TX_MODES, W(2), W(25), FT991_VFO_ALL, FT991_ANTS, "Operating"}, /* AM class */
-        {MHz(144), MHz(148), FT991_OTHER_TX_MODES, W(5), W(100), FT991_VFO_ALL, FT991_ANTS, "Operating"},
+        {MHz(144), MHz(148), FT991_OTHER_TX_MODES, W(5), W(50), FT991_VFO_ALL, FT991_ANTS, "Operating"},
         {MHz(144), MHz(148), FT991_AM_TX_MODES, W(2), W(25), FT991_VFO_ALL, FT991_ANTS, "Operating"}, /* AM class */
-        {MHz(430), MHz(450), FT991_OTHER_TX_MODES, W(5), W(100), FT991_VFO_ALL, FT991_ANTS, "Operating"},
+        {MHz(430), MHz(450), FT991_OTHER_TX_MODES, W(5), W(50), FT991_VFO_ALL, FT991_ANTS, "Operating"},
         {MHz(430), MHz(450), FT991_AM_TX_MODES, W(2), W(25), FT991_VFO_ALL, FT991_ANTS, "Operating"}, /* AM class */
         RIG_FRNG_END,
     },
@@ -227,41 +230,63 @@ const struct rig_caps ft991_caps =
 
     /* mode/filter list, .remember =  order matters! */
     .filters =            {
-        {FT991_CW_RTTY_PKT_RX_MODES,  Hz(1700)},    /* Normal CW, RTTY, PKT */
-        {FT991_CW_RTTY_PKT_RX_MODES,  Hz(500)},     /* Narrow CW, RTTY, PKT */
-        {FT991_CW_RTTY_PKT_RX_MODES,  Hz(2400)},    /* Wide   CW, RTTY, PKT */
-        {FT991_CW_RTTY_PKT_RX_MODES,  Hz(2000)},    /*        CW, RTTY, PKT */
-        {FT991_CW_RTTY_PKT_RX_MODES,  Hz(1400)},    /*        CW, RTTY, PKT */
-        {FT991_CW_RTTY_PKT_RX_MODES,  Hz(1200)},    /*        CW, RTTY, PKT */
-        {FT991_CW_RTTY_PKT_RX_MODES,  Hz(800)},     /*        CW, RTTY, PKT */
-        {FT991_CW_RTTY_PKT_RX_MODES,  Hz(400)},     /*        CW, RTTY, PKT */
-        {FT991_CW_RTTY_PKT_RX_MODES,  Hz(300)},     /*        CW, RTTY, PKT */
-        {FT991_CW_RTTY_PKT_RX_MODES,  Hz(200)},     /*        CW, RTTY, PKT */
-        {FT991_CW_RTTY_PKT_RX_MODES,  Hz(100)},     /*        CW, RTTY, PKT */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(500)},     /* Normal RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(300)},     /* Narrow RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(3000)},    /* Wide   RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(2400)},    /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(2000)},    /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(1700)},    /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(1400)},    /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(1200)},    /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(800)},     /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(450)},     /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(400)},     /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(350)},     /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(250)},     /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(200)},     /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(150)},     /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(100)},     /*        RTTY, DATA */
+        {FT991_RTTY_DATA_RX_MODES,    Hz(50)},      /*        RTTY, DATA */
+        {FT991_CW_RX_MODES,           Hz(2400)},    /* Normal CW */
+        {FT991_CW_RX_MODES,           Hz(500)},     /* Narrow CW */
+        {FT991_CW_RX_MODES,           Hz(3000)},    /* Wide   CW */
+        {FT991_CW_RX_MODES,           Hz(2000)},    /*        CW */
+        {FT991_CW_RX_MODES,           Hz(1700)},    /*        CW */
+        {FT991_CW_RX_MODES,           Hz(1400)},    /*        CW */
+        {FT991_CW_RX_MODES,           Hz(1200)},    /*        CW */
+        {FT991_CW_RX_MODES,           Hz(800)},     /*        CW */
+        {FT991_CW_RX_MODES,           Hz(450)},     /*        CW */
+        {FT991_CW_RX_MODES,           Hz(400)},     /*        CW */
+        {FT991_CW_RX_MODES,           Hz(350)},     /*        CW */
+        {FT991_CW_RX_MODES,           Hz(300)},     /*        CW */
+        {FT991_CW_RX_MODES,           Hz(250)},     /*        CW */
+        {FT991_CW_RX_MODES,           Hz(200)},     /*        CW */
+        {FT991_CW_RX_MODES,           Hz(150)},     /*        CW */
+        {FT991_CW_RX_MODES,           Hz(100)},     /*        CW */
+        {FT991_CW_RX_MODES,           Hz(50)},      /*        CW */
         {RIG_MODE_SSB,                Hz(2400)},    /* Normal SSB */
-        {RIG_MODE_SSB,                Hz(1800)},    /* Narrow SSB */
+        {RIG_MODE_SSB,                Hz(1500)},    /* Narrow SSB */
         {RIG_MODE_SSB,                Hz(3200)},    /* Wide   SSB */
-        {RIG_MODE_SSB,                Hz(3000)},    /* Wide   SSB */
+        {RIG_MODE_SSB,                Hz(3000)},    /*        SSB */
         {RIG_MODE_SSB,                Hz(2900)},    /*        SSB */
         {RIG_MODE_SSB,                Hz(2800)},    /*        SSB */
         {RIG_MODE_SSB,                Hz(2700)},    /*        SSB */
         {RIG_MODE_SSB,                Hz(2600)},    /*        SSB */
         {RIG_MODE_SSB,                Hz(2500)},    /*        SSB */
-        {RIG_MODE_SSB,                Hz(2250)},    /*        SSB */
+        {RIG_MODE_SSB,                Hz(2300)},    /*        SSB */
+        {RIG_MODE_SSB,                Hz(2200)},    /*        SSB */
         {RIG_MODE_SSB,                Hz(2100)},    /*        SSB */
         {RIG_MODE_SSB,                Hz(1950)},    /*        SSB */
         {RIG_MODE_SSB,                Hz(1650)},    /*        SSB */
-        {RIG_MODE_SSB,                Hz(1500)},    /*        SSB */
         {RIG_MODE_SSB,                Hz(1350)},    /*        SSB */
         {RIG_MODE_SSB,                Hz(1100)},    /*        SSB */
         {RIG_MODE_SSB,                Hz(850)},     /*        SSB */
         {RIG_MODE_SSB,                Hz(600)},     /*        SSB */
         {RIG_MODE_SSB,                Hz(400)},     /*        SSB */
         {RIG_MODE_SSB,                Hz(200)},     /*        SSB */
-        {FT991_CW_RTTY_PKT_RX_MODES | RIG_MODE_SSB, RIG_FLT_ANY },
         {RIG_MODE_AM,                 Hz(9000)},    /* Normal AM */
         {RIG_MODE_AMN,                Hz(6000)},    /* Narrow AM */
-        {FT991_FM_WIDE_RX_MODES,      Hz(16000)},   /* Normal FM */
+        {FT991_FM_WIDE_RX_MODES,      Hz(16000)},   /* Normal FM, PKTFM, C4FM */
         {RIG_MODE_FMN,                Hz(9000)},    /* Narrow FM */
 
         RIG_FLT_END,
@@ -330,7 +355,8 @@ const struct rig_caps ft991_caps =
     .send_morse =         newcat_send_morse,
     .send_voice_mem =     newcat_send_voice_mem,
     .set_clock =          newcat_set_clock,
-    .get_clock =          newcat_get_clock
+    .get_clock =          newcat_get_clock,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -1106,11 +1132,11 @@ static int ft991_get_dcs_sql(RIG *rig, vfo_t vfo, tone_t *code)
 static int ft991_set_vfo(RIG *rig, vfo_t vfo)
 {
     rig->state.current_vfo = vfo;
-    RETURNFUNC(RIG_OK);
+    RETURNFUNC2(RIG_OK);
 }
 
 static int ft991_get_vfo(RIG *rig, vfo_t *vfo)
 {
     *vfo = rig->state.current_vfo;
-    RETURNFUNC(RIG_OK);
+    RETURNFUNC2(RIG_OK);
 }

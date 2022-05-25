@@ -30,9 +30,7 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <string.h>
 #include "hamlib/rig.h"
@@ -172,6 +170,8 @@ const struct rig_caps ft891_caps =
     .max_rit =            Hz(9999),
     .max_xit =            Hz(9999),
     .max_ifshift =        Hz(1200),
+    .agc_level_count =    5,
+    .agc_levels =         { RIG_AGC_OFF, RIG_AGC_FAST, RIG_AGC_MEDIUM, RIG_AGC_SLOW, RIG_AGC_AUTO },
     .vfo_ops =            FT891_VFO_OPS,
     .targetable_vfo =     RIG_TARGETABLE_FREQ,
     .transceive =         RIG_TRN_OFF,        /* May enable later as the 950 has an Auto Info command */
@@ -321,7 +321,8 @@ const struct rig_caps ft891_caps =
     .get_ext_level =      newcat_get_ext_level,
     .send_morse =         newcat_send_morse,
     .set_clock =          newcat_set_clock,
-    .get_clock =          newcat_get_clock
+    .get_clock =          newcat_get_clock,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -388,7 +389,8 @@ static int ft891_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
 
     SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "ST%c;", ci);
 
-    if (RIG_OK != (err = write_block(&state->rigport, (unsigned char *) priv->cmd_str, strlen(priv->cmd_str))))
+    if (RIG_OK != (err = write_block(&state->rigport,
+                                     (unsigned char *) priv->cmd_str, strlen(priv->cmd_str))))
     {
         rig_debug(RIG_DEBUG_ERR, "%s: write_block err = %d\n", __func__, err);
         return err;
@@ -559,7 +561,8 @@ static int ft891_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode,
     // Copy A to B
     SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "AB;");
 
-    if (RIG_OK != (err = write_block(&state->rigport, (unsigned char *) priv->cmd_str, strlen(priv->cmd_str))))
+    if (RIG_OK != (err = write_block(&state->rigport,
+                                     (unsigned char *) priv->cmd_str, strlen(priv->cmd_str))))
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s:%d write_block err = %d\n", __func__, __LINE__,
                   err);

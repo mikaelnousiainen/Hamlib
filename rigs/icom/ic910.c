@@ -20,9 +20,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 
@@ -358,5 +356,5 @@ const struct rig_caps ic910_caps =
     .set_rptr_offs =  icom_set_rptr_offs,
     .get_rptr_offs =  icom_get_rptr_offs,
 
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

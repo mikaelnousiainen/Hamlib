@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -125,7 +123,7 @@ const struct rig_caps sdr1k_rig_caps =
     .mfg_name =       "Flex-radio",
     .version =        "20200323.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_UNTESTED,
+    .status =         RIG_STATUS_ALPHA,
     .rig_type =       RIG_TYPE_TUNER,
     .targetable_vfo =      0,
     .ptt_type =       RIG_PTT_RIG,
@@ -189,7 +187,7 @@ const struct rig_caps sdr1k_rig_caps =
     .reset    =     sdr1k_reset,
     .set_level =     sdr1k_set_level,
 //  .set_func =     sdr1k_set_func,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

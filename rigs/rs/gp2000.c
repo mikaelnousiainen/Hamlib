@@ -25,9 +25,7 @@
  * Looks like the GP2000 could be reused in other rigs so
  * we implement that and then the XK2100 uses this interface
  */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,7 +88,7 @@ gp2000_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
     }
 
     retval = read_string(&rs->rigport, (unsigned char *) data, RESPSZ,
-            CR, 1, 0, 1);
+                         CR, 1, 0, 1);
 
     if (retval < 0)
     {

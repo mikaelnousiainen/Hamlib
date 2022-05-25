@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -138,7 +136,8 @@ transaction_write:
     }
 
     memset(data, 0, *datasize);
-    retval = read_string(&rs->rigport, (unsigned char *) data, *datasize, EOM, strlen(EOM), 0, 1);
+    retval = read_string(&rs->rigport, (unsigned char *) data, *datasize, EOM,
+                         strlen(EOM), 0, 1);
 
     if (retval < 0)
     {

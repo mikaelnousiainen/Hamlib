@@ -25,9 +25,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -278,7 +276,7 @@ const struct rig_caps thf6a_caps =
     .get_ant    = th_get_ant,
 
     .reset      = th_reset,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

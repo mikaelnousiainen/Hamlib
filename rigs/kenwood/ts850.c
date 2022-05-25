@@ -19,9 +19,7 @@
 *
 */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -246,7 +244,8 @@ const struct rig_caps ts850_caps =
     .get_mem =  kenwood_get_mem_if,
     .get_channel = kenwood_get_channel,
     .set_channel = ts850_set_channel,
-    .set_trn =  kenwood_set_trn
+    .set_trn =  kenwood_set_trn,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -554,7 +553,7 @@ int ts850_set_channel(RIG *rig, vfo_t vfo, const channel_t *chan)
     }
 
     SNPRINTF(cmdbuf, sizeof(cmdbuf), "MW0 %02d%011d%c0%c%02d ",
-            num, freq, mode, tones, tone);
+             num, freq, mode, tones, tone);
     retval = kenwood_transaction(rig, cmdbuf, NULL, 0);
 
     if (retval != RIG_OK)
@@ -563,7 +562,7 @@ int ts850_set_channel(RIG *rig, vfo_t vfo, const channel_t *chan)
     }
 
     SNPRINTF(cmdbuf, sizeof(cmdbuf), "MW1 %02d%011d%c0%c%02d ",
-            num, tx_freq, tx_mode, tones, tone);
+             num, tx_freq, tx_mode, tones, tone);
     retval = kenwood_transaction(rig, cmdbuf, NULL, 0);
 
     if (retval != RIG_OK)

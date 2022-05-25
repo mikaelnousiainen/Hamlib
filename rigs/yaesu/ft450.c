@@ -26,9 +26,7 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include "hamlib/rig.h"
 #include "bandplan.h"
@@ -81,6 +79,8 @@ const struct rig_caps ft450_caps =
     .max_rit =            Hz(9999),
     .max_xit =            Hz(0),
     .max_ifshift =        Hz(1000),
+    .agc_level_count =    4,
+    .agc_levels =         { RIG_AGC_OFF, RIG_AGC_FAST, RIG_AGC_SLOW, RIG_AGC_AUTO },
     .vfo_ops =            FT450_VFO_OPS,
     .targetable_vfo =     RIG_TARGETABLE_FREQ,
     .transceive =         RIG_TRN_OFF,        /* May enable later as the 450 has an Auto Info command */
@@ -202,5 +202,7 @@ const struct rig_caps ft450_caps =
     .set_channel =        newcat_set_channel,
     .get_channel =        newcat_get_channel,
     .send_morse =         newcat_send_morse,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
+
+struct rig_caps ft450d_caps;

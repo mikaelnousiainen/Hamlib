@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -641,7 +639,7 @@ const struct rig_caps elektor507_caps =
     .set_ant =      elektor507_set_ant,
     .get_ant =      elektor507_get_ant,
     .get_info =     elektor507_get_info,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

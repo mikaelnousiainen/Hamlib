@@ -34,9 +34,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -379,7 +377,7 @@ const struct rig_caps ft767gx_caps =
     .get_split_mode = ft767_get_split_mode,
     .set_split_vfo =  ft767_set_split_vfo,
     .get_split_vfo =  ft767_get_split_vfo,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*

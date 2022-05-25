@@ -29,9 +29,7 @@
  * \file amp_conf.c
  */
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -352,7 +350,7 @@ int frontamp_get_conf2(AMP *amp, token_t token, char *val, int val_len)
     switch (token)
     {
     case TOK_PATHNAME:
-        strncpy(val, rs->ampport.pathname, val_len-1);
+        strncpy(val, rs->ampport.pathname, val_len - 1);
         break;
 
     case TOK_WRITE_DELAY:
@@ -430,7 +428,7 @@ int frontamp_get_conf2(AMP *amp, token_t token, char *val, int val_len)
             return -RIG_EINVAL;
         }
 
-        strncpy(val, s, val_len-1);
+        strncpy(val, s, val_len - 1);
         break;
 
     case TOK_HANDSHAKE:

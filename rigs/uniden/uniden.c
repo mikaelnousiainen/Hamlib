@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -156,7 +154,8 @@ transaction_write:
     }
 
     memset(data, 0, *datasize);
-    retval = read_string(&rs->rigport, (unsigned char *) data, *datasize, EOM, strlen(EOM), 0, 1);
+    retval = read_string(&rs->rigport, (unsigned char *) data, *datasize, EOM,
+                         strlen(EOM), 0, 1);
 
     if (retval < 0)
     {
@@ -439,7 +438,7 @@ int uniden_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         }
 
         SNPRINTF(levelbuf, sizeof(levelbuf), "AT%c"EOM,
-                            val.i != 0 ? 'N' : 'F');
+                 val.i != 0 ? 'N' : 'F');
         break;
 
     default:
@@ -703,11 +702,11 @@ int uniden_set_channel(RIG *rig, vfo_t vfo, const channel_t *chan)
     /* PM089T08511625 */
     SNPRINTF(cmdbuf, sizeof(cmdbuf), "PM%03d%c%08u" EOM, chan->channel_num,
 #if 0
-                      trunked ? 'T' : ' ',
+             trunked ? 'T' : ' ',
 #else
-                      ' ',
+             ' ',
 #endif
-                      (unsigned)(chan->freq / 100));
+             (unsigned)(chan->freq / 100));
 
     ret = uniden_transaction(rig, cmdbuf, strlen(cmdbuf), NULL, membuf, &mem_len);
 
@@ -720,7 +719,7 @@ int uniden_set_channel(RIG *rig, vfo_t vfo, const channel_t *chan)
     {
         /* only BC780 BC250 BC785 */
         SNPRINTF(cmdbuf, sizeof(cmdbuf), "TA C %03d %s" EOM,
-                          chan->channel_num, chan->channel_desc);
+                 chan->channel_num, chan->channel_desc);
 
         ret = uniden_transaction(rig, cmdbuf, strlen(cmdbuf), NULL, NULL, NULL);
 

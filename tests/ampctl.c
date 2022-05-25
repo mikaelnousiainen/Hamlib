@@ -26,9 +26,7 @@
  */
 #include <hamlibdatetime.h>
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -314,12 +312,15 @@ int main(int argc, char *argv[])
     if (amp_file)
     {
         strncpy(my_amp->state.ampport.pathname, amp_file, HAMLIB_FILPATHLEN - 1);
+        strncpy(my_amp->state.ampport_deprecated.pathname, amp_file,
+                HAMLIB_FILPATHLEN - 1);
     }
 
     /* FIXME: bound checking and port type == serial */
     if (serial_rate != 0)
     {
         my_amp->state.ampport.parm.serial.rate = serial_rate;
+        my_amp->state.ampport_deprecated.parm.serial.rate = serial_rate;
     }
 
 #if 0

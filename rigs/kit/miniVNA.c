@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,9 +46,11 @@ static int miniVNA_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     rig_flush(&rig->state.rigport);
 
-    SNPRINTF(cmdstr, sizeof(cmdstr), "0\r%lu\r1\r0\r", (unsigned long int)(freq * DDS_RATIO));
+    SNPRINTF(cmdstr, sizeof(cmdstr), "0\r%lu\r1\r0\r",
+             (unsigned long int)(freq * DDS_RATIO));
 
-    retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr, strlen(cmdstr));
+    retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr,
+                         strlen(cmdstr));
 
     if (retval != RIG_OK)
     {
@@ -67,7 +67,7 @@ const struct rig_caps miniVNA_caps =
     .mfg_name =       "mRS",
     .version =        "20190817.0",
     .copyright =   "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_BETA,
     .rig_type =       RIG_TYPE_TUNER,
     .port_type =      RIG_PORT_SERIAL,
     .serial_rate_min =  115200,
@@ -90,5 +90,6 @@ const struct rig_caps miniVNA_caps =
     .tuning_steps =  { {RIG_MODE_NONE, 1}, RIG_TS_END, },
 
     .set_freq =     miniVNA_set_freq,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 

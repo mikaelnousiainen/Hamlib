@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -222,6 +220,7 @@ const struct rig_caps dwt_caps =
     .set_level =        dwtdll_set_level,
     .get_level =        dwtdll_get_level,
     .get_info =     dwtdll_get_info,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -553,7 +552,7 @@ const struct rig_caps dwt_caps =
     .mfg_name =     "Coding Technologies",
     .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
-    .status =       RIG_STATUS_UNTESTED,
+    .status =       RIG_STATUS_ALPHA,
     .rig_type =     RIG_TYPE_TUNER,
     .ptt_type =     RIG_PTT_NONE,
     .dcd_type =     RIG_DCD_NONE,

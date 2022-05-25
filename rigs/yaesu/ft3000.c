@@ -25,9 +25,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include "hamlib/rig.h"
 #include "misc.h"
@@ -261,7 +259,7 @@ const struct rig_caps ftdx3000_caps =
     .serial_handshake =   RIG_HANDSHAKE_HARDWARE,
     // write_delay 5ms or less was causing VS1;VS; to answer with VS0 instead of VS1 even though change did occur
     // see https://github.com/Hamlib/Hamlib/issues/906
-    .write_delay =        0, 
+    .write_delay =        0,
     .post_write_delay =   FTDX5000_POST_WRITE_DELAY,
     .timeout =            2000,
     .retry =              3,
@@ -284,6 +282,8 @@ const struct rig_caps ftdx3000_caps =
     .max_rit =            Hz(9999),
     .max_xit =            Hz(9999),
     .max_ifshift =        Hz(1000),
+    .agc_level_count =    5,
+    .agc_levels =         { RIG_AGC_OFF, RIG_AGC_FAST, RIG_AGC_MEDIUM, RIG_AGC_SLOW, RIG_AGC_AUTO },
     .vfo_ops =            FTDX5000_VFO_OPS,
     .targetable_vfo =     RIG_TARGETABLE_FREQ, /* one of the few diffs from the 5000 */
     .transceive =         RIG_TRN_OFF,        /* May enable later as the 5000 has an Auto Info command */
@@ -413,6 +413,6 @@ const struct rig_caps ftdx3000_caps =
     .set_ext_level =      newcat_set_ext_level,
     .get_ext_level =      newcat_get_ext_level,
     .send_morse =         newcat_send_morse,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 

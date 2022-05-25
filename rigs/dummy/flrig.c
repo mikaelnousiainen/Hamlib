@@ -19,9 +19,7 @@
 *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 *
 */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -118,6 +116,7 @@ struct flrig_priv_data
     pbwidth_t curr_widthB;
     int has_get_modeA; /* True if this function is available */
     int has_get_bwA; /* True if this function is available */
+    int has_set_bwA; /* True if this function is available */
     int has_verify_cmds; // has the verify cmd in FLRig 1.3.54.1 or higher
     float powermeter_scale;  /* So we can scale power meter to 0-1 */
     value_t parms[RIG_SETTING_MAX];
@@ -144,7 +143,7 @@ const struct rig_caps flrig_caps =
     RIG_MODEL(RIG_MODEL_FLRIG),
     .model_name = "FLRig",
     .mfg_name = "FLRig",
-    .version = "20220129.0",
+    .version = "20220504.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -213,7 +212,7 @@ const struct rig_caps flrig_caps =
     .get_ext_parm =  flrig_get_ext_parm,
     .power2mW =   flrig_power2mW,
     .mW2power =   flrig_mW2power,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 //Structure for mapping flrig dynmamic modes to hamlib modes
@@ -782,10 +781,13 @@ static int flrig_open(RIG *rig)
 {
     int retval;
     char value[MAXXMLLEN];
-    char arg[MAXXMLLEN];
+    //char arg[MAXXMLLEN];
     rmode_t modes;
     char *p;
     char *pr;
+    split_t split;
+    vfo_t tx_vfo;
+
     struct flrig_priv_data *priv = (struct flrig_priv_data *) rig->state.priv;
 
     ENTERFUNC;
@@ -803,17 +805,19 @@ static int flrig_open(RIG *rig)
 
     int v1 = 0, v2 = 0, v3 = 0, v4 = 0;
     sscanf(value, "%d.%d.%d.%d", &v1, &v2, &v3, &v4);
+    char version[32];
+    sprintf(version, "%03d%03d%03d%03d", v1, v2, v3, v4);
+    int iversion = 0;
+    sscanf(version, "%d", &iversion);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: version='%s'=%d\n", __func__, version,
+              iversion);
 
-    if (v1 >= 1 && v2 >= 3 && v3 >= 54)
+    priv->has_verify_cmds = 0;
+
+    if (iversion >= 1003054000) // 1.3.54 or greater
     {
         priv->has_verify_cmds = 1;
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: verify set_vfoA/ptt is available\n",
-                  __func__);
-    }
-    else
-    {
-        priv->has_verify_cmds = 0;
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: verify set vfoA/ptt is not available\n",
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: set_vfoA/ptt is available\n",
                   __func__);
     }
 
@@ -865,24 +869,37 @@ static int flrig_open(RIG *rig)
         RETURNFUNC(RIG_EPROTO);
     }
 
-
     /* see if get_bwA is available */
     retval = flrig_transaction(rig, "rig.get_bwA", NULL, value, sizeof(value));
 
     if (retval == RIG_ENAVAIL) // must not have it
     {
         priv->has_get_bwA = 0;
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: get_bwA is available=%s\n", __func__,
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: get_bwA is not available=%s\n", __func__,
                   value);
     }
     else
     {
         priv->has_get_bwA = 1;
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: get_bwA is not available\n", __func__);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: get_bwA is available=%s\n", __func__, value);
     }
 
-    strcpy(arg, value);
-    retval = flrig_transaction(rig, "rig.get_AB", arg, value, sizeof(value));
+    /* see if set_bwA is available */
+    retval = flrig_transaction(rig, "rig.set_bwA", NULL, value, sizeof(value));
+
+    if (retval == RIG_ENAVAIL) // must not have it
+    {
+        priv->has_set_bwA = 0;
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: set_bwA is not available=%s\n", __func__,
+                  value);
+    }
+    else
+    {
+        priv->has_set_bwA = 1;
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: set_bwA is available=%s\n", __func__, value);
+    }
+
+    retval = flrig_transaction(rig, "rig.get_AB", NULL, value, sizeof(value));
 
     if (retval != RIG_OK) { RETURNFUNC(retval); }
 
@@ -1031,7 +1048,7 @@ static int flrig_open(RIG *rig)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: hamlib modes=%s\n", __func__, value);
 
-
+    rig_get_split_vfo(rig, RIG_VFO_A, &split, &tx_vfo);
 
     RETURNFUNC(retval);
 }
@@ -1508,7 +1525,14 @@ static int flrig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
                  "<params><param><value><i4>%ld</i4></value></param></params>",
                  width);
 
-        retval = flrig_transaction(rig, "rig.set_bandwidth", cmd_arg, NULL, 0);
+        if (vfo == RIG_VFO_A)
+        {
+            retval = flrig_transaction(rig, "rig.set_bwA", cmd_arg, NULL, 0);
+        }
+        else
+        {
+            retval = flrig_transaction(rig, "rig.set_bwB", cmd_arg, NULL, 0);
+        }
 
         if (retval < 0)
         {
@@ -1951,9 +1975,9 @@ static int flrig_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split,
         RETURNFUNC(retval);
     }
 
-    *tx_vfo = RIG_VFO_B;
     *split = atoi(value);
     priv->split = *split;
+    *tx_vfo = *split ? RIG_VFO_B : RIG_VFO_A;
     rig_debug(RIG_DEBUG_TRACE, "%s tx_vfo=%s, split=%d\n", __func__,
               rig_strvfo(*tx_vfo), *split);
     RETURNFUNC(RIG_OK);
@@ -2321,6 +2345,16 @@ static int flrig_get_ext_parm(RIG *rig, token_t token, value_t *val)
     RETURNFUNC(RIG_OK);
 }
 
+HAMLIB_EXPORT(int) flrig_cat_string(RIG *rig, const char *arg)
+{
+    int retval;
+    char cmd_arg[MAXARGLEN];
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s\n", __func__, arg);
+    SNPRINTF(cmd_arg, sizeof(cmd_arg),
+             "<params><param><value>%s</value></param></params>", arg);
+    retval = flrig_transaction(rig, "rig.cat_string", cmd_arg, NULL, 0);
+    return retval;
+}
 
 #if 0
 static int flrig_set_ext_parm(RIG *rig, setting_t parm, value_t val)

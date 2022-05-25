@@ -50,9 +50,7 @@
  */
 
 #include "hamlib/rig.h"
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include "hamlib/config.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -158,8 +156,19 @@ const char hamlib_copyright[231] = /* hamlib 1.2 ABI specifies 231 bytes */
 #define DEFAULT_GPIO_PORT "0"
 
 #define CHECK_RIG_ARG(r) (!(r) || !(r)->caps || !(r)->state.comm_state)
+#define CHECK_RIG_CAPS(r) (!(r) || !(r)->caps)
 
 #define LOCK \
+
+#ifdef PTHREAD
+#define MUTEX(var) static pthread_mutex_t var = PTHREAD_MUTEX_INITIALIZER
+#define MUTEX_LOCK(var) pthread_mutex_lock(var)
+#define MUTEX_UNLOCK(var)  pthread_mutex_unlock(var)
+#else
+#define MUTEX(var)
+#define MUTEX_LOCK(var)
+#define MUTEX_UNLOCK(var)
+#endif
 
 /*
  * Data structure to track the opened rig (by rig_open)
@@ -196,7 +205,8 @@ static const char *const rigerror_table[] =
     "NULL RIG handle or invalid pointer parameter",
     "Invalid VFO",
     "Argument out of domain of func",
-    "Function deprecated"
+    "Function deprecated",
+    "Security error password not provided or crypto failure"
 };
 
 
@@ -261,13 +271,13 @@ static int remove_opened_rig(RIG *rig)
             }
 
             free(p);
-            return(RIG_OK);
+            return (RIG_OK);
         }
 
         q = p;
     }
 
-    return(-RIG_EINVAL); /* Not found in list ! */
+    return (-RIG_EINVAL); /* Not found in list ! */
 }
 
 
@@ -297,19 +307,73 @@ int foreach_opened_rig(int (*cfunc)(RIG *, rig_ptr_t), rig_ptr_t data)
     {
         if ((*cfunc)(p->rig, data) == 0)
         {
-            return(RIG_OK);
+            return (RIG_OK);
         }
     }
 
-    return(RIG_OK);
+    return (RIG_OK);
 }
 
 #endif /* !DOC_HIDDEN */
 
 
-char debugmsgsave[DEBUGMSGSAVE_SIZE] = "No message";
-char debugmsgsave2[DEBUGMSGSAVE_SIZE] = "No message";
-char debugmsgsave3[DEBUGMSGSAVE_SIZE] = "No message";
+char debugmsgsave[DEBUGMSGSAVE_SIZE] = "";
+char debugmsgsave2[DEBUGMSGSAVE_SIZE] = "";
+char debugmsgsave3[DEBUGMSGSAVE_SIZE] = "";
+
+MUTEX(debugmsgsave);
+
+void add2debugmsgsave(const char *s)
+{
+    char *p;
+    char stmp[DEBUGMSGSAVE_SIZE];
+    int i, nlines;
+    MUTEX_LOCK(debugmsgsave);
+    memset(stmp, 0, sizeof(stmp));
+    p = debugmsgsave;
+
+    // we'll keep 20 lines including this one
+    // so count the lines
+    for (i = 0, nlines = 0; debugmsgsave[i] != 0; ++i)
+    {
+        if (debugmsgsave[i] == '\n') { ++nlines; }
+    }
+
+    // strip the last 19 lines
+    p =  debugmsgsave;
+
+    while ((nlines > 19 || strlen(debugmsgsave) > 2048) && p != NULL)
+    {
+        p = strchr(debugmsgsave, '\n');
+
+        if (p && strlen(p + 1) > 0)
+        {
+            if (strlen(p + 1) > 0)
+            {
+                strcpy(stmp, p + 1);
+                strcpy(debugmsgsave, stmp);
+            }
+            else
+            {
+                debugmsgsave[0] = '\0';
+            }
+        }
+
+        --nlines;
+    }
+
+    if (strlen(stmp) + strlen(s) + 1 < DEBUGMSGSAVE_SIZE)
+    {
+        strcat(debugmsgsave, s);
+    }
+    else
+    {
+        rig_debug(RIG_DEBUG_BUG,
+                  "%s: debugmsgsave overflow!! len of debugmsgsave=%d, len of add=%d\n", __func__,
+                  (int)strlen(debugmsgsave), (int)strlen(s));
+    }
+    MUTEX_UNLOCK(debugmsgsave);
+}
 
 /**
  * \brief get string describing the error code
@@ -332,15 +396,24 @@ const char *HAMLIB_API rigerror(int errnum)
         return "ERR_OUT_OF_RANGE";
     }
 
-    static char msg[DEBUGMSGSAVE_SIZE * 3];
+    static char msg[DEBUGMSGSAVE_SIZE];
+#if 0
     // we have to remove LF from debugmsgsave since calling function controls LF
     char *p = &debugmsgsave[strlen(debugmsgsave) - 1];
 
     if (*p == '\n') { *p = 0; }
 
+#endif
+
+#if 0
     SNPRINTF(msg, sizeof(msg), "%.80s\n%.15000s%.15000s%.15000s",
              rigerror_table[errnum],
              debugmsgsave3, debugmsgsave2, debugmsgsave);
+#else
+    snprintf(msg, sizeof(msg), "%s\n", rigerror_table[errnum]);
+    add2debugmsgsave(msg);
+    snprintf(msg, sizeof(msg), "%s", debugmsgsave);
+#endif
     return msg;
 }
 
@@ -373,7 +446,7 @@ static int rig_check_rig_caps()
                   &caps_test.macro_name);
     }
 
-    return(rc);
+    return (rc);
 }
 
 /**
@@ -457,7 +530,8 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
     rs->rigport.fd = -1;
     rs->pttport.fd = -1;
     rs->comm_state = 0;
-    rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): %p rs->comm_state==0?=%d\n", __func__, __LINE__, &rs->comm_state,
+    rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): %p rs->comm_state==0?=%d\n", __func__,
+              __LINE__, &rs->comm_state,
               rs->comm_state);
     rs->rigport.type.rig = caps->port_type; /* default from caps */
 #if defined(HAVE_PTHREAD)
@@ -675,12 +749,6 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
             return (NULL);
         }
     }
-    // Now we have to copy our new rig state hamlib_port structure to the deprecated one
-    // Clients built on older 4.X versions will use the old structure
-    // Clients built on newer 4.5 versions will use the new structure
-    memcpy(&rig->state.rigport_deprecated, &rig->state.rigport, sizeof(rig->state.rigport_deprecated));
-    memcpy(&rig->state.pttport_deprecated, &rig->state.pttport, sizeof(rig->state.pttport_deprecated));
-    memcpy(&rig->state.dcdport_deprecated, &rig->state.dcdport, sizeof(rig->state.dcdport_deprecated));
 
     return (rig);
 }
@@ -721,6 +789,62 @@ int HAMLIB_API rig_open(RIG *rig)
     caps = rig->caps;
     rs = &rig->state;
     rs->rigport.rig = rig;
+    rs->rigport_deprecated.rig = rig;
+
+    // rigctl/rigctld may have deprecated values -- backwards compatility
+    if (rs->rigport_deprecated.pathname[0] != 0)
+    {
+        strcpy(rs->rigport.pathname, rs->rigport_deprecated.pathname);
+    }
+
+    if (rs->pttport_deprecated.type.ptt != RIG_PTT_NONE)
+    {
+        rs->pttport.type.ptt = rs->pttport_deprecated.type.ptt;
+    }
+
+    if (rs->dcdport_deprecated.type.dcd != RIG_DCD_NONE)
+    {
+        rs->dcdport.type.dcd = rs->dcdport_deprecated.type.dcd;
+    }
+
+    if (rs->pttport_deprecated.pathname[0] != 0)
+    {
+        strcpy(rs->pttport.pathname, rs->pttport_deprecated.pathname);
+    }
+
+    if (rs->dcdport_deprecated.pathname[0] != 0)
+    {
+        strcpy(rs->dcdport.pathname, rs->dcdport_deprecated.pathname);
+    }
+
+    // Read in our settings
+    char *cwd = malloc(4096);
+
+    if (getcwd(cwd, 4096) == NULL)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: getcwd: %s\n", __func__, strerror(errno));
+    }
+    else
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: cwd=%s\n", __func__, cwd);
+        char *path = malloc(4096);
+        extern char *settings_file;
+        sprintf(path, "%s/%s", cwd, settings_file);
+        FILE *fp = fopen(path, "r");
+
+        if (fp == NULL)
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: %s does not exist\n", __func__, path);
+        }
+        else
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: reading settings from %s\n", __func__, path);
+        }
+
+        free(path);
+    }
+
+    free(cwd);
 
     // Enable async data only if it's enabled through conf settings *and* supported by the backend
     rs->async_data_enabled = rs->async_data_enabled && caps->async_data_supported;
@@ -729,7 +853,8 @@ int HAMLIB_API rig_open(RIG *rig)
     if (strlen(rs->rigport.pathname) > 0)
     {
         char hoststr[256], portstr[6];
-        status = parse_hoststr(rs->rigport.pathname, sizeof(rs->rigport.pathname), hoststr, portstr);
+        status = parse_hoststr(rs->rigport.pathname, sizeof(rs->rigport.pathname),
+                               hoststr, portstr);
 
         if (status == RIG_OK) { is_network = 1; }
     }
@@ -769,15 +894,21 @@ int HAMLIB_API rig_open(RIG *rig)
 
         if (RIG_BACKEND_NUM(rig->caps->rig_model) == RIG_ICOM)
         {
-            rig_debug(RIG_DEBUG_TRACE, "%s(%d): Icom rig UDP network enabled\n", __FILE__,
-                      __LINE__);
-            rs->rigport.type.rig = RIG_PORT_UDP_NETWORK;
+            // Xiegu X6100 does TCP and does not support UDP spectrum that I know of
+            if (rig->caps->rig_model != RIG_MODEL_X6100)
+            {
+                rig_debug(RIG_DEBUG_TRACE, "%s(%d): Icom rig UDP network enabled\n", __FILE__,
+                          __LINE__);
+                rs->rigport.type.rig = RIG_PORT_UDP_NETWORK;
+            }
+
         }
     }
 
     if (rs->comm_state)
     {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): %p rs->comm_state==1?=%d\n", __func__, __LINE__, &rs->comm_state,
+        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): %p rs->comm_state==1?=%d\n", __func__,
+                  __LINE__, &rs->comm_state,
                   rs->comm_state);
         port_close(&rs->rigport, rs->rigport.type.rig);
         rs->comm_state = 0;
@@ -1059,7 +1190,8 @@ int HAMLIB_API rig_open(RIG *rig)
     add_opened_rig(rig);
 
     rs->comm_state = 1;
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: %p rs->comm_state==1?=%d\n", __func__, &rs->comm_state,
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: %p rs->comm_state==1?=%d\n", __func__,
+              &rs->comm_state,
               rs->comm_state);
 
     /*
@@ -1075,7 +1207,7 @@ int HAMLIB_API rig_open(RIG *rig)
             remove_opened_rig(rig);
             async_data_handler_stop(rig);
             port_close(&rs->rigport, rs->rigport.type.rig);
-            memcpy(&rs->rigport_deprecated,&rs->rigport,sizeof(hamlib_port_t_deprecated));
+            memcpy(&rs->rigport_deprecated, &rs->rigport, sizeof(hamlib_port_t_deprecated));
             rs->comm_state = 0;
             RETURNFUNC(status);
         }
@@ -1141,9 +1273,9 @@ int HAMLIB_API rig_open(RIG *rig)
 //    if (caps->get_freq) rig_get_freq(rig, RIG_VFO_A, &freq);
 //    if (caps->get_freq) rig_get_freq(rig, RIG_VFO_B, &freq);
 
-    memcpy(&rs->rigport_deprecated,&rs->rigport,sizeof(hamlib_port_t_deprecated));
-    memcpy(&rs->pttport_deprecated,&rs->pttport,sizeof(hamlib_port_t_deprecated));
-    memcpy(&rs->dcdport_deprecated,&rs->dcdport,sizeof(hamlib_port_t_deprecated));
+    memcpy(&rs->rigport_deprecated, &rs->rigport, sizeof(hamlib_port_t_deprecated));
+    memcpy(&rs->pttport_deprecated, &rs->pttport, sizeof(hamlib_port_t_deprecated));
+    memcpy(&rs->dcdport_deprecated, &rs->dcdport, sizeof(hamlib_port_t_deprecated));
     RETURNFUNC(RIG_OK);
 }
 
@@ -1213,7 +1345,7 @@ int HAMLIB_API rig_close(RIG *rig)
             if (rs->pttport.fd != rs->rigport.fd)
             {
                 port_close(&rs->pttport, RIG_PORT_SERIAL);
-                memcpy(&rs->rigport_deprecated,&rs->rigport,sizeof(hamlib_port_t_deprecated));
+                memcpy(&rs->rigport_deprecated, &rs->rigport, sizeof(hamlib_port_t_deprecated));
             }
         }
 
@@ -1229,7 +1361,7 @@ int HAMLIB_API rig_close(RIG *rig)
             if (rs->pttport.fd != rs->rigport.fd)
             {
                 port_close(&rs->pttport, RIG_PORT_SERIAL);
-                memcpy(&rs->rigport_deprecated,&rs->rigport,sizeof(hamlib_port_t_deprecated));
+                memcpy(&rs->rigport_deprecated, &rs->rigport, sizeof(hamlib_port_t_deprecated));
             }
         }
 
@@ -1270,7 +1402,7 @@ int HAMLIB_API rig_close(RIG *rig)
         if (rs->dcdport.fd != rs->rigport.fd)
         {
             port_close(&rs->dcdport, RIG_PORT_SERIAL);
-            memcpy(&rs->rigport_deprecated,&rs->rigport,sizeof(hamlib_port_t_deprecated));
+            memcpy(&rs->rigport_deprecated, &rs->rigport, sizeof(hamlib_port_t_deprecated));
         }
 
         break;
@@ -1298,7 +1430,8 @@ int HAMLIB_API rig_close(RIG *rig)
     remove_opened_rig(rig);
 
     rs->comm_state = 0;
-    rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): %p rs->comm_state==0?=%d\n", __func__, __LINE__, &rs->comm_state,
+    rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): %p rs->comm_state==0?=%d\n", __func__,
+              __LINE__, &rs->comm_state,
               rs->comm_state);
 
     RETURNFUNC(RIG_OK);
@@ -1320,11 +1453,9 @@ int HAMLIB_API rig_close(RIG *rig)
  */
 int HAMLIB_API rig_cleanup(RIG *rig)
 {
-    ENTERFUNC;
-
     if (!rig || !rig->caps)
     {
-        RETURNFUNC(-RIG_EINVAL);
+        return (-RIG_EINVAL);
     }
 
     /*
@@ -1345,7 +1476,7 @@ int HAMLIB_API rig_cleanup(RIG *rig)
 
     free(rig);
 
-    RETURNFUNC(RIG_OK);
+    return (RIG_OK);
 }
 
 /**
@@ -1505,7 +1636,8 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     ELAPSED1;
 #if BUILTINFUNC
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s, freq=%.0f, called from %s\n", __func__,
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s, freq=%.0f, called from %s\n",
+              __func__,
               rig_strvfo(vfo), freq, func);
 #else
     rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s, freq=%.0f\n", __func__,
@@ -1729,15 +1861,15 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     if (CHECK_RIG_ARG(rig))
     {
-        return(-RIG_EINVAL);
+        RETURNFUNC2(-RIG_EINVAL);
     }
 
     ELAPSED1;
-    rig_debug(RIG_DEBUG_ERR, "%s: rig->state.pttport.type.ptt=%d, %p\n", __func__, rig->state.pttport.type.ptt, &rig->state.pttport.type.ptt);
+
     if (!freq)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: freq ptr invalid\n", __func__);
-        return(-RIG_EINVAL);
+        RETURNFUNC2(-RIG_EINVAL);
     }
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s(%d) called vfo=%s\n", __func__, __LINE__,
@@ -1768,7 +1900,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         rig_get_cache(rig, vfo, freq, &cache_ms_freq, &mode, &cache_ms_mode, &width,
                       &cache_ms_width);
         ELAPSED2;
-        return(RIG_OK);
+        return (RIG_OK);
     }
 
     rig_cache_show(rig, __func__, __LINE__);
@@ -1787,7 +1919,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
         if (retcode != RIG_OK)
         {
-            return(retcode);
+            RETURNFUNC2(retcode);
         }
 
         if (ptt)
@@ -1796,7 +1928,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
                       "%s: split is on so returning VFOA last known freq\n",
                       __func__);
             *freq = rig->state.cache.freqMainA;
-            return(RIG_OK);
+            return (RIG_OK);
         }
     }
 
@@ -1808,12 +1940,13 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     rig_cache_show(rig, __func__, __LINE__);
 
     if (*freq != 0 && (cache_ms_freq < rig->state.cache.timeout_ms
-                       || (rig->state.cache.timeout_ms == HAMLIB_CACHE_ALWAYS || rig->state.use_cached_freq)))
+                       || (rig->state.cache.timeout_ms == HAMLIB_CACHE_ALWAYS
+                           || rig->state.use_cached_freq)))
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: %s cache hit age=%dms, freq=%.0f\n", __func__,
                   rig_strvfo(vfo), cache_ms_freq, *freq);
         ELAPSED2;
-        return(RIG_OK);
+        return (RIG_OK);
     }
     else
     {
@@ -1827,7 +1960,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     if (caps->get_freq == NULL)
     {
-        return(-RIG_ENAVAIL);
+        RETURNFUNC2(-RIG_ENAVAIL);
     }
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): vfo_opt=%d, model=%d\n", __func__,
@@ -1870,7 +2003,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
         if (!caps->set_vfo)
         {
-            return(-RIG_ENAVAIL);
+            RETURNFUNC2(-RIG_ENAVAIL);
         }
 
         TRACE;
@@ -1878,7 +2011,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
         if (retcode != RIG_OK)
         {
-            return(retcode);
+            RETURNFUNC2(retcode);
         }
 
         rig_cache_show(rig, __func__, __LINE__);
@@ -1920,12 +2053,20 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         *freq += rig->state.lo_freq;
     }
 
-    rig_cache_show(rig, __func__, __LINE__);
+    if (retcode == RIG_OK)
+    {
+        rig_cache_show(rig, __func__, __LINE__);
+    }
+
     rig_set_cache_freq(rig, vfo, *freq);
-    rig_cache_show(rig, __func__, __LINE__);
+
+    if (retcode == RIG_OK)
+    {
+        rig_cache_show(rig, __func__, __LINE__);
+    }
 
     ELAPSED2;
-    return(retcode);
+    return (retcode);
 }
 
 /**
@@ -1948,7 +2089,7 @@ int HAMLIB_API rig_get_freqs(RIG *rig, freq_t *freqA, freq_t freqB)
 {
     // we will attempt to avoid vfo swapping in this routine
 
-    return(-RIG_ENIMPL);
+    return (-RIG_ENIMPL);
 
 }
 
@@ -1980,7 +2121,7 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     ELAPSED1;
 
     rig_debug(RIG_DEBUG_VERBOSE,
-              "%s called, vfo=%s, mode=%s, width=%dm, curr_vfo=%s\n", __func__,
+              "%s called, vfo=%s, mode=%s, width=%d, curr_vfo=%s\n", __func__,
               rig_strvfo(vfo), rig_strrmode(mode), (int)width,
               rig_strvfo(rig->state.current_vfo));
 
@@ -2003,7 +2144,16 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         RETURNFUNC2(-RIG_ENAVAIL);
     }
 
-    if (vfo == RIG_VFO_CURR) { vfo = rig->state.current_vfo; }
+    if (vfo == RIG_VFO_CURR)
+    {
+        vfo = rig->state.current_vfo;
+    }
+
+    if (mode == RIG_MODE_NONE) // the we just use the current mode to set width
+    {
+        pbwidth_t twidth;
+        rig_get_mode(rig, vfo, &mode, &twidth);
+    }
 
     vfo = vfo_fixup(rig, vfo, rig->state.cache.split);
 
@@ -2012,9 +2162,8 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     {
         TRACE;
         retcode = caps->set_mode(rig, vfo, mode, width);
-        rig_debug(RIG_DEBUG_TRACE, "%s: targetable retcode after set_mode=%d\n",
-                  __func__,
-                  retcode);
+        rig_debug(RIG_DEBUG_TRACE, "%s: targetable retcode after set_mode(%s)=%d\n",
+                  __func__, rig_strrmode(mode), retcode);
     }
     else
     {
@@ -2026,7 +2175,7 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         {
             rig_debug(RIG_DEBUG_TRACE, "%s: VFOB mode not changing so ignoring\n",
                       __func__);
-            RETURNFUNC2 (RIG_OK);
+            RETURNFUNC2(RIG_OK);
         }
 
         rig_debug(RIG_DEBUG_TRACE, "%s: not targetable need vfo swap\n", __func__);
@@ -2056,7 +2205,12 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         }
     }
 
-    if (retcode != RIG_OK) { RETURNFUNC(retcode); }
+    if (retcode != RIG_OK)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: failed set_mode(%s)=%s\n",
+                  __func__, rig_strrmode(mode), rigerror(retcode));
+        RETURNFUNC(retcode);
+    }
 
     rig_set_cache_mode(rig, vfo, mode, width);
 
@@ -2127,7 +2281,8 @@ int HAMLIB_API rig_get_mode(RIG *rig,
 
     rig_cache_show(rig, __func__, __LINE__);
 
-    if (rig->state.cache.timeout_ms == HAMLIB_CACHE_ALWAYS || rig->state.use_cached_mode)
+    if (rig->state.cache.timeout_ms == HAMLIB_CACHE_ALWAYS
+            || rig->state.use_cached_mode)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: cache hit age mode=%dms, width=%dms\n",
                   __func__, cache_ms_mode, cache_ms_width);
@@ -2254,7 +2409,8 @@ pbwidth_t HAMLIB_API rig_passband_normal(RIG *rig, rmode_t mode)
     {
         if (rs->filters[i].modes & mode)
         {
-            rig_debug(RIG_DEBUG_VERBOSE, "%.*s%d:%s: return filter#%d, width=%d\n", rig->state.depth, spaces(), rig->state.depth, __func__, i,
+            rig_debug(RIG_DEBUG_VERBOSE, "%.*s%d:%s: return filter#%d, width=%d\n",
+                      rig->state.depth, spaces(), rig->state.depth, __func__, i,
                       (int)rs->filters[i].width);
             RETURNFUNC(rs->filters[i].width);
         }
@@ -2396,7 +2552,7 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
     const struct rig_caps *caps;
     int retcode;
     freq_t curr_freq;
-    vfo_t curr_vfo;
+    vfo_t curr_vfo = RIG_VFO_CURR;
 
     ELAPSED1;
     ENTERFUNC;
@@ -2423,10 +2579,13 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
     if (vfo == RIG_VFO_CURR) { RETURNFUNC(RIG_OK); }
 
     retcode = rig_get_vfo(rig, &curr_vfo);
+
     if (retcode != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_WARN, "%s: rig_get_vfo error=%s\n", __func__, rigerror(retcode));
+        rig_debug(RIG_DEBUG_WARN, "%s: rig_get_vfo error=%s\n", __func__,
+                  rigerror(retcode));
     }
+
     if (curr_vfo == vfo) { RETURNFUNC(RIG_OK); }
 
 #if 0 // removing this check 20210801 -- should be mapped already
@@ -2461,7 +2620,8 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: Ignoring set_vfo due to VFO twiddling\n",
                   __func__);
-        RETURNFUNC(RIG_OK); // would be better as error but other software won't handle errors
+        RETURNFUNC(
+            RIG_OK); // would be better as error but other software won't handle errors
     }
 
     TRACE;
@@ -2628,7 +2788,6 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 
     ELAPSED1;
     ENTERFUNC;
-    rig_debug(RIG_DEBUG_ERR, "%s: rig->state.pttport.type.ptt=%d, %p\n", __func__, rig->state.pttport.type.ptt, &rig->state.pttport.type.ptt);
 
     if (CHECK_RIG_ARG(rig))
     {
@@ -2893,7 +3052,8 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 
     if (retcode != RIG_OK) { rig_debug(RIG_DEBUG_ERR, "%s: return code=%d\n", __func__, retcode); }
 
-    memcpy(&rig->state.pttport_deprecated, &rig->state.pttport, sizeof(rig->state.pttport_deprecated));
+    memcpy(&rig->state.pttport_deprecated, &rig->state.pttport,
+           sizeof(rig->state.pttport_deprecated));
     ELAPSED2;
 
     RETURNFUNC(retcode);
@@ -3264,32 +3424,37 @@ int HAMLIB_API rig_get_dcd(RIG *rig, vfo_t vfo, dcd_t *dcd)
 
     case RIG_DCD_SERIAL_CTS:
         retcode = ser_get_cts(&rig->state.dcdport, &status);
-        memcpy(&rig->state.dcdport_deprecated, &rig->state.dcdport, sizeof(rig->state.dcdport_deprecated));
+        memcpy(&rig->state.dcdport_deprecated, &rig->state.dcdport,
+               sizeof(rig->state.dcdport_deprecated));
         *dcd = status ? RIG_DCD_ON : RIG_DCD_OFF;
         RETURNFUNC(retcode);
 
     case RIG_DCD_SERIAL_DSR:
         retcode = ser_get_dsr(&rig->state.dcdport, &status);
-        memcpy(&rig->state.dcdport_deprecated, &rig->state.dcdport, sizeof(rig->state.dcdport_deprecated));
+        memcpy(&rig->state.dcdport_deprecated, &rig->state.dcdport,
+               sizeof(rig->state.dcdport_deprecated));
         *dcd = status ? RIG_DCD_ON : RIG_DCD_OFF;
         RETURNFUNC(retcode);
 
     case RIG_DCD_SERIAL_CAR:
         retcode = ser_get_car(&rig->state.dcdport, &status);
-        memcpy(&rig->state.dcdport_deprecated, &rig->state.dcdport, sizeof(rig->state.dcdport_deprecated));
+        memcpy(&rig->state.dcdport_deprecated, &rig->state.dcdport,
+               sizeof(rig->state.dcdport_deprecated));
         *dcd = status ? RIG_DCD_ON : RIG_DCD_OFF;
         RETURNFUNC(retcode);
 
 
     case RIG_DCD_PARALLEL:
         retcode = par_dcd_get(&rig->state.dcdport, dcd);
-        memcpy(&rig->state.dcdport_deprecated, &rig->state.dcdport, sizeof(rig->state.dcdport_deprecated));
+        memcpy(&rig->state.dcdport_deprecated, &rig->state.dcdport,
+               sizeof(rig->state.dcdport_deprecated));
         RETURNFUNC(retcode);
 
     case RIG_DCD_GPIO:
     case RIG_DCD_GPION:
         retcode = gpio_dcd_get(&rig->state.dcdport, dcd);
-        memcpy(&rig->state.dcdport_deprecated, &rig->state.dcdport, sizeof(rig->state.dcdport_deprecated));
+        memcpy(&rig->state.dcdport_deprecated, &rig->state.dcdport,
+               sizeof(rig->state.dcdport_deprecated));
         RETURNFUNC(retcode);
 
     case RIG_DCD_NONE:
@@ -3624,7 +3789,8 @@ int HAMLIB_API rig_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
     }
 
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s, curr_vfo=%s, tx_freq=%.0f\n", __func__,
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s, curr_vfo=%s, tx_freq=%.0f\n",
+              __func__,
               rig_strvfo(vfo), rig_strvfo(rig->state.current_vfo), tx_freq);
 
     caps = rig->caps;
@@ -3825,7 +3991,6 @@ int HAMLIB_API rig_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq)
         TRACE;
         retcode = caps->get_freq(rig, tx_vfo, tx_freq);
         RETURNFUNC(retcode);
-        RETURNFUNC(retcode);
     }
 
 
@@ -4023,8 +4188,11 @@ int HAMLIB_API rig_set_split_mode(RIG *rig,
         RETURNFUNC(RIG_OK);
     }
 
-    rig_debug(RIG_DEBUG_WARN, "%s(%d): Unhandled TXVFO=%s, tx_mode=%s\n", __func__,
-              __LINE__, rig_strvfo(tx_vfo), rig_strrmode(tx_mode));
+    if (tx_vfo & (RIG_VFO_CURR | RIG_VFO_TX))
+    {
+        rig_debug(RIG_DEBUG_WARN, "%s(%d): Unhandled TXVFO=%s, tx_mode=%s\n", __func__,
+                  __LINE__, rig_strvfo(tx_vfo), rig_strrmode(tx_mode));
+    }
 
     // code below here should be dead code now -- but maybe we have  VFO situatiuon we need to handle
     if (caps->rig_model == RIG_MODEL_NETRIGCTL)
@@ -4439,8 +4607,9 @@ int HAMLIB_API rig_set_split_vfo(RIG *rig,
 
     ELAPSED1;
     ENTERFUNC;
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: rx_vfo=%s, split=%d, tx_vfo=%s\n", __func__,
-              rig_strvfo(rx_vfo), split, rig_strvfo(tx_vfo));
+    rig_debug(RIG_DEBUG_VERBOSE,
+              "%s: rx_vfo=%s, split=%d, tx_vfo=%s, cache.split=%d\n", __func__,
+              rig_strvfo(rx_vfo), split, rig_strvfo(tx_vfo), rig->state.cache.split);
 
     if (CHECK_RIG_ARG(rig))
     {
@@ -4476,12 +4645,15 @@ int HAMLIB_API rig_set_split_vfo(RIG *rig,
         case RIG_VFO_B: rx_vfo = split == 1 ? RIG_VFO_A : RIG_VFO_B; break;
         }
 
+        //rig->state.cache.split = split; // this gets set later
+        //rig->state.cache.split_vfo = tx_vfo;
         rx_vfo = vfo_fixup(rig, rx_vfo, split);
         tx_vfo = vfo_fixup(rig, tx_vfo, split);
         rig->state.rx_vfo = rx_vfo;
         rig->state.tx_vfo = tx_vfo;
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: final rxvfo=%s, txvfo=%s\n", __func__,
-                  rig_strvfo(rx_vfo), rig_strvfo(tx_vfo));
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: final rxvfo=%s, txvfo=%s, split=%d\n",
+                  __func__,
+                  rig_strvfo(rx_vfo), rig_strvfo(tx_vfo), rig->state.cache.split);
     }
 
     // set rig to the the requested RX VFO
@@ -4661,6 +4833,8 @@ int HAMLIB_API rig_get_split_vfo(RIG *rig,
             rig->state.cache.split = *split;
             rig->state.cache.split_vfo = *tx_vfo;
             elapsed_ms(&rig->state.cache.time_split, HAMLIB_ELAPSED_SET);
+            rig_debug(RIG_DEBUG_TRACE, "%s: cache.split=%d\n", __func__,
+                      rig->state.cache.split);
         }
         ELAPSED2;
         RETURNFUNC(retcode);
@@ -4701,6 +4875,8 @@ int HAMLIB_API rig_get_split_vfo(RIG *rig,
         rig->state.cache.split = *split;
         rig->state.cache.split_vfo = *tx_vfo;
         elapsed_ms(&rig->state.cache.time_split, HAMLIB_ELAPSED_SET);
+        rig_debug(RIG_DEBUG_TRACE, "%s(%d): cache.split=%d\n", __func__, __LINE__,
+                  rig->state.cache.split);
     }
 
     ELAPSED2;
@@ -5498,7 +5674,7 @@ int HAMLIB_API rig_set_powerstat(RIG *rig, powerstat_t status)
 {
     int retcode;
 
-    ENTERFUNC;
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called status=%d\n", __func__, status);
 
     if (CHECK_RIG_ARG(rig))
     {
@@ -5513,6 +5689,7 @@ int HAMLIB_API rig_set_powerstat(RIG *rig, powerstat_t status)
 
     TRACE;
     retcode = rig->caps->set_powerstat(rig, status);
+    rig_flush(&rig->state.rigport); // if anything is queued up flush it
     RETURNFUNC(retcode);
 }
 
@@ -5620,7 +5797,7 @@ rig_model_t HAMLIB_API rig_probe(hamlib_port_t *port)
 {
     if (!port)
     {
-        return(RIG_MODEL_NONE);
+        return (RIG_MODEL_NONE);
     }
 
     return rig_probe_first(port);
@@ -5650,7 +5827,7 @@ int HAMLIB_API rig_probe_all(hamlib_port_t *port,
 {
     if (!port)
     {
-        return(-RIG_EINVAL);
+        return (-RIG_EINVAL);
     }
 
     return rig_probe_all_backends(port, cfunc, data);
@@ -5711,6 +5888,7 @@ int HAMLIB_API rig_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
     vfo_t curr_vfo;
 
     ENTERFUNC;
+    ELAPSED1;
 
     if (CHECK_RIG_ARG(rig))
     {
@@ -5719,8 +5897,10 @@ int HAMLIB_API rig_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
 
     caps = rig->caps;
 
-    if (caps->vfo_op == NULL || !rig_has_vfo_op(rig, op))
+    if (caps->vfo_op == NULL || rig_has_vfo_op(rig, op) == 0)
     {
+        rig_debug(RIG_DEBUG_WARN, "%s: vfo_op=%p, has_vfo_op=%d\n", __func__,
+                  caps->vfo_op, rig_has_vfo_op(rig, op));
         RETURNFUNC(-RIG_ENAVAIL);
     }
 
@@ -5728,11 +5908,14 @@ int HAMLIB_API rig_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
             || vfo == rig->state.current_vfo)
     {
         retcode = caps->vfo_op(rig, vfo, op);
+        ELAPSED2;
         RETURNFUNC(retcode);
     }
 
     if (!caps->set_vfo)
     {
+        rig_debug(RIG_DEBUG_WARN, "%s: no set_vfo\n", __func__);
+        ELAPSED2;
         RETURNFUNC(-RIG_ENAVAIL);
     }
 
@@ -5756,6 +5939,7 @@ int HAMLIB_API rig_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
         retcode = rc2;
     }
 
+    ELAPSED2;
     RETURNFUNC(retcode);
 }
 
@@ -6531,15 +6715,15 @@ int HAMLIB_API rig_get_rig_info(RIG *rig, char *response, int max_response_len)
     txa = split == 0;
     rxb = !rxa;
     txb = split == 1;
-    SNPRINTF(response, max_response_len-strlen("CRC=0x00000000\n"),
+    SNPRINTF(response, max_response_len - strlen("CRC=0x00000000\n"),
              "VFO=%s Freq=%.0f Mode=%s Width=%d RX=%d TX=%d\nVFO=%s Freq=%.0f Mode=%s Width=%d RX=%d TX=%d\nSplit=%d SatMode=%d\nRig=%s\nApp=Hamlib\nVersion=20210506 1.0.0\n",
              rig_strvfo(vfoA), freqA, modeAstr, (int)widthA, rxa, txa, rig_strvfo(vfoB),
              freqB, modeBstr, (int)widthB, rxb, txb, split, satmode, rig->caps->model_name);
     unsigned long crc = gen_crc((unsigned char *)response, strlen(response));
     char tmpstr[32];
     SNPRINTF(tmpstr, sizeof(tmpstr), "CRC=0x%08lx\n", crc);
-    strcat(response,tmpstr);
-   
+    strcat(response, tmpstr);
+
 
     if (strlen(response) >= max_response_len - 1)
     {
@@ -6640,7 +6824,7 @@ int HAMLIB_API rig_get_vfo_list(RIG *rig, char *buf, int buflen)
 {
     ENTERFUNC;
 
-    if (CHECK_RIG_ARG(rig))
+    if (CHECK_RIG_CAPS(rig))
     {
         RETURNFUNC(-RIG_EINVAL);
     }
@@ -6663,7 +6847,7 @@ int HAMLIB_API rig_set_clock(RIG *rig, int year, int month, int day, int hour,
     }
 
     RETURNFUNC2(rig->caps->set_clock(rig, year, month, day, hour, min, sec,
-                                    msec, utc_offset));
+                                     msec, utc_offset));
 }
 
 /**
@@ -6714,16 +6898,6 @@ const char *HAMLIB_API rig_copyright()
 {
     return hamlib_copyright2;
 }
-
-#ifdef PTHREAD
-#define MUTEX(var) static pthread_mutex_t var = PTHREAD_MUTEX_INITIALIZER
-#define MUTEX_LOCK(var) pthread_mutex_lock(var)
-#define MUTEX_UNLOCK(var)  pthread_mutex_unlock(var)
-#else
-#define MUTEX(var)
-#define MUTEX_LOCK(var)
-#define MUTEX_UNLOCK(var)
-#endif
 
 /**
  * \brief get a cookie to grab rig control
@@ -6932,7 +7106,8 @@ static int async_data_handler_start(RIG *rig)
 
     if (err)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: pthread_create error: %s\n", __func__, strerror(errno));
+        rig_debug(RIG_DEBUG_ERR, "%s: pthread_create error: %s\n", __func__,
+                  strerror(errno));
         RETURNFUNC(-RIG_EINTERNAL);
     }
 
@@ -6962,7 +7137,8 @@ static int async_data_handler_stop(RIG *rig)
 
             if (err)
             {
-                rig_debug(RIG_DEBUG_ERR, "%s: pthread_join error: %s\n", __func__, strerror(errno));
+                rig_debug(RIG_DEBUG_ERR, "%s: pthread_join error: %s\n", __func__,
+                          strerror(errno));
                 // just ignore the error
             }
 
@@ -6987,7 +7163,8 @@ void *async_data_handler(void *arg)
     struct rig_state *rs = &rig->state;
     int result;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: Starting async data handler thread\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: Starting async data handler thread\n",
+              __func__);
 
     // TODO: check how to enable "transceive" on recent Kenwood/Yaesu rigs
     // TODO: add initial support for async in Kenwood kenwood_transaction (+one) functions -> add transaction_active flag usage
@@ -7055,8 +7232,24 @@ void *async_data_handler(void *arg)
     }
 
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: Stopping async data handler thread\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: Stopping async data handler thread\n",
+              __func__);
 
     return NULL;
 }
 #endif
+
+HAMLIB_EXPORT(int) rig_password(RIG *rig, const char *key1)
+{
+    int retval = -RIG_EPROTO;
+    ENTERFUNC;
+
+    if (rig->caps->password != NULL)
+    {
+        retval = rig->caps->password(rig, key1);
+        //retval = RIG_OK;
+    }
+
+    RETURNFUNC(retval);
+}
+

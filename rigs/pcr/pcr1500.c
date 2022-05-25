@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 
@@ -173,4 +171,5 @@ const struct rig_caps pcr1500_caps =
 
     .set_powerstat  = pcr_set_powerstat,
     .get_powerstat  = pcr_get_powerstat,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <string.h>  /* String function definitions */
 
@@ -275,7 +273,7 @@ const struct rig_caps ic756_caps =
     .get_split_freq_mode =  icom_get_split_freq_mode,
     .set_split_vfo =  icom_set_split_vfo,
     .get_split_vfo =  NULL,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -448,7 +446,7 @@ const struct rig_caps ic756pro_caps =
     .set_split_vfo =  icom_set_split_vfo,
     .get_split_vfo =  NULL,
 
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -692,7 +690,7 @@ const struct rig_caps ic756pro2_caps =
 
     .set_ext_parm =  ic756pro2_set_ext_parm,
     .get_ext_parm =  ic756pro2_get_ext_parm,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -1133,5 +1131,5 @@ const struct rig_caps ic756pro3_caps =
 
     .set_ext_parm =  ic756pro2_set_ext_parm,
     .get_ext_parm =  ic756pro2_get_ext_parm,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

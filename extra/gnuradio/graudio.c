@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 
@@ -62,7 +60,7 @@ const struct rig_caps graudio_caps =
     .mfg_name =       "GNU",
     .version =        "0.1.2",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_BETA,
     .rig_type =       RIG_TYPE_PCRECEIVER,
     .targetable_vfo =      RIG_TARGETABLE_ALL,
     .ptt_type =       RIG_PTT_RIG,

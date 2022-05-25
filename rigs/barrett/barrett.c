@@ -18,9 +18,7 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -165,8 +163,8 @@ int barrett_transaction(RIG *rig, char *cmd, int expected, char **result)
             strtok_r(*result, "\r", &dummy);
         }
 
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: returning result=%s\n", __func__,
-                  *result);
+        //rig_debug(RIG_DEBUG_VERBOSE, "%s: returning result=%s\n", __func__,
+        //          *result);
     }
     else
     {
@@ -275,16 +273,20 @@ int barrett_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
               rig_strvfo(vfo), freq);
 
     retval = rig_get_freq(rig, vfo, &tfreq);
+
     if (retval != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: get_freq failed: %s\n", __func__, strerror(retval));
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: get_freq failed: %s\n", __func__,
+                  strerror(retval));
         return retval;
     }
+
     if (tfreq == freq)
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: freq not changing\n", __func__);
         return RIG_OK;
     }
+
     // If we are not explicitly asking for VFO_B then we'll set the receive side also
     if (vfo != RIG_VFO_B)
     {
@@ -425,11 +427,14 @@ int barrett_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     if (retval != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: get_mode failed %s\n", __func__, strerror(retval));
+        rig_debug(RIG_DEBUG_ERR, "%s: get_mode failed %s\n", __func__,
+                  strerror(retval));
     }
+
     if (tmode == mode)
     {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: already mode %s so not changing\n", __func__, rig_strrmode(mode));
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: already mode %s so not changing\n", __func__,
+                  rig_strrmode(mode));
         return RIG_OK;
     }
 
@@ -847,4 +852,5 @@ const struct rig_caps barrett_caps =
 //  .get_trn =    dummy_get_trn,
 //  .power2mW =   dummy_power2mW,
 //  .mW2power =   dummy_mW2power,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

@@ -23,9 +23,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -86,7 +84,7 @@
  *      keep up to date SHORT_OPTIONS, usage()'s output and man page. thanks.
  * TODO: add an option to read from a file
  */
-#define SHORT_OPTIONS "m:r:p:d:P:D:s:c:T:t:C:W:x:z:lLuovhVZM:n:"
+#define SHORT_OPTIONS "m:r:p:d:P:D:s:S:c:T:t:C:W:w:x:z:lLuovhVZMA:n:"
 static struct option long_options[] =
 {
     {"model",           1, 0, 'm'},
@@ -96,6 +94,7 @@ static struct option long_options[] =
     {"ptt-type",        1, 0, 'P'},
     {"dcd-type",        1, 0, 'D'},
     {"serial-speed",    1, 0, 's'},
+    {"separator",       1, 0, 'S'},
     {"civaddr",         1, 0, 'c'},
     {"listen-addr",     1, 0, 'T'},
     {"port",            1, 0, 't'},
@@ -108,10 +107,12 @@ static struct option long_options[] =
     {"help",            0, 0, 'h'},
     {"version",         0, 0, 'V'},
     {"twiddle_timeout", 1, 0, 'W'},
+    {"twiddle_rit",     1, 0, 'w'},
     {"uplink",          1, 0, 'x'},
     {"debug-time-stamps", 0, 0, 'Z'},
     {"multicast-addr",  1, 0, 'M'},
     {"multicast-port",  1, 0, 'n'},
+    {"password",        1, 0, 'A'},
     {0, 0, 0, 0}
 };
 
@@ -123,6 +124,7 @@ struct handle_data
     struct sockaddr_storage cli_addr;
     socklen_t clilen;
     int vfo_mode;
+    int use_password;
 };
 
 
@@ -148,6 +150,8 @@ const char *portno = "4532";
 const char *src_addr = NULL; /* INADDR_ANY */
 const char *multicast_addr = "0.0.0.0";
 int multicast_port = 4532;
+extern char rigctld_password[65];
+char resp_sep = '\n';
 
 #define MAXCONFLEN 1024
 
@@ -235,7 +239,6 @@ static void handle_error(enum rig_debug_level_e lvl, const char *msg)
 #endif
 }
 
-
 int main(int argc, char *argv[])
 {
     rig_model_t my_model = RIG_MODEL_DUMMY;
@@ -255,6 +258,7 @@ int main(int argc, char *argv[])
     int sock_listen;
     int reuseaddr = 1;
     int twiddle_timeout = 0;
+    int twiddle_rit = 0;
     int uplink = 0;
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
@@ -270,6 +274,9 @@ int main(int argc, char *argv[])
     struct handle_data *arg;
     int vfo_mode = 0; /* vfo_mode=0 means target VFO is current VFO */
     int i;
+    extern int is_rigctld;
+
+    is_rigctld = 1;
 
     while (1)
     {
@@ -297,6 +304,15 @@ int main(int argc, char *argv[])
         case 'V':
             printf("rigctl %s\n", hamlib_version2);
             exit(0);
+
+        case 'A':
+            strncpy(rigctld_password, optarg, sizeof(rigctld_password) - 1);
+            //char *md5 = rig_make_m d5(rigctld_password);
+            char md5[HAMLIB_SECRET_LENGTH + 1];
+            rig_password_generate_secret(rigctld_password, md5);
+            printf("Secret key: %s\n", md5);
+            rig_settings_save("sharedkey", md5, e_CHAR);
+            break;
 
         case 'm':
             if (!optarg)
@@ -446,6 +462,17 @@ int main(int argc, char *argv[])
             civaddr = optarg;
             break;
 
+        case 'S':
+            if (!optarg)
+            {
+                usage();    /* wrong arg count */
+                exit(1);
+            }
+
+            resp_sep = *optarg;
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: resp_sep=%c\n", __func__, resp_sep);
+            break;
+
         case 's':
             if (!optarg)
             {
@@ -536,6 +563,19 @@ int main(int argc, char *argv[])
                     "twiddle_timeout is deprecated...use e.g. --set-conf=twiddle_timeout=5\n");
             break;
 
+        case 'w':
+            if (!optarg)
+            {
+                usage();    /* wrong arg count */
+                exit(1);
+            }
+
+            twiddle_rit = atoi(optarg);
+            fprintf(stderr,
+                    "twiddle_timeout is deprecated...use e.g. --set-conf=twiddle_timeout=5\n");
+            break;
+
+
         case 'x':
             if (!optarg)
             {
@@ -569,11 +609,13 @@ int main(int argc, char *argv[])
             }
 
             multicast_port = atoi(optarg);
+
             if (multicast_port == 0)
             {
                 fprintf(stderr, "Invalid multicast port: %s\n", optarg);
                 exit(1);
             }
+
             break;
 
         default:
@@ -603,6 +645,8 @@ int main(int argc, char *argv[])
     rig_debug(RIG_DEBUG_VERBOSE, "rigctld %s\n", hamlib_version2);
     rig_debug(RIG_DEBUG_VERBOSE, "%s",
               "Report bugs to <hamlib-developer@lists.sourceforge.net>\n\n");
+    rig_debug(RIG_DEBUG_VERBOSE, "Max# of rigctld client services=%d\n",
+              NI_MAXSERV);
 
     my_rig = rig_init(my_model);
 
@@ -630,6 +674,7 @@ int main(int argc, char *argv[])
     }
 
     my_rig->state.twiddle_timeout = twiddle_timeout;
+    my_rig->state.twiddle_rit = twiddle_rit;
     my_rig->state.uplink = uplink;
     rig_debug(RIG_DEBUG_TRACE, "%s: twiddle=%d, uplink=%d, twiddle_rit=%d\n",
               __func__,
@@ -641,27 +686,34 @@ int main(int argc, char *argv[])
     if (ptt_type != RIG_PTT_NONE)
     {
         my_rig->state.pttport.type.ptt = ptt_type;
+        my_rig->state.pttport_deprecated.type.ptt = ptt_type;
     }
 
     if (dcd_type != RIG_DCD_NONE)
     {
         my_rig->state.dcdport.type.dcd = dcd_type;
+        my_rig->state.dcdport_deprecated.type.dcd = dcd_type;
     }
 
     if (ptt_file)
     {
         strncpy(my_rig->state.pttport.pathname, ptt_file, HAMLIB_FILPATHLEN - 1);
+        strncpy(my_rig->state.pttport_deprecated.pathname, ptt_file,
+                HAMLIB_FILPATHLEN - 1);
     }
 
     if (dcd_file)
     {
         strncpy(my_rig->state.dcdport.pathname, dcd_file, HAMLIB_FILPATHLEN - 1);
+        strncpy(my_rig->state.dcdport_deprecated.pathname, dcd_file,
+                HAMLIB_FILPATHLEN - 1);
     }
 
     /* FIXME: bound checking and port type == serial */
     if (serial_rate != 0)
     {
         my_rig->state.rigport.parm.serial.rate = serial_rate;
+        my_rig->state.rigport_deprecated.parm.serial.rate = serial_rate;
     }
 
     if (civaddr)
@@ -775,8 +827,10 @@ int main(int argc, char *argv[])
 
     saved_result = result;
 
-    enum multicast_item_e items = RIG_MULTICAST_POLL | RIG_MULTICAST_TRANSCEIVE | RIG_MULTICAST_SPECTRUM;
-    retcode = network_multicast_publisher_start(my_rig, multicast_addr, multicast_port, items);
+    enum multicast_item_e items = RIG_MULTICAST_POLL | RIG_MULTICAST_TRANSCEIVE |
+                                  RIG_MULTICAST_SPECTRUM;
+    retcode = network_multicast_publisher_start(my_rig, multicast_addr,
+              multicast_port, items);
 
     if (retcode != RIG_OK)
     {
@@ -924,13 +978,15 @@ int main(int argc, char *argv[])
         fd_set set;
         struct timeval timeout;
 
-        arg = malloc(sizeof(struct handle_data));
+        arg = calloc(1, sizeof(struct handle_data));
 
         if (!arg)
         {
-            rig_debug(RIG_DEBUG_ERR, "malloc: %s\n", strerror(errno));
+            rig_debug(RIG_DEBUG_ERR, "calloc: %s\n", strerror(errno));
             exit(1);
         }
+
+        if (rigctld_password[0] != 0) { arg->use_password = 1; }
 
         /* use select to allow for periodic checks for CTRL+C */
         FD_ZERO(&set);
@@ -945,6 +1001,12 @@ int main(int argc, char *argv[])
             rig_debug(RIG_DEBUG_ERR, "%s: select() failed: %s\n", __func__,
                       strerror(errno_stored));
 
+            if (ctrl_c)
+            {
+                rig_debug(RIG_DEBUG_VERBOSE, "%s: ctrl_c when retcode==-1\n", __func__);
+                break;
+            }
+
             if (errno == EINTR)
             {
                 rig_debug(RIG_DEBUG_VERBOSE, "%s: ignoring interrupted system call\n",
@@ -956,6 +1018,7 @@ int main(int argc, char *argv[])
         {
             if (ctrl_c)
             {
+                rig_debug(RIG_DEBUG_VERBOSE, "%s: ctrl_c when retcode==0\n", __func__);
                 break;
             }
         }
@@ -1012,9 +1075,12 @@ int main(int argc, char *argv[])
     }
     while (retcode == 0 && !ctrl_c);
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: while loop done\n", __func__);
+
 #ifdef HAVE_PTHREAD
     /* allow threads to finish current action */
     mutex_rigctld(1);
+    TRACE;
 
     if (client_count)
     {
@@ -1022,13 +1088,17 @@ int main(int argc, char *argv[])
     }
 
     rig_close(my_rig);
+    TRACE;
     mutex_rigctld(0);
+    TRACE;
 #else
     rig_close(my_rig); /* close port */
 #endif
 
+    TRACE;
     network_multicast_publisher_stop(my_rig);
 
+    TRACE;
     rig_cleanup(my_rig); /* if you care about memory */
 
 #ifdef __MINGW32__
@@ -1078,7 +1148,6 @@ void *handle_socket(void *arg)
     char serv[NI_MAXSERV];
     char send_cmd_term = '\r';  /* send_cmd termination char */
     int ext_resp = 0;
-    char resp_sep = '\n';
 
     fsockin = get_fsockin(handle_data_arg);
 
@@ -1136,6 +1205,7 @@ void *handle_socket(void *arg)
     do
     {
         mutex_rigctld(1);
+
         if (!rig_opened)
         {
             retcode = rig_open(my_rig);
@@ -1143,15 +1213,18 @@ void *handle_socket(void *arg)
             rig_debug(RIG_DEBUG_ERR, "%s: rig_open reopened retcode=%d\n", __func__,
                       retcode);
         }
+
         mutex_rigctld(0);
 
         if (rig_opened) // only do this if rig is open
         {
-            rig_debug(RIG_DEBUG_TRACE, "%s: doing rigctl_parse vfo_mode=%d\n", __func__,
-                      handle_data_arg->vfo_mode);
+            rig_debug(RIG_DEBUG_TRACE, "%s: doing rigctl_parse vfo_mode=%d, secure=%d\n",
+                      __func__,
+                      handle_data_arg->vfo_mode, handle_data_arg->use_password);
             retcode = rigctl_parse(handle_data_arg->rig, fsockin, fsockout, NULL, 0,
                                    mutex_rigctld,
-                                   1, 0, &handle_data_arg->vfo_mode, send_cmd_term, &ext_resp, &resp_sep);
+                                   1, 0, &handle_data_arg->vfo_mode, send_cmd_term, &ext_resp, &resp_sep,
+                                   handle_data_arg->use_password);
 
             if (retcode != 0) { rig_debug(RIG_DEBUG_VERBOSE, "%s: rigctl_parse retcode=%d\n", __func__, retcode); }
         }
@@ -1165,7 +1238,7 @@ void *handle_socket(void *arg)
         if (retcode < 0 && !RIG_IS_SOFT_ERRCODE(-retcode))
         {
             int retry = 3;
-            rig_debug(RIG_DEBUG_ERR, "%s: i/o error\n", __func__)
+            rig_debug(RIG_DEBUG_ERR, "%s: i/o error\n", __func__);
 
             do
             {
@@ -1178,12 +1251,15 @@ void *handle_socket(void *arg)
                 hl_usleep(1000 * 1000);
 
                 mutex_rigctld(1);
-                if (!rig_opened) {
+
+                if (!rig_opened)
+                {
                     retcode = rig_open(my_rig);
                     rig_opened = retcode == RIG_OK ? 1 : 0;
                     rig_debug(RIG_DEBUG_ERR, "%s: rig_open retcode=%d, opened=%d\n", __func__,
-                            retcode, rig_opened);
+                              retcode, rig_opened);
                 }
+
                 mutex_rigctld(0);
             }
             while (!ctrl_c && !rig_opened && retry-- > 0 && retcode != RIG_OK);
@@ -1287,6 +1363,7 @@ void usage(void)
         "  -s, --serial-speed=BAUD       set serial speed of the serial port\n"
         "  -c, --civaddr=ID              set CI-V address, decimal (for Icom rigs only)\n"
         "  -t, --port=NUM                set TCP listening port, default %s\n"
+        "  -S, --separator=CHAR          set char as rigctld response separator, default is \\n\n"
         "  -T, --listen-addr=IPADDR      set listening IP address, default ANY\n"
         "  -C, --set-conf=PARM=VAL       set config parameters\n"
         "  -L, --show-conf               list all config parameters\n"
@@ -1295,11 +1372,12 @@ void usage(void)
         "  -o, --vfo                     do not default to VFO_CURR, require extra vfo arg\n"
         "  -v, --verbose                 set verbose mode, cumulative (-v to -vvvvv)\n"
         "  -W, --twiddle_timeout         timeout after detecting vfo manual change\n"
-        "  -W, --twiddle_rit             suppress VFOB getfreq so RIT can be twiddled\n"
+        "  -w, --twiddle_rit             suppress VFOB getfreq so RIT can be twiddled\n"
         "  -x, --uplink                  set uplink get_freq ignore, 1=Sub, 2=Main\n"
         "  -Z, --debug-time-stamps       enable time stamps for debug messages\n"
         "  -M, --multicast-addr=addr     set multicast UDP address, default 0.0.0.0 (off), recommend 224.0.1.1\n"
         "  -n, --multicast-port=port     set multicast UDP port, default 4532\n"
+        "  -A, --password                set password for rigctld access\n"
         "  -h, --help                    display this help and exit\n"
         "  -V, --version                 output version information and exit\n\n",
         portno);

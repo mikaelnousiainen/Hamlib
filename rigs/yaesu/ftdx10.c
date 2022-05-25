@@ -26,9 +26,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include "hamlib/rig.h"
 #include "bandplan.h"
@@ -175,6 +173,8 @@ const struct rig_caps ftdx10_caps =
     .max_rit =            Hz(9999),
     .max_xit =            Hz(9999),
     .max_ifshift =        Hz(1200),
+    .agc_level_count =    5,
+    .agc_levels =         { RIG_AGC_OFF, RIG_AGC_FAST, RIG_AGC_MEDIUM, RIG_AGC_SLOW, RIG_AGC_AUTO },
     .vfo_ops =            FTDX10_VFO_OPS,
     .targetable_vfo =     RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE | RIG_TARGETABLE_FUNC | RIG_TARGETABLE_LEVEL | RIG_TARGETABLE_COMMON,
     .transceive =         RIG_TRN_OFF, /* May enable later as the FTDX10 has an Auto Info command */
@@ -309,5 +309,6 @@ const struct rig_caps ftdx10_caps =
     .get_ext_level =      newcat_get_ext_level,
     .send_morse =         newcat_send_morse,
     .set_clock =          newcat_set_clock,
-    .get_clock =          newcat_get_clock
+    .get_clock =          newcat_get_clock,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

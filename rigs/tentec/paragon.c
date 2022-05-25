@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -199,7 +197,7 @@ const struct rig_caps tt585_caps =
     .set_parm =  tt585_set_parm,
     .set_mem =   tt585_set_mem,
     .get_mem =   tt585_get_mem,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -591,7 +589,7 @@ int tt585_get_status_data(RIG *rig)
         return ret;
     }
 
-    ret = read_block(rigport, (unsigned char *) (char *) priv->status_data,
+    ret = read_block(rigport, (unsigned char *)(char *) priv->status_data,
                      sizeof(priv->status_data));
 
     if (ret < 0)

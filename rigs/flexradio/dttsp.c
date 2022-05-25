@@ -22,9 +22,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdio.h>   /* Standard input/output definitions */
@@ -170,7 +168,7 @@ const struct rig_caps dttsp_rig_caps =
     .mfg_name =       "DTTS Microwave Society",
     .version =        "20200319.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_BETA,
     .rig_type =       RIG_TYPE_COMPUTER,
     .targetable_vfo =      RIG_TARGETABLE_ALL,
     .ptt_type =       RIG_PTT_RIG,
@@ -243,6 +241,7 @@ const struct rig_caps dttsp_rig_caps =
     .get_rit =      dttsp_get_rit,
 
     .set_ant =      dttsp_set_ant,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -255,7 +254,7 @@ const struct rig_caps dttsp_udp_rig_caps =
     .mfg_name =       "DTTS Microwave Society",
     .version =        "20200319.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_BETA,
     .rig_type =       RIG_TYPE_COMPUTER,
     .targetable_vfo =      RIG_TARGETABLE_ALL,
     .ptt_type =       RIG_PTT_RIG,
@@ -327,6 +326,7 @@ const struct rig_caps dttsp_udp_rig_caps =
     .get_rit =      dttsp_get_rit,
 
     .set_ant =      dttsp_set_ant,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

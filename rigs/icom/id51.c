@@ -20,9 +20,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 
@@ -95,7 +93,7 @@ const struct rig_caps id51_caps =
     .mfg_name =  "Icom",
     .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_UNTESTED,
+    .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_HANDHELD,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,
@@ -222,5 +220,5 @@ const struct rig_caps id51_caps =
     .get_ctcss_sql =  icom_get_ctcss_sql,
     .set_dcs_sql =  icom_set_dcs_sql,
     .get_dcs_sql =  icom_get_dcs_sql,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

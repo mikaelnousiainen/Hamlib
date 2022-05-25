@@ -28,9 +28,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -405,7 +403,7 @@ const struct rig_caps ft1000d_caps =
     .vfo_op =             ft1000d_vfo_op,
     .set_channel =        ft1000d_set_channel,
     .get_channel =        ft1000d_get_channel,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -2492,7 +2490,7 @@ static int ft1000d_get_level(RIG *rig, vfo_t vfo, setting_t level,
         return err;
     }
 
-    err = read_block(&rig->state.rigport, mdata,FT1000D_READ_METER_LENGTH);
+    err = read_block(&rig->state.rigport, mdata, FT1000D_READ_METER_LENGTH);
 
     if (err < 0)
     {
@@ -3496,7 +3494,8 @@ static int ft1000d_send_dynamic_cmd(RIG *rig, unsigned char ci,
     priv->p_cmd[1] = p3;
     priv->p_cmd[0] = p4;
 
-    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd,
+                      YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -3554,7 +3553,8 @@ static int ft1000d_send_dial_freq(RIG *rig, unsigned char ci, freq_t freq)
     rig_debug(RIG_DEBUG_TRACE, fmt, __func__, (int64_t)from_bcd(priv->p_cmd,
               FT1000D_BCD_DIAL) * 10);
 
-    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd,
+                      YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {
@@ -3619,7 +3619,8 @@ static int ft1000d_send_rit_freq(RIG *rig, unsigned char ci, shortfreq_t rit)
     // Store bcd format into privat command storage area
     to_bcd(priv->p_cmd, labs(rit) / 10, FT1000D_BCD_RIT);
 
-    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd, YAESU_CMD_LENGTH);
+    err = write_block(&rig->state.rigport, (unsigned char *) &priv->p_cmd,
+                      YAESU_CMD_LENGTH);
 
     if (err != RIG_OK)
     {

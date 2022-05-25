@@ -22,9 +22,7 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -210,7 +208,7 @@ const struct rig_caps ft736_caps =
     .set_func =       ft736_set_func,
     .set_ctcss_tone = ft736_set_ctcss_tone,
     .set_ctcss_sql =  ft736_set_ctcss_sql,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

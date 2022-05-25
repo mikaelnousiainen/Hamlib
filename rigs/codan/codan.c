@@ -18,9 +18,7 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -152,7 +150,7 @@ int codan_init(RIG *rig)
         return -RIG_ENOMEM;
     }
 
-    RETURNFUNC(RIG_OK);
+    RETURNFUNC2(RIG_OK);
 }
 
 int codan_open(RIG *rig)
@@ -171,14 +169,14 @@ int codan_open(RIG *rig)
     codan_transaction(rig, "login", 1, &results);
     codan_set_freq(rig, RIG_VFO_A, 14074000.0);
 
-    RETURNFUNC(RIG_OK);
+    RETURNFUNC2(RIG_OK);
 }
 
 int codan_close(RIG *rig)
 {
     char *results = NULL;
     codan_transaction(rig, "logout admin\rfreq", 1, &results);
-    RETURNFUNC(RIG_OK);
+    RETURNFUNC2(RIG_OK);
 }
 
 int codan_cleanup(RIG *rig)
@@ -238,7 +236,7 @@ int codan_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     else if (strncmp(modeA, "LSB", 3) == 0) { *mode = RIG_MODE_LSB; }
     else
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: Unknown mode=%s'\n", __func__,  modeA)
+        rig_debug(RIG_DEBUG_ERR, "%s: Unknown mode=%s'\n", __func__,  modeA);
         return -RIG_EPROTO;
     }
 
@@ -304,7 +302,8 @@ int codan_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
               rig_strvfo(vfo), freq);
 
     // Purportedly can't do split so we just set VFOB=VFOA
-    SNPRINTF(cmd_buf, sizeof(cmd_buf), "connect tcvr rf %.0f %.0f\rfreq", freq, freq);
+    SNPRINTF(cmd_buf, sizeof(cmd_buf), "connect tcvr rf %.0f %.0f\rfreq", freq,
+             freq);
 
     char *response = NULL;
     retval = codan_transaction(rig, cmd_buf, 0, &response);
@@ -397,7 +396,8 @@ int codan_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: ptt=%d\n", __func__, ptt);
 
-    SNPRINTF(cmd_buf, sizeof(cmd_buf), "connect tcvr rf ptt %s\rptt", ptt == 0 ? "off" : "on");
+    SNPRINTF(cmd_buf, sizeof(cmd_buf), "connect tcvr rf ptt %s\rptt",
+             ptt == 0 ? "off" : "on");
     response = NULL;
     retval = codan_transaction(rig, cmd_buf, 0, &response);
 
@@ -477,6 +477,7 @@ const struct rig_caps envoy_caps =
 
     .set_ptt =      codan_set_ptt,
     .get_ptt =      codan_get_ptt,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 const struct rig_caps ngs_caps =
@@ -539,6 +540,7 @@ const struct rig_caps ngs_caps =
 
     .set_ptt =      codan_set_ptt,
     .get_ptt =      codan_get_ptt,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

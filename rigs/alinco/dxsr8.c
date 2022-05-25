@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -216,7 +214,7 @@ const struct rig_caps dxsr8_caps =
     .get_func =         dxsr8_get_func, // AL~RR_AGC, AL~RR_NZB
     .set_level =        dxsr8_set_level, // AL~RW_RFG00, AL~RW_PWR00
     .get_level =        dxsr8_get_level, // AL~RR_RFG, AL~RR_PWR
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -265,7 +263,7 @@ int dxsr8_transaction(RIG *rig,
      * TODO: check whether cmd and echobuf match (optional)
      */
     retval = read_string(&rs->rigport, (unsigned char *) replybuf, BUFSZ,
-            LF, strlen(LF), 0, 1);
+                         LF, strlen(LF), 0, 1);
 
     if (retval < 0)
     {
@@ -274,7 +272,7 @@ int dxsr8_transaction(RIG *rig,
 
 
     retval = read_string(&rs->rigport, (unsigned char *) replybuf, BUFSZ,
-            LF, strlen(LF), 0, 1);
+                         LF, strlen(LF), 0, 1);
 
     if (retval < 0)
     {

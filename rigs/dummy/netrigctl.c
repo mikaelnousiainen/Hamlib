@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,7 +77,8 @@ static int netrigctl_transaction(RIG *rig, char *cmd, int len, char *buf)
         return ret;
     }
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret < 0)
     {
@@ -310,14 +309,16 @@ static int netrigctl_open(RIG *rig)
         return -RIG_EPROTO;
     }
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
         return (ret < 0) ? ret : -RIG_EPROTO;
     }
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -328,7 +329,8 @@ static int netrigctl_open(RIG *rig)
 
     for (i = 0; i < HAMLIB_FRQRANGESIZ; i++)
     {
-        ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+        ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                          0, 1);
 
         if (ret <= 0)
         {
@@ -358,7 +360,8 @@ static int netrigctl_open(RIG *rig)
 
     for (i = 0; i < HAMLIB_FRQRANGESIZ; i++)
     {
-        ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+        ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                          0, 1);
 
         if (ret <= 0)
         {
@@ -400,7 +403,8 @@ static int netrigctl_open(RIG *rig)
 
     for (i = 0; i < HAMLIB_TSLSTSIZ; i++)
     {
-        ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+        ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                          0, 1);
 
         if (ret <= 0)
         {
@@ -424,7 +428,8 @@ static int netrigctl_open(RIG *rig)
 
     for (i = 0; i < HAMLIB_FLTLSTSIZ; i++)
     {
-        ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+        ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                          0, 1);
 
         if (ret <= 0)
         {
@@ -451,7 +456,8 @@ static int netrigctl_open(RIG *rig)
     chan_t chan_list[HAMLIB_CHANLSTSIZ]; /*!< Channel list, zero ended */
 #endif
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -460,7 +466,8 @@ static int netrigctl_open(RIG *rig)
 
     rig->caps->max_rit = rs->max_rit = atol(buf);
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -469,7 +476,8 @@ static int netrigctl_open(RIG *rig)
 
     rig->caps->max_xit = rs->max_xit = atol(buf);
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -478,7 +486,8 @@ static int netrigctl_open(RIG *rig)
 
     rig->caps->max_ifshift = rs->max_ifshift = atol(buf);
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -487,7 +496,8 @@ static int netrigctl_open(RIG *rig)
 
     rs->announces = atoi(buf);
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -514,7 +524,8 @@ static int netrigctl_open(RIG *rig)
 
     rig->caps->preamp[ret] = rs->preamp[ret] = RIG_DBLST_END;
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -541,7 +552,8 @@ static int netrigctl_open(RIG *rig)
 
     rig->caps->attenuator[ret] = rs->attenuator[ret] = RIG_DBLST_END;
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -550,7 +562,8 @@ static int netrigctl_open(RIG *rig)
 
     rig->caps->has_get_func = rs->has_get_func = strtoll(buf, NULL, 0);
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -559,7 +572,8 @@ static int netrigctl_open(RIG *rig)
 
     rig->caps->has_set_func = rs->has_set_func = strtoll(buf, NULL, 0);
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -581,7 +595,8 @@ static int netrigctl_open(RIG *rig)
 
 #endif
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -590,7 +605,8 @@ static int netrigctl_open(RIG *rig)
 
     rig->caps->has_set_level = rs->has_set_level = strtoll(buf, NULL, 0);
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -599,7 +615,8 @@ static int netrigctl_open(RIG *rig)
 
     rs->has_get_parm = strtoll(buf, NULL, 0);
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -642,7 +659,8 @@ static int netrigctl_open(RIG *rig)
     do
     {
         char setting[32], value[1024];
-        ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+        ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                          0, 1);
         strtok(buf, "\r\n"); // chop the EOL
 
         if (ret <= 0)
@@ -652,7 +670,7 @@ static int netrigctl_open(RIG *rig)
 
         if (strncmp(buf, "done", 4) == 0) { return RIG_OK; }
 
-        if (sscanf(buf, "%31[^=]=%1024[^\t\n]", setting, value) == 2)
+        if (sscanf(buf, "%31[^=]=%1023[^\t\n]", setting, value) == 2)
         {
             if (strcmp(setting, "vfo_ops") == 0)
             {
@@ -663,8 +681,10 @@ static int netrigctl_open(RIG *rig)
             else if (strcmp(setting, "ptt_type") == 0)
             {
                 ptt_type_t temp = (ptt_type_t)strtol(value, NULL, 0);
+                rig_debug(RIG_DEBUG_ERR, "%s: ptt_type='%s'(%d)\n", __func__, value, temp);
 
-                if (RIG_PTT_RIG_MICDATA == rig->state.pttport.type.ptt && RIG_PTT_NONE == temp)
+                if (RIG_PTT_RIG_MICDATA == rig->state.pttport.type.ptt
+                        || temp == RIG_PTT_RIG_MICDATA)
                 {
                     /*
                      * remote PTT must always be RIG_PTT_RIG_MICDATA
@@ -678,6 +698,7 @@ static int netrigctl_open(RIG *rig)
                 }
                 else
                 {
+                    rig_debug(RIG_DEBUG_VERBOSE, "%s: ptt_type= %d\n", __func__, temp);
                     rig->state.pttport.type.ptt = temp;
                     rig->caps->ptt_type = temp;
                 }
@@ -930,7 +951,7 @@ static int netrigctl_set_mode(RIG *rig, vfo_t vfo, rmode_t mode,
     if (ret != RIG_OK) { return ret; }
 
     SNPRINTF(cmd, sizeof(cmd), "M%s %s %li\n",
-                  vfostr, rig_strrmode(mode), width);
+             vfostr, rig_strrmode(mode), width);
 
     ret = netrigctl_transaction(rig, cmd, strlen(cmd), buf);
 
@@ -972,7 +993,8 @@ static int netrigctl_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode,
 
     *mode = rig_parse_mode(buf);
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -1544,7 +1566,7 @@ static int netrigctl_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode,
     if (ret != RIG_OK) { return ret; }
 
     SNPRINTF(cmd, sizeof(cmd), "X%s %s %li\n",
-                  vfostr, rig_strrmode(tx_mode), tx_width);
+             vfostr, rig_strrmode(tx_mode), tx_width);
 
     ret = netrigctl_transaction(rig, cmd, strlen(cmd), buf);
 
@@ -1585,7 +1607,8 @@ static int netrigctl_get_split_mode(RIG *rig, vfo_t vfo, rmode_t *tx_mode,
 
     *tx_mode = rig_parse_mode(buf);
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -1652,7 +1675,8 @@ static int netrigctl_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split,
 
     *split = atoi(buf);
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -1916,7 +1940,7 @@ static int netrigctl_set_level(RIG *rig, vfo_t vfo, setting_t level,
     if (ret != RIG_OK) { return ret; }
 
     SNPRINTF(cmd, sizeof(cmd), "L%s %s %s\n", vfostr, rig_strlevel(level),
-                   lstr);
+             lstr);
 
     ret = netrigctl_transaction(rig, cmd, strlen(cmd), buf);
 
@@ -2174,7 +2198,8 @@ static int netrigctl_get_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t *option,
                   ret);
     }
 
-    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
+    ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
+                      0, 1);
 
     if (ret <= 0)
     {
@@ -2569,7 +2594,8 @@ static int netrigctl_mW2power(RIG *rig, float *power, unsigned int mwpower,
 
     ENTERFUNC;
 
-    SNPRINTF(cmdbuf, sizeof(cmdbuf), "\\mW2power %u %.0f %s\n", mwpower, freq, rig_strrmode(mode));
+    SNPRINTF(cmdbuf, sizeof(cmdbuf), "\\mW2power %u %.0f %s\n", mwpower, freq,
+             rig_strrmode(mode));
     ret = netrigctl_transaction(rig, cmdbuf, strlen(cmdbuf), buf);
 
     if (ret <= 0)
@@ -2607,7 +2633,21 @@ static int netrigctl_power2mW(RIG *rig, unsigned int *mwpower, float power,
     RETURNFUNC(RIG_OK);
 }
 
+int netrigctl_password(RIG *rig, const char *key1)
+{
+    char cmdbuf[256];
+    char buf[BUF_MAX];
+    int retval;
 
+    ENTERFUNC;
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: key1=%s\n", __func__, key1);
+    SNPRINTF(cmdbuf, sizeof(cmdbuf), "\\password %s\n", key1);
+    retval = netrigctl_transaction(rig, cmdbuf, strlen(cmdbuf), buf);
+
+    if (retval != RIG_OK) { retval = -RIG_EPROTO; }
+
+    RETURNFUNC(retval);
+}
 
 /*
  * Netrigctl rig capabilities.
@@ -2723,6 +2763,7 @@ struct rig_caps netrigctl_caps =
     //.get_trn =    netrigctl_get_trn,
     .power2mW =   netrigctl_power2mW,
     .mW2power =   netrigctl_mW2power,
+    .password =   netrigctl_password,
 
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

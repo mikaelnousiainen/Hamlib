@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -105,7 +103,7 @@ const struct rig_caps dds60_caps =
     .mfg_name =  "AmQRP",
     .version =  "20200112.0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_ALPHA,
+    .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_TUNER,
     .ptt_type =  RIG_PTT_NONE,
     .dcd_type =  RIG_DCD_NONE,
@@ -165,6 +163,7 @@ const struct rig_caps dds60_caps =
     .get_conf =  dds60_get_conf,
 
     .set_freq =  dds60_set_freq,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

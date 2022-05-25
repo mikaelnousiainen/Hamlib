@@ -18,9 +18,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 
@@ -386,4 +384,5 @@ const struct rig_caps ts890s_caps =
     .has_set_func = TS890_FUNC_ALL,
     .set_func = kenwood_set_func,
     .get_func = kenwood_get_func,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

@@ -21,9 +21,7 @@
 //   License along with this library; if not, write to the Free Software
 //   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 // ---------------------------------------------------------------------------
 //    SYSTEM INCLUDES
@@ -1266,7 +1264,8 @@ int adat_send(RIG  *pRig,
 
     rig_flush(&pRigState->rigport);
 
-    nRC = write_block(&pRigState->rigport, (unsigned char *) pcData, strlen(pcData));
+    nRC = write_block(&pRigState->rigport, (unsigned char *) pcData,
+                      strlen(pcData));
 
     rig_debug(RIG_DEBUG_TRACE,
               "*** ADAT: %d %s (%s:%d): EXIT. Return Code = %d\n",
@@ -1295,7 +1294,7 @@ int adat_receive(RIG  *pRig,
               gFnLevel, __func__, __FILE__, __LINE__, pRig);
 
     nRC = read_string(&pRigState->rigport, (unsigned char *) pcData, ADAT_RESPSZ,
-            ADAT_EOL, 1, 0, 1);
+                      ADAT_EOL, 1, 0, 1);
 
     if (nRC > 0)
     {
@@ -3685,7 +3684,6 @@ DECLARE_INITRIG_BACKEND(adat)
 // ---------------------------------------------------------------------------
 // proberig_adat
 // ---------------------------------------------------------------------------
-// Status: UNTESTED
 DECLARE_PROBERIG_BACKEND(adat)
 {
     int nRC = RIG_OK;
@@ -3725,10 +3723,10 @@ DECLARE_PROBERIG_BACKEND(adat)
         memset(acBuf, 0, ADAT_RESPSZ + 1);
 
         nRC = write_block(port,
-                   (unsigned char *)ADAT_CMD_DEF_STRING_GET_ID_CODE,
+                          (unsigned char *)ADAT_CMD_DEF_STRING_GET_ID_CODE,
                           strlen(ADAT_CMD_DEF_STRING_GET_ID_CODE));
         nRead = read_string(port, (unsigned char *) acBuf, ADAT_RESPSZ,
-                ADAT_EOM, 1, 0, 1);
+                            ADAT_EOM, 1, 0, 1);
         close(port->fd);
 
         if ((nRC != RIG_OK || nRead < 0))

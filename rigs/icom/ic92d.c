@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 
@@ -103,7 +101,7 @@ const struct rig_caps ic92d_caps =
     .mfg_name =  "Icom",
     .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_UNTESTED,
+    .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_HANDHELD,
     .ptt_type =  RIG_PTT_NONE,
     .dcd_type =  RIG_DCD_NONE,
@@ -217,7 +215,7 @@ const struct rig_caps ic92d_caps =
 
     .get_info =  ic92d_get_info,
 
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 const char *ic92d_get_info(RIG *rig)
@@ -250,7 +248,8 @@ const char *ic92d_get_info(RIG *rig)
         return NULL;
     }
 
-    SNPRINTF(info, sizeof(info), "ID %02x%02x%02x\n", ackbuf[1], ackbuf[2], ackbuf[3]);
+    SNPRINTF(info, sizeof(info), "ID %02x%02x%02x\n", ackbuf[1], ackbuf[2],
+             ackbuf[3]);
 
     return info;
 }

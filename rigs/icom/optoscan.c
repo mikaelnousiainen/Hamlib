@@ -18,9 +18,7 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -167,10 +165,10 @@ const char *optoscan_get_info(RIG *rig)
     }
 
     SNPRINTF(info, sizeof(info), "OptoScan%c%c%c, software version %d.%d, "
-            "interface version %d.%d\n",
-            ackbuf[2], ackbuf[3], ackbuf[4],
-            ackbuf[5] >> 4, ackbuf[5] & 0xf,
-            ackbuf[6] >> 4, ackbuf[6] & 0xf);
+             "interface version %d.%d\n",
+             ackbuf[2], ackbuf[3], ackbuf[4],
+             ackbuf[5] >> 4, ackbuf[5] & 0xf,
+             ackbuf[6] >> 4, ackbuf[6] & 0xf);
 
     return info;
 }

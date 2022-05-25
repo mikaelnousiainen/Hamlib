@@ -26,6 +26,9 @@
 
 #define BUILTINFUNC 0
 
+// Our shared secret password 
+#define HAMLIB_SECRET_LENGTH 32
+
 #define TRACE rig_debug(RIG_DEBUG_TRACE,"%s(%d) trace\n", __FILE__, __LINE__)
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
@@ -34,10 +37,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <time.h>
-#include <sys/time.h>
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 #ifdef HAVE_PTHREAD
 #include <pthread.h>
 #endif
@@ -156,7 +156,8 @@ enum rig_errcode_e {
     RIG_EARG,       /*!< 15 NULL RIG handle or any invalid pointer parameter in get arg */
     RIG_EVFO,       /*!< 16 Invalid VFO */
     RIG_EDOM,       /*!< 17 Argument out of domain of func */
-    RIG_EDEPRECATED /*!< 18 Function deprecated */
+    RIG_EDEPRECATED,/*!< 18 Function deprecated */
+    RIG_ESECURITY   /*!< 19 Security error */
 };
 
 /**
@@ -166,7 +167,7 @@ enum rig_errcode_e {
  */
 #define RIG_IS_SOFT_ERRCODE(errcode) (errcode == RIG_EINVAL || errcode == RIG_ENIMPL || errcode == RIG_ERJCTED \
     || errcode == RIG_ETRUNC || errcode == RIG_ENAVAIL || errcode == RIG_ENTARGET \
-    || errcode == RIG_EVFO || errcode == RIG_EDOM)
+    || errcode == RIG_EVFO || errcode == RIG_EDOM || errcode == RIG_ESECURITY)
 
 /**
  * \brief Token in the netrigctl protocol for returning error code
@@ -705,23 +706,24 @@ typedef enum {
  *
  * \sa rig_set_level()
  */
-typedef enum {
-    RIG_BAND_160M = 0,              /*!< \c 160M */
-    RIG_BAND_80M  = (1 << 1),       /*!< \c 80M */
-    RIG_BAND_60M  = (1 << 2),       /*!< \c 60M */
-    RIG_BAND_40M  = (1 << 3),       /*!< \c 40M */
-    RIG_BAND_30M  = (1 << 4),       /*!< \c 30M */
-    RIG_BAND_20M  = (1 << 5),       /*!< \c 20M */
-    RIG_BAND_17M  = (1 << 6),       /*!< \c 17M */
-    RIG_BAND_15M  = (1 << 7),       /*!< \c 15M */
-    RIG_BAND_12M  = (1 << 8),       /*!< \c 12M */
-    RIG_BAND_10M  = (1 << 9),       /*!< \c 10M */
-    RIG_BAND_6M   = (1 << 10),      /*!< \c 6M */
-    RIG_BAND_144MHZ = (1 << 11),    /*!< \c 144MHz */
-    RIG_BAND_430MHZ = (1 << 12),    /*!< \c 430MHz */
-    RIG_BAND_GEN = (1 << 13),       /*!< \c 60M */
-    RIG_BAND_MW  = (1 << 14),       /*!< \c Medium Wave */
-    RIG_BAND_AIR = (1 << 15),       /*!< \c Air band */
+typedef enum { // numbers here reflect the Yaesu values
+    RIG_BAND_160M = 0,      /*!< \c 160M */
+    RIG_BAND_80M  = 1,      /*!< \c 80M */
+    RIG_BAND_60M  = 2,      /*!< \c 60M */
+    RIG_BAND_40M  = 3,      /*!< \c 40M */
+    RIG_BAND_30M  = 4,      /*!< \c 30M */
+    RIG_BAND_20M  = 5,      /*!< \c 20M */
+    RIG_BAND_17M  = 6,      /*!< \c 17M */
+    RIG_BAND_15M  = 7,      /*!< \c 15M */
+    RIG_BAND_12M  = 8,      /*!< \c 12M */
+    RIG_BAND_10M  = 9,      /*!< \c 10M */
+    RIG_BAND_6M   = 10,     /*!< \c 6M */
+    RIG_BAND_GEN = 11,      /*!< \c 60M */
+    RIG_BAND_MW  = 12,      /*!< \c Medium Wave */
+    RIG_BAND_UNUSED  = 13,  /*!< \c Medium Wave */
+    RIG_BAND_AIR = 14,      /*!< \c Air band */
+    RIG_BAND_144MHZ = 15,   /*!< \c 144MHz */
+    RIG_BAND_430MHZ = 16,   /*!< \c 430MHz */
 } hamlib_band_t;
 
 
@@ -890,6 +892,7 @@ typedef unsigned int ant_t;
 #define RIG_AGC_LAST RIG_AGC_AUTO
 //! @endcond
 
+#if 1 // deprecated
 /**
  * \brief Level display meters
  */
@@ -902,8 +905,9 @@ enum meter_level_e {
     RIG_METER_DB =      (1 << 4),   /*< DB */
     RIG_METER_PO =      (1 << 5),   /*< Power Out */
     RIG_METER_VDD =     (1 << 6),   /*< Final Amp Voltage */
-    RIG_METER_TEMP =    (1 << 7)    /*< Final Amp Voltage */
+    RIG_METER_TEMP =    (1 << 7)    /*< Final Amp Temperature */
 };
+#endif
 
 
 /**
@@ -986,7 +990,7 @@ typedef uint64_t rig_level_e;
 #define RIG_LEVEL_SPECTRUM_REF         CONSTANT_64BIT_FLAG(45)      /*!< \c SPECTRUM_REF -- Spectrum scope reference display level, arg float (dB, define rig-specific granularity) */
 #define RIG_LEVEL_SPECTRUM_AVG         CONSTANT_64BIT_FLAG(46)      /*!< \c SPECTRUM_AVG -- Spectrum scope averaging mode, arg int (see struct rig_spectrum_avg_mode). Supported averaging modes defined in rig caps. */
 #define RIG_LEVEL_SPECTRUM_ATT         CONSTANT_64BIT_FLAG(47)      /*!< \c SPECTRUM_ATT -- Spectrum scope attenuator, arg int (dB). Supported attenuator values defined in rig caps. */
-#define RIG_LEVEL_TEMP_METER           CONSTANT_64BIT_FLAG(48)      /*!< \c TEMP_METER -- arg int (C, centigrade) */
+#define RIG_LEVEL_TEMP_METER           CONSTANT_64BIT_FLAG(48)      /*!< \c TEMP_METER -- arg float (C, centigrade) */
 #define RIG_LEVEL_BAND_SELECT          CONSTANT_64BIT_FLAG(49)      /*!< \c BAND_SELECT -- arg enum BAND_ENUM */
 #define RIG_LEVEL_50           CONSTANT_64BIT_FLAG(50)      /*!< \c Future use */
 #define RIG_LEVEL_51           CONSTANT_64BIT_FLAG(51)      /*!< \c Future use */
@@ -1004,7 +1008,7 @@ typedef uint64_t rig_level_e;
 #define RIG_LEVEL_63           CONSTANT_64BIT_FLAG(63)      /*!< \c Future use */
 
 //! @cond Doxygen_Suppress
-#define RIG_LEVEL_FLOAT_LIST (RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_APF|RIG_LEVEL_NR|RIG_LEVEL_PBT_IN|RIG_LEVEL_PBT_OUT|RIG_LEVEL_RFPOWER|RIG_LEVEL_MICGAIN|RIG_LEVEL_COMP|RIG_LEVEL_BALANCE|RIG_LEVEL_SWR|RIG_LEVEL_ALC|RIG_LEVEL_VOXGAIN|RIG_LEVEL_ANTIVOX|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_RFPOWER_METER_WATTS|RIG_LEVEL_COMP_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_ID_METER|RIG_LEVEL_NOTCHF_RAW|RIG_LEVEL_MONITOR_GAIN|RIG_LEVEL_NB|RIG_LEVEL_SPECTRUM_REF)
+#define RIG_LEVEL_FLOAT_LIST (RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_APF|RIG_LEVEL_NR|RIG_LEVEL_PBT_IN|RIG_LEVEL_PBT_OUT|RIG_LEVEL_RFPOWER|RIG_LEVEL_MICGAIN|RIG_LEVEL_COMP|RIG_LEVEL_BALANCE|RIG_LEVEL_SWR|RIG_LEVEL_ALC|RIG_LEVEL_VOXGAIN|RIG_LEVEL_ANTIVOX|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_RFPOWER_METER_WATTS|RIG_LEVEL_COMP_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_ID_METER|RIG_LEVEL_NOTCHF_RAW|RIG_LEVEL_MONITOR_GAIN|RIG_LEVEL_NB|RIG_LEVEL_SPECTRUM_REF|RIG_LEVEL_TEMP_METER)
 
 #define RIG_LEVEL_READONLY_LIST (RIG_LEVEL_SWR|RIG_LEVEL_ALC|RIG_LEVEL_STRENGTH|RIG_LEVEL_RAWSTR|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_COMP_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_ID_METER)
 
@@ -1030,7 +1034,8 @@ enum rig_parm_e {
     RIG_PARM_TIME =         (1 << 5),   /*!< \c TIME -- hh:mm:ss, int in seconds from 00:00:00 */
     RIG_PARM_BAT =          (1 << 6),   /*!< \c BAT -- battery level, float [0.0 ... 1.0] */
     RIG_PARM_KEYLIGHT =     (1 << 7),   /*!< \c KEYLIGHT -- Button backlight, on/off */
-    RIG_PARM_SCREENSAVER =  (1 << 8)    /*!< \c SCREENSAVER -- rig specific timeouts */
+    RIG_PARM_SCREENSAVER =  (1 << 8),   /*!< \c SCREENSAVER -- rig specific timeouts */
+    RIG_PARM_AFIF =         (1 << 9)    /*!< \c AFIF -- 0=AF audio, 1=IF audio -- see IC-7300/9700/705 */
 };
 
 /**
@@ -1396,6 +1401,7 @@ struct filter_list {
 #define RIG_FLT_ANY         0
 #define RIG_FLT_END         {RIG_MODE_NONE, 0}
 #define RIG_IS_FLT_END(f)   ((f).modes == RIG_MODE_NONE)
+#define DEBUGMSGSAVE_SIZE 24000
 //! @endcond
 
 
@@ -2042,6 +2048,7 @@ struct rig_caps {
 // this will be used to check rigcaps structure is compatible with client
     char *hamlib_check_rig_caps;   // a constant value we can check for hamlib integrity
     int (*get_conf2)(RIG *rig, token_t token, char *val, int val_len);
+    int (*password)(RIG *rig, const char *key1); /*< Send encrypted password if rigctld is secured with -A/--password */
 };
 //! @endcond
 
@@ -3265,15 +3272,16 @@ extern HAMLIB_EXPORT(int)
 rig_need_debug HAMLIB_PARAMS((enum rig_debug_level_e debug_level));
 
 
-// this need to be fairly big to avoid compiler warnings
-#define DEBUGMSGSAVE_SIZE 24000
+extern HAMLIB_EXPORT(void)add2debugmsgsave(const char *s);
+// this needs to be fairly big to avoid compiler warnings
 extern HAMLIB_EXPORT_VAR(char) debugmsgsave[DEBUGMSGSAVE_SIZE];  // last debug msg
 extern HAMLIB_EXPORT_VAR(char) debugmsgsave2[DEBUGMSGSAVE_SIZE];  // last-1 debug msg
+// debugmsgsave3 is deprecated
 extern HAMLIB_EXPORT_VAR(char) debugmsgsave3[DEBUGMSGSAVE_SIZE];  // last-2 debug msg
 #ifndef __cplusplus
 #ifdef __GNUC__
 // doing the debug macro with a dummy sprintf allows gcc to check the format string
-#define rig_debug(debug_level,fmt,...) do { strncpy(debugmsgsave3, debugmsgsave2,sizeof(debugmsgsave3));strncpy(debugmsgsave2, debugmsgsave, sizeof(debugmsgsave2));snprintf(debugmsgsave,sizeof(debugmsgsave),fmt,__VA_ARGS__);rig_debug(debug_level,fmt,##__VA_ARGS__); } while(0);
+#define rig_debug(debug_level,fmt,...) do { snprintf(debugmsgsave2,sizeof(debugmsgsave2),fmt,__VA_ARGS__);rig_debug(debug_level,fmt,##__VA_ARGS__); add2debugmsgsave(debugmsgsave2); } while(0)
 #endif
 #endif
 
@@ -3357,11 +3365,11 @@ extern HAMLIB_EXPORT(scan_t) rig_parse_scan(const char *s);
 extern HAMLIB_EXPORT(rptr_shift_t) rig_parse_rptr_shift(const char *s);
 extern HAMLIB_EXPORT(chan_type_t) rig_parse_mtype(const char *s);
 
-extern HAMLIB_EXPORT(const char *) rig_license HAMLIB_PARAMS(());
-extern HAMLIB_EXPORT(const char *) rig_version HAMLIB_PARAMS(());
-extern HAMLIB_EXPORT(const char *) rig_copyright HAMLIB_PARAMS(());
+extern HAMLIB_EXPORT(const char *) rig_license HAMLIB_PARAMS((void));
+extern HAMLIB_EXPORT(const char *) rig_version HAMLIB_PARAMS((void));
+extern HAMLIB_EXPORT(const char *) rig_copyright HAMLIB_PARAMS((void));
 
-extern HAMLIB_EXPORT(void) rig_no_restore_ai();
+extern HAMLIB_EXPORT(void) rig_no_restore_ai(void);
 
 extern HAMLIB_EXPORT(int) rig_get_cache_timeout_ms(RIG *rig, hamlib_cache_t selection);
 extern HAMLIB_EXPORT(int) rig_set_cache_timeout_ms(RIG *rig, hamlib_cache_t selection, int ms);
@@ -3379,16 +3387,22 @@ extern HAMLIB_EXPORT(int) hl_usleep(rig_useconds_t msec);
 
 extern HAMLIB_EXPORT(int) rig_cookie(RIG *rig, enum cookie_e cookie_cmd, char *cookie, int cookie_len);
 
-//extern HAMLIB_EXPORT(int)
-int longlat2locator HAMLIB_PARAMS((double longitude,
+extern HAMLIB_EXPORT(int) rig_password(RIG *rig, const char *key1);
+extern HAMLIB_EXPORT(void) rig_password_generate_secret(char *pass,
+        char result[HAMLIB_SECRET_LENGTH + 1]);
+
+extern HAMLIB_EXPORT(int)
+longlat2locator HAMLIB_PARAMS((double longitude,
                                double latitude,
                                char *locator_res,
                                int pair_count));
 
-//extern HAMLIB_EXPORT(int)
-int locator2longlat HAMLIB_PARAMS((double *longitude,
+extern HAMLIB_EXPORT(int)
+locator2longlat HAMLIB_PARAMS((double *longitude,
                                double *latitude,
                                const char *locator));
+
+extern HAMLIB_EXPORT(char*) rig_make_md5(char *pass);
 
 
 //! @endcond

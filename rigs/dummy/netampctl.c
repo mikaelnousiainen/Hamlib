@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -52,7 +50,8 @@ static int netampctl_transaction(AMP *amp, char *cmd, int len, char *buf)
         return ret;
     }
 
-    ret = read_string(&amp->state.ampport, (unsigned char *) buf, BUF_MAX, "\n", sizeof("\n"), 0, 1);
+    ret = read_string(&amp->state.ampport, (unsigned char *) buf, BUF_MAX, "\n",
+                      sizeof("\n"), 0, 1);
 
     if (ret < 0)
     {
@@ -95,7 +94,8 @@ static int netampctl_open(AMP *amp)
         return -RIG_EPROTO;
     }
 
-    ret = read_string(&amp->state.ampport, (unsigned char *) buf, BUF_MAX, "\n", sizeof("\n"), 0, 1);
+    ret = read_string(&amp->state.ampport, (unsigned char *) buf, BUF_MAX, "\n",
+                      sizeof("\n"), 0, 1);
 
     if (ret <= 0)
     {
@@ -104,7 +104,8 @@ static int netampctl_open(AMP *amp)
 
     do
     {
-        ret = read_string(&amp->state.ampport, (unsigned char *) buf, BUF_MAX, "\n", sizeof("\n"), 0, 1);
+        ret = read_string(&amp->state.ampport, (unsigned char *) buf, BUF_MAX, "\n",
+                          sizeof("\n"), 0, 1);
 
         if (ret > 0)
         {

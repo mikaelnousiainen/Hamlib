@@ -26,9 +26,7 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include "hamlib/rig.h"
 #include "bandplan.h"
@@ -88,6 +86,8 @@ const struct rig_caps ft9000_caps =
     .max_rit =            Hz(9999),
     .max_xit =            Hz(9999),
     .max_ifshift =        Hz(1000),
+    .agc_level_count =    5,
+    .agc_levels =         { RIG_AGC_OFF, RIG_AGC_FAST, RIG_AGC_MEDIUM, RIG_AGC_SLOW, RIG_AGC_AUTO },
     .vfo_ops =            FT9000_VFO_OPS,
     .targetable_vfo =     RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE | RIG_TARGETABLE_ANT,
     .transceive =         RIG_TRN_OFF,        /* May enable later as the 9000 has an Auto Info command */
@@ -212,4 +212,5 @@ const struct rig_caps ft9000_caps =
     .set_channel =        newcat_set_channel,
     .get_channel =        newcat_get_channel,
     .send_morse =         newcat_send_morse,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

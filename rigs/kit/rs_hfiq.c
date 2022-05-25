@@ -24,9 +24,7 @@
  * https://sites.google.com/site/rshfiqtransceiver/home/technical-data/interface-commands
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -95,7 +93,8 @@ static int rshfiq_open(RIG *rig)
         rig_flush(&rig->state.rigport);
         SNPRINTF(versionstr, sizeof(versionstr), "*w\r");
         rig_debug(RIG_DEBUG_TRACE, "%s: cmdstr = %s\n", __func__, versionstr);
-        retval = write_block(&rig->state.rigport, (unsigned char *) versionstr, strlen(versionstr));
+        retval = write_block(&rig->state.rigport, (unsigned char *) versionstr,
+                             strlen(versionstr));
 
         if (retval != RIG_OK)
         {
@@ -103,7 +102,7 @@ static int rshfiq_open(RIG *rig)
         }
 
         retval = read_string(&rig->state.rigport, (unsigned char *) versionstr, 20,
-                stopset, 2, 0, 1);
+                             stopset, 2, 0, 1);
     }
 
     if (retval <= 0)
@@ -162,7 +161,8 @@ static int rshfiq_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     SNPRINTF(cmdstr, sizeof(cmdstr), "*f%lu\r", (unsigned long int)(freq));
 
-    retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr, strlen(cmdstr));
+    retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr,
+                         strlen(cmdstr));
 
     if (retval != RIG_OK)
     {
@@ -185,7 +185,8 @@ static int rshfiq_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: cmdstr = %s\n", __func__, cmdstr);
 
-    retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr, strlen(cmdstr));
+    retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr,
+                         strlen(cmdstr));
 
     if (retval != RIG_OK)
     {
@@ -193,7 +194,7 @@ static int rshfiq_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     }
 
     retval = read_string(&rig->state.rigport, (unsigned char *) cmdstr, 9,
-            stopset, 2, 0, 1);
+                         stopset, 2, 0, 1);
 
     if (retval <= 0)
     {
@@ -234,7 +235,8 @@ static int rshfiq_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: cmdstr = %s\n", __func__, cmdstr);
 
-    retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr, strlen(cmdstr));
+    retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr,
+                         strlen(cmdstr));
     return retval;
 }
 
@@ -268,7 +270,8 @@ static int rshfiq_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_RFPOWER_METER command=%s\n", cmdstr);
 
-        retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr, strlen(cmdstr));
+        retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr,
+                             strlen(cmdstr));
 
         if (retval != RIG_OK)
         {
@@ -279,7 +282,7 @@ static int rshfiq_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         stopset[1] = '\n';
 
         retval = read_string(&rig->state.rigport, (unsigned char *) cmdstr, 9,
-                stopset, 2, 0, 1);
+                             stopset, 2, 0, 1);
 
         rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_RFPOWER_METER reply=%s\n", cmdstr);
 
@@ -307,7 +310,8 @@ static int rshfiq_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_TEMP_METER command=%s\n", cmdstr);
 
-        retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr, strlen(cmdstr));
+        retval = write_block(&rig->state.rigport, (unsigned char *) cmdstr,
+                             strlen(cmdstr));
 
         if (retval != RIG_OK)
         {
@@ -318,7 +322,7 @@ static int rshfiq_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         stopset[1] = '\n';
 
         retval = read_string(&rig->state.rigport, (unsigned char *) cmdstr, 9,
-                stopset, 2, 0, 1);
+                             stopset, 2, 0, 1);
 
         rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_TEMP_METER reply=%s\n", cmdstr);
 
@@ -330,8 +334,9 @@ static int rshfiq_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         cmdstr[retval] = 0;
 
         sscanf(cmdstr, "%d.", &val->i);
+        val->f = val->i;
 
-        rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_TEMP_METER val=%d\n", val->i);
+        rig_debug(RIG_DEBUG_TRACE, "RIG_LEVEL_TEMP_METER val=%g\n", val->f);
 
         return RIG_OK;
         break;
@@ -357,7 +362,7 @@ const struct rig_caps rshfiq_caps =
     RIG_MODEL(RIG_MODEL_RSHFIQ),
     .model_name =     "RS-HFIQ",
     .mfg_name =       "HobbyPCB",
-    .version =        "20211020.0",
+    .version =        "20220430.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_TRANSCEIVER,
@@ -400,5 +405,6 @@ const struct rig_caps rshfiq_caps =
     .set_ptt  =     rshfiq_set_ptt,
     .get_level =     rshfiq_get_level,
     .get_mode =     rshfiq_get_mode,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 

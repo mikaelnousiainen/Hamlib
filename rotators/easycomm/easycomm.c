@@ -21,9 +21,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,7 +78,7 @@ easycomm_transaction(ROT *rot, const char *cmdstr, char *data, size_t data_len)
     }
 
     retval = read_string(&rs->rotport, (unsigned char *) data, data_len,
-            "\n", 1, 0, 1);
+                         "\n", 1, 0, 1);
 
     if (retval < 0)
     {
@@ -610,7 +608,7 @@ const struct rot_caps easycomm3_rot_caps =
     .mfg_name =       "Hamlib",
     .version =        "20201203.0",
     .copyright =   "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_STABLE,
     .rot_type =       ROT_TYPE_OTHER,
     .port_type =      RIG_PORT_SERIAL,
     .serial_rate_min =  9600,

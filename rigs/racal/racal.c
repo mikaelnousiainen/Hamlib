@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -99,7 +97,8 @@ static int racal_transaction(RIG *rig, const char *cmd, char *data,
         return retval;
     }
 
-    retval = read_string(&rs->rigport, (unsigned char *) data, BUFSZ, EOM, strlen(EOM), 0, 1);
+    retval = read_string(&rs->rigport, (unsigned char *) data, BUFSZ, EOM,
+                         strlen(EOM), 0, 1);
 
     if (retval <= 0)
     {
@@ -563,7 +562,7 @@ const char *racal_get_info(RIG *rig)
     }
 
     SNPRINTF(infobuf, sizeof(infobuf), "BITE errors: %s, Filters: %s\n",
-            bitebuf + 1, filterbuf);
+             bitebuf + 1, filterbuf);
 
     return infobuf;
 }

@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,7 +92,7 @@ transaction_write:
 
     memset(data, 0, data_len);
     retval = read_string(&rs->rotport, (unsigned char *) data, data_len,
-            REPLY_EOM, strlen(REPLY_EOM), 0, 1);
+                         REPLY_EOM, strlen(REPLY_EOM), 0, 1);
 
     if (retval < 0)
     {
@@ -148,7 +146,8 @@ static int
 gs232_wo_transaction(ROT *rot, const char *cmdstr,
                      char *data, size_t data_len)
 {
-    return write_block(&rot->state.rotport, (unsigned char *) cmdstr, strlen(cmdstr));
+    return write_block(&rot->state.rotport, (unsigned char *) cmdstr,
+                       strlen(cmdstr));
 }
 
 
@@ -281,7 +280,7 @@ const struct rot_caps amsat_lvb_rot_caps =
     .mfg_name =       "AMSAT",
     .version =        "20220109.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_STABLE,
     .rot_type =       ROT_TYPE_AZEL,
     .port_type =      RIG_PORT_SERIAL,
     .serial_rate_min =   150,
@@ -318,7 +317,7 @@ const struct rot_caps st2_rot_caps =
     .mfg_name =       "FoxDelta",
     .version =        "20220109.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_STABLE,
     .rot_type =       ROT_TYPE_AZEL,
     .port_type =      RIG_PORT_SERIAL,
     .serial_rate_min =   150,

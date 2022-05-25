@@ -25,9 +25,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,13 +88,18 @@ extern int read_history();
 #define ARG_OUT3 0x20
 #define ARG_IN4  0x40
 #define ARG_OUT4 0x80
+#define ARG_OUT5 0x100
 #define ARG_IN_LINE 0x4000
 #define ARG_NOVFO 0x8000
 
 #define ARG_IN  (ARG_IN1|ARG_IN2|ARG_IN3|ARG_IN4)
-#define ARG_OUT (ARG_OUT1|ARG_OUT2|ARG_OUT3|ARG_OUT4)
+#define ARG_OUT (ARG_OUT1|ARG_OUT2|ARG_OUT3|ARG_OUT4|ARG_OUT5)
 
 static int chk_vfo_executed;
+char rigctld_password[64];
+int is_passwordOK;
+int is_rigctld;
+
 
 /* variables for readline support */
 #ifdef HAVE_LIBREADLINE
@@ -138,6 +141,7 @@ struct test_table
     const char *arg3;
     const char *arg4;
     const char *arg5;
+    const char *arg6;
 };
 
 
@@ -243,9 +247,11 @@ declare_proto_rig(get_cache);
 declare_proto_rig(halt);
 declare_proto_rig(pause);
 declare_proto_rig(password);
-declare_proto_rig(set_password);
+//declare_proto_rig(set_password);
 declare_proto_rig(set_clock);
 declare_proto_rig(get_clock);
+declare_proto_rig(set_separator);
+declare_proto_rig(get_separator);
 
 
 /*
@@ -342,7 +348,7 @@ static struct test_table test_list[] =
     { 0x8f, "dump_state",       ACTION(dump_state),     ARG_OUT | ARG_NOVFO },
     { 0xf0, "chk_vfo",          ACTION(chk_vfo),        ARG_NOVFO, "ChkVFO" },   /* rigctld only--check for VFO mode */
     { 0xf2, "set_vfo_opt",      ACTION(set_vfo_opt),    ARG_NOVFO | ARG_IN, "Status" }, /* turn vfo option on/off */
-    { 0xf3, "get_vfo_info",     ACTION(get_vfo_info),   ARG_NOVFO | ARG_IN1 | ARG_OUT4, "Freq", "Mode", "Width", "Split", "SatMode" }, /* get several vfo parameters at once */
+    { 0xf3, "get_vfo_info",     ACTION(get_vfo_info),   ARG_IN1 | ARG_NOVFO | ARG_OUT5, "VFO", "Freq", "Mode", "Width", "Split", "SatMode" }, /* get several vfo parameters at once */
     { 0xf5, "get_rig_info",     ACTION(get_rig_info),   ARG_NOVFO | ARG_OUT, "RigInfo" }, /* get several vfo parameters at once */
     { 0xf4, "get_vfo_list",    ACTION(get_vfo_list),   ARG_OUT | ARG_NOVFO, "VFOs" },
     { 0xf6, "get_modes",       ACTION(get_modes),   ARG_OUT | ARG_NOVFO, "Modes" },
@@ -351,9 +357,11 @@ static struct test_table test_list[] =
     { 0xf8, "set_clock",        ACTION(set_clock),      ARG_IN | ARG_NOVFO, "YYYYMMDDHHMMSS.sss+ZZ" },
     { 0xf1, "halt",             ACTION(halt),           ARG_NOVFO },   /* rigctld only--halt the daemon */
     { 0x8c, "pause",            ACTION(pause),          ARG_IN, "Seconds" },
-    { 0x98, "password",         ACTION(password),       ARG_IN, "Password" },
-    { 0x99, "set_password",     ACTION(set_password),   ARG_IN, "Password" },
+    { 0x98, "password",         ACTION(password),       ARG_IN | ARG_NOVFO, "Password" },
+//    { 0x99, "set_password",     ACTION(set_password),   ARG_IN | ARG_NOVFO, "Password" },
     { 0xf7, "get_mode_bandwidths", ACTION(get_mode_bandwidths),   ARG_IN | ARG_NOVFO, "Mode" },
+    { 0xa0, "set_separator",     ACTION(set_separator), ARG_IN | ARG_NOVFO, "Separator" },
+    { 0xa1, "get_separator",     ACTION(get_separator), ARG_OUT | ARG_NOVFO, "Separator" },
     { 0x00, "", NULL },
 };
 
@@ -645,7 +653,7 @@ static int next_word(char *buffer, int argc, char *argv[], int newline)
 int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                  sync_cb_t sync_cb,
                  int interactive, int prompt, int *vfo_opt, char send_cmd_term,
-                 int *ext_resp_ptr, char *resp_sep_ptr)
+                 int *ext_resp_ptr, char *resp_sep_ptr, int use_password)
 {
     int retcode;        /* generic return code from functions */
     unsigned char cmd;
@@ -667,6 +675,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
         if (interactive)
         {
             static int last_was_ret = 1;
+            static int last_cmd;
 
             if (prompt)
             {
@@ -677,15 +686,16 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
             {
                 if ((retcode = scanfc(fin, "%c", &cmd)) < 1)
                 {
-                    rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#1? retcode=%d\n", __func__,
-                              retcode);
-                    return(RIGCTL_PARSE_ERROR);
+                    rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#1? retcode=%d, last_cmd=%c\n",
+                              __func__,
+                              retcode, last_cmd);
+                    return (RIGCTL_PARSE_ERROR);
                 }
 
                 if (cmd != 0xa && cmd != 0xd)
                 {
-                    rig_debug(RIG_DEBUG_TRACE, "%s: cmd=%c(%02x)\n", __func__,
-                              isprint(cmd) ? cmd : ' ', cmd);
+                    rig_debug(RIG_DEBUG_TRACE, "%s: cmd=%c(%02x) handle=%d\n", __func__,
+                              isprint(cmd) ? cmd : ' ', cmd, fileno(fin));
                 }
 
                 /* Extended response protocol requested with leading '+' on command
@@ -698,12 +708,12 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                     if (scanfc(fin, "%c", &cmd) < 1)
                     {
                         rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#2?\n", __func__);
-                        return(RIGCTL_PARSE_ERROR);
+                        return (RIGCTL_PARSE_ERROR);
                     }
                 }
                 else if (cmd == '+' && prompt)
                 {
-                    return(RIG_OK);
+                    return (RIG_OK);
                 }
 
                 if (cmd != '\\'
@@ -721,7 +731,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                     if (scanfc(fin, "%c", &cmd) < 1)
                     {
                         rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#3?\n", __func__);
-                        return(RIGCTL_PARSE_ERROR);
+                        return (RIGCTL_PARSE_ERROR);
                     }
                 }
                 else if (cmd != '\\'
@@ -734,7 +744,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                          && prompt)
                 {
 
-                    return(RIG_OK);
+                    return (RIG_OK);
                 }
 
                 /* command by name */
@@ -745,7 +755,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                     if (scanfc(fin, "%c", pcmd) < 1)
                     {
                         rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#4?\n", __func__);
-                        return(RIGCTL_PARSE_ERROR);
+                        return (RIGCTL_PARSE_ERROR);
                     }
 
                     retcode = fscanf(fin, "%s", ++pcmd);
@@ -756,7 +766,8 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
 
                     *pcmd = '\0';
                     cmd = parse_arg((char *)cmd_name);
-                    rig_debug(RIG_DEBUG_VERBOSE, "%s: cmd=%s\n", __func__, cmd_name);
+                    rig_debug(RIG_DEBUG_VERBOSE, "%s: cmd=%s handle=%d\n", __func__, cmd_name,
+                              fileno(fin));
                     break;
                 }
 
@@ -772,7 +783,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                             fprintf_flush(fout, "\nRig command: ");
                         }
 
-                        return(RIG_OK);
+                        return (RIG_OK);
                     }
 
                     last_was_ret = 1;
@@ -790,11 +801,11 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                     if (scanfc(fin, "%c", &cmd) < 1)
                     {
                         rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#6?\n", __func__);
-                        return(RIGCTL_PARSE_ERROR);
+                        return (RIGCTL_PARSE_ERROR);
                     }
                 }
 
-                return(RIG_OK);
+                return (RIG_OK);
             }
 
             my_rig->state.vfo_opt = *vfo_opt;
@@ -806,14 +817,14 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 if (interactive && !prompt) { fprintf(fout, "%s0\n", NETRIGCTL_RET); }
 
                 fflush(fout);
-                return(RIGCTL_PARSE_END);
+                return (RIGCTL_PARSE_END);
             }
 
             if (cmd == '?')
             {
                 usage_rig(fout);
                 fflush(fout);
-                return(RIG_OK);
+                return (RIG_OK);
             }
         }
         else
@@ -823,11 +834,11 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
 
             if (EOF == retcode)
             {
-                return(RIGCTL_PARSE_END);
+                return (RIGCTL_PARSE_END);
             }
             else if (retcode < 0)
             {
-                return(RIGCTL_PARSE_ERROR);
+                return (RIGCTL_PARSE_ERROR);
             }
             else if ('\0' == command[1])
             {
@@ -848,7 +859,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 fprintf(stderr, "Command '%c' not found!\n", cmd);
             }
 
-            return(RIG_OK);
+            return (RIG_OK);
         }
 
         if (!(cmd_entry->flags & ARG_NOVFO) && *vfo_opt)
@@ -866,7 +877,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 if (scanfc(fin, "%s", arg1) < 1)
                 {
                     rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#7?\n", __func__);
-                    return(RIGCTL_PARSE_ERROR);
+                    return (RIGCTL_PARSE_ERROR);
                 }
 
                 vfo = rig_parse_vfo(arg1);
@@ -882,7 +893,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 }
                 else if (retcode < 0)
                 {
-                    return(RIGCTL_PARSE_ERROR);
+                    return (RIGCTL_PARSE_ERROR);
                 }
 
                 vfo = rig_parse_vfo(arg1);
@@ -906,7 +917,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
 
                 if (fgets(arg1, MAXARGSZ, fin) == NULL)
                 {
-                    return(RIGCTL_PARSE_ERROR);
+                    return (RIGCTL_PARSE_ERROR);
                 }
 
                 if (arg1[0] == 0xa)
@@ -920,7 +931,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
 
                     if (fgets(arg1, MAXARGSZ, fin) == NULL)
                     {
-                        return(RIGCTL_PARSE_ERROR);
+                        return (RIGCTL_PARSE_ERROR);
                     }
                 }
 
@@ -948,11 +959,11 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 {
                     fprintf(stderr, "Invalid arg for command '%s'\n",
                             cmd_entry->name);
-                    return(RIGCTL_PARSE_END);
+                    return (RIGCTL_PARSE_END);
                 }
                 else if (retcode < 0)
                 {
-                    return(RIGCTL_PARSE_ERROR);
+                    return (RIGCTL_PARSE_ERROR);
                 }
 
                 p1 = arg1;
@@ -977,7 +988,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 if (scanfc(fin, "%s", arg1) < 1)
                 {
                     rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#8?\n", __func__);
-                    return(RIGCTL_PARSE_ERROR);
+                    return (RIGCTL_PARSE_ERROR);
                 }
 
                 p1 = arg1;
@@ -990,11 +1001,11 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 {
                     fprintf(stderr, "Invalid arg for command '%s'\n",
                             cmd_entry->name);
-                    return(1);
+                    return (1);
                 }
                 else if (retcode < 0)
                 {
-                    return(RIGCTL_PARSE_ERROR);
+                    return (RIGCTL_PARSE_ERROR);
                 }
 
                 p1 = arg1;
@@ -1027,7 +1038,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 if (scanfc(fin, "%s", arg2) < 1)
                 {
                     rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#9?\n", __func__);
-                    return(RIGCTL_PARSE_ERROR);
+                    return (RIGCTL_PARSE_ERROR);
                 }
 
                 p2 = arg2;
@@ -1042,11 +1053,11 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 {
                     fprintf(stderr, "Invalid arg for command '%s'\n",
                             cmd_entry->name);
-                    return(RIGCTL_PARSE_END);
+                    return (RIGCTL_PARSE_END);
                 }
                 else if (retcode < 0)
                 {
-                    return(RIGCTL_PARSE_ERROR);
+                    return (RIGCTL_PARSE_ERROR);
                 }
 
                 p2 = arg2;
@@ -1076,7 +1087,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 if (scanfc(fin, "%s", arg3) < 1)
                 {
                     rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#10?\n", __func__);
-                    return(RIGCTL_PARSE_ERROR);
+                    return (RIGCTL_PARSE_ERROR);
                 }
 
                 p3 = arg3;
@@ -1092,11 +1103,11 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                     fprintf(stderr,
                             "Invalid arg for command '%s'\n",
                             cmd_entry->name);
-                    return(RIGCTL_PARSE_END);
+                    return (RIGCTL_PARSE_END);
                 }
                 else if (retcode < 0)
                 {
-                    return(RIGCTL_PARSE_ERROR);
+                    return (RIGCTL_PARSE_ERROR);
                 }
 
                 p3 = arg3;
@@ -1123,13 +1134,13 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
         if (!input_line)
         {
             fprintf_flush(fout, "\n");
-            return(RIGCTL_PARSE_END);
+            return (RIGCTL_PARSE_END);
         }
 
         /* Q or q to quit */
         if (!(strncasecmp(input_line, "q", 1)))
         {
-            return(RIGCTL_PARSE_END);
+            return (RIGCTL_PARSE_END);
         }
 
         /* '?' for help */
@@ -1137,13 +1148,13 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
         {
             usage_rig(fout);
             fflush(fout);
-            return(RIG_OK);
+            return (RIG_OK);
         }
 
         /* '#' for comment */
         if (!(strncmp(input_line, "#", 1)))
         {
-            return(RIG_OK);
+            return (RIG_OK);
         }
 
         /* Blank line entered */
@@ -1151,7 +1162,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
         {
             fprintf(fout, "? for help, q to quit.\n");
             fflush(fout);
-            return(RIG_OK);
+            return (RIG_OK);
         }
 
         rig_debug(RIG_DEBUG_TRACE, "%s: input_line: %s\n", __func__, input_line);
@@ -1175,7 +1186,7 @@ readline_repeat:
         {
             /* Oops!  Invoke GDB!! */
             fprintf_flush(fout, "\n");
-            return(RIGCTL_PARSE_END);
+            return (RIGCTL_PARSE_END);
         }
 
         /* At this point parsed_input contains the typed text of the command
@@ -1234,7 +1245,7 @@ readline_repeat:
                 {
                     fprintf(stderr,
                             "Valid multiple character command names contain alphanumeric characters plus '_'\n");
-                    return(RIG_OK);
+                    return (RIG_OK);
                 }
             }
 
@@ -1243,13 +1254,13 @@ readline_repeat:
         /* Single '\' entered, prompt again */
         else if ((*parsed_input[0] == '\\') && (strlen(parsed_input[0]) == 1))
         {
-            return(RIG_OK);
+            return (RIG_OK);
         }
         /* Multiple characters but no leading '\' */
         else
         {
             fprintf(stderr, "Precede multiple character command names with '\\'\n");
-            return(RIG_OK);
+            return (RIG_OK);
         }
 
         cmd_entry = find_cmd_entry(cmd);
@@ -1265,7 +1276,7 @@ readline_repeat:
                 fprintf(stderr, "Command '%c' not found!\n", cmd);
             }
 
-            return(RIG_OK);
+            return (RIG_OK);
         }
 
         /* If vfo_opt is enabled (-o|--vfo) check if already given
@@ -1290,7 +1301,7 @@ readline_repeat:
                 if (!input_line)
                 {
                     fprintf_flush(fout, "\n");
-                    return(RIGCTL_PARSE_END);
+                    return (RIGCTL_PARSE_END);
                 }
 
                 /* Blank line entered */
@@ -1298,7 +1309,7 @@ readline_repeat:
                 {
                     fprintf(fout, "? for help, q to quit.\n");
                     fflush(fout);
-                    return(RIG_OK);
+                    return (RIG_OK);
                 }
 
                 /* Get the first token of input, the rest, if any, will be
@@ -1313,7 +1324,7 @@ readline_repeat:
                 else
                 {
                     fprintf_flush(fout, "\n");
-                    return(RIGCTL_PARSE_END);
+                    return (RIGCTL_PARSE_END);
                 }
             }
 
@@ -1392,7 +1403,7 @@ readline_repeat:
                 {
                     fprintf(fout, "? for help, q to quit.\n");
                     fflush(fout);
-                    return(RIG_OK);
+                    return (RIG_OK);
                 }
 
                 if (input_line)
@@ -1402,7 +1413,7 @@ readline_repeat:
                 else
                 {
                     fprintf_flush(fout, "\n");
-                    return(RIGCTL_PARSE_END);
+                    return (RIGCTL_PARSE_END);
                 }
             }
 
@@ -1454,7 +1465,7 @@ readline_repeat:
                 {
                     fprintf(fout, "? for help, q to quit.\n");
                     fflush(fout);
-                    return(RIG_OK);
+                    return (RIG_OK);
                 }
 
                 result = strtok(input_line, " ");
@@ -1466,7 +1477,7 @@ readline_repeat:
                 else
                 {
                     fprintf_flush(fout, "\n");
-                    return(RIGCTL_PARSE_END);
+                    return (RIGCTL_PARSE_END);
                 }
             }
 
@@ -1520,7 +1531,7 @@ readline_repeat:
                 {
                     fprintf(fout, "? for help, q to quit.\n");
                     fflush(fout);
-                    return(RIG_OK);
+                    return (RIG_OK);
                 }
 
                 result = strtok(input_line, " ");
@@ -1532,7 +1543,7 @@ readline_repeat:
                 else
                 {
                     fprintf_flush(fout, "\n");
-                    return(RIGCTL_PARSE_END);
+                    return (RIGCTL_PARSE_END);
                 }
             }
 
@@ -1586,7 +1597,7 @@ readline_repeat:
                 {
                     fprintf(fout, "? for help, q to quit.\n");
                     fflush(fout);
-                    return(RIG_OK);
+                    return (RIG_OK);
                 }
 
                 result = strtok(input_line, " ");
@@ -1598,7 +1609,7 @@ readline_repeat:
                 else
                 {
                     fprintf_flush(fout, "\n");
-                    return(RIGCTL_PARSE_END);
+                    return (RIGCTL_PARSE_END);
                 }
             }
 
@@ -1681,24 +1692,47 @@ readline_repeat:
 
     if (my_rig->state.comm_state == 0)
     {
-        rig_debug(RIG_DEBUG_WARN, "%s: %p rig not open...trying to reopen\n", __func__, &my_rig->state.comm_state);
+        rig_debug(RIG_DEBUG_WARN, "%s: %p rig not open...trying to reopen\n", __func__,
+                  &my_rig->state.comm_state);
         rig_open(my_rig);
     }
 
-    retcode = (*cmd_entry->rig_routine)(my_rig,
-                                        fout,
-                                        fin,
-                                        interactive,
-                                        prompt,
-                                        vfo_opt,
-                                        send_cmd_term,
-                                        *ext_resp_ptr,
-                                        *resp_sep_ptr,
-                                        cmd_entry,
-                                        vfo,
-                                        p1,
-                                        p2 ? p2 : "",
-                                        p3 ? p3 : "");
+    // chk_vfo is the one command we'll allow without a password
+    // since it's in the initial handshake
+    int preCmd =
+        0;  // some command are allowed without passoword to satisfy rigctld initialization from rigctl -m 2
+
+    if (cmd_entry->arg1 != NULL)
+    {
+        if (strcmp(cmd_entry->arg1, "ChkVFO") == 0) { preCmd = 1; }
+        else if (strcmp(cmd_entry->arg1, "VFO") == 0) { preCmd = 1; }
+        else if (strcmp(cmd_entry->arg1, "Password") == 0) { preCmd = 1; }
+    }
+
+    if (use_password && !is_passwordOK && (cmd_entry->arg1 != NULL) && !preCmd)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: password has not been provided\n", __func__);
+        fflush(fin);
+        retcode = -RIG_ESECURITY;
+    }
+
+    else
+    {
+        retcode = (*cmd_entry->rig_routine)(my_rig,
+                                            fout,
+                                            fin,
+                                            interactive,
+                                            prompt,
+                                            vfo_opt,
+                                            send_cmd_term,
+                                            *ext_resp_ptr,
+                                            *resp_sep_ptr,
+                                            cmd_entry,
+                                            vfo,
+                                            p1,
+                                            p2 ? p2 : "",
+                                            p3 ? p3 : "");
+    }
 
 
     if (retcode == -RIG_EIO)
@@ -1707,7 +1741,7 @@ readline_repeat:
 
         if (sync_cb) { sync_cb(0); }    /* unlock if necessary */
 
-        return(retcode);
+        return (retcode);
     }
 
     if (retcode != RIG_OK)
@@ -1753,6 +1787,8 @@ readline_repeat:
         }
     }
 
+    if (*resp_sep_ptr != '\n') { fprintf(fout, "\n"); }
+
     fflush(fout);
 
 #ifdef HAVE_LIBREADLINE
@@ -1763,7 +1799,7 @@ readline_repeat:
 
     if (sync_cb) { sync_cb(0); }    /* unlock if necessary */
 
-    return(retcode);
+    return (retcode);
 }
 
 
@@ -1947,7 +1983,7 @@ int set_conf(RIG *my_rig, char *conf_parms)
 
         if (!q)
         {
-            return(-RIG_EINVAL);
+            return (-RIG_EINVAL);
         }
 
         *q++ = '\0';
@@ -1962,13 +1998,13 @@ int set_conf(RIG *my_rig, char *conf_parms)
 
         if (ret != RIG_OK)
         {
-            return(ret);
+            return (ret);
         }
 
         p = n;
     }
 
-    return(RIG_OK);
+    return (RIG_OK);
 }
 
 
@@ -2288,15 +2324,16 @@ declare_proto_rig(get_vfo_info)
 
     if ((interactive && prompt) || (interactive && !prompt && ext_resp))
     {
-        fprintf(fout, "%s: %.0f\n", cmd->arg1, freq);
-        fprintf(fout, "%s: %s\n", cmd->arg2, modestr);
-        fprintf(fout, "%s: %d\n", cmd->arg3, (int)width);
-        fprintf(fout, "%s: %d\n", cmd->arg4, (int)split);
-        fprintf(fout, "%s: %d\n", cmd->arg5, (int)satmode);
+        fprintf(fout, "%s: %.0f%c", cmd->arg2, freq, resp_sep);
+        fprintf(fout, "%s: %s%c", cmd->arg3, modestr, resp_sep);
+        fprintf(fout, "%s: %d%c", cmd->arg4, (int)width, resp_sep);
+        fprintf(fout, "%s: %d%c", cmd->arg5, (int)split, resp_sep);
+        fprintf(fout, "%s: %d%c", cmd->arg6, (int)satmode, resp_sep);
     }
     else
     {
-        fprintf(fout, "%.0f\n%s\n%d\n", freq, modestr, (int)width);
+        fprintf(fout, "%.0f%c%s%c%d%c%d%c%d\n", freq, resp_sep, modestr, resp_sep, (int)width, resp_sep, (int)split, resp_sep,
+                (int)satmode);
     }
 
     ELAPSED2;
@@ -2418,6 +2455,7 @@ declare_proto_rig(set_ptt)
 
     CHKSCN1ARG(sscanf(arg1, "%d", &scr));
     ptt = scr;
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: set_ptt ptt=%d\n", __func__, ptt);
 
     /*
      * We allow RIG_PTT_ON_MIC and RIG_PTT_ON_DATA arriving from netrigctl.
@@ -2432,11 +2470,19 @@ declare_proto_rig(set_ptt)
     case RIG_PTT_ON_MIC:
     case RIG_PTT_ON_DATA:
 
+        // No longer map this -- is confusing rigctld and MICDATA rigs
+        // https://github.com/Hamlib/Hamlib/issues/998
+#if 0
+
         // map to a legal value
-        if (rig->state.pttport.type.ptt != RIG_PTT_RIG_MICDATA)
+        if (rig->caps->ptt_type != RIG_PTT_RIG_MICDATA)
         {
+            rig_debug(RIG_DEBUG_ERR, "%s: pttport.type.ptt=%d\n", __func__,
+                      rig->state.pttport.type.ptt);
             ptt = RIG_PTT_ON;
         }
+
+#endif
 
         break;
 
@@ -2452,6 +2498,7 @@ declare_proto_rig(set_ptt)
         RETURNFUNC(-RIG_EINVAL);
     }
 
+    rig_debug(RIG_DEBUG_ERR, "%s: ptt=%d\n", __func__, ptt);
     RETURNFUNC(rig_set_ptt(rig, vfo, ptt));
 }
 
@@ -2938,6 +2985,9 @@ declare_proto_rig(set_split_vfo)
         RETURNFUNC(-RIG_EINVAL);
     }
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): rx_vfo = %s, tx_vfo = %s\n", __func__,
+              __LINE__, rig_strvfo(vfo), rig_strvfo(tx_vfo));
+
     RETURNFUNC(rig_set_split_vfo(rig, vfo, (split_t) split, tx_vfo));
 }
 
@@ -3189,10 +3239,10 @@ declare_proto_rig(get_level)
         if (rig->caps->get_ext_level)
         {
             sprintf_level_ext(s, sizeof(s), rig->caps->extlevels);
-            fputs(s, fout);
+            fprintf(fout, "%s%c", s, resp_sep);
         }
 
-        fputc('\n', fout);
+        //fputc('\n', fout);
         RETURNFUNC(RIG_OK);
     }
 
@@ -3262,11 +3312,11 @@ declare_proto_rig(get_level)
 
     if (RIG_LEVEL_IS_FLOAT(level))
     {
-        fprintf(fout, "%f\n", val.f);
+        fprintf(fout, "%f%c", val.f, resp_sep);
     }
     else
     {
-        fprintf(fout, "%d\n", val.i);
+        fprintf(fout, "%d%c", val.i, resp_sep);
     }
 
     RETURNFUNC(status);
@@ -4343,7 +4393,7 @@ declare_proto_rig(dump_state)
     {
         fprintf(fout, "vfo_ops=0x%x\n", rig->caps->vfo_ops);
         fprintf(fout, "ptt_type=0x%x\n",
-                rig->state.pttport.type.ptt == RIG_PTT_NONE ? RIG_PTT_NONE : RIG_PTT_RIG);
+                rig->state.pttport.type.ptt);
         fprintf(fout, "targetable_vfo=0x%x\n", rig->caps->targetable_vfo);
         fprintf(fout, "has_set_vfo=%d\n", rig->caps->set_vfo != NULL);
         fprintf(fout, "has_get_vfo=%d\n", rig->caps->get_vfo != NULL);
@@ -4584,12 +4634,15 @@ declare_proto_rig(recv_dtmf)
 declare_proto_rig(set_powerstat)
 {
     int stat;
+    int retval;
 
     ENTERFUNC;
 
     CHKSCN1ARG(sscanf(arg1, "%d", &stat));
 
-    RETURNFUNC(rig_set_powerstat(rig, (powerstat_t) stat));
+    retval = rig_set_powerstat(rig, (powerstat_t) stat);
+    fflush(fin);
+    RETURNFUNC(retval);
 }
 
 
@@ -4624,7 +4677,7 @@ static int hasbinary(char *s, int len)
 
     for (i = 0; i < len; ++i)
     {
-        if (!isascii(s[i])) { return(1); }
+        if (!isascii(s[i])) { return (1); }
     }
 
     return 0;
@@ -4636,6 +4689,8 @@ static int hasbinary(char *s, int len)
  *
  * 'w' and 'W'
  */
+extern int flrig_cat_string(RIG *rig, const char *arg);
+
 declare_proto_rig(send_cmd)
 {
     int retval;
@@ -4657,12 +4712,18 @@ declare_proto_rig(send_cmd)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: backend_num=%d\n", __func__, backend_num);
 
+    if (rig->caps->rig_model == RIG_MODEL_FLRIG)
+    {
+        // call flrig raw send function cat_string or cat_priority_string
+        flrig_cat_string(rig, arg1);
+    }
+
     // need to move the eom_buf to rig-specifc backends
     // we'll let KENWOOD backends use the ; char in the rigctl commands
     if (backend_num == RIG_KENWOOD || backend_num == RIG_YAESU)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: KENWOOD\n", __func__);
-        eom_buf[0] = 0;
+//        eom_buf[0] = 0;
         send_cmd_term = 0;
     }
 
@@ -4748,7 +4809,11 @@ declare_proto_rig(send_cmd)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: rigport=%d, bufcmd=%s, cmd_len=%d\n", __func__,
               rs->rigport.fd, hasbinary(bufcmd, cmd_len) ? "BINARY" : bufcmd, cmd_len);
+    // we dont' want the 'w' command to wait too long
+    int save_retry = rs->rigport.retry;
+    rs->rigport.retry = 0;
     retval = write_block(&rs->rigport, (unsigned char *) bufcmd, cmd_len);
+    rs->rigport.retry = save_retry;
 
     if (retval != RIG_OK)
     {
@@ -4890,7 +4955,7 @@ declare_proto_rig(halt)
     /* a bit rough, TODO: clean daemon shutdown */
     exit(0);
 
-    return(RIG_OK);
+    return (RIG_OK);
 }
 
 
@@ -4902,38 +4967,69 @@ declare_proto_rig(pause)
     CHKSCN1ARG(sscanf(arg1, "%u", &seconds));
     sleep(seconds);
 
-    return(RIG_OK);
+    return (RIG_OK);
 }
 
-char rig_passwd[256];
+int rigctld_password_check(RIG *rig, const char *md5)
+{
+    int retval = -RIG_EINVAL;
+    //fprintf(fout, "password %s\n", password);
+    rig_debug(RIG_DEBUG_TRACE, "%s: %s == %s\n", __func__, md5, rigctld_password);
+    is_passwordOK = 0;
+
+    char *mymd5 = rig_make_md5(rigctld_password);
+
+    if (strcmp(md5, mymd5) == 0)
+    {
+        retval = RIG_OK;
+        is_passwordOK = 1;
+    }
+
+    return (retval);
+}
+
 /* 0x98 */
 declare_proto_rig(password)
 {
-    const char *passwd = arg1;
+    int retval = -RIG_EPROTO;
+    const char *key = arg1;
 
-    if (strcmp(passwd, rig_passwd) == 0)
+    ENTERFUNC;
+
+    if (is_rigctld)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: #1 password OK\n", __func__);
-        return (RIG_EINVAL);
+        retval = rigctld_password_check(rig, key);
     }
     else
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: #2 password error, '%s'!='%s'\n", __func__,
-                  passwd, rig_passwd);
+        retval = rig_password(rig, key);
+        //retval = RIG_OK;
     }
 
-    RETURNFUNC(RIG_OK);
+    if (retval == RIG_OK)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: #1 password OK\n", __func__);
+        //fprintf(fout, "Logged in\n");
+    }
+    else
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: password error, '%s'!='%s'\n", __func__,
+                  key, rigctld_password);
+    }
+
+    RETURNFUNC(retval);
 }
 
+#if 0 // don't think we need this yet
 /* 0x99 */
 declare_proto_rig(set_password)
 {
     const char *passwd = arg1;
-    strncpy(rig_passwd, passwd, sizeof(passwd) - 1);
-    rig_debug(RIG_DEBUG_ERR, "%s: set_password %s\n", __func__, rig_passwd);
-    fprintf(fout, "set_password %s\n", rig_passwd);
-    return(RIG_OK);
+    strncpy(rigctld_password, passwd, sizeof(passwd) - 1);
+    rig_debug(RIG_DEBUG_ERR, "%s: set_password %s\n", __func__, rigctld_password);
+    return (RIG_OK);
 }
+#endif
 
 /* '0x8d' */
 declare_proto_rig(set_twiddle)
@@ -5086,4 +5182,29 @@ declare_proto_rig(get_clock)
             aoffset / 100, aoffset % 100);
 
     return retval;
+}
+
+char rig_resp_sep = '\n';
+/* '0xa0' */
+declare_proto_rig(set_separator)
+{
+    CHKSCN1ARG(sscanf(arg1, "%c", &rig_resp_sep));
+    rig_debug(RIG_DEBUG_ERR, "%s: arg1=%s, resp_sep=0x%x, %p\n", __func__, arg1,
+              (unsigned int)rig_resp_sep, &rig_resp_sep);
+    return RIG_OK;
+}
+
+/* '0xa1' */
+declare_proto_rig(get_separator)
+{
+    char buf[32];
+
+    if (isprint(rig_resp_sep))
+    {
+        sprintf(buf, "%c", rig_resp_sep);
+    }
+    else { sprintf(buf, "0x%x %p", rig_resp_sep, &rig_resp_sep); }
+
+    fprintf(fout, "%s\n", buf);
+    return RIG_OK;
 }

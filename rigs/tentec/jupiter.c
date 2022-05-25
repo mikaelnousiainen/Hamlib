@@ -32,9 +32,7 @@
  * implement dual VFO & split capability
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -230,6 +228,7 @@ const struct rig_caps tt538_caps =
     .reset =  tt538_reset,
     .get_info =  tentec2_get_info,
     .str_cal = TT538_STR_CAL,   // This signals front-end support of level STRENGTH
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /* Filter table for 538 reciver support. */
@@ -404,7 +403,8 @@ int tt538_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "?%c" EOM, which_vfo(rig, vfo));
     resp_len = 7;
-    retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), (char *) respbuf,
+    retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf),
+                               (char *) respbuf,
                                &resp_len);
 
     if (retval != RIG_OK)
@@ -454,10 +454,11 @@ int tt538_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     bytes[0] = (int) freq        & 0xff;
 
     SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "*%c%c%c%c%c" EOM,
-                      which_vfo(rig, vfo),
-                      bytes[3], bytes[2], bytes[1], bytes[0]);
+             which_vfo(rig, vfo),
+             bytes[3], bytes[2], bytes[1], bytes[0]);
 
-    return tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), NULL, NULL);
+    return tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf), NULL,
+                             NULL);
 }
 
 /*
@@ -523,7 +524,8 @@ int tt538_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     /* Query mode */
     SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "?M" EOM);
     resp_len = 5;
-    retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), (char *) respbuf,
+    retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf),
+                               (char *) respbuf,
                                &resp_len);
 
     if (retval != RIG_OK)
@@ -576,7 +578,8 @@ int tt538_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     /* Query passband width (filter) */
     SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "?W" EOM);
     resp_len = 4;
-    retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), (char *) respbuf,
+    retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf),
+                               (char *) respbuf,
                                &resp_len);
 
     if (retval != RIG_OK)
@@ -638,7 +641,8 @@ int tt538_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     /* Query mode for both VFOs. */
     SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "?M" EOM);
     resp_len = 5;
-    retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), (char *) respbuf,
+    retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf),
+                               (char *) respbuf,
                                &resp_len);
 
     if (retval != RIG_OK)
@@ -693,7 +697,8 @@ int tt538_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         return -RIG_EINVAL;
     }
 
-    retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), NULL, NULL);
+    retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf), NULL,
+                               NULL);
 
     if (retval != RIG_OK)
     {
@@ -711,7 +716,8 @@ int tt538_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     width = tt538_filter_number((int) width);
 
     SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "*W%c" EOM, (unsigned char) width);
-    return tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), NULL, NULL);
+    return tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf), NULL,
+                             NULL);
 
     return RIG_OK;
 }
@@ -833,7 +839,8 @@ int tt538_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         /* Read rig's AGC level setting. */
         SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "?G" EOM);
         lvl_len = 4;
-        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), (char *) lvlbuf,
+        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf),
+                                   (char *) lvlbuf,
                                    &lvl_len);
 
         if (retval != RIG_OK)
@@ -868,7 +875,8 @@ int tt538_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         /* Volume returned as single byte. */
         SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "?U" EOM);
         lvl_len = 4;
-        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), (char *) lvlbuf,
+        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf),
+                                   (char *) lvlbuf,
                                    &lvl_len);
 
         if (retval != RIG_OK)
@@ -890,7 +898,8 @@ int tt538_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "?I" EOM);
         lvl_len = 4;
-        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), (char *) lvlbuf,
+        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf),
+                                   (char *) lvlbuf,
                                    &lvl_len);
 
         if (retval != RIG_OK)
@@ -915,7 +924,8 @@ int tt538_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "?P" EOM);
         lvl_len = 5;
-        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), (char *) lvlbuf,
+        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf),
+                                   (char *) lvlbuf,
                                    & lvl_len);
 
         if (retval != RIG_OK)
@@ -937,7 +947,8 @@ int tt538_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "?J" EOM);
         lvl_len = 4;
-        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char*)cmdbuf), (char *) lvlbuf,
+        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf),
+                                   (char *) lvlbuf,
                                    &lvl_len);
 
         if (retval != RIG_OK)
@@ -959,7 +970,8 @@ int tt538_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         SNPRINTF((char *) cmdbuf, sizeof(cmdbuf), "?H" EOM);
         lvl_len = 4;
-        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf), (char *) lvlbuf,
+        retval = tt538_transaction(rig, (char *) cmdbuf, strlen((char *)cmdbuf),
+                                   (char *) lvlbuf,
                                    &lvl_len);
 
         if (retval != RIG_OK)
@@ -1050,7 +1062,7 @@ int tt538_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         return -RIG_EINVAL;
     }
 
-    retval = tt538_transaction(rig, cmdbuf, strlen((char*)cmdbuf), NULL, NULL);
+    retval = tt538_transaction(rig, cmdbuf, strlen((char *)cmdbuf), NULL, NULL);
 
     if (retval != RIG_OK)
     {

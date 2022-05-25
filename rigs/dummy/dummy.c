@@ -19,9 +19,7 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 // cppcheck-suppress *
 #include <stdio.h>
@@ -520,6 +518,20 @@ static int dummy_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
               rig_strvfo(vfo), rig_strrmode(mode), buf);
 
     vfo = vfo_fixup(rig, vfo, rig->state.cache.split);
+
+    if (width == RIG_PASSBAND_NOCHANGE)
+    {
+        switch (vfo)
+        {
+        case RIG_VFO_MAIN:
+        case RIG_VFO_A: width = priv->vfo_a.width; break;
+
+        case RIG_VFO_SUB:
+        case RIG_VFO_B: width = priv->vfo_b.width; break;
+
+        case RIG_VFO_C: width = priv->vfo_c.width; break;
+        }
+    }
 
     switch (vfo)
     {
@@ -2058,7 +2070,7 @@ static int dummy_set_trn(RIG *rig, int trn)
 
     priv->trn = trn;
 
-    RETURNFUNC(RIG_OK);
+    RETURNFUNC2(RIG_OK);
 }
 
 
@@ -2068,7 +2080,7 @@ static int dummy_get_trn(RIG *rig, int *trn)
 
     *trn = priv->trn;
 
-    RETURNFUNC(RIG_OK);
+    RETURNFUNC2(RIG_OK);
 }
 
 static const char *dummy_get_info(RIG *rig)
@@ -2248,7 +2260,7 @@ struct rig_caps dummy_caps =
     RIG_MODEL(RIG_MODEL_DUMMY),
     .model_name =     "Dummy",
     .mfg_name =       "Hamlib",
-    .version =        "20211213.0",
+    .version =        "20220510.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,
@@ -2479,7 +2491,7 @@ struct rig_caps dummy_no_vfo_caps =
     RIG_MODEL(RIG_MODEL_DUMMY_NOVFO),
     .model_name =     "Dummy No VFO",
     .mfg_name =       "Hamlib",
-    .version =        "20210504.0",
+    .version =        "20220510.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,

@@ -23,9 +23,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -166,6 +164,7 @@ const struct rig_caps xg3_caps =
     .get_powerstat = xg3_get_powerstat,
     .set_parm = xg3_set_parm,
     .get_parm = xg3_get_parm,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -286,7 +285,7 @@ int xg3_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
 
         retval = read_string(&rs->rigport, (unsigned char *) replybuf, replysize,
-                ";", 1, 0, 1);
+                             ";", 1, 0, 1);
 
         if (retval < 0)
         {
@@ -464,7 +463,7 @@ int xg3_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     }
 
     retval = read_string(&rs->rigport, (unsigned char *) freqbuf, freqsize,
-            ";", 1, 0, 1);
+                         ";", 1, 0, 1);
 
     if (retval < 0)
     {
@@ -517,7 +516,7 @@ int xg3_get_powerstat(RIG *rig, powerstat_t *status)
     {
         char reply[32];
         retval = read_string(&rs->rigport, (unsigned char *) reply, sizeof(reply),
-                ";", 1, 0, 1);
+                             ";", 1, 0, 1);
         *status = RIG_POWER_ON;
         priv->powerstat = RIG_POWER_ON;
     }
@@ -582,7 +581,7 @@ int xg3_get_mem(RIG *rig, vfo_t vfo, int *ch)
     }
 
     retval = read_string(&rs->rigport, (unsigned char *) reply, sizeof(reply),
-            ";", 1, 0, 1);
+                         ";", 1, 0, 1);
 
     if (retval < 0)
     {

@@ -24,9 +24,7 @@
 // Version 2004.11.29 F.Melchert (DC9RP)
 //
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -944,6 +942,7 @@ const struct rig_caps ar7030_caps =
 //  .get_channel =  ar7030_get_channel,
 //  .set_trn =  ar7030_set_trn,
 //  .get_trn =  ar7030_get_trn,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

@@ -30,9 +30,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -96,7 +94,7 @@ static const struct confparams frontend_cfg_params[] =
     {
         TOK_PTT_TYPE, "ptt_type", "PTT type",
         "Push-To-Talk interface type override",
-        "RIG", RIG_CONF_COMBO, { .c = {{ "RIG", "DTR", "RTS", "Parallel", "CM108", "GPIO", "GPION", "None", NULL }} }
+        "RIG", RIG_CONF_COMBO, { .c = {{ "RIG", "RIGMICDATA", "DTR", "RTS", "Parallel", "CM108", "GPIO", "GPION", "None", NULL }} }
     },
     {
         TOK_PTT_PATHNAME, "ptt_pathname", "PTT path name",
@@ -538,6 +536,7 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
         {
             return -RIG_EINVAL;
         }
+
         // JTDX and WSJTX currently use state.pttport to check for PTT_NONE
         rig->state.pttport.type.ptt = rs->pttport.type.ptt;
         rs->pttport_deprecated.type.ptt = rs->pttport.type.ptt;
@@ -762,7 +761,7 @@ static int frontend_get_conf2(RIG *rig, token_t token, char *val, int val_len)
 
     case TOK_ITU_REGION:
         SNPRINTF(val, val_len, "%d",
-                rs->itu_region == 1 ? RIG_ITU_REGION1 : RIG_ITU_REGION2);
+                 rs->itu_region == 1 ? RIG_ITU_REGION1 : RIG_ITU_REGION2);
         break;
 #endif
 
@@ -1069,7 +1068,7 @@ static int frontend_get_conf2(RIG *rig, token_t token, char *val, int val_len)
         return -RIG_EINVAL;
     }
 
-    memcpy(&rs->rigport_deprecated,&rs->rigport,sizeof(hamlib_port_t_deprecated));
+    memcpy(&rs->rigport_deprecated, &rs->rigport, sizeof(hamlib_port_t_deprecated));
 
     return RIG_OK;
 }
@@ -1123,6 +1122,14 @@ int HAMLIB_API rig_token_foreach(RIG *rig,
     }
 
     for (cfp = rig->caps->cfgparams; cfp && cfp->name; cfp++)
+    {
+        if ((*cfunc)(cfp, data) == 0)
+        {
+            return RIG_OK;
+        }
+    }
+
+    for (cfp = rig->caps->extlevels; cfp && cfp->name; cfp ++)
     {
         if ((*cfunc)(cfp, data) == 0)
         {
@@ -1301,7 +1308,7 @@ int HAMLIB_API rig_get_conf2(RIG *rig, token_t token, char *val, int val_len)
     {
         return frontend_get_conf2(rig, token, val, val_len);
     }
-    
+
     if (rig->caps->get_conf2)
     {
         return rig->caps->get_conf2(rig, token, val, val_len);

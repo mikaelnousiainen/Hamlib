@@ -21,9 +21,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -252,6 +250,7 @@ const struct rig_caps sr2200_caps =
     .get_channel = aor_get_channel,
 
     .get_chan_all_cb = aor_get_chan_all_cb,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -307,7 +306,8 @@ static int sr2200_transaction(RIG *rig, const char *cmd, int cmd_len,
     /*
      * Do wait for a reply
      */
-    retval = read_string(&rs->rigport, (unsigned char *) data, BUFSZ, EOM, strlen(EOM), 0, 1);
+    retval = read_string(&rs->rigport, (unsigned char *) data, BUFSZ, EOM,
+                         strlen(EOM), 0, 1);
 
     if (retval < 0)
     {

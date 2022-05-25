@@ -54,9 +54,7 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 // cppcheck-suppress *
 #include <stdlib.h>
@@ -137,7 +135,7 @@ const struct rig_caps vr5000_caps =
     .mfg_name =           "Yaesu",
     .version =            "20200505.0",
     .copyright =          "LGPL",
-    .status =             RIG_STATUS_BETA,
+    .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_RECEIVER,
     .ptt_type =           RIG_PTT_NONE,
     .dcd_type =           RIG_DCD_RIG,
@@ -229,7 +227,7 @@ const struct rig_caps vr5000_caps =
     .get_mode =       vr5000_get_mode,
     .set_ts =         vr5000_set_ts,
     .get_ts =         vr5000_get_ts,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

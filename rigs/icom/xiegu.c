@@ -29,9 +29,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -124,10 +122,13 @@ static int x108g_rig_open(RIG *rig)
 {
     int retval;
 
+    ENTERFUNC;
     retval = icom_rig_open(rig);
+
     if (retval != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: rig_open failed with %s\n", __func__, rigerror(retval));
+        rig_debug(RIG_DEBUG_ERR, "%s: rig_open failed with %s\n", __func__,
+                  rigerror(retval));
         RETURNFUNC(retval);
     }
 
@@ -320,7 +321,7 @@ const struct rig_caps x108g_caps =
     .set_split_vfo =  x108g_set_split_vfo,
     .get_split_vfo =  NULL,
 
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 const struct rig_caps x6100_caps =
@@ -330,7 +331,7 @@ const struct rig_caps x6100_caps =
     .mfg_name =  "Xiegu",
     .version =  BACKEND_VER ".1",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_ALPHA,
+    .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,
@@ -495,7 +496,7 @@ const struct rig_caps x6100_caps =
     //.get_split_mode =  icom_get_split_mode,
     //.set_split_vfo =  x108g_set_split_vfo,
     //.get_split_vfo =  NULL,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 const struct rig_caps g90_caps =
@@ -505,7 +506,7 @@ const struct rig_caps g90_caps =
     .mfg_name =  "Xiegu",
     .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_ALPHA,
+    .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,
@@ -669,6 +670,7 @@ const struct rig_caps g90_caps =
     .get_split_mode =  icom_get_split_mode,
     .set_split_vfo =  x108g_set_split_vfo,
     .get_split_vfo =  NULL,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

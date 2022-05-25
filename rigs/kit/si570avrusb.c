@@ -22,9 +22,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #define BACKEND_VER "20200112"
 
@@ -225,7 +223,7 @@ const struct rig_caps si570avrusb_caps =
     .get_freq =     si570xxxusb_get_freq,
     .set_ptt =      si570xxxusb_set_ptt,
     .get_info =     si570xxxusb_get_info,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -302,7 +300,7 @@ const struct rig_caps si570peaberry1_caps =
     .get_freq =     si570xxxusb_get_freq,
     .set_ptt =      si570xxxusb_set_ptt,
     .get_info =     si570xxxusb_get_info,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -379,7 +377,7 @@ const struct rig_caps si570peaberry2_caps =
     .get_freq =     si570xxxusb_get_freq,
     .set_ptt =      si570xxxusb_set_ptt,
     .get_info =     si570xxxusb_get_info,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -459,7 +457,7 @@ const struct rig_caps si570picusb_caps =
     .set_freq =     si570xxxusb_set_freq,
     .get_freq =     si570xxxusb_get_freq,
     .get_info =     si570xxxusb_get_info,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -479,7 +477,7 @@ const struct rig_caps fasdr_caps =
     .mfg_name =     "Funkamateur",
     .version =      BACKEND_VER ".0",
     .copyright =        "LGPL",
-    .status =       RIG_STATUS_ALPHA,
+    .status =       RIG_STATUS_BETA,
     .rig_type =     RIG_FLAG_TUNER | RIG_FLAG_TRANSMITTER,
     .ptt_type =     RIG_PTT_RIG,
     .dcd_type =     RIG_DCD_NONE,
@@ -1104,8 +1102,9 @@ const char *si570xxxusb_get_info(RIG *rig)
     /* always succeeds since libusb-1.0.16 */
     libusb_get_device_descriptor(libusb_get_device(udh), &desc);
 
-    SNPRINTF(buf, sizeof(buf), "USB dev %04d, version: %d.%d", desc.bcdDevice, buffer[1],
-            buffer[0]);
+    SNPRINTF(buf, sizeof(buf), "USB dev %04d, version: %d.%d", desc.bcdDevice,
+             buffer[1],
+             buffer[0]);
 
     return buf;
 }

@@ -30,9 +30,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <config.h>
 
 #include <stdio.h>
 #include <stdlib.h>          /* Standard library definitions */
@@ -182,7 +180,7 @@ const struct rot_caps rotorcard_rot_caps =
     .mfg_name =         "Idiom Press",
     .version =          "20100214.0",
     .copyright =        "LGPL",
-    .status =           RIG_STATUS_UNTESTED,
+    .status =           RIG_STATUS_BETA,
     .rot_type =         ROT_TYPE_OTHER,
     .port_type =        RIG_PORT_SERIAL,
     .serial_rate_min =  4800,
@@ -270,7 +268,7 @@ const struct rot_caps erc_rot_caps =
     .mfg_name =         "DF9GR",
     .version =          "20100823.2",      /* second revision on 23 Aug 2010 */
     .copyright =        "LGPL",
-    .status =           RIG_STATUS_ALPHA,
+    .status =           RIG_STATUS_STABLE,
     .rot_type =         ROT_TYPE_OTHER,
     .port_type =        RIG_PORT_SERIAL,
     .serial_rate_min =  4800,
@@ -436,7 +434,8 @@ static int rotorez_rot_set_position(ROT *rot, azimuth_t azimuth,
         azimuth = 0;
     }
 
-    SNPRINTF(cmdstr, sizeof(cmdstr), "AP1%03.0f;", azimuth);     /* Target bearing */
+    SNPRINTF(cmdstr, sizeof(cmdstr), "AP1%03.0f;",
+             azimuth);     /* Target bearing */
     err = rotorez_send_priv_cmd(rot, cmdstr);
 
     if (err != RIG_OK)
@@ -481,7 +480,8 @@ static int rt21_rot_set_position(ROT *rot, azimuth_t azimuth,
         return -RIG_EINVAL;
     }
 
-    SNPRINTF(cmdstr, sizeof(cmdstr), "AP1%05.1f\r;", azimuth);   /* Total field width of 5 chars */
+    SNPRINTF(cmdstr, sizeof(cmdstr), "AP1%05.1f\r;",
+             azimuth);   /* Total field width of 5 chars */
     err = rotorez_send_priv_cmd(rot, cmdstr);
 
     if (err != RIG_OK)
@@ -492,7 +492,7 @@ static int rt21_rot_set_position(ROT *rot, azimuth_t azimuth,
     if (rot->state.rotport2.pathname[0] != 0)
     {
         SNPRINTF(cmdstr, sizeof(cmdstr), "AP1%05.1f\r;",
-                elevation);    /* Total field width of 5 chars */
+                 elevation);    /* Total field width of 5 chars */
 
         err = rotorez_send_priv_cmd2(rot, cmdstr);
 
@@ -501,6 +501,7 @@ static int rt21_rot_set_position(ROT *rot, azimuth_t azimuth,
             return err;
         }
     }
+
     return RIG_OK;
 }
 
@@ -762,7 +763,8 @@ static int rt21_rot_get_position(ROT *rot, azimuth_t *azimuth,
 
     rs = &rot->state;
 
-    err = read_string(&rs->rotport, (unsigned char *) az, RT21_AZ_LEN + 1, ";", strlen(";"), 0, 1);
+    err = read_string(&rs->rotport, (unsigned char *) az, RT21_AZ_LEN + 1, ";",
+                      strlen(";"), 0, 1);
 
     if (err < 0)    /* read_string returns negative on error. */
     {

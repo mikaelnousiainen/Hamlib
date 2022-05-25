@@ -17,9 +17,7 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdio.h>   /* Standard input/output definitions */
@@ -113,7 +111,7 @@ const struct rig_caps hiqsdr_caps =
     .mfg_name =       "N2ADR",
     .version =        "20200323.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_UNTESTED,
+    .status =         RIG_STATUS_ALPHA,
     .rig_type =       RIG_TYPE_TUNER,
     .targetable_vfo =  RIG_TARGETABLE_NONE,
     .ptt_type =       RIG_PTT_RIG,
@@ -190,6 +188,7 @@ const struct rig_caps hiqsdr_caps =
 
     .set_level =    hiqsdr_set_level,
     .get_level =    hiqsdr_get_level,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -198,14 +197,17 @@ static int send_command(RIG *rig)
     struct hiqsdr_priv_data *priv = (struct hiqsdr_priv_data *)rig->state.priv;
     int ret;
 
-    ret = write_block(&rig->state.rigport, (unsigned char *) priv->control_frame, CTRL_FRAME_LEN);
+    ret = write_block(&rig->state.rigport, (unsigned char *) priv->control_frame,
+                      CTRL_FRAME_LEN);
 #if 0
-    ret = read_block(&rig->state.rigport, (unsigned char *) priv->control_frame, CTRL_FRAME_LEN);
+    ret = read_block(&rig->state.rigport, (unsigned char *) priv->control_frame,
+                     CTRL_FRAME_LEN);
 
     if (ret != CTRL_FRAME_LEN)
     {
         ret = ret < 0 ? ret : -RIG_EPROTO;
     }
+
 #endif
 
     return ret;

@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 // cppcheck-suppress *
 #include <stdio.h>
@@ -104,7 +102,7 @@ transaction_write:
     {
         memset(data, 0, data_len);
         retval = read_string(&rs->rotport, (unsigned char *) data, data_len,
-                REPLY_EOM, strlen(REPLY_EOM), 0, 1);
+                             REPLY_EOM, strlen(REPLY_EOM), 0, 1);
 
         if (strncmp(data, "\r\n", 2) == 0
                 || strchr(data, '>'))

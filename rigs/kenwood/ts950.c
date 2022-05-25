@@ -24,9 +24,7 @@
  * The '950 has a relatively small command set.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 
@@ -60,7 +58,7 @@ const struct rig_caps ts950s_caps =
     RIG_MODEL(RIG_MODEL_TS950S),
     .model_name = "TS-950S",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER ".0",
+    .version =  BACKEND_VER ".1",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -192,9 +190,8 @@ const struct rig_caps ts950s_caps =
     .get_mem =  kenwood_get_mem,
     .set_trn =  kenwood_set_trn,
     .get_trn =  kenwood_get_trn,
-    .set_powerstat =  kenwood_set_powerstat,
-    .get_powerstat =  kenwood_get_powerstat,
     .reset =  kenwood_reset,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -203,7 +200,7 @@ const struct rig_caps ts950sdx_caps =
     RIG_MODEL(RIG_MODEL_TS950SDX),
     .model_name = "TS-950SDX",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER ".0",
+    .version =  BACKEND_VER ".1",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -335,9 +332,8 @@ const struct rig_caps ts950sdx_caps =
     .get_mem =  kenwood_get_mem,
     .set_trn =  kenwood_set_trn,
     .get_trn =  kenwood_get_trn,
-    .set_powerstat =  kenwood_set_powerstat,
-    .get_powerstat =  kenwood_get_powerstat,
     .reset =  kenwood_reset,
 
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 

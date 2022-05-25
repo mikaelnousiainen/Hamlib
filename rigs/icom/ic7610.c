@@ -20,9 +20,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -590,5 +588,5 @@ const struct rig_caps ic7610_caps =
     .send_voice_mem = icom_send_voice_mem,
     .set_clock = ic7610_set_clock,
     .get_clock = ic7610_get_clock,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

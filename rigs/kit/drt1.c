@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -165,6 +163,7 @@ const struct rig_caps drt1_caps =
     .get_conf =  drt1_get_conf,
 
     .set_freq =  drt1_set_freq,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

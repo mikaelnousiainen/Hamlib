@@ -41,8 +41,7 @@
 #define FT991_FM_WIDE_RX_MODES (RIG_MODE_FM|RIG_MODE_PKTFM|RIG_MODE_C4FM)
 #define FT991_FM_RX_MODES (FT991_FM_WIDE_RX_MODES|RIG_MODE_FMN)
 #define FT991_CW_RX_MODES (RIG_MODE_CW|RIG_MODE_CWR)
-#define FT991_CW_RTTY_PKT_RX_MODES (RIG_MODE_RTTY|RIG_MODE_RTTYR|\
-        RIG_MODE_PKTUSB|RIG_MODE_PKTLSB|RIG_MODE_CW|RIG_MODE_CWR)
+#define FT991_RTTY_DATA_RX_MODES (RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_PKTUSB|RIG_MODE_PKTLSB)
 
 /* TRX caps */
 
@@ -62,7 +61,7 @@
                RIG_LEVEL_COMP_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_ID_METER|\
                RIG_LEVEL_BAND_SELECT)
 
-#define FT991_FUNCS (RIG_FUNC_TONE|RIG_FUNC_TSQL|RIG_FUNC_LOCK|\
+#define FT991_FUNCS (RIG_FUNC_TONE|RIG_FUNC_TSQL|RIG_FUNC_CSQL|RIG_FUNC_LOCK|\
                RIG_FUNC_MON|RIG_FUNC_NB|RIG_FUNC_NR|RIG_FUNC_VOX|\
                RIG_FUNC_FBKIN|RIG_FUNC_COMP|RIG_FUNC_ANF|RIG_FUNC_MN|\
                RIG_FUNC_RIT|RIG_FUNC_XIT|\
@@ -75,8 +74,9 @@
 // Borrowed from FLRig -- Thanks to Dave W1HKJ
 #define FT991_RFPOWER_METER_CAL \
     { \
-        6, \
+        7, \
         { \
+            {0, 0.0f}, \
             {10, 0.8f}, \
             {50, 8.0f}, \
             {100, 26.0f}, \
@@ -107,6 +107,40 @@
             { 255,  60 }, /* +60 */ \
         } }
 
+
+#define FT991_ID_CAL { 7, \
+    { \
+        {   0, 0.0f }, \
+        {  53, 5.0f }, \
+        {  65, 6.0f }, \
+        {  78, 7.0f }, \
+        {  86, 8.0f }, \
+        {  98, 9.0f }, \
+        { 107, 10.0f } \
+    } \
+}
+
+/* TBC */
+#define FT991_VD_CAL { 2, \
+    { \
+        {   0, 0.0f  }, \
+        { 192, 13.8f }, \
+    } \
+}
+
+#define FT991_COMP_CAL { 9, \
+    { \
+        { 0,   0.0f  }, \
+        { 40,  2.5f  }, \
+        { 60,  5.0f  }, \
+        { 85,  7.5f  }, \
+        { 135, 10.0f }, \
+        { 150, 12.5f }, \
+        { 175, 15.0f }, \
+        { 195, 17.5f }, \
+        { 220, 20.0f } \
+    } \
+}
 
 /*
  * Other features (used by rig_caps)

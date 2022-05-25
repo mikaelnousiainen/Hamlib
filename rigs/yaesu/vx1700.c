@@ -28,9 +28,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -221,7 +219,7 @@ const struct rig_caps vx1700_caps =
     .mfg_name =  "Vertex Standard",
     .version =  "20210221.0",
     .copyright =  "LGPL",
-    .status =   RIG_STATUS_BETA,
+    .status =   RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG_MICDATA,
     .dcd_type =  RIG_DCD_NONE,  /* we have DCD pin in DATA Jack, but get_dcd() is unavailable (yet?) */
@@ -319,6 +317,7 @@ const struct rig_caps vx1700_caps =
     .set_mem        = vx1700_set_mem,
     .get_mem        = vx1700_get_mem,
     .vfo_op         = vx1700_vfo_op,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

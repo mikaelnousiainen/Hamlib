@@ -33,9 +33,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -306,7 +304,7 @@ const struct rig_caps ft747_caps =
     RIG_MODEL(RIG_MODEL_FT747),
     .model_name =       "FT-747GX",
     .mfg_name =         "Yaesu",
-    .version =           "20200323.0",
+    .version =           "20220327.0",
     .copyright =         "LGPL",
     .status =            RIG_STATUS_STABLE,
     .rig_type =          RIG_TYPE_MOBILE,
@@ -434,7 +432,7 @@ const struct rig_caps ft747_caps =
     .set_ptt =    ft747_set_ptt,      /* set ptt */
     .set_mem =    ft747_set_mem,      /* set mem */
     .get_mem =    ft747_get_mem,      /* get mem */
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 
@@ -597,19 +595,20 @@ int ft747_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         return ret;
     }
 
+    // the leading 2 bytes are zero so we just use 4 bytes for the freq
     switch (vfo)
     {
     case RIG_VFO_CURR:
         /* grab freq and convert */
-        f = from_bcd_be(&(p->update_data[FT747_SUMO_DISPLAYED_FREQ]), 10);
+        f = from_bcd_be(&(p->update_data[FT747_SUMO_DISPLAYED_FREQ]), 8);
         break;
 
     case RIG_VFO_A:
-        f = from_bcd_be(&(p->update_data[FT747_SUMO_VFO_A_FREQ]), 10);
+        f = from_bcd_be(&(p->update_data[FT747_SUMO_VFO_A_FREQ]), 8);
         break;
 
     case RIG_VFO_B:
-        f = from_bcd_be(&(p->update_data[FT747_SUMO_VFO_B_FREQ]), 10);
+        f = from_bcd_be(&(p->update_data[FT747_SUMO_VFO_B_FREQ]), 8);
         break;
 
     default:
@@ -892,10 +891,12 @@ int ft747_get_split(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
             (!(status & SF_VFOAB) && !(status & SF_RXTX)))
     {
         *tx_vfo = RIG_VFO_B;
+        *split = RIG_SPLIT_ON;
     }
     else
     {
         *tx_vfo = RIG_VFO_A;
+        *split = RIG_SPLIT_OFF;
     }
 
     return RIG_OK;
@@ -992,7 +993,7 @@ static int ft747_get_update_data(RIG *rig)
 {
     hamlib_port_t *rigport;
     struct ft747_priv_data *p;
-    unsigned char last_byte;
+    //unsigned char last_byte;
 
     p = (struct ft747_priv_data *)rig->state.priv;
     rigport = &rig->state.rigport;
@@ -1005,7 +1006,7 @@ static int ft747_get_update_data(RIG *rig)
     if (!rig->state.transmit)     /* rig doesn't respond in Tx mode */
     {
         int ret;
-        int port_timeout;
+        //int port_timeout;
         rig_flush(rigport);
 
         /* send UPDATE command to fetch data*/
@@ -1025,11 +1026,13 @@ static int ft747_get_update_data(RIG *rig)
             return ret;
         }
 
+#if 0 // skip this extra byte -- we will flush it before doing a read
         port_timeout = rigport->timeout;
-        rigport->timeout = 100; /* ms */
+        rigport->timeout = 20; /* ms */
         /* read sometimes-missing last byte (345th), but don't fail */
         read_block(rigport, &last_byte, 1);
         rigport->timeout = port_timeout;
+#endif
     }
 
     /* update cache date */

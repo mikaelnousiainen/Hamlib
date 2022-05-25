@@ -18,9 +18,7 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -143,6 +141,7 @@ const struct rig_caps barrett950_caps =
     .set_split_freq =   barrett_set_split_freq,
     .set_split_vfo =    barrett_set_split_vfo,
     .get_split_vfo =    barrett_get_split_vfo,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -202,7 +201,7 @@ int barrett950_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         return retval;
     }
 
-    if (strstr(response,"E5"))
+    if (strstr(response, "E5"))
     {
         freq_rx = freq_tx = 0;
         rig_debug(RIG_DEBUG_VERBOSE, "%s: new channel being programmed\n", __func__);
@@ -226,7 +225,8 @@ int barrett950_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     // New freq so let's update the channel
     // We do not support split mode -- too many writes to EEPROM to support it
-    SNPRINTF((char *) cmd_buf, sizeof(cmd_buf), "PC%04dR%08.0lfT%08.0lf", chan, freq, freq);
+    SNPRINTF((char *) cmd_buf, sizeof(cmd_buf), "PC%04dR%08.0lfT%08.0lf", chan,
+             freq, freq);
     retval = barrett_transaction(rig, cmd_buf, 0, &response);
 
     if (retval != RIG_OK || strncmp(response, "OK", 2) != 0)

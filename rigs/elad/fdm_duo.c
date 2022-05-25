@@ -20,9 +20,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -340,7 +338,7 @@ const struct rig_caps fdm_duo_caps =
     .mfg_name = "ELAD",
     .version = BACKEND_VER ".0",
     .copyright = "LGPL",
-    .status = RIG_STATUS_UNTESTED,
+    .status = RIG_STATUS_ALPHA,
     .rig_type = RIG_TYPE_TRANSCEIVER,
     .ptt_type = RIG_PTT_RIG_MICDATA,
     .dcd_type = RIG_DCD_RIG,
@@ -479,6 +477,7 @@ const struct rig_caps fdm_duo_caps =
     .has_set_func = FDM_DUO_FUNC_ALL,
     .set_func = elad_set_func,
     .get_func = elad_get_func,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

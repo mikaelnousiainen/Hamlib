@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -91,7 +89,7 @@ const struct rig_caps trp8255_caps =
     .mfg_name =  "Skanti",
     .version =  "20200323.0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_UNTESTED,
+    .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_NONE,
@@ -169,7 +167,7 @@ const struct rig_caps trp8255_caps =
     .set_func  =  cu_set_func,
     .set_parm  =  cu_set_parm,
     .set_ts    =  cu_set_ts,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -440,8 +438,8 @@ int cu_set_ts(RIG *rig, vfo_t vfo, shortfreq_t ts)
     char cmdbuf[16];
 
     SNPRINTF(cmdbuf, sizeof(cmdbuf), "w%c"CR,
-                      ts >= s_kHz(1) ? '2' :
-                      ts >= s_Hz(100) ? '1' : '0');
+             ts >= s_kHz(1) ? '2' :
+             ts >= s_Hz(100) ? '1' : '0');
 
     return cu_transaction(rig, cmdbuf, strlen(cmdbuf));
 }
@@ -449,13 +447,14 @@ int cu_set_ts(RIG *rig, vfo_t vfo, shortfreq_t ts)
 int cu_set_parm(RIG *rig, setting_t parm, value_t val)
 {
     char cmdbuf[16];
+
     switch (parm)
     {
     case RIG_PARM_TIME:
         /* zap seconds */
         val.i /= 60;
         SNPRINTF(cmdbuf, sizeof(cmdbuf), "f%02d%02d"CR,
-                          val.i / 60, val.i % 60);
+                 val.i / 60, val.i % 60);
         break;
 
     case RIG_PARM_BACKLIGHT:

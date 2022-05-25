@@ -48,9 +48,7 @@
  * CAT type control.
  */
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -277,10 +275,12 @@ AMP *HAMLIB_API amp_init(amp_model_t amp_model)
             return NULL;
         }
     }
+
     // Now we have to copy our new rig state hamlib_port structure to the deprecated one
     // Clients built on older 4.X versions will use the old structure
     // Clients built on newer 4.5 versions will use the new structure
-    memcpy(&amp->state.ampport_deprecated, &amp->state.ampport, sizeof(amp->state.ampport_deprecated));
+    memcpy(&amp->state.ampport_deprecated, &amp->state.ampport,
+           sizeof(amp->state.ampport_deprecated));
 
     return amp;
 }
@@ -412,10 +412,14 @@ int HAMLIB_API amp_open(AMP *amp)
 
         if (status != RIG_OK)
         {
+            memcpy(&amp->state.ampport_deprecated, &amp->state.ampport,
+                   sizeof(amp->state.ampport_deprecated));
             return status;
         }
     }
 
+    memcpy(&amp->state.ampport_deprecated, &amp->state.ampport,
+           sizeof(amp->state.ampport_deprecated));
 
     return RIG_OK;
 }
@@ -447,6 +451,8 @@ int HAMLIB_API amp_close(AMP *amp)
 
     if (!amp || !amp->caps)
     {
+        amp_debug(RIG_DEBUG_ERR, "%s: NULL ptr? amp=%p, amp->caps=%p\n", __func__, amp,
+                  amp->caps);
         return -RIG_EINVAL;
     }
 
@@ -455,6 +461,8 @@ int HAMLIB_API amp_close(AMP *amp)
 
     if (!rs->comm_state)
     {
+        amp_debug(RIG_DEBUG_ERR, "%s: comm_state=0? rs=%p, rs->comm_state=%d\n",
+                  __func__, rs, rs->comm_state);
         return -RIG_EINVAL;
     }
 

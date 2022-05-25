@@ -23,9 +23,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <math.h>
@@ -44,7 +42,7 @@
 #define F6K_LEVEL_ALL (RIG_LEVEL_SLOPE_HIGH|RIG_LEVEL_SLOPE_LOW|RIG_LEVEL_KEYSPD)
 
 #define F6K_VFO (RIG_VFO_A|RIG_VFO_B)
-#define F6K_VFO_OP (RIG_OP_UP|RIG_OP_DOWN)
+#define POWERSDR_VFO_OP (RIG_OP_BAND_UP|RIG_OP_BAND_DOWN|RIG_OP_UP|RIG_OP_DOWN)
 
 #define F6K_ANTS (RIG_ANT_1|RIG_ANT_2|RIG_ANT_3)
 
@@ -53,7 +51,7 @@
 
 #define POWERSDR_FUNC_ALL (RIG_FUNC_VOX|RIG_FUNC_SQL|RIG_FUNC_NB|RIG_FUNC_ANF|RIG_FUNC_MUTE|RIG_FUNC_RIT|RIG_FUNC_XIT|RIG_FUNC_TUNER)
 
-#define POWERSDR_LEVEL_ALL (RIG_LEVEL_SLOPE_HIGH|RIG_LEVEL_SLOPE_LOW|RIG_LEVEL_KEYSPD|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_RFPOWER_METER_WATTS|RIG_LEVEL_MICGAIN|RIG_LEVEL_VOXGAIN|RIG_LEVEL_SQL|RIG_LEVEL_AF|RIG_LEVEL_AGC|RIG_LEVEL_RF|RIG_LEVEL_IF|RIG_LEVEL_STRENGTH)
+#define POWERSDR_LEVEL_ALL (RIG_LEVEL_SLOPE_HIGH|RIG_LEVEL_SLOPE_LOW|RIG_LEVEL_KEYSPD|RIG_LEVEL_RFPOWER|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_RFPOWER_METER_WATTS|RIG_LEVEL_MICGAIN|RIG_LEVEL_VOXGAIN|RIG_LEVEL_SQL|RIG_LEVEL_AF|RIG_LEVEL_AGC|RIG_LEVEL_RF|RIG_LEVEL_IF|RIG_LEVEL_STRENGTH)
 
 
 static rmode_t flex_mode_table[KENWOOD_MODE_TABLE_MAX] =
@@ -790,6 +788,12 @@ int powersdr_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         ans = 9;
         break;
 
+    case RIG_LEVEL_RFPOWER:
+        cmd = "ZZPC";
+        len = 4;
+        ans = 8;
+        break;
+
     case RIG_LEVEL_RFPOWER_METER:
     case RIG_LEVEL_RFPOWER_METER_WATTS:
         flex6k_get_ptt(rig, vfo, &ptt);
@@ -889,6 +893,20 @@ int powersdr_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
 
         val->f /= 100.0;
+        break;
+
+    case RIG_LEVEL_RFPOWER:
+        n = sscanf(lvlbuf, "ZZPC%f", &val->f);
+
+        if (n != 1)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: Error parsing value from lvlbuf='%s'\n",
+                      __func__, lvlbuf);
+            val->f = 0;
+            return -RIG_EPROTO;
+        }
+
+        val->f /= 100;
         break;
 
     case RIG_LEVEL_RFPOWER_METER:
@@ -1084,7 +1102,7 @@ const struct rig_caps f6k_caps =
     RIG_MODEL(RIG_MODEL_F6K),
     .model_name =       "6xxx",
     .mfg_name =     "FlexRadio",
-    .version =      "20210911.0",
+    .version =      "20220306.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TRANSCEIVER,
@@ -1111,8 +1129,8 @@ const struct rig_caps f6k_caps =
     .post_write_delay = 20,
     .preamp =       { RIG_DBLST_END, },
     .attenuator =       { RIG_DBLST_END, },
-    .max_rit =      Hz(0),
-    .max_xit =      Hz(0),
+    .max_rit =      Hz(99999),
+    .max_xit =      Hz(99999),
     .max_ifshift =      Hz(0),
     .vfo_ops =      RIG_OP_NONE,
     .targetable_vfo =   RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE,
@@ -1184,6 +1202,10 @@ const struct rig_caps f6k_caps =
     .rig_close =        kenwood_close,
     .set_freq =     kenwood_set_freq,
     .get_freq =     kenwood_get_freq,
+    .set_rit =  kenwood_set_rit,
+    .get_rit =  kenwood_get_rit,
+    .set_xit =  kenwood_set_xit,
+    .get_xit =  kenwood_get_xit,
     .set_mode =     flex6k_set_mode,
     .get_mode =     flex6k_get_mode,
     .set_vfo =      kenwood_set_vfo,
@@ -1198,7 +1220,7 @@ const struct rig_caps f6k_caps =
     .get_level =        kenwood_get_level,
     //.set_ant =       kenwood_set_ant_no_ack,
     //.get_ant =       kenwood_get_ant,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -1209,7 +1231,7 @@ const struct rig_caps powersdr_caps =
     RIG_MODEL(RIG_MODEL_POWERSDR),
     .model_name =       "PowerSDR/Thetis",
     .mfg_name =     "FlexRadio/ANAN",
-    .version =      "20210605.0",
+    .version =      "20220516.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TRANSCEIVER,
@@ -1228,8 +1250,9 @@ const struct rig_caps powersdr_caps =
     // We need at least 3 seconds to do profile switches
     // Hitting the timeout is OK as long as we retry
     // Previous note showed FA/FB may take up to 500ms on band change
+    // Flex 1500 needs about 6 seconds for a band change in PowerSDR
     .timeout =      800, // some band transitions can take 600ms
-    .retry =        3,
+    .retry =        10,
 
     .has_get_func =     POWERSDR_FUNC_ALL,
     .has_set_func =     POWERSDR_FUNC_ALL,
@@ -1246,7 +1269,8 @@ const struct rig_caps powersdr_caps =
     .max_rit =      Hz(0),
     .max_xit =      Hz(0),
     .max_ifshift =      Hz(0),
-    .vfo_ops =      RIG_OP_NONE,
+    .vfo_op =      kenwood_vfo_op,
+    .vfo_ops =      POWERSDR_VFO_OP,
     .targetable_vfo =   RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE,
     .transceive =       RIG_TRN_RIG,
     .bank_qty =     0,
@@ -1332,5 +1356,6 @@ const struct rig_caps powersdr_caps =
     .set_func =         powersdr_set_func,
     //.set_ant =       kenwood_set_ant_no_ack,
     //.get_ant =       kenwood_get_ant,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 

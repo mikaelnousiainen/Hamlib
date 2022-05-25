@@ -31,9 +31,6 @@
 /*
  * Unimplemented features supported by the FT-817:
  *
- *   - RIT ON/OFF without touching the RIT offset. This would
- *     need frontend support (eg. a new RIG_FUNC_xxx)
- *
  *   - RX status command returns info that is not used:
  *      - discriminator centered (yes/no flag)
  *      - received ctcss/dcs matched (yes/no flag)                     TBC
@@ -47,9 +44,7 @@
  * - the many "fixme" stuff around
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>     /* String function definitions */
@@ -300,7 +295,7 @@ const struct rig_caps ft817_caps =
     RIG_MODEL(RIG_MODEL_FT817),
     .model_name =          "FT-817",
     .mfg_name =            "Yaesu",
-    .version =             "20210916.0",
+    .version =             "20220419.0",
     .copyright =           "LGPL",
     .status =              RIG_STATUS_STABLE,
     .rig_type =            RIG_TYPE_TRANSCEIVER,
@@ -318,7 +313,7 @@ const struct rig_caps ft817_caps =
     .timeout =             FT817_TIMEOUT,
     .retry =               5,
     .has_get_func =        RIG_FUNC_NONE,
-    .has_set_func =        RIG_FUNC_LOCK | RIG_FUNC_TONE | RIG_FUNC_TSQL,
+    .has_set_func =        RIG_FUNC_LOCK | RIG_FUNC_TONE | RIG_FUNC_TSQL | RIG_FUNC_CSQL | RIG_FUNC_RIT,
     .has_get_level =
     RIG_LEVEL_STRENGTH | RIG_LEVEL_RAWSTR | RIG_LEVEL_RFPOWER |
     RIG_LEVEL_ALC | RIG_LEVEL_SWR,
@@ -439,6 +434,7 @@ const struct rig_caps ft817_caps =
     .get_level =        ft817_get_level,
     .set_func =         ft817_set_func,
     .vfo_op =           ft817_vfo_op,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 const struct rig_caps ft818_caps =
@@ -446,7 +442,7 @@ const struct rig_caps ft818_caps =
     RIG_MODEL(RIG_MODEL_FT818),
     .model_name =          "FT-818",
     .mfg_name =            "Yaesu",
-    .version =             "20200710.0",
+    .version =             "20220419.0",
     .copyright =           "LGPL",
     .status =              RIG_STATUS_STABLE,
     .rig_type =            RIG_TYPE_TRANSCEIVER,
@@ -464,7 +460,7 @@ const struct rig_caps ft818_caps =
     .timeout =             FT817_TIMEOUT,
     .retry =               5,
     .has_get_func =        RIG_FUNC_NONE,
-    .has_set_func =        RIG_FUNC_LOCK | RIG_FUNC_TONE | RIG_FUNC_TSQL,
+    .has_set_func =        RIG_FUNC_LOCK | RIG_FUNC_TONE | RIG_FUNC_TSQL | RIG_FUNC_RIT,
     .has_get_level =
     RIG_LEVEL_STRENGTH | RIG_LEVEL_RAWSTR | RIG_LEVEL_RFPOWER |
     RIG_LEVEL_ALC | RIG_LEVEL_SWR,
@@ -592,6 +588,7 @@ const struct rig_caps ft818_caps =
     .get_level =        ft817_get_level,
     .set_func =         ft817_set_func,
     .vfo_op =           ft817_vfo_op,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /* ---------------------------------------------------------------------- */
@@ -824,7 +821,15 @@ static int ft817_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     int retries = rig->state.rigport.retry +
                   1; // +1 because, because 2 steps are needed even in best scenario
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: called, vfo=%s, ptt=%d, split=%d\n", __func__,
+              rig_strvfo(vfo), rig->state.cache.ptt, rig->state.cache.split);
+
+    // we can't query VFOB while in transmit and split mode
+    if (rig->state.cache.ptt && vfo == RIG_VFO_B && rig->state.cache.split)
+    {
+        *freq = rig->state.cache.freqMainB;
+        return RIG_OK;
+    }
 
     while ((f1 == 0 || f1 != f2) && retries-- > 0)
     {
@@ -1615,6 +1620,26 @@ static int ft817_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
             return ft817_send_cmd(rig, FT817_NATIVE_CAT_SET_CTCSS_DCS_OFF);
         }
 
+    case RIG_FUNC_CSQL:
+        if (status)
+        {
+            return ft817_send_cmd(rig, FT817_NATIVE_CAT_SET_DCS_ON);
+        }
+        else
+        {
+            return ft817_send_cmd(rig, FT817_NATIVE_CAT_SET_CTCSS_DCS_OFF);
+        }
+
+    case RIG_FUNC_RIT:
+        if (status)
+        {
+            return ft817_send_cmd(rig, FT817_NATIVE_CAT_CLAR_ON);
+        }
+        else
+        {
+            return ft817_send_cmd(rig, FT817_NATIVE_CAT_CLAR_OFF);
+        }
+
     default:
         return -RIG_EINVAL;
     }
@@ -1775,6 +1800,8 @@ static int ft817_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
     }
 
     /* the rig rejects if these are repeated - don't confuse user with retcode */
+
+    /* not used anymore, RIG_FUNC_RIT implemented
     if (rit == 0)
     {
         ft817_send_cmd(rig, FT817_NATIVE_CAT_CLAR_OFF);
@@ -1782,7 +1809,7 @@ static int ft817_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
     else
     {
         ft817_send_cmd(rig, FT817_NATIVE_CAT_CLAR_ON);
-    }
+    } */
 
     return RIG_OK;
 }
@@ -1863,6 +1890,8 @@ static int ft817_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
     {
         return n;
     }
+
+    rig->state.cache.split = split;
 
     return RIG_OK;
 

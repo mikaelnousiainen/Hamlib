@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -162,7 +160,7 @@ const struct rig_caps ar3000a_caps =
 
     .set_level = ar3k_set_level,
     .get_level = ar3k_get_level,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -212,7 +210,7 @@ static int ar3k_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
     }
 
     retval = read_string(&rs->rigport, (unsigned char *) data, BUFSZ,
-            EOM, strlen(EOM), 0, 1);
+                         EOM, strlen(EOM), 0, 1);
 
     if (retval == -RIG_ETIMEOUT)
     {

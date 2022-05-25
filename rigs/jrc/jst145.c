@@ -20,9 +20,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -170,7 +168,8 @@ const struct rig_caps jst145_caps =
     .set_mem =  jst145_set_mem,
     .vfo_op =  jst145_vfo_op,
     .set_ptt = jst145_set_ptt,
-    .get_ptt = jst145_get_ptt
+    .get_ptt = jst145_get_ptt,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -389,7 +388,8 @@ static int jst145_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         priv->freqA = freq;
     }
 
-    retval = write_block(&rig->state.rigport,  (unsigned char *) freqbuf, strlen(freqbuf));
+    retval = write_block(&rig->state.rigport, (unsigned char *) freqbuf,
+                         strlen(freqbuf));
 
     if (retval != RIG_OK)
     {
@@ -473,7 +473,8 @@ static int jst145_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         return -RIG_EINVAL;
     }
 
-    retval = write_block(&rig->state.rigport, (unsigned char *) modestr, strlen(modestr));
+    retval = write_block(&rig->state.rigport, (unsigned char *) modestr,
+                         strlen(modestr));
 
     if (retval != RIG_OK)
     {
@@ -535,8 +536,10 @@ static int jst145_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     switch (level)
     {
 
-    case RIG_LEVEL_AGC: {
-        char *cmd = val.i == RIG_AGC_SLOW ? "G0\r" : (val.i == RIG_AGC_FAST ? "G1\r" : "G2\r");
+    case RIG_LEVEL_AGC:
+    {
+        char *cmd = val.i == RIG_AGC_SLOW ? "G0\r" : (val.i == RIG_AGC_FAST ? "G1\r" :
+                    "G2\r");
         return write_block(&rig->state.rigport, (unsigned char *) cmd, 3);
     }
 
@@ -553,7 +556,8 @@ static int jst145_set_mem(RIG *rig, vfo_t vfo, int ch)
 
     SNPRINTF(membuf, sizeof(membuf), "C%03d\r", ch);
 
-    return write_block(&rig->state.rigport, (unsigned char *) membuf, strlen(membuf));
+    return write_block(&rig->state.rigport, (unsigned char *) membuf,
+                       strlen(membuf));
 }
 
 static int jst145_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)

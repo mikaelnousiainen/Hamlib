@@ -31,9 +31,7 @@
  * To Do: get the datasheet, and testing on real hardware!!
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 
@@ -68,7 +66,7 @@ const struct rig_caps delta2_caps =
     .mfg_name =  "Ten-Tec",
     .version =  BACKEND_VER ".0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_UNTESTED,
+    .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_NONE,
     .dcd_type =  RIG_DCD_NONE,
@@ -163,7 +161,7 @@ const struct rig_caps delta2_caps =
     .decode_event =  icom_decode_event,
     .set_mem =  icom_set_mem,
     .vfo_op =  icom_vfo_op,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 

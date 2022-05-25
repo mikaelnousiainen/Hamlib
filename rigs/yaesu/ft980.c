@@ -84,9 +84,7 @@
 */
 
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -587,7 +585,8 @@ int ft980_transaction(RIG *rig, const unsigned char *cmd, unsigned char *data,
         return retval;
     }
 
-    if (retval != YAESU_CMD_LENGTH || (memcmp(echo_back, cmd, YAESU_CMD_LENGTH) != 0))
+    if (retval != YAESU_CMD_LENGTH
+            || (memcmp(echo_back, cmd, YAESU_CMD_LENGTH) != 0))
     {
         return -RIG_EPROTO;
     }

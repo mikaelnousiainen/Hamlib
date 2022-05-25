@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 
@@ -201,7 +199,7 @@ const struct rig_caps icr8500_caps =
     .set_ts =  icom_set_ts,
     .get_ts =  icom_get_ts,
     .get_dcd =  icom_get_dcd,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 int icr8500_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)

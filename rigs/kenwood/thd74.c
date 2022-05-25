@@ -19,9 +19,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -647,7 +645,7 @@ static int thd74_set_ts(RIG *rig, vfo_t vfo, shortfreq_t ts)
             return RIG_OK;
         }
     }
-    
+
     for (tsinx = 0; tsinx < 10; tsinx++)
     {
 
@@ -1775,5 +1773,5 @@ const struct rig_caps thd74_caps =
 //.get_chan_all_cb = thd74_get_chan_all_cb, this doesn't work yet
 
     .get_info =  th_get_info,
-    .hamlib_check_rig_caps = "HAMLIB_CHECK_RIG_CAPS"
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

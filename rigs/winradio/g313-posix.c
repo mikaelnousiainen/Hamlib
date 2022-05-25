@@ -651,7 +651,7 @@ const struct rig_caps g313_caps =
     .mfg_name =       "Winradio",
     .version =        "20191224.0",
     .copyright =        "LGPL", /* This wrapper, not the G313 shared library or driver */
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_BETA,
     .rig_type =       RIG_TYPE_PCRECEIVER,
     .port_type =      RIG_PORT_NONE,
     .targetable_vfo =    0,
@@ -710,4 +710,5 @@ const struct rig_caps g313_caps =
     .get_level =     g313_get_level,
 
     .get_info =      g313_get_info,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

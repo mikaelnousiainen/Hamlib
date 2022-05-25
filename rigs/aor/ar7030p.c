@@ -24,9 +24,7 @@
  * Version 2009.11.21 Larry Gadallah (VE6VQ)
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -1951,5 +1949,5 @@ const struct rig_caps ar7030p_caps =
     .get_chan_all_cb = RIG_FUNC_NONE,
     .set_mem_all_cb = RIG_FUNC_NONE,
     .get_mem_all_cb = RIG_FUNC_NONE,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

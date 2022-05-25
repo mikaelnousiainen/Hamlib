@@ -22,9 +22,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>      /* Standard library definitions */
@@ -81,7 +79,7 @@ const struct amp_caps kpa1500_amp_caps =
     .timeout =      2000,
     .retry =      2,
 
-    .amp_open = amp_open,
+    .amp_open = NULL,
     .amp_init = kpa_init,
     .amp_close = kpa_close,
     .reset = kpa_reset,

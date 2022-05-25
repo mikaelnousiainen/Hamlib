@@ -76,7 +76,7 @@ const struct rig_caps v4l2_caps =
     .mfg_name =  "Video4Linux2",
     .version =  "20191223.0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_ALPHA,
+    .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_PCRECEIVER,
     .ptt_type =  RIG_PTT_NONE,
     .dcd_type =  RIG_DCD_NONE,
@@ -143,7 +143,7 @@ const struct rig_caps v4l2_caps =
     .get_level =  v4l2_get_level,
 
     .get_info =  v4l2_get_info,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*

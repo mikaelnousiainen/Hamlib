@@ -28,9 +28,7 @@
  * \brief Miscellaneous utility routines
  */
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -315,7 +313,7 @@ size_t HAMLIB_API to_hex(size_t source_length, const unsigned char *source_data,
 
     for (i = 0; i < length; i++)
     {
-        SNPRINTF(dest, dest_length - 2*i, "%02X", source[0]);
+        SNPRINTF(dest, dest_length - 2 * i, "%02X", source[0]);
         source++;
         dest += 2;
     }
@@ -1869,7 +1867,8 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
               __func__, funcname, linenum,
               rig_strvfo(vfo), rig_strvfo(rig->state.current_vfo), split);
 
-    if (vfo == RIG_VFO_NONE) vfo = RIG_VFO_A;
+    if (vfo == RIG_VFO_NONE) { vfo = RIG_VFO_A; }
+
     if (vfo == RIG_VFO_CURR || vfo == RIG_VFO_VFO)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: Leaving currVFO alone\n", __func__);
@@ -1946,6 +1945,8 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 
         else if (VFO_HAS_MAIN_SUB_A_B_ONLY && satmode) { vfo = RIG_VFO_SUB; }
 
+        else if (VFO_HAS_A_B_ONLY) { vfo = split ? RIG_VFO_B : RIG_VFO_A; }
+
         rig_debug(RIG_DEBUG_TRACE,
                   "%s: RIG_VFO_TX changed to %s, split=%d, satmode=%d\n", __func__,
                   rig_strvfo(vfo), split, satmode);
@@ -1964,7 +1965,8 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
     return vfo;
 }
 
-int HAMLIB_API parse_hoststr(char *hoststr, int hoststr_len, char host[256], char port[6])
+int HAMLIB_API parse_hoststr(char *hoststr, int hoststr_len, char host[256],
+                             char port[6])
 {
     unsigned int net1, net2, net3, net4, net5, net6, net7, net8;
     char dummy[6], link[32], *p;
@@ -1980,8 +1982,8 @@ int HAMLIB_API parse_hoststr(char *hoststr, int hoststr_len, char host[256], cha
 
     if (strncasecmp(hoststr, "com", 3) == 0) { return -1; }
 
-    // escaped COM port like \\.\COM3
-    if (strstr(hoststr, "\\\\.\\")) { return -1; }
+    // escaped COM port like \\.\COM3 or \.\COM3
+    if (strstr(hoststr, "\\.\\")) { return -1; }
 
     // Now let's try and parse a host:port thing
     // bracketed IPV6 with optional port
@@ -2449,6 +2451,7 @@ long long HAMLIB_API rig_get_caps_int(rig_model_t rig_model,
                                       enum rig_caps_int_e rig_caps)
 {
     const struct rig_caps *caps = rig_get_caps(rig_model);
+    //rig_debug(RIG_DEBUG_TRACE, "%s: getting rig_caps=%u\n", __func__, rig_caps);
 
     switch (rig_caps)
     {
@@ -2459,6 +2462,7 @@ long long HAMLIB_API rig_get_caps_int(rig_model_t rig_model,
         return caps->rig_model;
 
     case RIG_CAPS_PTT_TYPE:
+        rig_debug(RIG_DEBUG_TRACE, "%s: return %u\n", __func__, caps->ptt_type);
         return caps->ptt_type;
 
     case RIG_CAPS_PORT_TYPE:
@@ -2469,7 +2473,7 @@ long long HAMLIB_API rig_get_caps_int(rig_model_t rig_model,
 
     default:
         //rig_debug(RIG_DEBUG_ERR, "%s: Unknown rig_caps value=%lld\n", __func__, rig_caps);
-        return(-RIG_EINVAL);
+        return (-RIG_EINVAL);
     }
 }
 

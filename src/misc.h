@@ -165,13 +165,13 @@ void errmsg(int err, char *s, const char *func, const char *file, int line);
 // could be a function call 
 #define RETURNFUNC(rc) {do { \
 			            int rctmp = rc; \
-                        rig_debug(RIG_DEBUG_VERBOSE, "%.*s%d:%s(%d):%s return(%ld) %s\n", rig->state.depth, spaces(), rig->state.depth, __FILENAME__, __LINE__, __func__, (long int) (rctmp), rctmp<0?rigerror(rctmp):""); \
+                        rig_debug(RIG_DEBUG_VERBOSE, "%.*s%d:%s(%d):%s returning(%ld) %s\n", rig->state.depth, spaces(), rig->state.depth, __FILENAME__, __LINE__, __func__, (long int) (rctmp), rctmp<0?rigerror(rctmp):""); \
                         --rig->state.depth; \
                         return (rctmp); \
                        } while(0);}
 #define RETURNFUNC2(rc) {do { \
 			            int rctmp = rc; \
-                        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d):%s return(%ld) %s\n",  __FILENAME__, __LINE__, __func__, (long int) (rctmp), rctmp<0?rigerror(rctmp):""); \
+                        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d):%s returning2(%ld) %s\n",  __FILENAME__, __LINE__, __func__, (long int) (rctmp), rctmp<0?rigerror(rctmp):""); \
                         return (rctmp); \
                        } while(0);}
 
@@ -196,6 +196,17 @@ void errmsg(int err, char *s, const char *func, const char *file, int line);
     elapsed_ms(&rig->state.cache.time_ptt, HAMLIB_ELAPSED_INVALIDATE);\
     elapsed_ms(&rig->state.cache.time_split, HAMLIB_ELAPSED_INVALIDATE);\
      }
+
+
+typedef enum settings_value_e
+{
+    e_CHAR, e_INT, e_LONG, e_FLOAT, e_DOUBLE
+} settings_value_t;
+
+
+extern HAMLIB_EXPORT(int) rig_settings_save(char *setting, void *value, settings_value_t valuet);
+extern HAMLIB_EXPORT(int) rig_settings_load(char *setting, void *value, settings_value_t valuet);
+extern HAMLIB_EXPORT(int) rig_settings_load_all(char *settings_file);
 
 __END_DECLS
 

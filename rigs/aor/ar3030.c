@@ -18,9 +18,7 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -195,7 +193,7 @@ const struct rig_caps ar3030_caps =
     .get_channel = ar3030_get_channel,
 
     .vfo_op = ar3030_vfo_op,
-
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
 /*
@@ -248,7 +246,7 @@ static int ar3030_transaction(RIG *rig, const char *cmd, int cmd_len,
         {
             /* expecting 0x0d0x0a on all commands so wait for the 0x0a */
             retval = read_string(&rs->rigport, (unsigned char *) data, BUFSZ,
-                    "\x0a", 1, 0, 1);
+                                 "\x0a", 1, 0, 1);
 
             if (retval == -RIG_ETIMEOUT)
             {
@@ -484,8 +482,8 @@ int ar3030_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     else
     {
         SNPRINTF(mdbuf, sizeof(mdbuf), "%dB%c" CR,
-                            width < rig_passband_normal(rig, mode) ? 1 : 0,
-                            aormode);
+                 width < rig_passband_normal(rig, mode) ? 1 : 0,
+                 aormode);
     }
 
     retval = ar3030_transaction(rig, mdbuf, strlen(mdbuf), NULL, NULL);
