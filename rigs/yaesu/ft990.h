@@ -58,6 +58,7 @@
 /* Returned data length in bytes */
 
 #define FT990_ALL_DATA_LENGTH           1508    /* 0x10 P1 = 00 return size */
+#define FT990_ALL_DATA_LENGTH_UNI       1492    /* 0x10 P1 = 00 return size for 1.2 and earlier ROM */
 #define FT990_MEM_CHNL_LENGTH           1       /* 0x10 P1 = 01 return size */
 #define FT990_OP_DATA_LENGTH            32      /* 0x10 P1 = 02 return size */
 #define FT990_VFO_DATA_LENGTH           32      /* 0x10 P1 = 03 return size -- A & B returned */
@@ -295,6 +296,18 @@ typedef struct _ft990_update_data_t {
   ft990_op_data_t vfob;
   ft990_op_data_t channel[90];
 } ft990_update_data_t;
+
+typedef struct _ft990uni_update_data_t {
+  unsigned char flag1;
+  unsigned char flag2;
+  unsigned char flag3;
+  unsigned char channelnumber;
+  ft990_op_data_t current_front;
+//  ft990_op_data_t current_rear;
+  ft990_op_data_t vfoa;
+  ft990_op_data_t vfob;
+  ft990_op_data_t channel[90];
+} ft990uni_update_data_t;
 
 // Command Structure
 typedef struct _ft990_command_t {

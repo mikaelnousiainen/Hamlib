@@ -152,6 +152,7 @@ const char *multicast_addr = "0.0.0.0";
 int multicast_port = 4532;
 extern char rigctld_password[65];
 char resp_sep = '\n';
+extern int lock_mode;
 
 #define MAXCONFLEN 1024
 
@@ -973,6 +974,7 @@ int main(int argc, char *argv[])
     /*
      * main loop accepting connections
      */
+    rig_debug(RIG_DEBUG_TRACE, "%s: rigctld listening on port %s\n", __func__, portno);
     do
     {
         fd_set set;

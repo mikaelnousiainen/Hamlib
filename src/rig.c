@@ -93,6 +93,7 @@ const char *hamlib_license = "LGPL";
 const char hamlib_version[21] = "Hamlib " PACKAGE_VERSION;
 const char *hamlib_version2 = "Hamlib " PACKAGE_VERSION " " HAMLIBDATETIME;
 HAMLIB_EXPORT_VAR(int) cookie_use;
+HAMLIB_EXPORT_VAR(int) lock_mode; // for use by rigctld
 //! @endcond
 
 struct rig_caps caps_test;
@@ -318,8 +319,8 @@ int foreach_opened_rig(int (*cfunc)(RIG *, rig_ptr_t), rig_ptr_t data)
 
 
 char debugmsgsave[DEBUGMSGSAVE_SIZE] = "";
-char debugmsgsave2[DEBUGMSGSAVE_SIZE] = "";
-char debugmsgsave3[DEBUGMSGSAVE_SIZE] = "";
+char debugmsgsave2[DEBUGMSGSAVE_SIZE] = ""; // deprecated
+char debugmsgsave3[DEBUGMSGSAVE_SIZE] = ""; // deprecated
 
 MUTEX(debugmsgsave);
 
@@ -328,7 +329,7 @@ void add2debugmsgsave(const char *s)
     char *p;
     char stmp[DEBUGMSGSAVE_SIZE];
     int i, nlines;
-    int maxmsg = DEBUGMSGSAVE_SIZE/2;
+    int maxmsg = DEBUGMSGSAVE_SIZE / 2;
     MUTEX_LOCK(debugmsgsave);
     memset(stmp, 0, sizeof(stmp));
     p = debugmsgsave;
@@ -361,7 +362,8 @@ void add2debugmsgsave(const char *s)
         }
 
         --nlines;
-        if (nlines == 0 && strlen(debugmsgsave) > maxmsg) strcpy(debugmsgsave,"!!!!debugmsgsave too long\n");
+
+        if (nlines == 0 && strlen(debugmsgsave) > maxmsg) { strcpy(debugmsgsave, "!!!!debugmsgsave too long\n"); }
     }
 
     if (strlen(stmp) + strlen(s) + 1 < DEBUGMSGSAVE_SIZE)
@@ -374,6 +376,7 @@ void add2debugmsgsave(const char *s)
                   "%s: debugmsgsave overflow!! len of debugmsgsave=%d, len of add=%d\n", __func__,
                   (int)strlen(debugmsgsave), (int)strlen(s));
     }
+
     MUTEX_UNLOCK(debugmsgsave);
 }
 
@@ -388,6 +391,21 @@ void add2debugmsgsave(const char *s)
  *
  * \todo support gettext/localization
  */
+const char *HAMLIB_API rigerror2(int errnum) // returns single-line message
+{
+    errnum = abs(errnum);
+
+    if (errnum >= ERROR_TBL_SZ)
+    {
+        // This should not happen, but if it happens don't return NULL
+        return "ERR_OUT_OF_RANGE";
+    }
+
+    static char msg[DEBUGMSGSAVE_SIZE];
+    snprintf(msg, sizeof(msg), "%s\n", rigerror_table[errnum]);
+    return msg;
+}
+
 const char *HAMLIB_API rigerror(int errnum)
 {
     errnum = abs(errnum);
@@ -793,6 +811,13 @@ int HAMLIB_API rig_open(RIG *rig)
     rs->rigport.rig = rig;
     rs->rigport_deprecated.rig = rig;
 
+    if (strcmp(rs->rigport.pathname, "USB") == 0)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: 'USB' is not a valid COM port name\n", __func__);
+        errno = 2;
+        RETURNFUNC(-RIG_EINVAL);
+    }
+
     // rigctl/rigctld may have deprecated values -- backwards compatility
     if (rs->rigport_deprecated.pathname[0] != 0)
     {
@@ -831,7 +856,17 @@ int HAMLIB_API rig_open(RIG *rig)
         rig_debug(RIG_DEBUG_VERBOSE, "%s: cwd=%s\n", __func__, cwd);
         char *path = malloc(4096);
         extern char *settings_file;
-        sprintf(path, "%s/%s", cwd, settings_file);
+        char *xdgpath = getenv("XDG_CONFIG_HOME");
+
+        if (xdgpath)
+        {
+            sprintf(path, "%s/%s/%s", xdgpath, cwd, settings_file);
+        }
+        else
+        {
+            sprintf(path, "%s/%s", cwd, settings_file);
+        }
+
         FILE *fp = fopen(path, "r");
 
         if (fp == NULL)
@@ -1274,6 +1309,16 @@ int HAMLIB_API rig_open(RIG *rig)
 //    freq_t freq;
 //    if (caps->get_freq) rig_get_freq(rig, RIG_VFO_A, &freq);
 //    if (caps->get_freq) rig_get_freq(rig, RIG_VFO_B, &freq);
+    
+    // prime the freq and mode settings
+    // don't care about the return here -- if it doesn't work so be it
+    freq_t freq;
+    rig_get_freq(rig, RIG_VFO_A, &freq);
+    rig_get_freq(rig, RIG_VFO_B, &freq);
+    rmode_t mode;
+    pbwidth_t width;
+    rig_get_mode(rig, RIG_VFO_A, &mode, &width);
+    rig_get_mode(rig, RIG_VFO_B, &mode, &width);
 
     memcpy(&rs->rigport_deprecated, &rs->rigport, sizeof(hamlib_port_t_deprecated));
     memcpy(&rs->pttport_deprecated, &rs->pttport, sizeof(hamlib_port_t_deprecated));
@@ -2119,6 +2164,7 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
     const struct rig_caps *caps;
     int retcode;
+    int locked_mode;
 
     ELAPSED1;
 
@@ -2131,6 +2177,9 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     {
         RETURNFUNC2(-RIG_EINVAL);
     }
+
+    rig_get_lock_mode(rig, &locked_mode);
+    if (locked_mode) { return(RIG_OK); }
 
     // do not mess with mode while PTT is on
     if (rig->state.cache.ptt)
@@ -2580,15 +2629,18 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
 
     if (vfo == RIG_VFO_CURR) { RETURNFUNC(RIG_OK); }
 
-    retcode = rig_get_vfo(rig, &curr_vfo);
-
-    if (retcode != RIG_OK)
+    if (rig->caps->get_vfo)
     {
-        rig_debug(RIG_DEBUG_WARN, "%s: rig_get_vfo error=%s\n", __func__,
-                  rigerror(retcode));
-    }
+        retcode = rig_get_vfo(rig, &curr_vfo);
 
-    if (curr_vfo == vfo) { RETURNFUNC(RIG_OK); }
+        if (retcode != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_WARN, "%s: rig_get_vfo error=%s\n", __func__,
+                  rigerror(retcode));
+        }
+
+        if (curr_vfo == vfo) { RETURNFUNC(RIG_OK); }
+    }
 
 #if 0 // removing this check 20210801 -- should be mapped already
 
@@ -4110,6 +4162,18 @@ int HAMLIB_API rig_set_split_mode(RIG *rig,
         RETURNFUNC(-RIG_EINVAL);
     }
 
+    // we check both VFOs are in the same tx mode -- then we can ignore
+    // this could be make more intelligent but this should cover all cases where we can skip this
+    if (tx_mode == rig->state.cache.modeMainA && tx_mode == rig->state.cache.modeMainB)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: mode already %s so no change required\n", __func__, rig_strrmode(tx_mode));
+        return RIG_OK;
+    }
+    else
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: mode %s is different from A=%s and B=%s\n", __func__, rig_strrmode(tx_mode), rig_strrmode(rig->state.cache.modeMainA), rig_strrmode(rig->state.cache.modeMainB));
+    }
+
     // do not mess with mode while PTT is on
     if (rig->state.cache.ptt)
     {
@@ -4163,6 +4227,8 @@ int HAMLIB_API rig_set_split_mode(RIG *rig,
     // some rigs exhibit undesirable flashing when swapping vfos in split
     // so we turn it off, do our thing, and turn split back on
     rx_vfo = vfo;
+
+    if (tx_vfo == RIG_VFO_B) { rx_vfo = RIG_VFO_A; }
 
     if (vfo == RIG_VFO_CURR && tx_vfo == RIG_VFO_B) { rx_vfo = RIG_VFO_A; }
     else if (vfo == RIG_VFO_CURR && tx_vfo == RIG_VFO_A) { rx_vfo = RIG_VFO_B; }
@@ -4259,6 +4325,12 @@ int HAMLIB_API rig_set_split_mode(RIG *rig,
     }
 
     rig_set_split_vfo(rig, rx_vfo, RIG_SPLIT_ON, tx_vfo);
+
+    if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
+    rig->state.cache.modeMainA = tx_mode;
+    else
+    rig->state.cache.modeMainB = tx_mode;
+
 
     ELAPSED2;
     RETURNFUNC(retcode);
@@ -7233,7 +7305,6 @@ void *async_data_handler(void *arg)
         }
     }
 
-
     rig_debug(RIG_DEBUG_VERBOSE, "%s: Stopping async data handler thread\n",
               __func__);
 
@@ -7255,3 +7326,86 @@ HAMLIB_EXPORT(int) rig_password(RIG *rig, const char *key1)
     RETURNFUNC(retval);
 }
 
+extern int read_icom_frame(hamlib_port_t *p, const unsigned char rxbuffer[],
+                           size_t rxbuffer_len);
+
+
+HAMLIB_EXPORT(int) rig_send_raw(RIG *rig, const unsigned char *send,
+                                int send_len, unsigned char *reply, int reply_len, unsigned char *term)
+{
+    struct rig_state *rs = &rig->state;
+    unsigned char buf[200];
+    ENTERFUNC;
+    int retval = write_block_sync(&rs->rigport, send, send_len);
+
+    if (retval < 0)
+    {
+        // TODO: error handling? can writing to a pipe really fail in ways we can recover from?
+        rig_debug(RIG_DEBUG_ERR, "%s: write_block_sync() failed, result=%d\n", __func__,
+                  retval);
+    }
+
+    if (reply)
+    {
+        if (term ==
+                NULL) // we have to have terminating char or else we can't read the response
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: term==NULL, must have terminator to read reply\n",
+                      __func__);
+            RETURNFUNC(-RIG_EINVAL);
+        }
+
+        if (*term == 0xfd) // then we want an Icom frame
+        {
+            retval = read_icom_frame(&rs->rigport, buf, sizeof(buf));
+        }
+        else // we'll assume the provided terminator works
+        {
+            retval = read_string_direct(&rs->rigport, buf, sizeof(buf), (const char *)term,
+                                        1, 0, 1);
+        }
+
+        if (retval != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: write_block_sync() failed, result=%d\n", __func__,
+                      retval);
+            RETURNFUNC(retval);
+        }
+    }
+
+    RETURNFUNC(retval);
+}
+
+HAMLIB_EXPORT(int) rig_set_lock_mode(RIG *rig, int mode)
+{
+    int retcode = -RIG_ENAVAIL;
+
+    if (rig->caps->set_lock_mode)
+    {
+        retcode = rig->caps->set_lock_mode(rig, mode);
+    }
+    else
+    {
+        rig->state.lock_mode = mode;
+        retcode = RIG_OK;
+    }
+
+    return (retcode);
+}
+
+HAMLIB_EXPORT(int) rig_get_lock_mode(RIG *rig, int *mode)
+{
+    int retcode = -RIG_ENAVAIL;
+
+    if (rig->caps->get_lock_mode)
+    {
+        retcode = rig->caps->get_lock_mode(rig, mode);
+    }
+    else
+    {
+        *mode = rig->state.lock_mode;
+        retcode = RIG_OK;
+    }
+
+    return (retcode);
+}

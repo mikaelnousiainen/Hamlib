@@ -2049,6 +2049,8 @@ struct rig_caps {
     char *hamlib_check_rig_caps;   // a constant value we can check for hamlib integrity
     int (*get_conf2)(RIG *rig, token_t token, char *val, int val_len);
     int (*password)(RIG *rig, const char *key1); /*< Send encrypted password if rigctld is secured with -A/--password */
+    int (*set_lock_mode)(RIG *rig, int mode);
+    int (*get_lock_mode)(RIG *rig, int *mode);
 };
 //! @endcond
 
@@ -2572,6 +2574,7 @@ struct rig_state {
     int use_cached_mode; /*<! flag instructing rig_get_mode to use cached values when asyncio is in use */
     int use_cached_ptt;  /*<! flag instructing rig_get_ptt to use cached values when asyncio is in use */
     int depth; /*<! a depth counter to use for debug indentation and such */
+    int lock_mode; /*<! flag that prevents mode changes if ~= 0 -- see set/get_lock_mode */
 };
 
 //! @cond Doxygen_Suppress
@@ -3250,6 +3253,8 @@ rig_passband_wide HAMLIB_PARAMS((RIG *rig,
 
 extern HAMLIB_EXPORT(const char *)
 rigerror HAMLIB_PARAMS((int errnum));
+extern HAMLIB_EXPORT(const char *)
+rigerror2 HAMLIB_PARAMS((int errnum));
 
 extern HAMLIB_EXPORT(int)
 rig_setting2idx HAMLIB_PARAMS((setting_t s));
@@ -3390,6 +3395,7 @@ extern HAMLIB_EXPORT(int) rig_cookie(RIG *rig, enum cookie_e cookie_cmd, char *c
 extern HAMLIB_EXPORT(int) rig_password(RIG *rig, const char *key1);
 extern HAMLIB_EXPORT(void) rig_password_generate_secret(char *pass,
         char result[HAMLIB_SECRET_LENGTH + 1]);
+extern HAMLIB_EXPORT(int) rig_send_raw(RIG *rig, const unsigned char* send, int send_len, unsigned char* reply, int reply_len, unsigned char *term);
 
 extern HAMLIB_EXPORT(int)
 longlat2locator HAMLIB_PARAMS((double longitude,
@@ -3403,6 +3409,9 @@ locator2longlat HAMLIB_PARAMS((double *longitude,
                                const char *locator));
 
 extern HAMLIB_EXPORT(char*) rig_make_md5(char *pass);
+
+extern HAMLIB_EXPORT(int) rig_set_lock_mode(RIG *rig, int lock);
+extern HAMLIB_EXPORT(int) rig_get_lock_mode(RIG *rig, int *lock);
 
 
 //! @endcond

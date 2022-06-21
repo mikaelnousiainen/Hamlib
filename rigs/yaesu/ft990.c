@@ -112,6 +112,7 @@ static int ft990_open(RIG *rig);
 static int ft990_close(RIG *rig);
 static int ft990_set_freq(RIG *rig, vfo_t vfo, freq_t freq);
 static int ft990_get_freq(RIG *rig, vfo_t vfo, freq_t *freq);
+static int ft990_get_freq_uni(RIG *rig, vfo_t vfo, freq_t *freq);
 static int ft990_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width);
 static int ft990_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width);
 static int ft990_set_vfo(RIG *rig, vfo_t vfo);
@@ -219,6 +220,9 @@ struct ft990_priv_data
     vfo_t current_vfo;                        /* active VFO from last cmd */
     unsigned char p_cmd[YAESU_CMD_LENGTH];    /* private copy of CAT cmd */
     ft990_update_data_t update_data;          /* returned data */
+    unsigned char last_vfo_response[FT990_ALL_DATA_LENGTH];
+    struct timespec cache_start;
+    int update_count;
 };
 
 /*
@@ -239,7 +243,7 @@ const struct rig_caps ft990_caps =
     RIG_MODEL(RIG_MODEL_FT990),
     .model_name =         "FT-990",
     .mfg_name =           "Yaesu",
-    .version =            "20211231.0",
+    .version =            "20220608.0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -370,6 +374,145 @@ const struct rig_caps ft990_caps =
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
+// Old FT990 ROM has to read all 1492 to get frequency 
+// So for this model we just use the cache to read freq
+const struct rig_caps ft990uni_caps =
+{
+    RIG_MODEL(RIG_MODEL_FT990UNI),
+    .model_name =         "FT-990 Old Rom",
+    .mfg_name =           "Yaesu",
+    .version =            "20220613.0",
+    .copyright =          "LGPL",
+    .status =             RIG_STATUS_STABLE,
+    .rig_type =           RIG_TYPE_TRANSCEIVER,
+    .ptt_type =           RIG_PTT_RIG,
+    .dcd_type =           RIG_DCD_NONE,
+    .port_type =          RIG_PORT_SERIAL,
+    .serial_rate_min =    4800,
+    .serial_rate_max =    4800,
+    .serial_data_bits =   8,
+    .serial_stop_bits =   2,
+    .serial_parity =      RIG_PARITY_NONE,
+    .serial_handshake =   RIG_HANDSHAKE_NONE,
+    .write_delay =        FT990_WRITE_DELAY,
+    .post_write_delay =   FT990_POST_WRITE_DELAY,
+    .timeout =            2000,
+    .retry =              0,
+    .has_get_func =       RIG_FUNC_LOCK | RIG_FUNC_TUNER | RIG_FUNC_MON,
+    .has_set_func =       RIG_FUNC_LOCK | RIG_FUNC_TUNER,
+    .has_get_level =      RIG_LEVEL_STRENGTH | RIG_LEVEL_SWR | RIG_LEVEL_ALC | \
+    RIG_LEVEL_RFPOWER | RIG_LEVEL_COMP,
+    .has_set_level =      RIG_LEVEL_BAND_SELECT,
+    .has_get_parm =       RIG_PARM_NONE,
+    .has_set_parm =       RIG_PARM_BACKLIGHT,
+    .ctcss_list =         NULL,
+    .dcs_list =           NULL,
+    .preamp =             { RIG_DBLST_END, },
+    .attenuator =         { RIG_DBLST_END, },
+    .max_rit =            Hz(9999),
+    .max_xit =            Hz(9999),
+    .max_ifshift =        Hz(1200),
+    .vfo_ops =            RIG_OP_CPY | RIG_OP_FROM_VFO | RIG_OP_TO_VFO |
+    RIG_OP_UP | RIG_OP_DOWN | RIG_OP_TUNE | RIG_OP_TOGGLE,
+    .targetable_vfo =     RIG_TARGETABLE_ALL,
+    .transceive =         RIG_TRN_OFF,        /* Yaesus have to be polled, sigh */
+    .bank_qty =           0,
+    .chan_desc_sz =       0,
+    .chan_list =          {
+        {1, 90, RIG_MTYPE_MEM, FT990_MEM_CAP},
+        RIG_CHAN_END,
+    },
+    .rx_range_list1 =     {
+        {kHz(100), MHz(30), FT990_ALL_RX_MODES, -1, -1, FT990_VFO_ALL, FT990_ANTS},   /* General coverage + ham */
+        RIG_FRNG_END,
+    },
+
+    .tx_range_list1 =     {
+        FRQ_RNG_HF(1, FT990_OTHER_TX_MODES, W(5), W(100), FT990_VFO_ALL, FT990_ANTS),
+        FRQ_RNG_HF(1, FT990_AM_TX_MODES, W(2), W(25), FT990_VFO_ALL, FT990_ANTS), /* AM class */
+        RIG_FRNG_END,
+    },
+
+    .rx_range_list2 =     {
+        {kHz(100), MHz(30), FT990_ALL_RX_MODES, -1, -1, FT990_VFO_ALL, FT990_ANTS},
+        RIG_FRNG_END,
+    },
+
+    .tx_range_list2 =     {
+        FRQ_RNG_HF(2, FT990_OTHER_TX_MODES, W(5), W(100), FT990_VFO_ALL, FT990_ANTS),
+        FRQ_RNG_HF(2, FT990_AM_TX_MODES, W(2), W(25), FT990_VFO_ALL, FT990_ANTS), /* AM class */
+
+        RIG_FRNG_END,
+    },
+
+    .tuning_steps =       {
+        {FT990_SSB_CW_RX_MODES, Hz(10)},    /* Normal */
+        {FT990_SSB_CW_RX_MODES, Hz(100)},   /* Fast */
+
+        {FT990_AM_RX_MODES,     Hz(100)},   /* Normal */
+        {FT990_AM_RX_MODES,     kHz(1)},    /* Fast */
+
+        {FT990_FM_RX_MODES,     Hz(100)},   /* Normal */
+        {FT990_FM_RX_MODES,     kHz(1)},    /* Fast */
+
+        {FT990_RTTY_RX_MODES,   Hz(10)},    /* Normal */
+        {FT990_RTTY_RX_MODES,   Hz(100)},   /* Fast */
+
+        RIG_TS_END,
+
+    },
+
+    /* mode/filter list, .remember =  order matters! */
+    .filters =            {
+        {RIG_MODE_SSB,  RIG_FLT_ANY}, /* Enable all filters for SSB */
+        {RIG_MODE_CW,   RIG_FLT_ANY}, /* Enable all filters for CW */
+        {RIG_MODE_RTTY, RIG_FLT_ANY}, /* Enable all filters for RTTY */
+        {RIG_MODE_RTTYR, RIG_FLT_ANY}, /* Enable all filters for Reverse RTTY */
+        {RIG_MODE_PKTLSB, RIG_FLT_ANY}, /* Enable all filters for Packet Radio LSB */
+        {RIG_MODE_AM,   kHz(6)},      /* normal AM filter */
+        {RIG_MODE_AM,   kHz(2.4)},    /* narrow AM filter */
+        {RIG_MODE_FM,   kHz(8)},      /* FM standard filter */
+        {RIG_MODE_PKTFM, kHz(8)},     /* FM standard filter for Packet Radio FM */
+        RIG_FLT_END,
+    },
+
+    .priv =               NULL,           /* private data FIXME: */
+
+    .rig_init =           ft990_init,
+    .rig_cleanup =        ft990_cleanup,
+    .rig_open =           ft990_open,     /* port opened */
+    .rig_close =          ft990_close,    /* port closed */
+
+    .set_freq =           ft990_set_freq,
+    .get_freq =           ft990_get_freq_uni,
+    .set_mode =           ft990_set_mode,
+    .get_mode =           ft990_get_mode,
+    .set_vfo =            ft990_set_vfo,
+    .get_vfo =            ft990_get_vfo,
+    .set_ptt =            ft990_set_ptt,
+    .get_ptt =            ft990_get_ptt,
+    .set_rptr_shift =     ft990_set_rptr_shift,
+    .get_rptr_shift =     ft990_get_rptr_shift,
+    .set_rptr_offs =      ft990_set_rptr_offs,
+    .set_split_vfo =      ft990_set_split_vfo,
+    .get_split_vfo =      ft990_get_split_vfo,
+    .set_rit =            ft990_set_rit,
+    .get_rit =            ft990_get_rit,
+    .set_xit =            ft990_set_xit,
+    .get_xit =            ft990_get_xit,
+    .set_func =           ft990_set_func,
+    .get_func =           ft990_get_func,
+    .set_parm =           ft990_set_parm,
+    .get_level =          ft990_get_level,
+    .set_mem =            ft990_set_mem,
+    .get_mem =            ft990_get_mem,
+    .vfo_op =             ft990_vfo_op,
+    .set_channel =        ft990_set_channel,
+    .get_channel =        ft990_get_channel,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
+};
+
+
 
 /*
  * ************************************
@@ -477,6 +620,8 @@ int  ft990_open(RIG *rig)
     {
         return err;
     }
+
+    rig_debug(RIG_DEBUG_TRACE, "%s: rig %s opened\n", __func__, rig->caps->model_name);
 
     return RIG_OK;
 }
@@ -597,6 +742,19 @@ int ft990_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
  *           In all other cases the passed vfo is selected if it differs
  *           from the currently selected VFO.
  */
+int ft990_get_freq_uni(RIG *rig, vfo_t vfo, freq_t *freq)
+{
+    // we can prime this frequency once
+    if (rig->state.cache.freqMainA == 0)
+    {
+        // this should read just enough to get VFO_A/B and then for UNI the rest gets flushed
+        return ft990_get_freq(rig, RIG_VFO_A, freq);
+    }
+    // VFOB should be set so we don't need to poll it
+    *freq = vfo == RIG_VFO_A ? rig->state.cache.freqMainA : rig->state.cache.freqMainB;
+    return (RIG_OK); 
+}
+
 int ft990_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 {
     struct ft990_priv_data *priv;
@@ -1111,9 +1269,14 @@ int ft990_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
         return -RIG_EINVAL;
     }
 
-    rig_debug(RIG_DEBUG_TRACE, "%s: passed vfo = 0x%02x\n", __func__, vfo);
-    rig_debug(RIG_DEBUG_TRACE, "%s: passed split = 0x%02x\n", __func__, split);
-    rig_debug(RIG_DEBUG_TRACE, "%s: passed tx_vfo = 0x%02x\n", __func__, tx_vfo);
+    rig_debug(RIG_DEBUG_TRACE, "%s: passed vfo = %s\n", __func__, rig_strvfo(vfo));
+    rig_debug(RIG_DEBUG_TRACE, "%s: passed split = %d\n", __func__, split);
+    rig_debug(RIG_DEBUG_TRACE, "%s: passed tx_vfo = %s\n", __func__, rig_strvfo(tx_vfo));
+    if (tx_vfo == RIG_VFO_A) // can't split on VFOA
+    {
+        tx_vfo = RIG_VFO_B;
+        rig_debug(RIG_DEBUG_TRACE, "%s: changin tx_vfo to VFOB\n", __func__);
+    }
 
     priv = (struct ft990_priv_data *) rig->state.priv;
 
@@ -2009,94 +2172,40 @@ int ft990_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     return RIG_OK;
 }
 
-/*
- * rig_get_mode*
- *
- * Get operating mode and passband for a given VFO
- *
- * Parameter     | Type   | Accepted/Expected Values
- * -------------------------------------------------------------------------
- *   RIG *      | input  | pointer to private data
- *   vfo        | input  | currVFO, VFOA, VFOB, MEM
- *   mode       | input  | USB, LSB, CW, AM, FM, RTTY, RTTYR, PKTLSB, PKTFM
- *   width *    | output | 2400, 2000, 500, 250 (USB)
- *              |        | 2400, 2000, 500, 250 (LSB)
- *              |        | 2400, 2000, 500, 250 (CW)
- *              |        | 2400, 2000, 500, 250 (RTTY)
- *              |        | 2400, 2000, 500, 250 (RTTYR)
- *              |        | 2400, 2000, 500, 250 (PKTLSB)
- *              |        | 6000, 2400           (AM)
- *              |        | 8000                 (FM)
- *              |        | 8000                 (PKTFM)
- * -------------------------------------------------------------------------
- * Returns RIG_OK on success or an error code on failure
- *
- * Comments: Passing currVFO to vfo will use the currently selected VFO
- *           obtained from the priv->current_vfo data structure.
- *           In all other cases the passed vfo is selected if it differs
- *           from the currently selected VFO.
- */
-int ft990_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
+static int ft990_mode2rigmode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 {
     struct ft990_priv_data *priv;
     unsigned char *p;
     unsigned char *fl;
-    unsigned char ci;
-    int err;
-
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
-
-    if (!rig)
-    {
-        return -RIG_EINVAL;
-    }
-
-    rig_debug(RIG_DEBUG_TRACE, "%s: passed vfo = 0x%02x\n", __func__, vfo);
-
     priv = (struct ft990_priv_data *)rig->state.priv;
-
-    if (vfo == RIG_VFO_CURR)
-    {
-        vfo = priv->current_vfo;
-        rig_debug(RIG_DEBUG_TRACE,
-                  "%s: priv->current_vfo = 0x%02x\n", __func__, vfo);
-    }
-
-    switch (vfo)
+    switch(vfo)
     {
     case RIG_VFO_A:
     case RIG_VFO_VFO:
+    case RIG_VFO_MAIN:
         p = &priv->update_data.vfoa.mode;
-        ci = FT990_NATIVE_UPDATE_VFO_DATA;
         fl = &priv->update_data.vfoa.filter;
         break;
 
     case RIG_VFO_B:
+    case RIG_VFO_SUB:
         p = &priv->update_data.vfob.mode;
-        ci = FT990_NATIVE_UPDATE_VFO_DATA;
         fl = &priv->update_data.vfob.filter;
         break;
 
     case RIG_VFO_MEM:
-    case RIG_VFO_MAIN:
         p = &priv->update_data.current_front.mode;
-        ci = FT990_NATIVE_UPDATE_OP_DATA;
         fl = &priv->update_data.current_front.filter;
         break;
 
     default:
         return -RIG_EINVAL;
+                                                      
     }
 
-    // Get update for selected VFO
-    err = ft990_get_update_data(rig, ci, 0);
+    return RIG_OK;
 
-    if (err != RIG_OK)
-    {
-        return err;
-    }
-
-    rig_debug(RIG_DEBUG_TRACE, "%s: fl = 0x%02x\n", __func__, *fl);
+   rig_debug(RIG_DEBUG_TRACE, "%s: fl = 0x%02x\n", __func__, *fl);
     rig_debug(RIG_DEBUG_TRACE, "%s: current mode = 0x%02x\n", __func__, *p);
 
     switch (*p)
@@ -2118,7 +2227,7 @@ int ft990_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
         break;
 
     case FT990_MODE_FM:
-        *mode = RIG_MODE_FM;
+       *mode = RIG_MODE_FM;
         break;
 
     case FT990_MODE_RTTY:
@@ -2142,17 +2251,14 @@ int ft990_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
         {
             *mode = RIG_MODE_PKTLSB;
         }
-
         break;
-
     default:
         return -RIG_EINVAL;
     }
 
     rig_debug(RIG_DEBUG_TRACE, "%s: get mode = %s\n", __func__,
               rig_strrmode(*mode));
-
-    // The FT990 firmware appears to have a bug since the
+   // The FT990 firmware appears to have a bug since the
     // AM bandwidth for 2400Hz and 6000Hz are interchanged.
     switch (*fl & (~FT990_BW_FMPKTRTTY))
     {
@@ -2195,6 +2301,58 @@ int ft990_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     rig_debug(RIG_DEBUG_TRACE, "%s: get width = %li Hz\n", __func__, *width);
 
     return RIG_OK;
+}
+
+/*
+ * rig_get_mode*
+ *
+ * Get operating mode and passband for a given VFO
+ *
+ * Parameter     | Type   | Accepted/Expected Values
+ * -------------------------------------------------------------------------
+ *   RIG *      | input  | pointer to private data
+ *   vfo        | input  | currVFO, VFOA, VFOB, MEM
+ *   mode       | input  | USB, LSB, CW, AM, FM, RTTY, RTTYR, PKTLSB, PKTFM
+ *   width *    | output | 2400, 2000, 500, 250 (USB)
+ *              |        | 2400, 2000, 500, 250 (LSB)
+ *              |        | 2400, 2000, 500, 250 (CW)
+ *              |        | 2400, 2000, 500, 250 (RTTY)
+ *              |        | 2400, 2000, 500, 250 (RTTYR)
+ *              |        | 2400, 2000, 500, 250 (PKTLSB)
+ *              |        | 6000, 2400           (AM)
+ *              |        | 8000                 (FM)
+ *              |        | 8000                 (PKTFM)
+ * -------------------------------------------------------------------------
+ * Returns RIG_OK on success or an error code on failure
+ *
+ * Comments: Passing currVFO to vfo will use the currently selected VFO
+ *           obtained from the priv->current_vfo data structure.
+ *           In all other cases the passed vfo is selected if it differs
+ *           from the currently selected VFO.
+ */
+int ft990_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
+{
+    struct ft990_priv_data *priv;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (!rig)
+    {
+        return -RIG_EINVAL;
+    }
+
+    rig_debug(RIG_DEBUG_TRACE, "%s: passed vfo = 0x%02x\n", __func__, vfo);
+
+    priv = (struct ft990_priv_data *)rig->state.priv;
+
+    if (vfo == RIG_VFO_CURR)
+    {
+        vfo = priv->current_vfo;
+        rig_debug(RIG_DEBUG_TRACE,
+                  "%s: priv->current_vfo = 0x%02x\n", __func__, vfo);
+    }
+
+    return ft990_mode2rigmode(rig, vfo, mode, width);
 }
 
 /*
@@ -2310,6 +2468,12 @@ int ft990_get_vfo(RIG *rig, vfo_t *vfo)
     if (!rig)
     {
         return -RIG_EINVAL;
+    }
+
+    if (rig->caps->rig_model == RIG_MODEL_FT990UNI)
+    {
+        *vfo = rig->state.current_vfo;
+        return RIG_OK;
     }
 
     priv = (struct ft990_priv_data *)rig->state.priv;
@@ -3010,7 +3174,15 @@ int ft990_get_channel(RIG *rig, vfo_t vfo, channel_t *chan, int read_only)
     if (chan->split & RIG_SPLIT_ON)
     {
         // Get data for the transmit VFO
+        if (rig->caps->rig_model == RIG_MODEL_FT990UNI)
+        {
+        p = (ft990_op_data_t *) &priv->update_data.current_front;
+
+        }
+        else
+        {
         p = (ft990_op_data_t *) &priv->update_data.current_rear;
+        }
 
 
         /* FT1000D
@@ -3208,6 +3380,7 @@ int ft990_get_channel(RIG *rig, vfo_t vfo, channel_t *chan, int read_only)
     return RIG_OK;
 }
 
+
 /*
  * Private helper function. Retrieves update data from rig.
  * using pacing value and buffer indicated in *priv struct.
@@ -3243,6 +3416,41 @@ int ft990_get_update_data(RIG *rig, unsigned char ci, unsigned short ch)
 
     priv = (struct ft990_priv_data *)rig->state.priv;
 
+    if (rig->caps->rig_model == RIG_MODEL_FT990UNI && priv->update_count == 0)
+    {
+        freq_t f;
+        pbwidth_t width;
+        if (priv->update_count == 0)
+        {
+        priv->update_count = 1;
+        // all we can get is the 1492 byte answer so we'll cache it forever
+        ci = FT990_NATIVE_UPDATE_ALL_DATA;
+        p = (unsigned char *) &priv->update_data.vfoa;
+        rl = FT990_ALL_DATA_LENGTH; // we'll use the 1508 byte size as it fits the smaller size too
+        // cache repeats of the UPDATE_VFO command
+        err = ft990_send_static_cmd(rig, ci);
+        if (err != RIG_OK)
+        {
+            return err;
+        }
+        rig_debug(RIG_DEBUG_TRACE, "%s: cache hit\n", __func__);
+        memcpy(p, priv->last_vfo_response, rl);
+        p = priv->update_data.vfoa.basefreq;
+        rig->state.cache.freqMainA = f = ((((p[0] << 8) + p[1]) << 8) + p[2]) * 10;
+        p = priv->update_data.vfob.basefreq;
+        rig->state.cache.freqMainB = f = ((((p[0] << 8) + p[1]) << 8) + p[2]) * 10;
+        if (priv->update_data.flag1 & FT990_SF_VFOB) rig->state.current_vfo = priv->current_vfo = RIG_VFO_B;
+        else rig->state.current_vfo = priv->current_vfo = RIG_VFO_A;
+        err = ft990_mode2rigmode(rig, rig->state.current_vfo, &rig->state.cache.modeMainA, &width);
+        err = ft990_mode2rigmode(rig, rig->state.current_vfo, &rig->state.cache.modeMainB, &width);
+        return RIG_OK;
+        }
+        // we just set all the cache info that we can and never call again
+    }
+    // else we drop through and do the real IF command
+
+
+    rig_flush(&rig->state.rigport);
     if (ci == FT990_NATIVE_UPDATE_MEM_CHNL_DATA)
         // P4 = 0x01 to 0x5a for channel 1 - 90
     {
@@ -3292,6 +3500,11 @@ int ft990_get_update_data(RIG *rig, unsigned char ci, unsigned short ch)
     default:
         return -RIG_EINVAL;
     }
+    if (rig->caps->rig_model == RIG_MODEL_FT990UNI) 
+    {
+        p = (unsigned char *) &priv->update_data;
+        rl = FT990_ALL_DATA_LENGTH_UNI;
+    }
 
     n = read_block(&rig->state.rigport, p, rl);
 
@@ -3301,6 +3514,12 @@ int ft990_get_update_data(RIG *rig, unsigned char ci, unsigned short ch)
     }
 
     rig_debug(RIG_DEBUG_TRACE, "%s: read %i bytes\n", __func__, n);
+
+    if (rig->caps->rig_model == RIG_MODEL_FT990UNI) 
+    {
+        // then we update our cache this one time
+
+    }
 
     if (ci == FT990_NATIVE_READ_FLAGS)
     {

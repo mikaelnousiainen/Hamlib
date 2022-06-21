@@ -939,6 +939,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             && !(is_ft2000 && newcat_band_index(freq) == 2)
             && !(is_ftdx1200 && newcat_band_index(freq) == 2)
             && !is_ft891 // 891 does not remember bandwidth so don't do this
+            && !is_ft991 // 991 does not behave well with bandstack changes
             && rig->caps->get_vfo != NULL
             && rig->caps->set_vfo != NULL) // gotta' have get_vfo too
     {
@@ -978,19 +979,28 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             if (newcat_valid_command(rig, "VS"))
             {
                 SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "VS%d;", vfo2);
+
+                if (RIG_OK != (err = newcat_set_cmd(rig)))
+                {
+                    rig_debug(RIG_DEBUG_ERR, "%s: Unexpected error with BS command#3=%s\n",
+                              __func__, rigerror(err));
+                }
             }
         }
         else
         {
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "BS%02d%c",
                      newcat_band_index(freq), cat_term);
+
+            if (RIG_OK != (err = newcat_set_cmd(rig)))
+            {
+                rig_debug(RIG_DEBUG_ERR, "%s: Unexpected error with BS command#2=%s\n",
+                          __func__, rigerror(err));
+            }
+
+            hl_usleep(500 * 1000); // wait for BS to do it's thing
         }
 
-        if (RIG_OK != (err = newcat_set_cmd(rig)))
-        {
-            rig_debug(RIG_DEBUG_ERR, "%s: Unexpected error with BS command#2=%s\n",
-                      __func__, rigerror(err));
-        }
 
 #if 0 // disable for testing
         else
@@ -1304,6 +1314,10 @@ int newcat_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     {
         RETURNFUNC(err);
     }
+    if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
+    rig->state.cache.modeMainA = mode;
+    else
+    rig->state.cache.modeMainB = mode;
 
     if (RIG_PASSBAND_NOCHANGE == width) { RETURNFUNC(err); }
 
@@ -2327,6 +2341,7 @@ int newcat_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode,
     pbwidth_t tmp_width;
     int err;
 
+    rig_debug(RIG_DEBUG_TRACE, "%s: vfo=%s, tx_mode=%s, tx_width=%d\n", __func__, rig_strvfo(vfo), rig_strrmode(tx_mode), (int)tx_width);
     err = newcat_get_mode(rig, RIG_VFO_B, &tmp_mode, &tmp_width);
 
     if (err < 0)
@@ -2346,6 +2361,10 @@ int newcat_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode,
     {
         RETURNFUNC(err);
     }
+    if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
+    rig->state.cache.modeMainA = tx_mode;
+    else
+    rig->state.cache.modeMainB = tx_mode;
 
 
     RETURNFUNC(-RIG_ENAVAIL);

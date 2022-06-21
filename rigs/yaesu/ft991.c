@@ -141,7 +141,7 @@ const struct rig_caps ft991_caps =
     RIG_MODEL(RIG_MODEL_FT991),
     .model_name =         "FT-991",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".10",
+    .version =            NEWCAT_VER ".12",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -353,6 +353,7 @@ const struct rig_caps ft991_caps =
     .set_ext_level =      newcat_set_ext_level,
     .get_ext_level =      newcat_get_ext_level,
     .send_morse =         newcat_send_morse,
+    .wait_morse =         rig_wait_morse,
     .send_voice_mem =     newcat_send_voice_mem,
     .set_clock =          newcat_set_clock,
     .get_clock =          newcat_get_clock,
@@ -409,6 +410,12 @@ ft991_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
     if (rval != RIG_OK)
     {
         return (rval);
+    }
+
+    if (rig->state.cache.freqMainB == tx_freq)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: freq %.0f already set on VFOB\n", __func__, tx_freq);
+        return RIG_OK;
     }
 
     if (is_split == RIG_SPLIT_OFF)
@@ -581,6 +588,12 @@ static int ft991_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode,
         return -RIG_EINVAL;
     }
 
+    if (rig->state.cache.modeMainB == tx_mode)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: mode %s already set on VFOB\n", __func__, rig_strrmode(tx_mode));
+        return RIG_OK;
+    }
+
     err = ft991_get_tx_split(rig, &is_split);
 
     if (err != RIG_OK)
@@ -588,7 +601,7 @@ static int ft991_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode,
         return (err);
     }
 
-    if (is_split == RIG_SPLIT_OFF)
+    if (is_split == RIG_SPLIT_ON)
     {
         err = newcat_set_tx_vfo(rig, RIG_VFO_B);
 
