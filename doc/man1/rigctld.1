@@ -134,6 +134,9 @@ etc. on Linux,
 etc. on MS Windows.  The BSD flavors and Mac OS/X have their own designations.
 See your system's documentation.
 .IP
+.IP
+Can be a network address:port, e.g. 127.0.0.1:12345
+.IP
 The special string \(lquh\-rig\(rq may be given to enable micro-ham device
 support.
 .
@@ -471,7 +474,7 @@ Mode is a token: \(oqUSB\(cq, \(oqLSB\(cq, \(oqCW\(cq, \(oqCWR\(cq,
 \(oqECSSLSB\(cq, \(oqFA\(cq, \(oqSAM\(cq, \(oqSAL\(cq, \(oqSAH\(cq,
 \(oqDSB\(cq.
 .IP
-Passband is in Hz as an integer, or \(oq0\(cq for the radio backend default.
+Passband is in Hz as an integer, -1 for no change, or \(oq0\(cq for the radio backend default.
 .IP
 .BR Note :
 Passing a \(oq?\(cq (query) as the first argument instead of a Mode token will
