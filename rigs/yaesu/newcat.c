@@ -734,6 +734,17 @@ int newcat_get_conf2(RIG *rig, token_t token, char *val, int val_len)
  *
  */
 
+int newcat_60m_exception(RIG *rig, freq_t freq)
+{
+    // can we improve this to set memory mode and pick the memory slot?
+    if (is_ftdx10 && freq > 5.2 && freq < 5.5)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: 60M exception ignoring freq/mode commands\n", __func__);
+        return 1;
+    }
+    return 0;
+}
+
 int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
     char c;
@@ -744,6 +755,8 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     int special_60m = 0;
 
     ENTERFUNC;
+
+    if (newcat_60m_exception(rig,freq)) RETURNFUNC(RIG_OK); // we don't set freq in this case
 
     if (!newcat_valid_command(rig, "FA"))
     {
@@ -872,7 +885,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
         if (priv->ret_data[2] != target_vfo)
         {
-            TRACE;
+            HAMLIB_TRACE;
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "VS%c%c", target_vfo, cat_term);
             rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
 
@@ -943,7 +956,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             && rig->caps->get_vfo != NULL
             && rig->caps->set_vfo != NULL) // gotta' have get_vfo too
     {
-        TRACE;
+        HAMLIB_TRACE;
 
         if (rig->state.current_vfo != vfo)
         {
@@ -1261,6 +1274,8 @@ int newcat_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     priv = (struct newcat_priv_data *)rig->state.priv;
 
     ENTERFUNC;
+
+    if (newcat_60m_exception(rig,rig->state.cache.freqMainA)) RETURNFUNC(RIG_OK); // we don't set mode in this case
 
     if (!newcat_valid_command(rig, "MD"))
     {
@@ -7447,7 +7462,7 @@ int newcat_set_tx_vfo(RIG *rig, vfo_t tx_vfo)
             newcat_is_rig(rig, RIG_MODEL_FTDX10) ||
             newcat_is_rig(rig, RIG_MODEL_FTDX3000))
     {
-        TRACE;
+        HAMLIB_TRACE;
         p1 = p1 + 2;    /* use non-Toggle commands */
     }
 
