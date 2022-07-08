@@ -997,10 +997,14 @@ HAMLIB_EXPORT(int) rig_settings_get_path(char *path, int pathlen)
     {
         snprintf(path, pathlen-1, "%s/.config/%s", home, SETTINGS_FILE);
     }
-    else
+    else if (home)
     {
         // we add a leading period to hide the file
         snprintf(path, pathlen-1, "%s/.%s", home, SETTINGS_FILE);
+    }
+    else
+    {
+        snprintf(path, pathlen-1, ".%s", SETTINGS_FILE);
     }
     rig_debug(RIG_DEBUG_TRACE, "%s: path=%s\n", __func__, path);
     return RIG_OK;
@@ -1051,7 +1055,7 @@ HAMLIB_EXPORT(int) rig_settings_save(char *setting, void *value,
     case e_DOUBLE: dvalue = (double *)value; vformat = "%s=%f\n"; break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: Uknown valuetype=%d\n", __func__, valuetype);
+        rig_debug(RIG_DEBUG_ERR, "%s: Unknown valuetype=%d\n", __func__, valuetype);
     }
 
     if (fp == NULL)
@@ -1072,7 +1076,7 @@ HAMLIB_EXPORT(int) rig_settings_save(char *setting, void *value,
         case e_DOUBLE: fprintf(fp, vformat, setting, *dvalue); break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: Uknown valuetype=%d\n", __func__, valuetype);
+            rig_debug(RIG_DEBUG_ERR, "%s: Unknown valuetype=%d\n", __func__, valuetype);
         }
 
         fclose(fp);
