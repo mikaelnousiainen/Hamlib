@@ -32,7 +32,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <sys/types.h>
 
@@ -65,6 +64,7 @@
 
 DEFINE_INITAMP_BACKEND(dummy);
 DEFINE_INITAMP_BACKEND(kpa1500);
+DEFINE_INITAMP_BACKEND(gemini);
 //! @endcond
 
 /**
@@ -87,6 +87,7 @@ static struct
 {
     { AMP_DUMMY, AMP_BACKEND_DUMMY, AMP_FUNCNAMA(dummy) },
     { AMP_ELECRAFT, AMP_BACKEND_ELECRAFT, AMP_FUNCNAMA(kpa1500) },
+    { AMP_GEMINI, AMP_BACKEND_GEMINI, AMP_FUNCNAMA(gemini) },
     { 0, NULL }, /* end */
 };
 
@@ -151,7 +152,7 @@ int HAMLIB_API amp_register(const struct amp_caps *caps)
 
 #endif
 
-    p = (struct amp_list *)malloc(sizeof(struct amp_list));
+    p = (struct amp_list *)calloc(1, sizeof(struct amp_list));
 
     if (!p)
     {

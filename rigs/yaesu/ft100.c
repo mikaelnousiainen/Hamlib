@@ -29,7 +29,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>     /* String function definitions */
-#include <unistd.h>     /* UNIX standard function definitions */
 #include <math.h>
 
 #include "hamlib/rig.h"
@@ -840,7 +839,7 @@ int ft100_set_vfo(RIG *rig, vfo_t vfo)
 
     int ret;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s\n", __func__, rig_strvfo(vfo));
 
     switch (vfo)
     {

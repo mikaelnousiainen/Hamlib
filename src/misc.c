@@ -34,7 +34,6 @@
 #include <stdarg.h>
 #include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
 #include <fcntl.h>   /* File control definitions */
 #include <errno.h>   /* Error number definitions */
 
@@ -2090,6 +2089,11 @@ int HAMLIB_API rig_flush(hamlib_port_t *port)
 #ifndef RIG_FLUSH_REMOVE
     rig_debug(RIG_DEBUG_TRACE, "%s: called for %s device\n", __func__,
               port->type.rig == RIG_PORT_SERIAL ? "serial" : "network");
+
+    if (port->type.rig == RIG_PORT_NONE)
+    {
+        return RIG_OK;
+    }
 
     if (port->type.rig == RIG_PORT_NETWORK
             || port->type.rig == RIG_PORT_UDP_NETWORK)

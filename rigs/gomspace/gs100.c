@@ -29,9 +29,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <math.h>
-#include <time.h>
 #include <assert.h>
 
 #include "hamlib/rig.h"
@@ -117,7 +114,7 @@ static int gs100_init(RIG *rig)
         RETURNFUNC(-RIG_EINVAL);
     }
 
-    priv = (struct gs100_priv_data *)malloc(sizeof(struct gs100_priv_data));
+    priv = (struct gs100_priv_data *)calloc(1, sizeof(struct gs100_priv_data));
 
     if (!priv)
     {

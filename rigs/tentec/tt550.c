@@ -28,7 +28,6 @@
 #include <unistd.h>     /* UNIX standard function definitions */
 #include <fcntl.h>      /* File control definitions */
 #include <errno.h>      /* Error number definitions */
-#include <math.h>
 
 #include <hamlib/rig.h>
 #include "serial.h"
@@ -361,7 +360,7 @@ tt550_init(RIG *rig)
 {
     struct tt550_priv_data *priv;
 
-    rig->state.priv = (struct tt550_priv_data *) malloc(sizeof(
+    rig->state.priv = (struct tt550_priv_data *) calloc(1, sizeof(
                           struct tt550_priv_data));
 
     if (!rig->state.priv)

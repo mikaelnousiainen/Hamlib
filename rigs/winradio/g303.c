@@ -19,7 +19,6 @@
  *
  */
 
-#include <stdlib.h>
 
 #include <hamlib/rig.h>
 #include "winradio.h"
@@ -191,7 +190,7 @@ int g3_init(RIG *rig)
 {
     struct g3_priv_data *priv;
 
-    rig->state.priv = (struct g3_priv_data *)malloc(sizeof(struct g3_priv_data));
+    rig->state.priv = (struct g3_priv_data *)calloc(1, sizeof(struct g3_priv_data));
 
     if (!rig->state.priv)
     {

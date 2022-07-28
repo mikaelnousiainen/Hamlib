@@ -47,6 +47,8 @@ int rig_set_cache_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     if (vfo == RIG_VFO_SUB && rig->state.cache.satmode) { vfo = RIG_VFO_SUB_A; };
 
+    if (vfo == RIG_VFO_OTHER) { vfo = vfo_fixup(rig, vfo, rig->state.cache.split); }
+
     switch (vfo)
     {
     case RIG_VFO_ALL: // we'll use NONE to reset all VFO caches
@@ -97,7 +99,7 @@ int rig_set_cache_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: unknown vfo=%s\n", __func__, rig_strvfo(vfo));
+        rig_debug(RIG_DEBUG_WARN, "%s: unknown vfo=%s\n", __func__, rig_strvfo(vfo));
         RETURNFUNC(-RIG_EINTERNAL);
     }
 

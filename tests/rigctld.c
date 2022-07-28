@@ -69,7 +69,6 @@
 #endif
 
 #include <hamlib/rig.h>
-#include <hamlibdatetime.h>
 #include "misc.h"
 #include "iofunc.h"
 #include "serial.h"
@@ -153,6 +152,7 @@ int multicast_port = 4532;
 extern char rigctld_password[65];
 char resp_sep = '\n';
 extern int lock_mode;
+extern powerstat_t rig_powerstat;
 
 #define MAXCONFLEN 1024
 
@@ -974,7 +974,9 @@ int main(int argc, char *argv[])
     /*
      * main loop accepting connections
      */
-    rig_debug(RIG_DEBUG_TRACE, "%s: rigctld listening on port %s\n", __func__, portno);
+    rig_debug(RIG_DEBUG_TRACE, "%s: rigctld listening on port %s\n", __func__,
+              portno);
+
     do
     {
         fd_set set;
@@ -1150,6 +1152,7 @@ void *handle_socket(void *arg)
     char serv[NI_MAXSERV];
     char send_cmd_term = '\r';  /* send_cmd termination char */
     int ext_resp = 0;
+    rig_powerstat = RIG_POWER_ON; // defaults to power on
 
     fsockin = get_fsockin(handle_data_arg);
 
@@ -1194,7 +1197,9 @@ void *handle_socket(void *arg)
 
     mutex_rigctld(0);
 #else
+    mutext_rigctld(1);
     retcode = rig_open(my_rig);
+    mutext_rigctld(1);
 
     if (RIG_OK == retcode && verbose > RIG_DEBUG_ERR)
     {
@@ -1204,6 +1209,11 @@ void *handle_socket(void *arg)
     }
 
 #endif
+
+    mutex_rigctld(1);
+    rig_get_powerstat(my_rig, &rig_powerstat);
+    mutex_rigctld(0);
+    my_rig->state.powerstat = rig_powerstat;
 
     do
     {
@@ -1221,6 +1231,7 @@ void *handle_socket(void *arg)
 
         if (rig_opened) // only do this if rig is open
         {
+            powerstat_t powerstat;
             rig_debug(RIG_DEBUG_TRACE, "%s: doing rigctl_parse vfo_mode=%d, secure=%d\n",
                       __func__,
                       handle_data_arg->vfo_mode, handle_data_arg->use_password);
@@ -1230,6 +1241,16 @@ void *handle_socket(void *arg)
                                    handle_data_arg->use_password);
 
             if (retcode != 0) { rig_debug(RIG_DEBUG_VERBOSE, "%s: rigctl_parse retcode=%d\n", __func__, retcode); }
+
+            // update our power stat in case power gets turned off
+            if (retcode == -RIG_ETIMEOUT
+                    && my_rig->caps->get_powerstat) // if we get a timeout we might be powered off
+            {
+                rig_get_powerstat(my_rig, &powerstat);
+                rig_powerstat = powerstat;
+
+                if (powerstat == RIG_POWER_OFF) { retcode = -RIG_EPOWER; }
+            }
         }
         else
         {

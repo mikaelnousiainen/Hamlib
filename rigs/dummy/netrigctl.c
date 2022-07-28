@@ -25,8 +25,6 @@
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
 #include <unistd.h>  /* UNIX standard function definitions */
-#include <math.h>
-#include <time.h>
 #include <errno.h>
 
 #include "hamlib/rig.h"
@@ -170,7 +168,7 @@ static int netrigctl_init(RIG *rig)
         return -RIG_EINVAL;
     }
 
-    rig->state.priv = (struct netrigctl_priv_data *)malloc(sizeof(
+    rig->state.priv = (struct netrigctl_priv_data *)calloc(1, sizeof(
                           struct netrigctl_priv_data));
 
     if (!rig->state.priv)
@@ -298,7 +296,7 @@ static int netrigctl_open(RIG *rig)
 
     if (ret <= 0)
     {
-        RETURNFUNC( (ret < 0) ? ret : -RIG_EPROTO);
+        RETURNFUNC((ret < 0) ? ret : -RIG_EPROTO);
     }
 
     prot_ver = atoi(buf);
@@ -306,7 +304,7 @@ static int netrigctl_open(RIG *rig)
 
     if (prot_ver < RIGCTLD_PROT_VER)
     {
-        RETURNFUNC( -RIG_EPROTO);
+        RETURNFUNC(-RIG_EPROTO);
     }
 
     ret = read_string(&rig->state.rigport, (unsigned char *) buf, BUF_MAX, "\n", 1,
@@ -681,7 +679,7 @@ static int netrigctl_open(RIG *rig)
             else if (strcmp(setting, "ptt_type") == 0)
             {
                 ptt_type_t temp = (ptt_type_t)strtol(value, NULL, 0);
-                rig_debug(RIG_DEBUG_ERR, "%s: ptt_type='%s'(%d)\n", __func__, value, temp);
+                rig_debug(RIG_DEBUG_VERBOSE, "%s: ptt_type='%s'(%d)\n", __func__, value, temp);
 
                 if (RIG_PTT_RIG_MICDATA == rig->state.pttport.type.ptt
                         || temp == RIG_PTT_RIG_MICDATA)
@@ -707,7 +705,7 @@ static int netrigctl_open(RIG *rig)
             else if (strcmp(setting, "targetable_vfo") == 0)
             {
                 rig->caps->targetable_vfo = strtol(value, NULL, 0);
-                rig_debug(RIG_DEBUG_ERR, "%s: targetable_vfo=0x%2x\n", __func__,
+                rig_debug(RIG_DEBUG_VERBOSE, "%s: targetable_vfo=0x%2x\n", __func__,
                           rig->caps->targetable_vfo);
             }
 
@@ -2389,7 +2387,7 @@ static int netrigctl_send_dtmf(RIG *rig, vfo_t vfo, const char *digits)
 
     // allocate memory for size of (cmd + digits + \n + \0)
     len = strlen(cmd) + strlen(digits) + 2;
-    cmdp = malloc(len);
+    cmdp = calloc(1, len);
 
     if (cmdp == NULL)
     {
@@ -2472,7 +2470,7 @@ static int netrigctl_send_morse(RIG *rig, vfo_t vfo, const char *msg)
 
     // allocate memory for size of (cmd + msg + \n + \0)
     len = strlen(cmd) + strlen(msg) + 2;
-    cmdp = malloc(len);
+    cmdp = calloc(1, len);
 
     if (cmdp == NULL)
     {
@@ -2658,6 +2656,7 @@ int netrigctl_set_lock_mode(RIG *rig, int lock)
     {
         return -RIG_EPROTO;
     }
+
     return (RIG_OK);
 }
 
@@ -2668,11 +2667,13 @@ int netrigctl_get_lock_mode(RIG *rig, int *lock)
     int ret;
     SNPRINTF(cmdbuf, sizeof(cmdbuf), "\\get_lock_mode\n");
     ret = netrigctl_transaction(rig, cmdbuf, strlen(cmdbuf), buf);
+
     if (ret == 0)
     {
         return -RIG_EPROTO;
     }
-    sscanf(buf,"%d", lock);
+
+    sscanf(buf, "%d", lock);
     return (RIG_OK);
 }
 
@@ -2685,7 +2686,7 @@ struct rig_caps netrigctl_caps =
     RIG_MODEL(RIG_MODEL_NETRIGCTL),
     .model_name =     "NET rigctl",
     .mfg_name =       "Hamlib",
-    .version =        "20220706.0",
+    .version =        "20220722.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,

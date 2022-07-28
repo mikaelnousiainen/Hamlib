@@ -23,9 +23,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
-#include <math.h>
 
 #include "hamlib/rig.h"
 #include "serial.h"
@@ -214,7 +211,7 @@ int wj_init(RIG *rig)
         return -RIG_EINVAL;
     }
 
-    rig->state.priv = (struct wj_priv_data *)malloc(sizeof(struct wj_priv_data));
+    rig->state.priv = (struct wj_priv_data *)calloc(1, sizeof(struct wj_priv_data));
 
     if (!rig->state.priv)
     {

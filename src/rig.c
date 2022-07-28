@@ -94,6 +94,7 @@ const char hamlib_version[21] = "Hamlib " PACKAGE_VERSION;
 const char *hamlib_version2 = "Hamlib " PACKAGE_VERSION " " HAMLIBDATETIME;
 HAMLIB_EXPORT_VAR(int) cookie_use;
 HAMLIB_EXPORT_VAR(int) lock_mode; // for use by rigctld
+HAMLIB_EXPORT_VAR(powerstat_t) rig_powerstat; // for use by rigctld
 //! @endcond
 
 struct rig_caps caps_test;
@@ -207,7 +208,8 @@ static const char *const rigerror_table[] =
     "Invalid VFO",
     "Argument out of domain of func",
     "Function deprecated",
-    "Security error password not provided or crypto failure"
+    "Security error password not provided or crypto failure",
+    "Rig is not powered on"
 };
 
 
@@ -238,7 +240,7 @@ static int add_opened_rig(RIG *rig)
 {
     struct opened_rig_l *p;
 
-    p = (struct opened_rig_l *)malloc(sizeof(struct opened_rig_l));
+    p = (struct opened_rig_l *)calloc(1, sizeof(struct opened_rig_l));
 
     if (!p)
     {
@@ -546,6 +548,7 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
     pthread_mutex_init(&rs->mutex_set_transaction, NULL);
 #endif
 
+    rs->priv = NULL;
     rs->async_data_enabled = 0;
     rs->rigport.fd = -1;
     rs->pttport.fd = -1;
@@ -749,6 +752,7 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
     rs->announces = caps->announces;
 
     rs->rigport.fd = rs->pttport.fd = rs->dcdport.fd = -1;
+    rs->powerstat = RIG_POWER_ON; // default to power on
 
     /*
      * let the backend a chance to setup his private data
@@ -846,7 +850,7 @@ int HAMLIB_API rig_open(RIG *rig)
 
     rig_settings_load_all(NULL); // load default .hamlib_settings
     // Read in our settings
-    char *cwd = malloc(4096);
+    char *cwd = calloc(1, 4096);
 
     if (getcwd(cwd, 4096) == NULL)
     {
@@ -855,9 +859,11 @@ int HAMLIB_API rig_open(RIG *rig)
     else
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: cwd=%s\n", __func__, cwd);
-        char *path = malloc(4096);
+        char *path = calloc(1, 4096);
         extern char *settings_file;
         char *xdgpath = getenv("XDG_CONFIG_HOME");
+
+        settings_file = "hamlib_settings";
 
         if (xdgpath)
         {
@@ -1236,6 +1242,9 @@ int HAMLIB_API rig_open(RIG *rig)
      * Maybe the backend has something to initialize
      * In case of failure, just close down and report error code.
      */
+    int retry_save = rs->rigport.retry;
+    rs->rigport.retry = 1;
+
     if (caps->rig_open != NULL)
     {
         status = caps->rig_open(rig);
@@ -1310,16 +1319,31 @@ int HAMLIB_API rig_open(RIG *rig)
 //    freq_t freq;
 //    if (caps->get_freq) rig_get_freq(rig, RIG_VFO_A, &freq);
 //    if (caps->get_freq) rig_get_freq(rig, RIG_VFO_B, &freq);
-    
+
     // prime the freq and mode settings
     // don't care about the return here -- if it doesn't work so be it
     freq_t freq;
-    rig_get_freq(rig, RIG_VFO_A, &freq);
-    rig_get_freq(rig, RIG_VFO_B, &freq);
-    rmode_t mode;
-    pbwidth_t width;
-    rig_get_mode(rig, RIG_VFO_A, &mode, &width);
-    rig_get_mode(rig, RIG_VFO_B, &mode, &width);
+
+    if (rig->caps->get_freq)
+    {
+        int retval = rig_get_freq(rig, RIG_VFO_A, &freq);
+
+        if (retval == RIG_OK && rig->caps->rig_model != RIG_MODEL_F6K)
+        {
+            vfo_t tx_vfo;
+            split_t split;
+            rig_get_freq(rig, RIG_VFO_B, &freq);
+            rig_get_split_vfo(rig, RIG_VFO_RX, &tx_vfo, &split);
+            rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): Current split=%d, tx_vfo=%s\n", __func__,
+                      __LINE__, split, rig_strvfo(tx_vfo));
+            rmode_t mode;
+            pbwidth_t width;
+            rig_get_mode(rig, RIG_VFO_A, &mode, &width);
+            rig_get_mode(rig, RIG_VFO_B, &mode, &width);
+        }
+    }
+
+    rs->rigport.retry = retry_save;
 
     memcpy(&rs->rigport_deprecated, &rs->rigport, sizeof(hamlib_port_t_deprecated));
     memcpy(&rs->pttport_deprecated, &rs->pttport, sizeof(hamlib_port_t_deprecated));
@@ -2180,7 +2204,8 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     }
 
     rig_get_lock_mode(rig, &locked_mode);
-    if (locked_mode) { return(RIG_OK); }
+
+    if (locked_mode) { return (RIG_OK); }
 
     // do not mess with mode while PTT is on
     if (rig->state.cache.ptt)
@@ -2238,6 +2263,8 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         }
 
         curr_vfo = rig->state.current_vfo;
+        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): curr_vfo=%s, vfo=%s\n", __func__,
+                  __LINE__, rig_strvfo(curr_vfo), rig_strvfo(vfo));
         HAMLIB_TRACE;
         retcode = caps->set_vfo(rig, vfo);
 
@@ -2637,7 +2664,7 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
         if (retcode != RIG_OK)
         {
             rig_debug(RIG_DEBUG_WARN, "%s: rig_get_vfo error=%s\n", __func__,
-                  rigerror(retcode));
+                      rigerror(retcode));
         }
 
         if (curr_vfo == vfo) { RETURNFUNC(RIG_OK); }
@@ -4165,14 +4192,18 @@ int HAMLIB_API rig_set_split_mode(RIG *rig,
 
     // we check both VFOs are in the same tx mode -- then we can ignore
     // this could be make more intelligent but this should cover all cases where we can skip this
-    if (tx_mode == rig->state.cache.modeMainA && tx_mode == rig->state.cache.modeMainB)
+    if (tx_mode == rig->state.cache.modeMainA
+            && tx_mode == rig->state.cache.modeMainB)
     {
-        rig_debug(RIG_DEBUG_TRACE, "%s: mode already %s so no change required\n", __func__, rig_strrmode(tx_mode));
-        return RIG_OK;
+        rig_debug(RIG_DEBUG_TRACE, "%s: mode already %s so no change required\n",
+                  __func__, rig_strrmode(tx_mode));
+        RETURNFUNC(RIG_OK);
     }
     else
     {
-        rig_debug(RIG_DEBUG_TRACE, "%s: mode %s is different from A=%s and B=%s\n", __func__, rig_strrmode(tx_mode), rig_strrmode(rig->state.cache.modeMainA), rig_strrmode(rig->state.cache.modeMainB));
+        rig_debug(RIG_DEBUG_TRACE, "%s: mode %s is different from A=%s and B=%s\n",
+                  __func__, rig_strrmode(tx_mode), rig_strrmode(rig->state.cache.modeMainA),
+                  rig_strrmode(rig->state.cache.modeMainB));
     }
 
     // do not mess with mode while PTT is on
@@ -4180,7 +4211,7 @@ int HAMLIB_API rig_set_split_mode(RIG *rig,
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s PTT on so set_split_mode ignored\n", __func__);
         ELAPSED2;
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
     }
 
     caps = rig->caps;
@@ -4328,9 +4359,13 @@ int HAMLIB_API rig_set_split_mode(RIG *rig,
     rig_set_split_vfo(rig, rx_vfo, RIG_SPLIT_ON, tx_vfo);
 
     if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
-    rig->state.cache.modeMainA = tx_mode;
+    {
+        rig->state.cache.modeMainA = tx_mode;
+    }
     else
-    rig->state.cache.modeMainB = tx_mode;
+    {
+        rig->state.cache.modeMainB = tx_mode;
+    }
 
 
     ELAPSED2;
@@ -5791,6 +5826,7 @@ int HAMLIB_API rig_get_powerstat(RIG *rig, powerstat_t *status)
 
     if (CHECK_RIG_ARG(rig))
     {
+        *status = RIG_POWER_ON; // default to power on if not available
         RETURNFUNC(-RIG_EINVAL);
     }
 

@@ -298,7 +298,7 @@ transaction_write:
 
         len = strlen(cmdstr);
 
-        cmd = malloc(len + 2);
+        cmd = calloc(1, len + 2);
 
         if (cmd == NULL)
         {
@@ -489,7 +489,8 @@ transaction_read:
 
             if (retry_read++ < rs->rigport.retry)
             {
-                rig_debug(RIG_DEBUG_ERR, "%s: Retrying shortly\n", __func__);
+                rig_debug(RIG_DEBUG_ERR, "%s: Retrying shortly %d of %d\n", __func__,
+                          retry_read, rs->rigport.retry);
                 hl_usleep(rig->caps->timeout * 1000);
                 goto transaction_write;
             }
@@ -724,7 +725,7 @@ int kenwood_init(RIG *rig)
     rig_debug(RIG_DEBUG_VERBOSE, "%s called, version %s/%s\n", __func__,
               BACKEND_VER, rig->caps->version);
 
-    rig->state.priv = malloc(sizeof(struct kenwood_priv_data));
+    rig->state.priv = calloc(1, sizeof(struct kenwood_priv_data));
 
     if (rig->state.priv == NULL)
     {
@@ -1100,7 +1101,10 @@ int kenwood_set_vfo(RIG *rig, vfo_t vfo)
     char vfo_function;
     struct kenwood_priv_data *priv = rig->state.priv;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s\n", __func__, rig_strvfo(vfo));
+    ENTERFUNC;
+    rig_debug(RIG_DEBUG_VERBOSE,
+              "%s called vfo=%s, is_emulation=%d, curr_mode=%s\n", __func__, rig_strvfo(vfo),
+              priv->is_emulation,  rig_strrmode(priv->curr_mode));
 
 
     /* Emulations do not need to set VFO since VFOB is a copy of VFOA
@@ -1108,11 +1112,13 @@ int kenwood_set_vfo(RIG *rig, vfo_t vfo)
      * This prevents a 1.8 second delay in PowerSDR when switching VFOs
      * We'll do this once if curr_mode has not been set yet
      */
-    if (priv->is_emulation && priv->curr_mode > 0)
+    if (vfo == RIG_VFO_B &&  priv->is_emulation && priv->curr_mode > 0)
     {
         HAMLIB_TRACE;
         RETURNFUNC2(RIG_OK);
     }
+
+#if 0
 
     if (rig->state.current_vfo == vfo)
     {
@@ -1120,6 +1126,8 @@ int kenwood_set_vfo(RIG *rig, vfo_t vfo)
                   rig_strvfo(vfo));
         RETURNFUNC2(RIG_OK);
     }
+
+#endif
 
     switch (vfo)
     {
@@ -1414,6 +1422,7 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
     }
     else
     {
+        HAMLIB_TRACE;
         strcat(cmdbuf, ";FT0");
     }
 
@@ -1423,10 +1432,6 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
     {
         RETURNFUNC2(retval);
     }
-
-    rig->state.cache.split = split;
-    rig->state.cache.split_vfo = txvfo;
-    elapsed_ms(&rig->state.cache.time_split, HAMLIB_ELAPSED_SET);
 
     /* Split off means Rx and Tx are the same */
     if (split == RIG_SPLIT_OFF)
@@ -1484,6 +1489,10 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
     tsplit = RIG_SPLIT_OFF; // default in case rig does not set split status
     retval = rig_get_split(rig, vfo, &tsplit);
 
+    priv->split = rig->state.cache.split = split;
+    rig->state.cache.split_vfo = txvfo;
+    elapsed_ms(&rig->state.cache.time_split, HAMLIB_ELAPSED_SET);
+
     // and it should be OK to do a SPLIT_OFF at any time so we won's skip that
     if (retval == RIG_OK && split == RIG_SPLIT_ON && tsplit == RIG_SPLIT_ON)
     {
@@ -1511,7 +1520,8 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
     }
 
     /* Remember whether split is on, for kenwood_set_vfo */
-    priv->split = split;
+    priv->split = rig->state.cache.split = split;
+    elapsed_ms(&rig->state.cache.time_split, HAMLIB_ELAPSED_SET);
 
     RETURNFUNC2(RIG_OK);
 }
@@ -1577,13 +1587,13 @@ int kenwood_get_split_vfo_if(RIG *rig, vfo_t rxvfo, split_t *split,
             {
                 *split = RIG_SPLIT_ON;
                 *txvfo = RIG_VFO_SUB;
-                priv->tx_vfo = *txvfo;
+                priv->tx_vfo = rig->state.tx_vfo = *txvfo;
             }
             else
             {
                 *split = RIG_SPLIT_OFF;
                 *txvfo = RIG_VFO_MAIN;
-                priv->tx_vfo = *txvfo;
+                priv->tx_vfo = rig->state.tx_vfo = *txvfo;
             }
         }
 
@@ -1626,19 +1636,21 @@ int kenwood_get_split_vfo_if(RIG *rig, vfo_t rxvfo, split_t *split,
         if (rig->state.rx_vfo == RIG_VFO_A)
         {
             HAMLIB_TRACE;
-            *txvfo = priv->tx_vfo = (*split && !transmitting) ? RIG_VFO_B : RIG_VFO_A;
+            *txvfo = rig->state.tx_vfo = priv->tx_vfo = (*split
+                                         && !transmitting) ? RIG_VFO_B : RIG_VFO_A;
         }
         else if (rig->state.rx_vfo == RIG_VFO_B)
         {
             HAMLIB_TRACE;
-            *txvfo = priv->tx_vfo = (*split && !transmitting) ? RIG_VFO_B : RIG_VFO_A;
+            *txvfo = rig->state.tx_vfo = priv->tx_vfo = (*split
+                                         && !transmitting) ? RIG_VFO_B : RIG_VFO_A;
         }
         else
         {
             rig_debug(RIG_DEBUG_WARN, "%s(%d): unknown rxVFO=%s\n", __func__, __LINE__,
                       rig_strvfo(rig->state.rx_vfo));
             *txvfo = RIG_VFO_A; // pick a default
-            rig->state.rx_vfo = RIG_VFO_A;
+            rig->state.rx_vfo = priv->tx_vfo = RIG_VFO_A;
         }
 
         break;
@@ -1953,6 +1965,7 @@ int kenwood_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
         RETURNFUNC(-RIG_EINVAL);
     }
+
     if (rig->caps->rig_model == RIG_MODEL_MALACHITE && vfo == RIG_VFO_B)
     {
         // Malachite does not have VFOB so we'll just return VFOA
@@ -2870,14 +2883,16 @@ static int kenwood_get_power_minmax(RIG *rig, int *power_now, int *power_min,
         expected_length = 18;
     }
 
-    retval = read_string(&rs->rigport, (unsigned char *) levelbuf, expected_length + 1,
-            NULL, 0, 0, 1);
+    retval = read_string(&rs->rigport, (unsigned char *) levelbuf,
+                         expected_length + 1,
+                         NULL, 0, 0, 1);
 
     rig_debug(RIG_DEBUG_TRACE, "%s: retval=%d\n", __func__, retval);
 
     if (retval != expected_length)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: expected %d, got %d in '%s'\n", __func__, expected_length,
+        rig_debug(RIG_DEBUG_ERR, "%s: expected %d, got %d in '%s'\n", __func__,
+                  expected_length,
                   retval,
                   levelbuf);
         RETURNFUNC(-RIG_EPROTO);

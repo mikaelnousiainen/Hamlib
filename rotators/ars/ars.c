@@ -24,7 +24,6 @@
 
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
@@ -148,7 +147,8 @@ ars_init(ROT *rot)
         return -RIG_EINVAL;
     }
 
-    rot->state.priv = (struct ars_priv_data *)malloc(sizeof(struct ars_priv_data));
+    rot->state.priv = (struct ars_priv_data *)calloc(1,
+                      sizeof(struct ars_priv_data));
 
     if (!rot->state.priv)
     {

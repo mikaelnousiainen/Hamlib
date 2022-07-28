@@ -23,8 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
-#include <math.h>
 
 #include "hamlib/rig.h"
 #include "serial.h"
@@ -72,7 +70,7 @@ int optoscan_open(RIG *rig)
     rs = &rig->state;
     priv = (struct icom_priv_data *)rs->priv;
 
-    pltstate = malloc(sizeof(pltstate_t));
+    pltstate = calloc(1, sizeof(pltstate_t));
 
     if (!pltstate)
     {

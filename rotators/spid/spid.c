@@ -24,8 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <math.h>
 
 #include "hamlib/rotator.h"
 #include "serial.h"
@@ -57,7 +55,7 @@ static int spid_rot_init(ROT *rot)
     {
         struct spid_rot2prog_priv_data *priv;
 
-        priv = (struct spid_rot2prog_priv_data *)malloc(sizeof(struct
+        priv = (struct spid_rot2prog_priv_data *)calloc(1, sizeof(struct
                 spid_rot2prog_priv_data));
 
         if (!priv)

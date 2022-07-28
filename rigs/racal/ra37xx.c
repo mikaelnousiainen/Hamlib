@@ -23,8 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
-#include <math.h>
 
 #include "hamlib/rig.h"
 #include "serial.h"
@@ -221,7 +219,7 @@ int ra37xx_init(RIG *rig)
         return -RIG_EINVAL;
     }
 
-    rig->state.priv = (struct ra37xx_priv_data *)malloc(sizeof(
+    rig->state.priv = (struct ra37xx_priv_data *)calloc(1, sizeof(
                           struct ra37xx_priv_data));
 
     if (!rig->state.priv)

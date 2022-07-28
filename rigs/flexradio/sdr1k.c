@@ -22,8 +22,6 @@
 #include <hamlib/config.h>
 
 #include <stdlib.h>
-#include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
 #include <math.h>
 
 #include "hamlib/rig.h"
@@ -197,7 +195,7 @@ int sdr1k_init(RIG *rig)
 {
     struct sdr1k_priv_data *priv;
 
-    rig->state.priv = (struct sdr1k_priv_data *)malloc(sizeof(
+    rig->state.priv = (struct sdr1k_priv_data *)calloc(1, sizeof(
                           struct sdr1k_priv_data));
 
     if (!rig->state.priv)

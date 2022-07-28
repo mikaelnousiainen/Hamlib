@@ -40,9 +40,7 @@
 #include <unistd.h>  /* UNIX standard function definitions */
 #include <fcntl.h>   /* File control definitions */
 #include <errno.h>   /* Error number definitions */
-#include <sys/time.h>
 #include <sys/types.h>
-#include <unistd.h>
 #include <ctype.h>
 
 #ifdef HAVE_SYS_IOCTL_H
@@ -620,7 +618,7 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
 #endif
 
     // Store a copy of the original options for this FD, to be restored on close.
-    term_backup = malloc(sizeof(term_options_backup_t));
+    term_backup = calloc(1, sizeof(term_options_backup_t));
     term_backup-> fd = fd;
 #if defined(HAVE_TERMIOS_H) || defined(HAVE_TERMIO_H)
     memcpy(&term_backup->options, &orig_options, sizeof(orig_options));

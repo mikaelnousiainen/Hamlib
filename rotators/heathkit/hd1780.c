@@ -31,7 +31,6 @@
 #include <stdio.h>
 #include <stdlib.h>             /* Standard library definitions */
 #include <string.h>             /* String function definitions */
-#include <unistd.h>             /* UNIX standard function definitions */
 
 #include "hamlib/rotator.h"
 #include "serial.h"
@@ -119,7 +118,7 @@ static int hd1780_rot_init(ROT *rot)
     }
 
     rot->state.priv = (struct hd1780_rot_priv_data *)
-                      malloc(sizeof(struct hd1780_rot_priv_data));
+                      calloc(1, sizeof(struct hd1780_rot_priv_data));
 
     if (!rot->state.priv)
     {

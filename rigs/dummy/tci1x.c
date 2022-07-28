@@ -23,8 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>             /* String function definitions */
-#include <unistd.h>             /* UNIX standard function definitions */
-#include <math.h>
 
 #include <hamlib/rig.h>
 #include <serial.h>
@@ -426,7 +424,7 @@ static int tci1x_init(RIG *rig)
     ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s version %s\n", __func__, rig->caps->version);
 
-    rig->state.priv  = (struct tci1x_priv_data *)malloc(sizeof(
+    rig->state.priv  = (struct tci1x_priv_data *)calloc(1, sizeof(
                            struct tci1x_priv_data));
 
     if (!rig->state.priv)

@@ -25,8 +25,6 @@
 #include <hamlib/config.h>
 
 #include <stdio.h>
-#include <stdlib.h>      /* Standard library definitions */
-#include <string.h>      /* String function definitions */
 
 #include "register.h"
 
@@ -63,7 +61,7 @@ const struct amp_caps kpa1500_amp_caps =
     AMP_MODEL(AMP_MODEL_ELECRAFT_KPA1500),
     .model_name =   "KPA1500",
     .mfg_name =     "Elecraft",
-    .version =      "20210901.0",
+    .version =      "20220710.0",
     .copyright =    "LGPL",
     .status =     RIG_STATUS_ALPHA,
     .amp_type =     AMP_TYPE_OTHER,
@@ -78,6 +76,8 @@ const struct amp_caps kpa1500_amp_caps =
     .post_write_delay = 0,
     .timeout =      2000,
     .retry =      2,
+    .has_get_level = AMP_LEVEL_SWR | AMP_LEVEL_NH | AMP_LEVEL_PF | AMP_LEVEL_PWR_INPUT | AMP_LEVEL_PWR_FWD | AMP_LEVEL_PWR_REFLECTED | AMP_LEVEL_FAULT,
+    .has_set_level = 0,
 
     .amp_open = NULL,
     .amp_init = kpa_init,

@@ -30,8 +30,6 @@
 // cppcheck-suppress *
 #include <unistd.h>  /* UNIX standard function definitions */
 // cppcheck-suppress *
-#include <math.h>
-// cppcheck-suppress *
 #include <time.h>
 
 #include "hamlib/rig.h"
@@ -224,7 +222,7 @@ static int dummy_init(RIG *rig)
     int i;
 
     ENTERFUNC;
-    priv = (struct dummy_priv_data *)malloc(sizeof(struct dummy_priv_data));
+    priv = (struct dummy_priv_data *)calloc(1, sizeof(struct dummy_priv_data));
 
     if (!priv)
     {
@@ -236,8 +234,10 @@ static int dummy_init(RIG *rig)
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
     rig->state.rigport.type.rig = RIG_PORT_NONE;
 
+    priv->split = RIG_SPLIT_OFF;
     priv->ptt = RIG_PTT_OFF;
     priv->powerstat = RIG_POWER_ON;
+    rig->state.powerstat = priv->powerstat;
     priv->bank = 0;
     memset(priv->parms, 0, RIG_SETTING_MAX * sizeof(value_t));
 
@@ -417,6 +417,12 @@ static int dummy_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     ENTERFUNC;
 
+    if (rig == NULL)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: rig is NULL!!!\n", __func__);
+        return -RIG_EINVAL;
+    }
+
     if (vfo == RIG_VFO_CURR) { vfo = priv->curr_vfo; }
 
 // if needed for testing enable this to emulate a rig with 100hz resolution
@@ -448,7 +454,7 @@ static int dummy_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     case RIG_VFO_C: priv->vfo_c.freq = freq; break;
     }
 
-    if (!priv->split)
+    if (priv && !priv->split)
     {
         priv->curr->tx_freq = freq;
     }
@@ -2260,7 +2266,7 @@ struct rig_caps dummy_caps =
     RIG_MODEL(RIG_MODEL_DUMMY),
     .model_name =     "Dummy",
     .mfg_name =       "Hamlib",
-    .version =        "20220510.0",
+    .version =        "20220727.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,

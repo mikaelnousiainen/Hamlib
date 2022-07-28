@@ -22,10 +22,8 @@
 #include <stdlib.h>
 #include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
 #include <fcntl.h>   /* File control definitions */
 #include <errno.h>   /* Error number definitions */
-#include <math.h>
 
 #include "hamlib/rig.h"
 #include "iofunc.h"
@@ -298,7 +296,7 @@ int hiqsdr_init(RIG *rig)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    rig->state.priv = (struct hiqsdr_priv_data *)malloc(sizeof(
+    rig->state.priv = (struct hiqsdr_priv_data *)calloc(1, sizeof(
                           struct hiqsdr_priv_data));
 
     if (!rig->state.priv)
