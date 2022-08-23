@@ -137,6 +137,10 @@ extern HAMLIB_EXPORT_VAR(const char *) hamlib_copyright2;
  * Unless stated otherwise, Hamlib functions return the negative value
  * of rig_errcode_e definitions in case of error, or 0 when successful.
  */
+ /**
+  * @{ \name Hamlib error codes
+  */
+
 enum rig_errcode_e {
     RIG_OK = 0,     /*!< 0 No error, operation completed successfully */
     RIG_EINVAL,     /*!< 1 invalid parameter */
@@ -158,8 +162,12 @@ enum rig_errcode_e {
     RIG_EDOM,       /*!< 17 Argument out of domain of func */
     RIG_EDEPRECATED,/*!< 18 Function deprecated */
     RIG_ESECURITY,  /*!< 19 Security error */
-    RIG_EPOWER      /*!< 20 Rig not powered on */
+    RIG_EPOWER,     /*!, 20 Rig not powered on */
+    RIG_EEND        // MUST BE LAST ITEM IN LAST
 };
+/**
+ * @}
+ */
 
 /**
  * \brief Determines if the given error code indicates a "soft" error
@@ -168,7 +176,8 @@ enum rig_errcode_e {
  */
 #define RIG_IS_SOFT_ERRCODE(errcode) (errcode == RIG_EINVAL || errcode == RIG_ENIMPL || errcode == RIG_ERJCTED \
     || errcode == RIG_ETRUNC || errcode == RIG_ENAVAIL || errcode == RIG_ENTARGET \
-    || errcode == RIG_EVFO || errcode == RIG_EDOM || errcode == RIG_ESECURITY)
+    || errcode == RIG_EVFO || errcode == RIG_EDOM || errcode == RIG_EDEPRECATED \
+    || errcode == RIG_ESECURITY || errcode == RIG_EPOWER)
 
 /**
  * \brief Token in the netrigctl protocol for returning error code
@@ -1277,8 +1286,8 @@ typedef uint64_t rmode_t;
 #define    RIG_MODE_SPEC      CONSTANT_64BIT_FLAG (35)  /*!< \c Unfiltered as in PowerSDR */
 #define    RIG_MODE_CWN       CONSTANT_64BIT_FLAG (36)  /*!< \c CWN -- Narrow band CW (FT-736R) */
 #define    RIG_MODE_IQ        CONSTANT_64BIT_FLAG (37)  /*!< \c IQ mode for a couple of kit rigs */
-#define    RIG_MODE_BIT38     CONSTANT_64BIT_FLAG (38)  /*!< \c reserved for future expansion */
-#define    RIG_MODE_BIT39     CONSTANT_64BIT_FLAG (39)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_ISBUSB    CONSTANT_64BIT_FLAG (38)  /*!< \c ISB mode monitoring USB */
+#define    RIG_MODE_ISBLSB    CONSTANT_64BIT_FLAG (39)  /*!< \c ISB mode monitoring LSB */
 #define    RIG_MODE_BIT40     CONSTANT_64BIT_FLAG (40)  /*!< \c reserved for future expansion */
 #define    RIG_MODE_BIT41     CONSTANT_64BIT_FLAG (41)  /*!< \c reserved for future expansion */
 #define    RIG_MODE_BIT42     CONSTANT_64BIT_FLAG (42)  /*!< \c reserved for future expansion */

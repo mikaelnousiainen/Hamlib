@@ -303,7 +303,7 @@ const struct rig_caps ft747_caps =
     RIG_MODEL(RIG_MODEL_FT747),
     .model_name =       "FT-747GX",
     .mfg_name =         "Yaesu",
-    .version =           "20220327.0",
+    .version =           "20220819.1",
     .copyright =         "LGPL",
     .status =            RIG_STATUS_STABLE,
     .rig_type =          RIG_TYPE_MOBILE,
@@ -333,7 +333,7 @@ const struct rig_caps ft747_caps =
     .max_rit =           Hz(0), /* 9999 */
     .max_xit =           Hz(0),
     .max_ifshift =       Hz(0),
-    .targetable_vfo =    0,
+    .targetable_vfo =    RIG_TARGETABLE_FREQ,
     .transceive =        RIG_TRN_OFF,
     .bank_qty =          0,
     .chan_desc_sz =      0,
@@ -343,18 +343,14 @@ const struct rig_caps ft747_caps =
         RIG_CHAN_END,
     },
 
-    .rx_range_list1 =    { RIG_FRNG_END, },    /* FIXME: enter region 1 setting */
-
-    .tx_range_list1 =    { RIG_FRNG_END, },
-
-    .rx_range_list2 =    { {
+    .rx_range_list1 =    { {
             .startf = kHz(100), .endf = 29999900,
             .modes = FT747_ALL_RX_MODES, .low_power = -1, .high_power = -1, .vfo = FT747_VFOS
         },
         RIG_FRNG_END,
     }, /* rx range */
 
-    .tx_range_list2 =    { {kHz(1500), 1999900, FT747_OTHER_TX_MODES, .low_power = 5000, .high_power = 100000, .vfo = FT747_VFOS}, /* 100W class */
+    .tx_range_list1 =    { {kHz(1500), 1999900, FT747_OTHER_TX_MODES, .low_power = 5000, .high_power = 100000, .vfo = FT747_VFOS}, /* 100W class */
 
         {.startf = kHz(1500), .endf = 1999900, FT747_AM_TX_MODES, .low_power = 2000, .high_power = 25000, .vfo = FT747_VFOS}, /* 25W class */
 
@@ -551,7 +547,8 @@ int ft747_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     p = (struct ft747_priv_data *)rig->state.priv;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "ft747: requested freq = %"PRIfreq" Hz \n", freq);
+    rig_debug(RIG_DEBUG_VERBOSE,
+              "ft747: requested freq = %"PRIfreq" Hz vfo = %s \n", freq, rig_strvfo(vfo));
 
     /*
      * Copy native cmd freq_set to private cmd storage area
@@ -583,10 +580,19 @@ int ft747_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     freq_t f;
     int ret;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE,
+              "%s: called vfo=%s, freqMainA=%.0f, freqMainB=%.0f\n", __func__,
+              rig_strvfo(vfo), rig->state.cache.freqMainA, rig->state.cache.freqMainB);
+
+    if (vfo == RIG_VFO_CURR) { vfo = rig->state.cache.vfo; }
+
+    if (rig->state.cache.ptt == RIG_PTT_ON)
+    {
+        *freq = RIG_VFO_B ? rig->state.cache.freqMainB : rig->state.cache.freqMainA;
+        return RIG_OK;
+    }
 
     p = (struct ft747_priv_data *)rig->state.priv;
-
     ret = ft747_get_update_data(rig); /* get whole shebang from rig */
 
     if (ret < 0)
@@ -997,7 +1003,8 @@ static int ft747_get_update_data(RIG *rig)
     p = (struct ft747_priv_data *)rig->state.priv;
     rigport = &rig->state.rigport;
 
-    if (!rig_check_cache_timeout(&p->status_tv, FT747_CACHE_TIMEOUT))
+    if (rig->state.cache.ptt == RIG_PTT_ON
+            || !rig_check_cache_timeout(&p->status_tv, FT747_CACHE_TIMEOUT))
     {
         return RIG_OK;
     }

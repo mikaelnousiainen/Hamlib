@@ -481,6 +481,26 @@ int newcat_init(RIG *rig)
     priv->current_mem = NC_MEM_CHANNEL_NONE;
     priv->fast_set_commands = FALSE;
 
+    /*
+     * Determine the type of rig from the model number.  Note it is
+     * possible for several model variants to exist; i.e., all the
+     * FT-9000 variants.
+     */
+
+    is_ft450 = newcat_is_rig(rig, RIG_MODEL_FT450);
+    is_ft891 = newcat_is_rig(rig, RIG_MODEL_FT891);
+    is_ft950 = newcat_is_rig(rig, RIG_MODEL_FT950);
+    is_ft991 = newcat_is_rig(rig, RIG_MODEL_FT991);
+    is_ft2000 = newcat_is_rig(rig, RIG_MODEL_FT2000);
+    is_ftdx9000 = newcat_is_rig(rig, RIG_MODEL_FT9000);
+    is_ftdx5000 = newcat_is_rig(rig, RIG_MODEL_FTDX5000);
+    is_ftdx1200 = newcat_is_rig(rig, RIG_MODEL_FTDX1200);
+    is_ftdx3000 = newcat_is_rig(rig, RIG_MODEL_FTDX3000);
+    is_ftdx3000dm = FALSE; // Detected dynamically
+    is_ftdx101d = newcat_is_rig(rig, RIG_MODEL_FTDX101D);
+    is_ftdx101mp = newcat_is_rig(rig, RIG_MODEL_FTDX101MP);
+    is_ftdx10 = newcat_is_rig(rig, RIG_MODEL_FTDX10);
+
     RETURNFUNC(RIG_OK);
 }
 
@@ -590,7 +610,7 @@ int newcat_open(RIG *rig)
 
 #endif
 
-    if (priv->rig_id == NC_RIGID_FTDX3000)
+    if (priv->rig_id == NC_RIGID_FTDX3000 || priv->rig_id == NC_RIGID_FTDX3000DM)
     {
         rig->state.disable_yaesu_bandselect = 1;
         rig_debug(RIG_DEBUG_VERBOSE, "%s: disabling FTDX3000 band select\n", __func__);
@@ -607,6 +627,22 @@ int newcat_open(RIG *rig)
             rig_debug(RIG_DEBUG_ERR, "%s: FTDX5000 CAT RATE error: %s\n", __func__,
                       rigerror(err));
         }
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX033;");
+        newcat_get_cmd(rig);
+    }
+    if (priv->rig_id == NC_RIGID_FTDX3000 || priv->rig_id == NC_RIGID_FTDX3000DM)
+    {
+        int err;
+        // set the CAT TIME OUT TIMER to 100ms
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX0391;");
+
+        if (RIG_OK != (err = newcat_set_cmd(rig)))
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: FTDX5000 CAT RATE error: %s\n", __func__,
+                      rigerror(err));
+        }
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX039;");
+        newcat_get_cmd(rig);
     }
 
     RETURNFUNC(RIG_OK);
@@ -771,7 +807,17 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     ENTERFUNC;
 
-    if (newcat_60m_exception(rig, freq)) { RETURNFUNC(RIG_OK); } // we don't set freq in this case
+    if (newcat_60m_exception(rig, freq))
+    {
+        // we don't try to set freq on 60m for some rigs since we must be in memory mode
+        // and we can't run split mode on 60M memory mode either
+        if (rig->state.cache.split == RIG_SPLIT_ON)
+        {
+            rig_set_split_vfo(rig, RIG_VFO_A, RIG_VFO_A, RIG_SPLIT_OFF);
+        }
+
+        RETURNFUNC(RIG_OK);
+    } // we don't set freq in this case
 
     if (!newcat_valid_command(rig, "FA"))
     {
@@ -2551,7 +2597,9 @@ int newcat_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
     }
 
     // we assume split is always on VFO_B
-    if (*tx_vfo == RIG_VFO_B || *tx_vfo == RIG_VFO_SUB)
+    //if (*tx_vfo == RIG_VFO_B || *tx_vfo == RIG_VFO_SUB)
+    rig_debug(RIG_DEBUG_TRACE, "%s: tx_vfo=%s, curr_vfo=%s\n", __func__, rig_strvfo(*tx_vfo), rig_strvfo(rig->state.current_vfo));
+    if (*tx_vfo != rig->state.current_vfo)
     {
         *split = RIG_SPLIT_ON;
     }
@@ -7299,26 +7347,6 @@ ncboolean newcat_valid_command(RIG *rig, char const *const command)
         RETURNFUNC2(FALSE);
     }
 
-    /*
-     * Determine the type of rig from the model number.  Note it is
-     * possible for several model variants to exist; i.e., all the
-     * FT-9000 variants.
-     */
-
-    is_ft450 = newcat_is_rig(rig, RIG_MODEL_FT450);
-    is_ft891 = newcat_is_rig(rig, RIG_MODEL_FT891);
-    is_ft950 = newcat_is_rig(rig, RIG_MODEL_FT950);
-    is_ft991 = newcat_is_rig(rig, RIG_MODEL_FT991);
-    is_ft2000 = newcat_is_rig(rig, RIG_MODEL_FT2000);
-    is_ftdx9000 = newcat_is_rig(rig, RIG_MODEL_FT9000);
-    is_ftdx5000 = newcat_is_rig(rig, RIG_MODEL_FTDX5000);
-    is_ftdx1200 = newcat_is_rig(rig, RIG_MODEL_FTDX1200);
-    is_ftdx3000 = newcat_is_rig(rig, RIG_MODEL_FTDX3000);
-    is_ftdx3000dm = newcat_get_rigid(rig) == 462;
-    is_ftdx101d = newcat_is_rig(rig, RIG_MODEL_FTDX101D);
-    is_ftdx101mp = newcat_is_rig(rig, RIG_MODEL_FTDX101MP);
-    is_ftdx10 = newcat_is_rig(rig, RIG_MODEL_FTDX10);
-
     if (!is_ft450 && !is_ft950 && !is_ft891 && !is_ft991 && !is_ft2000
             && !is_ftdx5000 && !is_ftdx9000 && !is_ftdx1200 && !is_ftdx3000 && !is_ftdx101d
             && !is_ftdx101mp && !is_ftdx10)
@@ -7503,6 +7531,8 @@ int newcat_set_tx_vfo(RIG *rig, vfo_t tx_vfo)
     {
         HAMLIB_TRACE;
         p1 = p1 + 2;    /* use non-Toggle commands */
+        // If VFOB is active then we change VFOB with FT3 instead of VFOA
+        if (rig->state.current_vfo == RIG_VFO_B) p1++; 
     }
 
     if (is_ftdx101d || is_ftdx101mp)
@@ -10052,6 +10082,8 @@ int newcat_get_rigid(RIG *rig)
         {
             s += 2;     /* ID0310, jump past ID */
             priv->rig_id = atoi(s);
+
+            is_ftdx3000dm = priv->rig_id == NC_RIGID_FTDX3000DM;
         }
 
         rig_debug(RIG_DEBUG_TRACE, "rig_id = %d, idstr = %s\n", priv->rig_id,
@@ -10372,6 +10404,8 @@ int newcat_get_cmd(RIG *rig)
 
                 rig_debug(RIG_DEBUG_WARN, "%s: Rig busy - retrying %d of %d: '%s'\n", __func__,
                           retry_count, state->rigport.retry, priv->cmd_str);
+                // DX3000 was taking 1.6 seconds in certain command sequences
+                hl_usleep(600 * 1000); // 600ms wait should cover most cases hopefully
 
                 rc = -RIG_ERJCTED; /* retry */
                 break;
@@ -10433,7 +10467,7 @@ int newcat_set_cmd_validate(RIG *rig)
     {
         strcpy(valcmd, "FA;");
 
-        if (priv->rig_id == NC_RIGID_FTDX3000 || priv->rig_id == NC_RIGID_FTDX5000)
+        if (priv->rig_id == NC_RIGID_FTDX3000 || priv->rig_id == NC_RIGID_FTDX5000 || priv->rig_id == NC_RIGID_FTDX3000DM)
         {
             strcpy(valcmd, "");
         }
@@ -10442,7 +10476,7 @@ int newcat_set_cmd_validate(RIG *rig)
     {
         strcpy(valcmd, "FB;");
 
-        if (priv->rig_id == NC_RIGID_FTDX3000 || priv->rig_id == NC_RIGID_FTDX5000)
+        if (priv->rig_id == NC_RIGID_FTDX3000 || priv->rig_id == NC_RIGID_FTDX5000 || priv->rig_id == NC_RIGID_FTDX3000DM)
         {
             strcpy(valcmd, "");
         }
