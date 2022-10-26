@@ -1854,7 +1854,7 @@ int filtericom[] = { 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 
 pbwidth_t icom_get_dsp_flt(RIG *rig, rmode_t mode)
 {
 
-    int retval, res_len, rfstatus;
+    int retval, res_len = 0, rfstatus;
     unsigned char resbuf[MAXFRAMELEN];
     value_t rfwidth;
     unsigned char fw_sub_cmd = RIG_MODEL_IC7200 == rig->caps->rig_model ? 0x02 :
@@ -1863,6 +1863,8 @@ pbwidth_t icom_get_dsp_flt(RIG *rig, rmode_t mode)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called, mode=%s\n", __func__,
               rig_strrmode(mode));
+
+    memset(resbuf, 0, sizeof(resbuf));
 
     if (rig_has_get_func(rig, RIG_FUNC_RF)
             && (mode & (RIG_MODE_RTTY | RIG_MODE_RTTYR)))
@@ -2325,10 +2327,11 @@ int icom_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: icmode=%d, icmode_ext=%d\n", __func__, icmode,
               icmode_ext);
 
-    /* IC-731, IC-726,  IC-735, IC-910, IC-7000 don't support passband data */
+    /* IC-375, IC-731, IC-726,  IC-735, IC-910, IC-7000 don't support passband data */
     /* IC-726 & IC-475A/E also limited support - only on CW */
     /* TODO: G4WJS CW wide/narrow are possible with above two radios */
     if (priv->civ_731_mode || rig->caps->rig_model == RIG_MODEL_OS456
+            || rig->caps->rig_model == RIG_MODEL_IC375
             || rig->caps->rig_model == RIG_MODEL_IC726
             || rig->caps->rig_model == RIG_MODEL_IC475
             || rig->caps->rig_model == RIG_MODEL_IC910
@@ -7108,7 +7111,7 @@ int icom_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
     for (i = 0; extcmds && extcmds[i].id.s != 0; i++)
     {
-        rig_debug(RIG_DEBUG_TRACE, "%s: i=%d\n", __func__, i);
+        //rig_debug(RIG_DEBUG_TRACE, "%s: i=%d\n", __func__, i);
 
         if (extcmds[i].cmdparamtype == CMD_PARAM_TYPE_FUNC && extcmds[i].id.s == func)
         {
@@ -7874,8 +7877,6 @@ int icom_set_powerstat(RIG *rig, powerstat_t status)
     case RIG_POWER_ON:
 
         sleep(1);         // let serial bus idle for a while
-        rig_debug(RIG_DEBUG_TRACE, "%s: PWR_ON failed, trying 0xfe's\n",
-                  __func__);
         // ic7300 manual says ~150 for 115,200
         // we'll just send a few more to be sure for all speeds
         memset(fe_buf, 0xfe, fe_max);
@@ -8848,7 +8849,14 @@ int icom_process_async_frame(RIG *rig, size_t frame_length,
         // TODO: rig_set_cache_timeout_ms(rig, HAMLIB_CACHE_FREQ, HAMLIB_CACHE_ALWAYS);
         freq_t freq = (freq_t) from_bcd(frame + 5, (priv->civ_731_mode ? 4 : 5) * 2);
         rig_fire_freq_event(rig, RIG_VFO_CURR, freq);
-        rs->use_cached_freq = 1;
+
+        if (rs->use_cached_freq != 1)
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): use_cached_freq turning on\n", __func__,
+                      __LINE__);
+            rs->use_cached_freq = 1;
+        }
+
         break;
     }
 
@@ -8857,7 +8865,14 @@ int icom_process_async_frame(RIG *rig, size_t frame_length,
         // TODO: rig_set_cache_timeout_ms(rig, HAMLIB_CACHE_MODE, HAMLIB_CACHE_ALWAYS);
         icom2rig_mode(rig, frame[5], frame[6], &mode, &width);
         rig_fire_mode_event(rig, RIG_VFO_CURR, mode, width);
-        rs->use_cached_mode = 1;
+
+        if (rs->use_cached_mode != 1)
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): use_cached_mode turning on\n", __func__,
+                      __LINE__);
+            rs->use_cached_mode = 1;
+        }
+
         break;
 
     case C_CTL_SCP:

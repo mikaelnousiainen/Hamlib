@@ -245,7 +245,7 @@ int kenwood_transaction(RIG *rig, const char *cmdstr, char *data,
     struct kenwood_priv_caps *caps = kenwood_caps(rig);
     struct rig_state *rs;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called cmd=%s datasize=%d\n", __func__, cmdstr, (int)datasize);
 
     if ((!cmdstr && !datasize) || (datasize && !data))
     {
@@ -373,8 +373,8 @@ transaction_read:
               KENWOOD_MAX_BUF_LEN);
     retval = read_string(&rs->rigport, (unsigned char *) buffer, len,
                          cmdtrm_str, strlen(cmdtrm_str), 0, 1);
-    rig_debug(RIG_DEBUG_TRACE, "%s: read_string(len=%d)='%s'\n", __func__,
-              (int)strlen(buffer), buffer);
+    rig_debug(RIG_DEBUG_TRACE, "%s: read_string(expected=%d, len=%d)='%s'\n", __func__,
+              len,(int)strlen(buffer), buffer);
 
     if (retval < 0)
     {
@@ -637,7 +637,7 @@ int kenwood_safe_transaction(RIG *rig, const char *cmd, char *buf,
     int err;
     int retry = 0;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called, cmd=%s, expected=%d\n", __func__, cmd, (int)expected);
 
     if (!cmd)
     {
@@ -754,6 +754,15 @@ int kenwood_init(RIG *rig)
     priv->curr_mode = 0;
     priv->micgain_min = -1;
     priv->micgain_max = -1;
+    priv->has_ps = 1;  // until proven otherwise
+
+    if (rig->caps->rig_model == RIG_MODEL_TS450S
+            || rig->caps->rig_model == RIG_MODEL_TS50
+            || rig->caps->rig_model == RIG_MODEL_TS140S
+            || rig->caps->rig_model == RIG_MODEL_TS440)
+    {
+        priv->has_ps = 0;
+    }
 
     /* default mode_table */
     if (caps->mode_table == NULL)
@@ -812,7 +821,7 @@ int kenwood_open(RIG *rig)
         err = kenwood_get_id(rig, id);
     }
 
-    if (err == RIG_OK)   // some rigs give ID while in standby
+    if (err == RIG_OK && priv->has_ps)   // some rigs give ID while in standby
     {
         powerstat_t powerstat = 0;
         rig_debug(RIG_DEBUG_TRACE, "%s: got ID so try PS\n", __func__);
@@ -821,8 +830,13 @@ int kenwood_open(RIG *rig)
         if (err == RIG_OK && powerstat == 0 && priv->poweron == 0
                 && rig->state.auto_power_on)
         {
+            priv->has_ps = 1;
             rig_debug(RIG_DEBUG_TRACE, "%s: got PS0 so powerup\n", __func__);
             rig_set_powerstat(rig, 1);
+        }
+        else if (err == -RIG_ETIMEOUT) // Some rigs like TS-450 dont' have PS cmd
+        {
+            priv->has_ps = 0;
         }
 
         priv->poweron = 1;
@@ -1390,7 +1404,8 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
         RETURNFUNC2(-RIG_EINVAL);
     }
 
-    rig_get_split(rig, vfo, &tsplit);
+    vfo_t tx_vfo;
+    rig_get_split_vfo(rig, vfo, &tsplit, &tx_vfo);
     rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): tsplit=%d, split=%d\n", __func__,
               __LINE__, tsplit, split);
 
@@ -1487,7 +1502,7 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
        and all other rigs don't need to set it if it's already set correctly
     */
     tsplit = RIG_SPLIT_OFF; // default in case rig does not set split status
-    retval = rig_get_split(rig, vfo, &tsplit);
+    retval = rig_get_split_vfo(rig, vfo, &tsplit, &tx_vfo);
 
     priv->split = rig->state.cache.split = split;
     rig->state.cache.split_vfo = txvfo;
@@ -1647,7 +1662,7 @@ int kenwood_get_split_vfo_if(RIG *rig, vfo_t rxvfo, split_t *split,
         }
         else
         {
-            rig_debug(RIG_DEBUG_WARN, "%s(%d): unknown rxVFO=%s\n", __func__, __LINE__,
+            rig_debug(RIG_DEBUG_WARN, "%s(%d): unknown rx_vfo=%s\n", __func__, __LINE__,
                       rig_strvfo(rig->state.rx_vfo));
             *txvfo = RIG_VFO_A; // pick a default
             rig->state.rx_vfo = priv->tx_vfo = RIG_VFO_A;
@@ -1668,7 +1683,7 @@ int kenwood_get_split_vfo_if(RIG *rig, vfo_t rxvfo, split_t *split,
         }
         else
         {
-            rig_debug(RIG_DEBUG_WARN, "%s(%d): unknown rxVFO=%s\n", __func__, __LINE__,
+            rig_debug(RIG_DEBUG_WARN, "%s(%d): unknown rx_vfo=%s\n", __func__, __LINE__,
                       rig_strvfo(rig->state.rx_vfo));
             *txvfo = RIG_VFO_A; // pick a default
             rig->state.rx_vfo = RIG_VFO_A;
@@ -1829,8 +1844,12 @@ int kenwood_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     // cppcheck-suppress *
     SNPRINTF(freqbuf, sizeof(freqbuf), "F%c%011"PRIll, vfo_letter, (int64_t)freq);
-
+    // we need to modify priv->verify_cmd if ID is not being used
+    // if FB command than we change to FB and back again to avoid VFO blinking
+    if (priv->verify_cmd[1]=='A' && vfo_letter == 'B') priv->verify_cmd[1]='A';  
     err = kenwood_transaction(rig, freqbuf, NULL, 0);
+
+    if (priv->verify_cmd[1]=='B' && vfo_letter == 'B') priv->verify_cmd[1]='A';  
 
     if (RIG_OK == err && RIG_IS_TS590S
             && priv->fw_rev_uint <= 107 && ('A' == vfo_letter || 'B' == vfo_letter))
@@ -4829,8 +4848,14 @@ int kenwood_get_powerstat(RIG *rig, powerstat_t *status)
 {
     char pwrbuf[6];
     int retval;
+    struct kenwood_priv_data *priv = rig->state.priv;
 
     ENTERFUNC;
+
+    if (!priv->has_ps)
+    {
+        RETURNFUNC(RIG_OK); // fake the OK return for these rigs
+    }
 
     if (!status)
     {

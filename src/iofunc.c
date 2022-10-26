@@ -484,7 +484,6 @@ static int port_read_sync_data(hamlib_port_t *p, void *buf, size_t count)
     int result;
     ssize_t bytes_read;
 
-    HAMLIB_TRACE;
     result = ReadFile(p->sync_data_pipe->read, buf, count, NULL, overlapped);
 
     if (!result)
@@ -1163,8 +1162,8 @@ static int read_block_generic(hamlib_port_t *p, unsigned char *rxbuffer,
                 dump_hex((unsigned char *) rxbuffer, total_count);
             }
 
-            rig_debug(RIG_DEBUG_ERR, "%s(): I/O error after %d chars, direct=%d: %d\n",
-                      __func__, total_count, direct, result);
+            rig_debug(RIG_DEBUG_ERR, "%s(%d): I/O error after %d chars, direct=%d: %d\n",
+                      __func__, __LINE__, total_count, direct, result);
             return result;
         }
 
@@ -1263,8 +1262,8 @@ static int read_string_generic(hamlib_port_t *p,
         return -RIG_EINTERNAL;
     }
 
-    rig_debug(RIG_DEBUG_TRACE, "%s called, rxmax=%d direct=%d\n", __func__,
-              (int)rxmax, direct);
+    rig_debug(RIG_DEBUG_TRACE, "%s called, rxmax=%d direct=%d, expected_len=%d\n", __func__,
+              (int)rxmax, direct, expected_len);
 
     if (!p || !rxbuffer)
     {
@@ -1329,8 +1328,8 @@ static int read_string_generic(hamlib_port_t *p,
                 dump_hex(rxbuffer, total_count);
             }
 
-            rig_debug(RIG_DEBUG_ERR, "%s(): I/O error after %d chars, direct=%d: %d\n",
-                      __func__, total_count, direct, result);
+            rig_debug(RIG_DEBUG_ERR, "%s(%d): I/O error after %d chars, direct=%d: %d\n",
+                      __func__, __LINE__, total_count, direct, result);
             return result;
         }
 
@@ -1340,8 +1339,17 @@ static int read_string_generic(hamlib_port_t *p,
          */
         do
         {
+#if 0
+#ifndef __MINGW32__
+            // The ioctl works on Linux but not mingw 
+            int avail=0;
+            ioctl(p->fd, FIONREAD, &avail);
+            //rig_debug(RIG_DEBUG_ERR, "xs: avail=%d expected_len=%d, minlen=%d, direct=%d\n", __func__, avail, expected_len, minlen, direct);
+#endif
+#endif
             rd_count = port_read_generic(p, &rxbuffer[total_count],
                                          expected_len == 1 ? 1 : minlen, direct);
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: read %d bytes\n", __func__, (int)rd_count);
             minlen -= rd_count;
 
             if (errno == EAGAIN)

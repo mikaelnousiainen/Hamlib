@@ -611,6 +611,7 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
     rs->poll_interval = 0; // disable polling by default
     rs->lo_freq = 0;
     rs->cache.timeout_ms = 500;  // 500ms cache timeout by default
+    rs->cache.ptt = 0;
 
     // We are using range_list1 as the default
     // Eventually we will have separate model number for different rig variations
@@ -891,6 +892,9 @@ int HAMLIB_API rig_open(RIG *rig)
     free(cwd);
 
     // Enable async data only if it's enabled through conf settings *and* supported by the backend
+    rig_debug(RIG_DEBUG_TRACE,
+              "%s: async_data_enable=%d, async_data_supported=%d\n", __func__,
+              rs->async_data_enabled, caps->async_data_supported);
     rs->async_data_enabled = rs->async_data_enabled && caps->async_data_supported;
     rs->rigport.asyncio = rs->async_data_enabled;
 
@@ -1330,16 +1334,22 @@ int HAMLIB_API rig_open(RIG *rig)
 
         if (retval == RIG_OK && rig->caps->rig_model != RIG_MODEL_F6K)
         {
-            vfo_t tx_vfo;
-            split_t split;
+            split_t split = RIG_SPLIT_OFF;
+            vfo_t tx_vfo = RIG_VFO_NONE;
             rig_get_freq(rig, RIG_VFO_B, &freq);
-            rig_get_split_vfo(rig, RIG_VFO_RX, &tx_vfo, &split);
+            rig_get_split_vfo(rig, RIG_VFO_RX, &split, &tx_vfo);
             rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): Current split=%d, tx_vfo=%s\n", __func__,
                       __LINE__, split, rig_strvfo(tx_vfo));
             rmode_t mode;
             pbwidth_t width;
             rig_get_mode(rig, RIG_VFO_A, &mode, &width);
-            rig_get_mode(rig, RIG_VFO_B, &mode, &width);
+
+            if (split)
+            {
+                rig_debug(RIG_DEBUG_VERBOSE, "xxxsplit=%d\n", split);
+                HAMLIB_TRACE;
+                rig_get_mode(rig, RIG_VFO_B, &mode, &width);
+            }
         }
     }
 
@@ -2015,17 +2025,19 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
                        || (rig->state.cache.timeout_ms == HAMLIB_CACHE_ALWAYS
                            || rig->state.use_cached_freq)))
     {
-        rig_debug(RIG_DEBUG_TRACE, "%s: %s cache hit age=%dms, freq=%.0f\n", __func__,
-                  rig_strvfo(vfo), cache_ms_freq, *freq);
+        rig_debug(RIG_DEBUG_TRACE,
+                  "%s: %s cache hit age=%dms, freq=%.0f, use_cached_freq=%d\n", __func__,
+                  rig_strvfo(vfo), cache_ms_freq, *freq, rig->state.use_cached_freq);
         ELAPSED2;
         return (RIG_OK);
     }
     else
     {
         rig_debug(RIG_DEBUG_TRACE,
-                  "%s: cache miss age=%dms, cached_vfo=%s, asked_vfo=%s\n", __func__,
+                  "%s: cache miss age=%dms, cached_vfo=%s, asked_vfo=%s, use_cached_freq=%d\n",
+                  __func__,
                   cache_ms_freq,
-                  rig_strvfo(vfo), rig_strvfo(vfo));
+                  rig_strvfo(vfo), rig_strvfo(vfo), rig->state.use_cached_freq);
     }
 
     caps = rig->caps;
@@ -2233,6 +2245,21 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     }
 
     vfo = vfo_fixup(rig, vfo, rig->state.cache.split);
+
+    // if we're not asking for bandwidth and the mode is already set we don't need to do it
+    // this will prevent flashing on some rigs like the TS-870
+    if (caps->get_mode && width == RIG_PASSBAND_NOCHANGE)
+    {
+        rmode_t mode_curr;
+        pbwidth_t width_curr;
+        retcode = caps->get_mode(rig, vfo, &mode_curr, &width_curr);
+        if (retcode == RIG_OK && mode==mode_curr)
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: mode already %s and bw change not requested\n", __func__, rig_strrmode(mode));
+            ELAPSED2;
+            RETURNFUNC2(RIG_OK);
+        }
+    }
 
     if ((caps->targetable_vfo & RIG_TARGETABLE_MODE)
             || vfo == rig->state.current_vfo)
@@ -2631,7 +2658,7 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
     const struct rig_caps *caps;
     int retcode;
     freq_t curr_freq;
-    vfo_t curr_vfo = RIG_VFO_CURR;
+    vfo_t curr_vfo = RIG_VFO_CURR, tmp_vfo;
 
     ELAPSED1;
     ENTERFUNC;
@@ -2734,9 +2761,9 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
     {
         HAMLIB_TRACE;
         retcode = caps->get_freq(rig, vfo, &curr_freq);
-        rig_debug(RIG_DEBUG_TRACE, "%s: retcode from rig_get_freq = %.10000s\n",
+        rig_debug(RIG_DEBUG_TRACE, "%s: retcode from rig_get_freq = %d\n",
                   __func__,
-                  rigerror(retcode));
+                  retcode);
         rig_set_cache_freq(rig, vfo, curr_freq);
     }
     else
@@ -2745,16 +2772,13 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
         rig_set_cache_freq(rig, RIG_VFO_ALL, (freq_t)0);
     }
 
-#if 0 // with new cache should not have to expire here anymore
-    // expire several cached items when we switch VFOs
-    elapsed_ms(&rig->state.cache.time_vfo, HAMLIB_ELAPSED_INVALIDATE);
-    elapsed_ms(&rig->state.cache.time_modeMainA, HAMLIB_ELAPSED_INVALIDATE);
-    elapsed_ms(&rig->state.cache.time_modeMainB, HAMLIB_ELAPSED_INVALIDATE);
-    elapsed_ms(&rig->state.cache.time_modeMainC, HAMLIB_ELAPSED_INVALIDATE);
-    elapsed_ms(&rig->state.cache.time_widthMainA, HAMLIB_ELAPSED_INVALIDATE);
-    elapsed_ms(&rig->state.cache.time_widthMainB, HAMLIB_ELAPSED_INVALIDATE);
-    elapsed_ms(&rig->state.cache.time_widthMainC, HAMLIB_ELAPSED_INVALIDATE);
-#endif
+    if (vfo != rig->state.current_vfo && rig_get_vfo(rig, &tmp_vfo) == -RIG_ENAVAIL)
+    {
+        rig_debug(RIG_DEBUG_TRACE,
+                  "%s: Expiring all cache due to VFO change and no get_vfo\n", __func__);
+        // expire all cached items when we switch VFOs and get_vfo does not work
+        rig_set_cache_freq(rig, RIG_VFO_ALL, 0);
+    }
 
     rig_debug(RIG_DEBUG_TRACE, "%s: return %d, vfo=%s, curr_vfo=%s\n", __func__,
               retcode,
@@ -4931,8 +4955,7 @@ int HAMLIB_API rig_get_split_vfo(RIG *rig,
     /* overridden by backend at will */
     *tx_vfo = rig->state.tx_vfo;
 
-    if (vfo == RIG_VFO_CURR
-            || vfo == rig->state.current_vfo)
+    if ((vfo == RIG_VFO_CURR) || (vfo == rig->state.current_vfo))
     {
         HAMLIB_TRACE;
         retcode = RIG_OK;
@@ -6912,7 +6935,8 @@ int HAMLIB_API rig_get_vfo_info(RIG *rig, vfo_t vfo, freq_t *freq,
     *satmode = rig->state.cache.satmode;
     // we should only need to ask for VFO_CURR to minimize display swapping
     HAMLIB_TRACE;
-    retval = rig_get_split(rig, RIG_VFO_CURR, split);
+    vfo_t tx_vfo;
+    retval = rig_get_split_vfo(rig, RIG_VFO_CURR, split, &tx_vfo);
 
     if (retval != RIG_OK) { RETURNFUNC(retval); }
 
@@ -7194,7 +7218,9 @@ static int async_data_handler_start(RIG *rig)
 
     if (!rs->async_data_enabled)
     {
-        rig_debug(RIG_DEBUG_TRACE, "%s: async data support disabled\n", __func__);
+        rig_debug(RIG_DEBUG_TRACE,
+                  "%s: async data support disabled since asynd_data_enabled=%d\n", __func__,
+                  rs->async_data_enabled);
         RETURNFUNC(RIG_OK);
     }
 

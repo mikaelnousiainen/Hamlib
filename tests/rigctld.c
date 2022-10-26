@@ -83,7 +83,7 @@
  *      keep up to date SHORT_OPTIONS, usage()'s output and man page. thanks.
  * TODO: add an option to read from a file
  */
-#define SHORT_OPTIONS "m:r:p:d:P:D:s:S:c:T:t:C:W:w:x:z:lLuovhVZMA:n:"
+#define SHORT_OPTIONS "m:r:R:p:d:P:D:s:S:c:T:t:C:W:w:x:z:lLuovhVZMA:n:"
 static struct option long_options[] =
 {
     {"model",           1, 0, 'm'},
@@ -112,6 +112,7 @@ static struct option long_options[] =
     {"multicast-addr",  1, 0, 'M'},
     {"multicast-port",  1, 0, 'n'},
     {"password",        1, 0, 'A'},
+    {"rigctld-idle",    0, 0, 'R'},
     {0, 0, 0, 0}
 };
 
@@ -261,9 +262,12 @@ int main(int argc, char *argv[])
     int twiddle_timeout = 0;
     int twiddle_rit = 0;
     int uplink = 0;
+    int rigctld_idle =
+        0; // if true then rig will close when no clients are connected
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
     char rigstartup[1024];
+    char vbuf[1024];
 #if HAVE_SIGACTION
     struct sigaction act;
 #endif
@@ -278,6 +282,10 @@ int main(int argc, char *argv[])
     extern int is_rigctld;
 
     is_rigctld = 1;
+
+    int err = setvbuf(stderr, vbuf, _IOFBF, sizeof(vbuf));
+    if (err) rig_debug(RIG_DEBUG_ERR, "%s: setvbuf err=%s\n", __func__, strerror(err));
+
 
     while (1)
     {
@@ -305,6 +313,10 @@ int main(int argc, char *argv[])
         case 'V':
             printf("rigctl %s\n", hamlib_version2);
             exit(0);
+
+        case 'R':
+            rigctld_idle = 1;
+            break;
 
         case 'A':
             strncpy(rigctld_password, optarg, sizeof(rigctld_password) - 1);
@@ -762,17 +774,20 @@ int main(int argc, char *argv[])
     rig_debug(RIG_DEBUG_VERBOSE, "Backend version: %s, Status: %s\n",
               my_rig->caps->version, rig_strstatus(my_rig->caps->status));
 
-#if 0
-    rig_close(my_rig);          /* we will reopen for clients */
-
-    if (verbose > RIG_DEBUG_ERR)
+    // Normally we keep the rig open to speed up the 1st client connect
+    // But some rigs like the FT-736 have to lock the rig for CAT control
+    // So they need to release the rig when no clients are connected
+    if (rigctld_idle)
     {
-        printf("Closed rig model %d, '%s - will reopen for clients'\n",
-               my_rig->caps->rig_model,
-               my_rig->caps->model_name);
-    }
+        rig_close(my_rig);          /* we will reopen for clients */
 
-#endif
+        if (verbose > RIG_DEBUG_ERR)
+        {
+            printf("Closed rig model %d, '%s - will reopen for clients'\n",
+                   my_rig->caps->rig_model,
+                   my_rig->caps->model_name);
+        }
+    }
 
 #ifdef __MINGW32__
 #  ifndef SO_OPENTYPE
@@ -1405,6 +1420,7 @@ void usage(void)
         "  -M, --multicast-addr=addr     set multicast UDP address, default 0.0.0.0 (off), recommend 224.0.1.1\n"
         "  -n, --multicast-port=port     set multicast UDP port, default 4532\n"
         "  -A, --password                set password for rigctld access\n"
+        "  -R, --rigctld-idle            make rigctld close the rig when no clients are connected\n"
         "  -h, --help                    display this help and exit\n"
         "  -V, --version                 output version information and exit\n\n",
         portno);
