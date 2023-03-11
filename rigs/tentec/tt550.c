@@ -20,19 +20,14 @@
  *
  */
 
-#include <hamlib/config.h>
-
-#include <stdlib.h>
+#include <stdlib.h>     /* Standard C library */
 #include <stdio.h>      /* Standard input/output definitions */
 #include <string.h>     /* String function definitions */
 #include <unistd.h>     /* UNIX standard function definitions */
-#include <fcntl.h>      /* File control definitions */
-#include <errno.h>      /* Error number definitions */
 
 #include <hamlib/rig.h>
 #include "serial.h"
 #include "misc.h"
-#include "cal.h"
 
 #include "tt550.h"
 

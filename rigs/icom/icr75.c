@@ -19,8 +19,6 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -133,7 +131,9 @@ const struct rig_caps icr75_caps =
     .has_set_level =  RIG_LEVEL_SET(ICR75_LEVEL_ALL),
     .has_get_parm =  ICR75_PARM_ALL,
     .has_set_parm =  RIG_PARM_SET(ICR75_PARM_ALL),
-    .level_gran = {
+    .level_gran =
+    {
+#include "level_gran_icom.h"
         // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
         [LVL_PBT_IN] = { .min = { .f = -1280 }, .max = { .f = +1280 }, .step = { .f = 15 } },

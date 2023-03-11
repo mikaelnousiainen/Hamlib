@@ -26,16 +26,14 @@
  * Looks like the GP2000 could be reused in other rigs so
  * we implement that and then the EK89X uses this interface
  */
-#include <hamlib/config.h>
 
+#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>     /* String function definitions */
 
 #include "hamlib/rig.h"
 #include "serial.h"
 #include "misc.h"
-#include "register.h"
 #include "num_stdio.h"
 
 #include "ek89x.h"
@@ -583,6 +581,12 @@ const struct rig_caps ek89x_caps =
         RIG_FRNG_END,
     },
     .tx_range_list2 = {RIG_FRNG_END,},
+
+    .tuning_steps =     {
+        // Rem: no support for changing tuning step
+        {RIG_MODE_ALL, 1},
+        RIG_TS_END,
+    },
 
     /*
     .tuning_steps =  {

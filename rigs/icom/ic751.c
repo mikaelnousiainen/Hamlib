@@ -19,12 +19,9 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
 
 #include "hamlib/rig.h"
-#include "bandplan.h"
 #include "icom.h"
 #include "idx_builtin.h"
 
@@ -111,7 +108,9 @@ const struct rig_caps ic751_caps =
     .has_set_level =  RIG_LEVEL_NONE,
     .has_get_parm =  RIG_PARM_NONE,
     .has_set_parm =  RIG_PARM_NONE,
-    .level_gran =  {
+    .level_gran =
+    {
+#include "level_gran_icom.h"
         // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
     },

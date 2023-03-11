@@ -28,15 +28,11 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "idx_builtin.h"
 #include "hamlib/rig.h"
-#include "bandplan.h"
 #include "serial.h"
 #include "misc.h"
 #include "yaesu.h"

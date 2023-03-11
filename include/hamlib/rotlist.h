@@ -325,7 +325,9 @@
 #define ROT_MODEL_GS232B_EL ROT_MAKE_MODEL(ROT_GS232A, 12)
 #define ROT_MODEL_GS23_AZ ROT_MAKE_MODEL(ROT_GS232A, 13)
 
-
+#define ROT_ARRAYSOLUTIONS 7
+#define ROT_BACKEND ARRAYSOLUTIONS "arraysolutions"
+#define ROT_MODEL_ARRAYSOLUTIONS_SAL_12_20_30 ROT_MAKE_MODEL(ROT_ARRAYSOLUTIONS, 1)
 /**
  * \brief A macro that returns the model number of the PCROTOR backend.
  *
@@ -555,6 +557,7 @@
 #define ROT_MODEL_PROSISTEL_D_AZ ROT_MAKE_MODEL(ROT_PROSISTEL, 1)
 #define ROT_MODEL_PROSISTEL_D_EL ROT_MAKE_MODEL(ROT_PROSISTEL, 2)
 #define ROT_MODEL_PROSISTEL_COMBI_TRACK_AZEL ROT_MAKE_MODEL(ROT_PROSISTEL, 3)
+#define ROT_MODEL_PROSISTEL_D_EL_CBOXAZ ROT_MAKE_MODEL(ROT_PROSISTEL, 4)
 
 
 /**
@@ -649,6 +652,34 @@
 #define ROT_MODEL_GRBLTRK_NET ROT_MAKE_MODEL(ROT_GRBLTRK, 2)
 
 /**
+ * \brief A macro that returns the model number of the FLIR backend.
+ *
+ * \def ROT_MODEL_FLIR
+ *
+ * The FLIR backend can be used with FLIR and DirectedPercepition 
+ * rotators using the PTU protocol (e.g. PTU-D48). Currently only 
+ * the serial interaface is supported and no ethernet.
+ */
+//! @cond Doxygen_Suppress
+#define ROT_FLIR 25
+#define ROT_BACKEND_FLIR "flir"
+//! @endcond
+#define ROT_MODEL_FLIR ROT_MAKE_MODEL(ROT_FLIR, 1)
+
+/**
+ * \brief A macro that returns the model number of the APEX backend.
+ *
+ * \def ROT_MODEL_APEX
+ *
+ * The APEX backend can be used with APEX * rotators. 
+ */
+//! @cond Doxygen_Suppress
+#define ROT_APEX 26
+#define ROT_BACKEND_APEX "apex"
+//! @endcond
+#define ROT_MODEL_APEX_SHARED_LOOP ROT_MAKE_MODEL(ROT_APEX, 1)
+
+/**
  * \brief A macro that returns the model number of the OH3AA backend.
  *
  * \def ROT_MODEL_OH3AAROT
@@ -657,7 +688,7 @@
  * The OH3AA rotator controller backend can be used with rotators that support the OH3AA
  * protocol and alike.
  */
-#define ROT_OH3AAROT 25
+#define ROT_OH3AAROT 27
 #define ROT_BACKEND_OH3AAROT "oh3aarot"
 #define ROT_MODEL_OH3AAROT1 ROT_MAKE_MODEL(ROT_OH3AAROT, 1)
 

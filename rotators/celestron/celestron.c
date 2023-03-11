@@ -18,15 +18,12 @@
  *
  */
 
-#include <hamlib/config.h>
 
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 
 #include "hamlib/rotator.h"
 #include "serial.h"
-#include "misc.h"
 #include "register.h"
 
 #include "celestron.h"
@@ -228,7 +225,7 @@ const struct rot_caps nexstar_rot_caps =
     .mfg_name =       "Celestron",
     .version =        "20220109.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_BETA,
+    .status =         RIG_STATUS_STABLE,
     .rot_type =       ROT_TYPE_AZEL,
     .port_type =      RIG_PORT_SERIAL,
     .serial_rate_min  = 9600,

@@ -19,13 +19,12 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdio.h>
+#include <string.h>
 
 #include "hamlib/rig.h"
-#include "idx_builtin.h"
 #include "kenwood.h"
+#include "misc.h"
 #include "cal.h"
 
 
@@ -89,7 +88,7 @@ const struct rig_caps ts590_caps =
     RIG_MODEL(RIG_MODEL_TS590S),
     .model_name = "TS-590S",
     .mfg_name = "Kenwood",
-    .version = BACKEND_VER ".2",
+    .version = BACKEND_VER ".3",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -113,6 +112,8 @@ const struct rig_caps ts590_caps =
     .max_ifshift = Hz(0),
     .targetable_vfo = RIG_TARGETABLE_FREQ,
     .transceive = RIG_TRN_RIG,
+    .agc_level_count = 4,
+    .agc_levels = { RIG_AGC_OFF, RIG_AGC_SLOW, RIG_AGC_FAST, RIG_AGC_ON },
 
 
     .chan_list =  { /* TBC */
@@ -235,6 +236,10 @@ const struct rig_caps ts590_caps =
     .has_get_level = TS590_LEVEL_ALL,
     .set_level = kenwood_set_level,
     .get_level = ts590_get_level,
+    .level_gran =
+    {
+#include "level_gran_kenwood.h"
+    },
     .has_get_func = TS590_FUNC_ALL,
     .has_set_func = TS590_FUNC_ALL,
     .set_func = kenwood_set_func,
@@ -245,6 +250,7 @@ const struct rig_caps ts590_caps =
     .set_trn =  kenwood_set_trn,
     .get_trn =  kenwood_get_trn,
     .send_morse =  kenwood_send_morse,
+    .stop_morse =  kenwood_stop_morse,
     .wait_morse =  rig_wait_morse,
     .set_mem =  kenwood_set_mem,
     .get_mem =  kenwood_get_mem,
@@ -406,6 +412,10 @@ const struct rig_caps ts590sg_caps =
     .has_get_level = TS590_LEVEL_ALL,
     .set_level = kenwood_set_level,
     .get_level = kenwood_get_level,
+    .level_gran =
+    {
+#include "level_gran_kenwood.h"
+    },
     .has_get_func = TS590_FUNC_ALL,
     .has_set_func = TS590_FUNC_ALL,
     .set_func = kenwood_set_func,
@@ -416,6 +426,7 @@ const struct rig_caps ts590sg_caps =
     .set_trn =  kenwood_set_trn,
     .get_trn =  kenwood_get_trn,
     .send_morse =  kenwood_send_morse,
+    .stop_morse =  kenwood_stop_morse,
     .wait_morse =  rig_wait_morse,
     .set_mem =  kenwood_set_mem,
     .get_mem =  kenwood_get_mem,

@@ -19,9 +19,6 @@
  *
  */
 
-#include <hamlib/config.h>
-
-
 #include "hamlib/rig.h"
 #include "kenwood.h"
 #include "th.h"
@@ -96,7 +93,7 @@ const struct rig_caps tmd700_caps =
     RIG_MODEL(RIG_MODEL_TMD700),
     .model_name = "TM-D700",
     .mfg_name =  "Kenwood",
-    .version =  TH_VER ".0",
+    .version =  TH_VER ".1",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_MOBILE | RIG_FLAG_APRS | RIG_FLAG_TNC,
@@ -108,7 +105,7 @@ const struct rig_caps tmd700_caps =
     .serial_data_bits =  8,
     .serial_stop_bits =  1,
     .serial_parity =  RIG_PARITY_NONE,
-    .serial_handshake =  RIG_HANDSHAKE_NONE,
+    .serial_handshake =  RIG_HANDSHAKE_HARDWARE,
     .write_delay =  0,
     .post_write_delay =  0,
     .timeout =  1000,
@@ -120,12 +117,9 @@ const struct rig_caps tmd700_caps =
     .has_set_level =  RIG_LEVEL_SET(TMD700_LEVEL_ALL),
     .has_get_parm =  TMD700_PARMS,
     .has_set_parm =  TMD700_PARMS,    /* FIXME: parms */
-    .level_gran = {
-        // cppcheck-suppress *
-        [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 7 } },
-        [LVL_SQL] = { .min = { .i = 0 }, .max = { .i = 0x1f }, .step = { .f = 1. / 0x1f } },
-        [LVL_RFPOWER] = { .min = { .i = 2 }, .max = { .i = 0 }, .step = { .f = 1. / 3. }  },
-        [LVL_AF] = { .min = { .i = 0 }, .max = { .i = 0x3f }, .step = { .f = 1. / 0x3f } },
+    .level_gran =
+    {
+#include "level_gran_kenwood.h"
     },
     .parm_gran =  {},
     .ctcss_list =  kenwood38_ctcss_list,

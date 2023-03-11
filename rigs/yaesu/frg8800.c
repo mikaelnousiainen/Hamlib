@@ -22,8 +22,6 @@
  */
 
 
-#include <hamlib/config.h>
-
 #include "hamlib/rig.h"
 #include "serial.h"
 #include "misc.h"
@@ -79,6 +77,10 @@ const struct rig_caps frg8800_caps =
     .has_set_level =      RIG_LEVEL_BAND_SELECT,
     .has_get_parm =       RIG_PARM_NONE,
     .has_set_parm =       RIG_PARM_NONE,
+    .level_gran =
+    {
+#include "level_gran_yaesu.h"
+    },
     .vfo_ops =        RIG_OP_NONE,
     .preamp =             { RIG_DBLST_END, },
     .attenuator =         { RIG_DBLST_END, },

@@ -22,23 +22,17 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
 #include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
 #include <unistd.h>  /* UNIX standard function definitions */
-#include <fcntl.h>   /* File control definitions */
-#include <errno.h>   /* Error number definitions */
 #include <math.h>
 
 #include "hamlib/rig.h"
 #include "iofunc.h"
 #include "misc.h"
 #include "token.h"
-#include "register.h"
 #include "cal.h"
-#include "flexradio.h"
 
 /*
  * This backend is a two layer rig control: DttSP core over a mundane tuner

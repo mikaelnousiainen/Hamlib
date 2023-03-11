@@ -21,9 +21,6 @@
 //   License along with this library; if not, write to the Free Software
 //   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-
-#include <hamlib/config.h>
-
 // ---------------------------------------------------------------------------
 //    ADT-200A INCLUDES
 // ---------------------------------------------------------------------------
@@ -170,6 +167,7 @@ const struct rig_caps adt_200a_caps =
         { RIG_MODE_FM, Hz(12000) },
         RIG_FLT_END,
     },
+    .str_cal = ADT_200A_STR_CAL,
 
     // .cfgparams          =  adt_200a_cfg_params,
 

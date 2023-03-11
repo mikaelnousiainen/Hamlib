@@ -20,9 +20,8 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <hamlib/rig.h>
@@ -127,22 +126,22 @@ const struct rig_caps tx500_caps =
     RIG_MODEL(RIG_MODEL_LAB599_TX500),
     .model_name = "TX-500",
     .mfg_name =  "Lab599",
-    .version =  BACKEND_VER ".0",
+    .version =  BACKEND_VER ".3",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,
     .port_type =  RIG_PORT_SERIAL,
-    .serial_rate_min =  1200,
-    .serial_rate_max =  57600,
+    .serial_rate_min =  9600,
+    .serial_rate_max =  9600,
     .serial_data_bits =  8,
     .serial_stop_bits =  1,
     .serial_parity =  RIG_PARITY_NONE,
     .serial_handshake =  RIG_HANDSHAKE_NONE,
     .write_delay =  0,
     .post_write_delay =  0, /* ms */
-    .timeout =  200,
+    .timeout =  500,
     .retry =  10,
 
     .has_get_func =  TX500_FUNC_ALL,
@@ -151,7 +150,9 @@ const struct rig_caps tx500_caps =
     .has_set_level =  RIG_LEVEL_SET(TX500_LEVEL_ALL),
     .has_get_parm =  RIG_PARM_NONE,
     .has_set_parm =  RIG_PARM_NONE,    /* FIXME: parms */
-    .level_gran =  {},                 /* FIXME: granularity */
+    .level_gran =  {
+#include "level_gran_kenwood.h"
+    },                 /* FIXME: granularity */
     .parm_gran =  {},
     .vfo_ops =  TX500_VFO_OP,
     .scan_ops =  TX500_SCAN_OP,
@@ -318,8 +319,8 @@ const struct rig_caps tx500_caps =
     .set_channel = ts2000_set_channel,
     .set_trn =  kenwood_set_trn,
     .get_trn =  kenwood_get_trn,
-    .set_powerstat =  kenwood_set_powerstat,
-    .get_powerstat =  kenwood_get_powerstat,
+    //.set_powerstat =  kenwood_set_powerstat,
+    //.get_powerstat =  kenwood_get_powerstat,
     .get_info =  kenwood_get_info,
     .reset =  kenwood_reset,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS

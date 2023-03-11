@@ -293,8 +293,30 @@ above.
 .
 .TP
 .BR \-C ", " \-\-set\-conf = \fIparm=val\fP [ \fI,parm=val\fP ]
-Set radio configuration parameter(s), e.g.
-.IR stop_bits=2 .
+Set configuration parameter(s). Some common ones are:
+.in +4
+.EX
+.RB write_delay: "Delay in ms between each byte sent out"
+.RB post_write_delay: "Delay in ms between each command sent out"
+.RB timeout: "Timeout in ms"
+.RB retry: "Max number of retry"
+.RB ptt_type: "Push-To-Talk interface type override"
+.RB ptt_pathname: "Path name to the device file of the Push-To-Talk"
+.RB ptt_bitnum: "Push-To-Talk GPIO bit number"
+.RB dcd_type: "Data Carrier Detect (or squelch) interface type override"
+.RB dcd_pathname: "Path name to the device file of the Data Carrier Detect (or squelch)"
+.RB lo_freq: "Frequency to add to the VFO frequency for use with a transverter"
+.RB auto_power_on: "True enables compatible rigs to be powered up on open"
+.RB auto_power_off: "True enables compatible rigs to be powered down on close"
+.RB auto_disable_screensaver: "True enables compatible rigs to have their screen saver disabled on open"
+.RB disable_yaesu_bandselect: "True disables the automatic band select on band change for Yaesu rigs"
+.RB ptt_share: "True enables ptt port to be shared with other apps"
+.RB twiddle_timeout: "For satellite ops when VFOB is twiddled will pause VFOB commands until timeout"
+.RB twiddle_rit: "Suppress get_freq on VFOB for RIT tuning satellites"
+.RB async: "True enables asynchronous data transfer for backends that support it. This allows use of transceive and spectrum data."
+.RB tuner_control_pathname: "Path name to a script/program to control a tuner with 1 argument of 0/1 for Tuner Off/On"
+.EE
+.in
 .IP
 Use the
 .B -L
@@ -414,12 +436,12 @@ Since most of the
 .B Hamlib
 operations have a
 .BR set " and a " get
-method, an upper case letter will be used for
+method, a single pper case letter will be used for
 .B set
-methods whereas the corresponding lower case letter refers to the
+methods whereas the corresponding single lower case letter refers to the
 .B get
 method.  Each operation also has a long name; prepend a backslash, \(oq\\\(cq,
-to send a long command name.
+to send a long command name all in lower case.
 .
 .PP
 Example (Perl): \(lqprint $socket "\\\\dump_caps\\n";\(rq to see what the
@@ -839,13 +861,17 @@ Set
 and
 .RI \(aq "Level Value" \(aq.
 .IP
-Level is a token: \(oqPREAMP\(cq, \(oqATT\(cq, \(oqVOX\(cq, \(oqAF\(cq,
+evel is a token: \(oqPREAMP\(cq, \(oqATT\(cq, \(oqVOXDELAY\(cq, \(oqAF\(cq,
 \(oqRF\(cq, \(oqSQL\(cq, \(oqIF\(cq, \(oqAPF\(cq, \(oqNR\(cq, \(oqPBT_IN\(cq,
-\(oqPBT_OUT\(cq, \(oqCWPITCH\(cq, \(oqRFPOWER\(cq, \(oqRFPOWER_METER\(cq, \(oqRFPOWER_METER_WATTS\(cq, \(oqMICGAIN\(cq,
+\(oqPBT_OUT\(cq, \(oqCWPITCH\(cq, \(oqRFPOWER\(cq, \(oqMICGAIN\(cq,
 \(oqKEYSPD\(cq, \(oqNOTCHF\(cq, \(oqCOMP\(cq, \(oqAGC\(cq, \(oqBKINDL\(cq,
 \(oqBAL\(cq, \(oqMETER\(cq, \(oqVOXGAIN\(cq, \(oqANTIVOX\(cq,
-\(oqSLOPE_LOW\(cq, \(oqSLOPE_HIGH\(cq, \(oqRAWSTR\(cq, \(oqSWR\(cq,
-\(oqALC\(cq, \(oqSTRENGTH\(cq.
+\(oqSLOPE_LOW\(cq, \(oqSLOPE_HIGH\(cq, \(oqBKIN_DLYMS\(cq, \(oqRAWSTR\(cq, \(oqSWR\(cq,
+\(oqALC\(cq, \(oqSTRENGTH\(cq, \(oqRFPOWER_METER\(cq, \(oqCOMPMETER\(cq, \(oqVD_METER\(cq, \(oqID_METER\(cq,
+\(oqNOTCHF_RAW\(cq, \(oqMONITOR_GAIN\(cq, \(oqNQ\(cq, \(oqRFPOWER_METER_WATTS\cq, \(oqSPECTRUM_MODE\(cq,
+\(oqSPECTRUM_SPAN\(cq, \(oqSPECTRUM_EDGE_LOW\(cq, \(oqSPECTRUM_EDGE_HIGH\(cq, \(oqSPECTRUM_SPEED\cq,
+\(oqSPECTRUM_REF\(cq, (oqSPECTRUM_AVG\(cq, \(oqSPECTRUM_ATT\cq, \(oqTEMP_METER\cq, \(oqBAND_SELECT\(cq,
+\(oqUSB_AF\(cq.
 .IP
 The Level Value can be a float or an integer value.  For the AGC token the
 value is one of \(oq0\(cq = OFF, \(oq1\(cq = SUPERFAST, \(oq2\(cq = FAST,

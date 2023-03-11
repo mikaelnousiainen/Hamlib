@@ -41,6 +41,16 @@ int rig_set_cache_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         // if CURR then update this before we figure out the real VFO
         vfo = rig->state.current_vfo;
     }
+    else if (vfo == RIG_VFO_TX)
+    {
+        vfo = rig->state.tx_vfo;
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: TX VFO = %s\n", __func__, rig_strvfo(vfo));
+    }
+    else if (vfo == RIG_VFO_RX)
+    {
+        vfo = rig->state.rx_vfo;
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: RX VFO = %s\n", __func__, rig_strvfo(vfo));
+    }
 
     // pick a sane default
     if (vfo == RIG_VFO_NONE || vfo == RIG_VFO_CURR) { vfo = RIG_VFO_A; }
@@ -262,6 +272,16 @@ int rig_get_cache(RIG *rig, vfo_t vfo, freq_t *freq, int *cache_ms_freq,
     {
         vfo = rig->state.current_vfo;
     }
+    else if (vfo == RIG_VFO_TX)
+    {
+        vfo = rig->state.tx_vfo;
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: TX VFO = %s\n", __func__, rig_strvfo(vfo));
+    }
+    else if (vfo == RIG_VFO_RX)
+    {
+        vfo = rig->state.rx_vfo;
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: RX VFO = %s\n", __func__, rig_strvfo(vfo));
+    }
     else if (vfo == RIG_VFO_OTHER)
     {
         switch (rig->state.current_vfo)
@@ -441,6 +461,41 @@ int rig_get_cache(RIG *rig, vfo_t vfo, freq_t *freq, int *cache_ms_freq,
 
     return RIG_OK;
 }
+
+/**
+ * \brief get cached values for a VFO
+ * \param rig           The rig handle
+ * \param vfo           The VFO to get information from
+ * \param freq          The frequency is stored here
+ * \param cache_ms_freq The age of the last frequency update in ms -- NULL if you don't want it
+
+ * Use this to query the frequency cache and then determine to actually fetch data from
+ * the rig.
+ *
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
+ * set appropriately).
+ *
+ */
+int rig_get_cache_freq(RIG *rig, vfo_t vfo, freq_t *freq, int *cache_ms_freq_p)
+{
+    rmode_t mode;
+    int cache_ms_freq;
+    int cache_ms_mode;
+    pbwidth_t width;
+    int cache_ms_width;
+    int retval;
+    retval = rig_get_cache(rig, vfo, freq, &cache_ms_freq, &mode, &cache_ms_mode,
+                           &width, &cache_ms_width);
+
+    if (retval == RIG_OK)
+    {
+        if (cache_ms_freq_p) { *cache_ms_freq_p = cache_ms_freq; }
+    }
+
+    return retval;
+}
+
 
 void rig_cache_show(RIG *rig, const char *func, int line)
 {

@@ -26,9 +26,9 @@
 
 #include <string.h>
 #include "token.h"
-#include "misc.h"
+#include "idx_builtin.h"
 
-#define BACKEND_VER "20221021"
+#define BACKEND_VER "20230225"
 
 #define EOM_KEN ';'
 #define EOM_TH '\r'
@@ -91,6 +91,7 @@ extern struct confparams kenwood_cfg_params[];
 #define RIG_IS_KX3       (rig->caps->rig_model == RIG_MODEL_KX3)
 #define RIG_IS_THD7A     (rig->caps->rig_model == RIG_MODEL_THD7A)
 #define RIG_IS_THD74     (rig->caps->rig_model == RIG_MODEL_THD74)
+#define RIG_IS_TMD700    (rig->caps->rig_model == RIG_MODEL_TMD700)
 #define RIG_IS_TS2000    (rig->caps->rig_model == RIG_MODEL_TS2000)
 #define RIG_IS_TS50      (rig->caps->rig_model == RIG_MODEL_TS50)
 #define RIG_IS_TS450S    (rig->caps->rig_model == RIG_MODEL_TS450S)
@@ -109,6 +110,7 @@ extern struct confparams kenwood_cfg_params[];
 #define RIG_IS_PT8000A   (rig->caps->rig_model == RIG_MODEL_PT8000A)
 #define RIG_IS_POWERSDR  (rig->caps->rig_model == RIG_MODEL_POWERSDR)
 #define RIG_IS_MALACHITE (rig->caps->rig_model == RIG_MODEL_MALACHITE)
+#define RIG_IS_QRPLABS (rig->caps->rig_model == RIG_MODEL_QRPLABS)
 
 struct kenwood_filter_width
 {
@@ -230,6 +232,7 @@ int kenwood_set_powerstat(RIG *rig, powerstat_t status);
 int kenwood_get_powerstat(RIG *rig, powerstat_t *status);
 int kenwood_reset(RIG *rig, reset_t reset);
 int kenwood_send_morse(RIG *rig, vfo_t vfo, const char *msg);
+int kenwood_stop_morse(RIG *rig, vfo_t vfo);
 int kenwood_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option);
 int kenwood_set_ant_no_ack(RIG *rig, vfo_t vfo, ant_t ant, value_t option);
 int kenwood_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option, ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx);
@@ -310,6 +313,7 @@ extern const struct rig_caps pt8000a_caps;
 extern const struct rig_caps malachite_caps;
 extern const struct rig_caps tx500_caps;
 extern const struct rig_caps sdruno_caps;
+extern const struct rig_caps qrplabs_caps;
 
 /* use when not interested in the answer, but want to check its len */
 static int inline kenwood_simple_transaction(RIG *rig, const char *cmd,

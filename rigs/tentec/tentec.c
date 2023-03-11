@@ -19,8 +19,6 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
@@ -28,8 +26,6 @@
 
 #include "hamlib/rig.h"
 #include "serial.h"
-#include "misc.h"
-#include "cal.h"
 #include "register.h"
 
 #include "tentec.h"

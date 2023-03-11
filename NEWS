@@ -13,7 +13,114 @@ Version 5.x -- future
         * Change FT1000MP Mark V model names to align with FT1000MP
 
 Version 4.6
+        * Add offset_vfoa and offset_vfob applying to rig_set_freq
+        * Fix K4 to put it in K40 mode when requesting ID
+        * 2023-11-XX -- Planned for Nov 2023
+        * Fixes for M2 Rotors
+        * Add rigctlsync utility to synchronize frequency from a rig to SDR# (or others)
+        * Add SDR# rig for use with SDR#'s gpredict plugin -- can only get/set freq 
+        * Add Apex Shared Loop rotator -- unidirectional only so far
+        * Add client_version to rigctld so client can report it's version for future use/compatility/alternatives
+        * Add --set-conf=tuner_control_pathname=hamlib_tuner_control (default)
+          If file exists then it will be called with 0/1 (Off/On) argument
+          with 'U TUNER 0' or 'U TUNER 1"
+          Default path is for current directory
+        * Add MDS 4710/9710 rigs
+        * Add FLIR PTU-D48, E46, D100, D300 rotors
+        * Fix FTDX3000 rig split
+
+Version 4.5.5
+        * Change EX startup commands for Yaesu rigs to allow errors...Win4Yaesu not recognizing EX commands
+        * Fix jst145 set_freq and get_freq
+        * Restore tcflush as some odd behavior was seen that tclush fixes
+        * Fix XG3 operations
+        * Separate the validation cmd in newcat.c to allow rig post_write_delay to be in effect
+        * Increase post_write to 20ms for FT710
+        * Add attenuator level control for TS890
+        * Update SMeter/SWR tables for TS890
+        * Add fix for TMD700
+        * Improve FT-857 get_vfo response when error occurs
+        * Allow FT-857 to use cached vfo on get_vfo when error occurs reading EEPROM
+        * Fix FTDX10 FT710 set_level AFy
+        * Fix FT-450D detection
+        * Fix VFO A/B swapping for gpredict -- hopefully better behavior for VFO swapping rigs
+          Should avoid setting RX freq while TX and avoid TX freq while RX
+        * Fix QRP QDX PTT to new TQ command due to firmware changes
+        * Remove EX103 check for FTDX5000
+        * Fix K3/K3S VFOB setting of mode/width
+        * Fix AGC level display in rigctld
+        * Change FTDX10 to no serial handshake
+        * Add TS2000 to has_ps exception
+        * Add FT991 to 60M exception
+        * Fix get_powerstat bad call in rigctl_parse.c
+        * Really fix CM108 ptt_bitnum usage
+        * Fix Elecraft power2mW precision/accuracy
+        * Fix power on/off/on for Icom rigs with rigctld power_on=0
+        
+Version 4.5.4
         * 2023-XX-XX
+        * Fix CM108 ptt setting for non-default usage
+        * Fix power on/off for Icom rigs with rigctld power_on=0
+        * Fix get_powerstat status return for non-PS kenwood rigs
+        * Fix FT-710, FTDX10, FTDX101D/MP usage on 60M
+        * Fix timing on NRD-535D
+        * Fix AGC levels with rigctld
+        * Fix FTDX3000 EX039 error
+        * Fix Elecraft power2mW operation
+        * Fix rig_power2mW so it checks all ranges
+        * Allow rigctld to start with autopower_on=0 to avoid startup timeouts when rig is powered off
+        * Fix dummy device to work with grig by disallowing empty "u" call
+        * Fix ID5100 and promote to stable and hopefully ID4100 too
+        * Remove get_powerstat from Icom ID-5100,ID-4100,ID-31,ID-51 and fix get/set freq in all
+
+Version 4.5.3
+        * 2022-12-31
+        * Fix serial.c for hardware flow control on Linux and MacOSy
+        * Add QRPLabs QCX/QDX rig -- not quite a TS480
+        * Fix QRP QRDX firmware bugs in IF message so PTT works now
+        * FTDX5000 will now remember startup front/read settings and restore it
+        * Fix FTDX5000 write_delay with microham
+        * Fix grep error on MingW build
+
+Version 4.5.2
+        * 2022-12-23
+        * Fix PowerSDR ability to do commands while powered off
+        * Fix TX-500 operations
+        * Fix FTDX5000 to return to MIC input on closing
+        * Fix rig.c calling rig_get_mode when backend does not have get_mode
+        * Fix kenwood_ts890_get_level
+        * Add Prosistel D elevation CBOX az to fix problem with azimuth control
+        * Fix FT736R gpredict usage by adding cached get_freq
+        * Fix get_powerstat problem with Log4OM/Flex and others
+        * Fix -R option to not need argument
+        * Fix -R option to close rig on last rigctld client disconnect
+        * Add FTDX1200 to rigs that need to ensure PTT is off before changing frequency
+        * Add --disable-parallel configure option for mingw builds on Linux
+
+Version 4.5.1
+        * 2022-12-08
+        * FT2000, FTDX3000/D, FT891, FT991, FT950, FTDX5000 now set CAT TOT to 100ms
+        * Add missing NB2 setting to FT-950, FTDX-1200, FT-2000, FTDX-3000, FTDX-5000, FTDX-9000
+        * Add missing meter reading to TS-890S -- thanks to Geore Baltz N3GB
+        * Fix FT736 VFOB freq and mode set
+        * Added send_raw to rigctl -- see rigctl man page
+        * Fix AGC Level dumpcaps on most rigs
+        * Fix rig_send_raw to return bytes read, fill buffer, and also work with fixed length response/null terminator
+        * Change all Kenwood rigs to 500ms serial timeout
+        * Fix dumpcaps filter printout to only show declared filters
+        * Fix triggering PTT on XGComms device on Linux
+        * Fix level_gran in all rigs
+        * Add RIG_FUNC_TUNER to flrig.c
+        * Fix FT-991 level_gran (needs to be done for lots of rigs)
+        * Fix man page rigctl to show units for LEVEL items
+        * Fix Flex6xxx if_len
+        * Fix FLRig set_ptt
+        * Fix missing KEYSPD to TS890
+        * rigctl 'W' command can now use a singled char terminator like ; that allows for variable length responses with no timeout -- e.g.  W FA; ;
+        * New RIG_LEVEL_USB_AF to control audio gain from rig to computer -- to allow AGC function in software using RF and USB_AF
+        * Add RIG_LEVEL_AGC_TIME to allow AGC/OFF to be set for IC-7300, IC-9700, IC-705
+        * Add RIG_FUNC_OVF_STATUS to get overflow status for IC-7300, IC-9700, IC-705, and IC-R8600
+
         
 Version 4.5
         * 2022-10-30
@@ -27,7 +134,6 @@ Version 4.5
         * Add FT-650
         * Add get_separator and set_separator and -S option for rigctld -- node-red applicability
         * Add GRBLTRK rotor project -- two axis rotor
-        * enum meter_level_e is deprecated and will be removed in 4.6
         * Add SDRPlay SDRUno rig -- can now use Data/Pkt in WSJTX
         * Add ability to use cat_string to FLRig via the "w" and "W" commands
         * Add -B/--mapa2b to rigctlcom

@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
 
@@ -64,10 +63,8 @@ extern int read_history();
 
 #include <hamlib/rig.h>
 #include "misc.h"
-#include "iofunc.h"
-#include "serial.h"
-#include "sprintflst.h"
 #include "rigctl_parse.h"
+#include "riglist.h"
 
 #define MAXNAMSIZ 32
 #define MAXNBOPT 100    /* max number of different options */
@@ -154,7 +151,8 @@ int main(int argc, char *argv[])
     char vbuf[1024];
 
     int err = setvbuf(stderr, vbuf, _IOFBF, sizeof(vbuf));
-    if (err) rig_debug(RIG_DEBUG_ERR, "%s: setvbuf err=%s\n", __func__, strerror(err));
+
+    if (err) { rig_debug(RIG_DEBUG_ERR, "%s: setvbuf err=%s\n", __func__, strerror(err)); }
 
     while (1)
     {
@@ -564,8 +562,8 @@ int main(int argc, char *argv[])
 
     if (retcode != RIG_OK)
     {
-        fprintf(stderr, "rig_open: error = %s %s \n", rig_file,
-                strerror(errno));
+//        fprintf(stderr, "rig_open: error = %s %s \n", rig_file,
+//                rigerror(retcode));
 
         if (!ignore_rig_open_error) { exit(2); }
     }

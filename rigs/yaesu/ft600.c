@@ -24,8 +24,6 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -259,7 +257,10 @@ const struct rig_caps ft600_caps =
     .has_set_level =  RIG_LEVEL_BAND_SELECT,
     .has_get_parm =   RIG_PARM_NONE,
     .has_set_parm =   RIG_PARM_NONE,  /* FIXME: parms */
-    .level_gran =     {},     /* granularity */
+    .level_gran =
+    {
+#include "level_gran_yaesu.h"
+    },
     .parm_gran =      {},
     .ctcss_list =     RIG_FUNC_NONE,
     .dcs_list =       RIG_FUNC_NONE,
@@ -287,7 +288,11 @@ const struct rig_caps ft600_caps =
         {FT600_ALL_RX_MODES, 1000},
         RIG_TS_END,
     },
-    .filters =  {},
+    .filters =  {
+        {RIG_MODE_ALL, RIG_FLT_ANY},
+        RIG_FLT_END
+    },
+
     .str_cal = FT600_STR_CAL,
     .priv =       NULL,
     .rig_init =       ft600_init,

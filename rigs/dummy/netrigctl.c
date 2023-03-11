@@ -19,16 +19,12 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
 #include <unistd.h>  /* UNIX standard function definitions */
-#include <errno.h>
 
 #include "hamlib/rig.h"
-#include "network.h"
 #include "serial.h"
 #include "iofunc.h"
 #include "misc.h"
@@ -809,6 +805,35 @@ static int netrigctl_open(RIG *rig)
                 for (i = 0; i < DCS_LIST_SIZE && dcs[i] != 0; i++) { rig->caps->dcs_list[i] = dcs[i]; }
 
                 if (n < DCS_LIST_SIZE) { rig->caps->dcs_list[n] = 0; }
+            }
+            else if (strcmp(setting, "agc_levels") == 0)
+            {
+                int i = 0;
+                char *p = strtok(value, " ");
+                rig->caps->agc_levels[0] = RIG_AGC_NONE; // default value gets overwritten
+                rig->caps->agc_level_count = 0;
+
+                while (p)
+                {
+                    int agc_code;
+                    char agc_string[32];
+                    int n = sscanf(p, "%d=%s\n", &agc_code, agc_string);
+
+                    if (n == 2)
+                    {
+                        rig->caps->agc_levels[i++] = agc_code;
+                        rig->caps->agc_level_count++;
+                        rig_debug(RIG_DEBUG_VERBOSE, "%s: rig has agc code=%d, level=%s\n", __func__,
+                                  agc_code, agc_string);
+                    }
+                    else
+                    {
+                        rig_debug(RIG_DEBUG_ERR, "%s did not parse code=agc from '%s'\n", __func__, p);
+                    }
+
+                    rig_debug(RIG_DEBUG_VERBOSE, "%d=%s\n", agc_code, agc_string);
+                    p = strtok(NULL, " ");
+                }
             }
             else
             {
@@ -1896,6 +1921,8 @@ static int netrigctl_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
     if (ret != RIG_OK) { return ret; }
 
+    if (strlen(rig_strfunc(func)) == 0) { return -RIG_ENAVAIL; }
+
     SNPRINTF(cmd, sizeof(cmd), "u%s %s\n", vfostr, rig_strfunc(func));
 
     ret = netrigctl_transaction(rig, cmd, strlen(cmd), buf);
@@ -2023,14 +2050,22 @@ static int netrigctl_get_powerstat(RIG *rig, powerstat_t *status)
 
     ret = netrigctl_transaction(rig, cmd, strlen(cmd), buf);
 
-    if (ret <= 0)
+    if (ret == 0)
     {
-        return (ret < 0) ? ret : -RIG_EPROTO;
+        *status = atoi(buf);
+    }
+    else
+    {
+        // was causing problems with sdr++ since it does not have PS command
+        // a return of 1 should indicate there is no powerstat command available
+        // so we fake the ON status
+        // also a problem with Flex 6xxx and Log4OM not working due to lack of PS command
+        rig_debug(RIG_DEBUG_VERBOSE,
+                  "%s: PS command failed (ret=%d) so returning RIG_POWER_ON\n", __func__, ret);
+        *status = RIG_POWER_ON;
     }
 
-    *status = atoi(buf);
-
-    return RIG_OK;
+    return RIG_OK; // always return RIG_OK
 }
 
 
@@ -2680,6 +2715,14 @@ int netrigctl_get_lock_mode(RIG *rig, int *lock)
     return (RIG_OK);
 }
 
+int netrigctl_send_raw(RIG *rig, char *s)
+{
+    int ret;
+    char buf[BUF_MAX];
+    ret = netrigctl_transaction(rig, s, strlen(s), buf);
+    return ret;
+}
+
 /*
  * Netrigctl rig capabilities.
  */
@@ -2689,7 +2732,7 @@ struct rig_caps netrigctl_caps =
     RIG_MODEL(RIG_MODEL_NETRIGCTL),
     .model_name =     "NET rigctl",
     .mfg_name =       "Hamlib",
-    .version =        "20220722.0",
+    .version =        "20230117.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,

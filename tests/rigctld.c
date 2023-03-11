@@ -34,7 +34,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <ctype.h>
 #include <errno.h>
 #include <signal.h>
 
@@ -46,8 +45,8 @@
 #  include <netinet/in.h>
 #endif
 
-#ifdef HAVE_ARPA_INET_H
-#  include <arpa/inet.h>
+#ifdef HAVE_SYS_SELECT_H
+#  include <sys/select.h>
 #endif
 
 #ifdef HAVE_SYS_SOCKET_H
@@ -70,20 +69,17 @@
 
 #include <hamlib/rig.h>
 #include "misc.h"
-#include "iofunc.h"
-#include "serial.h"
-#include "sprintflst.h"
 #include "network.h"
 
 #include "rigctl_parse.h"
-
+#include "riglist.h"
 
 /*
  * Reminder: when adding long options,
  *      keep up to date SHORT_OPTIONS, usage()'s output and man page. thanks.
  * TODO: add an option to read from a file
  */
-#define SHORT_OPTIONS "m:r:R:p:d:P:D:s:S:c:T:t:C:W:w:x:z:lLuovhVZMA:n:"
+#define SHORT_OPTIONS "m:r:p:d:P:D:s:S:c:T:t:C:W:w:x:z:lLuovhVZMRA:n:"
 static struct option long_options[] =
 {
     {"model",           1, 0, 'm'},
@@ -154,6 +150,9 @@ extern char rigctld_password[65];
 char resp_sep = '\n';
 extern int lock_mode;
 extern powerstat_t rig_powerstat;
+static int rigctld_idle =
+    0; // if true then rig will close when no clients are connected
+static int skip_open = 0;
 
 #define MAXCONFLEN 1024
 
@@ -262,8 +261,6 @@ int main(int argc, char *argv[])
     int twiddle_timeout = 0;
     int twiddle_rit = 0;
     int uplink = 0;
-    int rigctld_idle =
-        0; // if true then rig will close when no clients are connected
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
     char rigstartup[1024];
@@ -284,7 +281,8 @@ int main(int argc, char *argv[])
     is_rigctld = 1;
 
     int err = setvbuf(stderr, vbuf, _IOFBF, sizeof(vbuf));
-    if (err) rig_debug(RIG_DEBUG_ERR, "%s: setvbuf err=%s\n", __func__, strerror(err));
+
+    if (err) { rig_debug(RIG_DEBUG_ERR, "%s: setvbuf err=%s\n", __func__, strerror(err)); }
 
 
     while (1)
@@ -508,19 +506,29 @@ int main(int argc, char *argv[])
                 exit(1);
             }
 
-            if (*conf_parms != '\0')
+            if (strcmp(optarg, "auto_power_on=0") == 0)
             {
-                strcat(conf_parms, ",");
+                rig_debug(RIG_DEBUG_ERR, "%s: skipping rig_open\n", __func__);
+                skip_open = 1;
+            }
+            else
+            {
+
+                if (*conf_parms != '\0')
+                {
+                    strcat(conf_parms, ",");
+                }
+
+                if (strlen(conf_parms) + strlen(optarg) > MAXCONFLEN - 24)
+                {
+                    printf("Length of conf_parms exceeds internal maximum of %d\n",
+                           MAXCONFLEN - 24);
+                    return 1;
+                }
+
+                strncat(conf_parms, optarg, MAXCONFLEN - strlen(conf_parms));
             }
 
-            if (strlen(conf_parms) + strlen(optarg) > MAXCONFLEN - 24)
-            {
-                printf("Length of conf_parms exceeds internal maximum of %d\n",
-                       MAXCONFLEN - 24);
-                return 1;
-            }
-
-            strncat(conf_parms, optarg, MAXCONFLEN - strlen(conf_parms));
             break;
 
         case 't':
@@ -700,6 +708,9 @@ int main(int argc, char *argv[])
     {
         my_rig->state.pttport.type.ptt = ptt_type;
         my_rig->state.pttport_deprecated.type.ptt = ptt_type;
+        // This causes segfault since backend rig_caps are const
+        // rigctld will use the rig->state version of this for clients
+        //my_rig->caps->ptt_type = ptt_type;
     }
 
     if (dcd_type != RIG_DCD_NONE)
@@ -754,8 +765,15 @@ int main(int argc, char *argv[])
     }
 
     /* attempt to open rig to check early for issues */
-    retcode = rig_open(my_rig);
-    rig_opened = retcode == RIG_OK ? 1 : 0;
+    if (skip_open)
+    {
+        rig_opened = 0;
+    }
+    else
+    {
+        retcode = rig_open(my_rig);
+        rig_opened = retcode == RIG_OK ? 1 : 0;
+    }
 
     if (retcode != RIG_OK)
     {
@@ -1193,7 +1211,7 @@ void *handle_socket(void *arg)
 #ifdef HAVE_PTHREAD
     mutex_rigctld(1);
 
-//    ++client_count;
+    ++client_count;
 #if 0
 
     if (!client_count++)
@@ -1309,7 +1327,19 @@ void *handle_socket(void *arg)
     }
     while (!ctrl_c && (retcode == RIG_OK || RIG_IS_SOFT_ERRCODE(-retcode)));
 
+    if (rigctld_idle && client_count == 1)
+    {
+        rig_close(my_rig);
+
+        if (verbose > RIG_DEBUG_ERR) { printf("Closed rig model %s.  Will reopen for new clients\n", my_rig->caps->model_name); }
+    }
+
+
 #ifdef HAVE_PTHREAD
+    --client_count;
+
+    if (rigctld_idle && client_count > 0) { printf("%d client%s still connected so rig remains open\n", client_count, client_count > 1 ? "s" : ""); }
+
 #if 0
     mutex_rigctld(1);
 

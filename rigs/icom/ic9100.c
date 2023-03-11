@@ -19,16 +19,12 @@
  *
  */
 
-#include <hamlib/config.h>
-
-
 #include <hamlib/rig.h>
 #include "icom.h"
 #include "icom_defs.h"
-#include "frame.h"
 #include "idx_builtin.h"
 #include "bandplan.h"
-
+#include "tones.h"
 
 #define IC9100_MODES (RIG_MODE_SSB|RIG_MODE_CW|RIG_MODE_CWR|\
         RIG_MODE_AM|RIG_MODE_FM|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_PKTUSB|RIG_MODE_PKTLSB)
@@ -65,7 +61,6 @@
 #define IC9100_LEVEL_ALL    (RIG_LEVEL_AF| \
                             RIG_LEVEL_RF| \
                             RIG_LEVEL_SQL| \
-                            RIG_LEVEL_IF| \
                             RIG_LEVEL_NR| \
                             RIG_LEVEL_CWPITCH| \
                             RIG_LEVEL_RFPOWER| \
@@ -82,7 +77,8 @@
                             RIG_LEVEL_NOTCHF_RAW| \
                             RIG_LEVEL_ATT| \
                             RIG_LEVEL_PREAMP| \
-                            RIG_LEVEL_MONITOR_GAIN)
+                            RIG_LEVEL_MONITOR_GAIN| \
+                            RIG_LEVEL_AGC_TIME)
 
 #define IC9100_PARM_ALL (RIG_PARM_ANN|RIG_PARM_BACKLIGHT)
 
@@ -112,7 +108,7 @@ const struct rig_caps ic9100_caps =
     RIG_MODEL(RIG_MODEL_IC9100),
     .model_name = "IC-9100",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".3",
+    .version =  BACKEND_VER ".5",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -135,7 +131,9 @@ const struct rig_caps ic9100_caps =
     .has_set_level =  IC9100_LEVEL_ALL,
     .has_get_parm =  IC9100_PARM_ALL,
     .has_set_parm =  IC9100_PARM_ALL,
-    .level_gran = {
+    .level_gran =
+    {
+#include "level_gran_icom.h"
         // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
         [LVL_VOXDELAY] = { .min = { .i = 0 }, .max = { .i = 20 }, .step = { .i = 1 } },

@@ -34,8 +34,6 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
 
@@ -284,6 +282,10 @@ const struct rig_caps ft767gx_caps =
     .has_set_level =     RIG_LEVEL_BAND_SELECT,
     .has_get_parm =      RIG_PARM_NONE,
     .has_set_parm =      RIG_PARM_NONE,
+    .level_gran =
+    {
+#include "level_gran_yaesu.h"
+    },
     .ctcss_list =        static_767gx_ctcss_list,
     .dcs_list =          NULL,
     .preamp =            { RIG_DBLST_END, },
@@ -345,9 +347,9 @@ const struct rig_caps ft767gx_caps =
 
     /* mode/filter list, .remember =  order matters! */
     .filters =  {
-        RIG_FLT_END,
+        {RIG_MODE_ALL, RIG_FLT_ANY},
+        RIG_FLT_END
     },
-
 
     .priv =   NULL, /* private data */
 

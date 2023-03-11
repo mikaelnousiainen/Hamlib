@@ -19,12 +19,10 @@
  *
  */
 
-#include <hamlib/config.h>
-
-
 #include "hamlib/rig.h"
 #include "icom.h"
 #include "idx_builtin.h"
+#include "tones.h"
 
 #define ICR6_MODES (RIG_MODE_AM|RIG_MODE_FM|RIG_MODE_WFM)
 
@@ -119,6 +117,8 @@ const struct rig_caps icr6_caps =
     .tuning_steps =     {
         {ICR6_MODES, Hz(5000)},
         {ICR6_MODES, Hz(6250)},
+        {ICR6_MODES, Hz(8330)}, // Air band only
+        {ICR6_MODES, Hz(9000)}, // AM broadcast band only
         {ICR6_MODES, Hz(10000)},
         {ICR6_MODES, Hz(12500)},
         {ICR6_MODES, kHz(15)},
@@ -129,10 +129,6 @@ const struct rig_caps icr6_caps =
         {ICR6_MODES, kHz(100)},
         {ICR6_MODES, kHz(125)},
         {ICR6_MODES, kHz(200)},
-        /* Air band only */
-        {ICR6_MODES, Hz(8330)},
-        /* AM broadcast band only */
-        {ICR6_MODES, Hz(9000)},
         RIG_TS_END,
     },
 

@@ -34,8 +34,6 @@
 #include <stdarg.h>
 #include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
-#include <fcntl.h>   /* File control definitions */
-#include <errno.h>   /* Error number definitions */
 
 #ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -498,7 +496,8 @@ static const struct
     { RIG_MODE_IQ, "IQ"},
     { RIG_MODE_ISBUSB, "ISBUSB"},
     { RIG_MODE_ISBLSB, "ISBLSB"},
-    { RIG_MODE_NONE, "" },
+    { RIG_MODE_NONE, "None" }, // so we can reutnr None when NONE is requested
+    { -1, "" }, // need to end list
 };
 
 
@@ -515,7 +514,7 @@ rmode_t HAMLIB_API rig_parse_mode(const char *s)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    for (i = 0 ; mode_str[i].str[0] != '\0'; i++)
+    for (i = 0 ; (s != NULL) && (mode_str[i].str[0] != '\0'); i++)
     {
         if (!strcmp(s, mode_str[i].str))
         {
@@ -523,7 +522,8 @@ rmode_t HAMLIB_API rig_parse_mode(const char *s)
         }
     }
 
-    rig_debug(RIG_DEBUG_WARN, "%s: mode '%s' not found\n", __func__, s);
+    rig_debug(RIG_DEBUG_WARN, "%s: mode '%s' not found...returning RIG_MODE_NONE\n",
+              __func__, s);
     return RIG_MODE_NONE;
 }
 
@@ -736,6 +736,7 @@ static const struct
     { RIG_FUNC_SPECTRUM_HOLD, "SPECTRUM_HOLD" },
     { RIG_FUNC_SEND_MORSE, "SEND_MORSE" },
     { RIG_FUNC_SEND_VOICE_MEM, "SEND_VOICE_MEM" },
+    { RIG_FUNC_OVF_STATUS, "OVF_STATUS" },
     { RIG_FUNC_NONE, "" },
 };
 
@@ -925,6 +926,8 @@ static const struct
     { RIG_LEVEL_SPECTRUM_ATT, "SPECTRUM_ATT" },
     { RIG_LEVEL_TEMP_METER, "TEMP_METER" },
     { RIG_LEVEL_BAND_SELECT, "BAND_SELECT" },
+    { RIG_LEVEL_USB_AF, "USB_AF" },
+    { RIG_LEVEL_AGC_TIME, "AGC_TIME" },
     { RIG_LEVEL_NONE, "" },
 };
 
@@ -957,6 +960,50 @@ static const struct
     { AMP_LEVEL_NONE, "" },
 };
 
+/*
+ * \brief check input to set_level
+ * \param rig Pointer to rig data
+ * \param level RIG_LEVEL_* trying to set
+ * \param val Raw input from the caller
+ * \param gran If not NULL, set to location of level_gran data
+ *
+ * \return RIG_OK if value is in range for this level, -RIG_EINVAL if not
+ */
+int check_level_param(RIG *rig, setting_t level, value_t val, gran_t **gran)
+{
+    gran_t *this_gran;
+
+    this_gran = &rig->caps->level_gran[rig_setting2idx(level)];
+    if (gran)
+        {
+	    *gran = this_gran;
+	}
+    if (RIG_LEVEL_IS_FLOAT(level))
+        {
+	  /* If min==max==0, all values are OK here but may be checked later */
+	  if (this_gran->min.f == 0.0f && this_gran->max.f == 0.0f)
+	    {
+	      return RIG_OK;
+	    }
+	  if (val.f < this_gran->min.f || val.f > this_gran->max.f)
+	    {
+	      return -RIG_EINVAL;
+	    }
+	}
+    else
+        {
+	  /* If min==max==0, all values are OK here but may be checked later */
+	  if (this_gran->min.i == 0 && this_gran->max.i == 0)
+	    {
+	      return RIG_OK;
+	    }
+	  if (val.i < this_gran->min.i || val.i > this_gran->max.i)
+	    {
+	      return -RIG_EINVAL;
+	    }
+	}
+    return RIG_OK;
+}
 
 /**
  * \brief Convert alpha string to enum RIG_LEVEL_...
@@ -1279,6 +1326,9 @@ static const struct
     { RIG_AGC_USER, "USER" },
     { RIG_AGC_MEDIUM, "MEDIUM" },
     { RIG_AGC_AUTO, "AUTO" },
+    { RIG_AGC_LONG, "LONG" },
+    { RIG_AGC_ON, "ON" },
+    { RIG_AGC_NONE, "NONE" },
     { -1, "" },
 };
 
@@ -1863,11 +1913,17 @@ vfo_t HAMLIB_API vfo_fixup2a(RIG *rig, vfo_t vfo, split_t split,
 // we're mapping our VFO here to work with either VFO A/B rigs or Main/Sub
 // Hamlib uses VFO_A  and VFO_B as TX/RX as of 2021-04-13
 // So we map these to Main/Sub as required
+// We need to add some exceptions to this like the ID-5100
 vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 {
     rig_debug(RIG_DEBUG_TRACE, "%s:(from %s:%d) vfo=%s, vfo_curr=%s, split=%d\n",
               __func__, funcname, linenum,
               rig_strvfo(vfo), rig_strvfo(rig->state.current_vfo), split);
+
+    if (rig->caps->rig_model == RIG_MODEL_ID5100)
+    {
+        return vfo; // no change to requested vfo
+    }
 
     if (vfo == RIG_VFO_NONE) { vfo = RIG_VFO_A; }
 
@@ -1911,7 +1967,9 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 
         if (VFO_HAS_MAIN_SUB_ONLY) { vfo = RIG_VFO_MAIN; }
 
-        if (VFO_HAS_MAIN_SUB_A_B_ONLY) { vfo = RIG_VFO_MAIN; }
+        //in this case we don't change it as either VFOA/B or Main/Sub makes a difference
+        //ID5100 for example has to turn on dual watch mode for Main/Sub
+        //if (VFO_HAS_MAIN_SUB_A_B_ONLY) { vfo = RIG_VFO_MAIN; }
     }
     else if (vfo == RIG_VFO_TX)
     {
@@ -1959,7 +2017,7 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 
         if (VFO_HAS_MAIN_SUB_ONLY) { vfo = RIG_VFO_SUB; }
 
-        if (VFO_HAS_MAIN_SUB_A_B_ONLY) { vfo = RIG_VFO_SUB; }
+        //if (VFO_HAS_MAIN_SUB_A_B_ONLY) { vfo = RIG_VFO_SUB; }
 
         rig_debug(RIG_DEBUG_TRACE, "%s: final vfo=%s\n", __func__, rig_strvfo(vfo));
     }
@@ -2089,6 +2147,12 @@ int HAMLIB_API parse_hoststr(char *hoststr, int hoststr_len, char host[256],
 //#define RIG_FLUSH_REMOVE
 int HAMLIB_API rig_flush(hamlib_port_t *port)
 {
+    // Data should never be flushed when using async I/O
+    if (port->asyncio)
+    {
+        return RIG_OK;
+    }
+
 #ifndef RIG_FLUSH_REMOVE
     rig_debug(RIG_DEBUG_TRACE, "%s: called for %s device\n", __func__,
               port->type.rig == RIG_PORT_SERIAL ? "serial" : "network");

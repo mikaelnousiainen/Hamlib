@@ -17,13 +17,15 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-
-#include <hamlib/config.h>
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #include <stdio.h>
+#include <string.h>
+#include <math.h>
 
 #include <hamlib/rig.h>
 #include "kenwood.h"
+#include "cal.h"
 
 // TODO: Copied from TS-480, to be verified
 #define TS890_VFO (RIG_VFO_A|RIG_VFO_B)
@@ -36,8 +38,9 @@
 #define TS890_AM_TX_MODES RIG_MODE_AM
 
 // TODO: Copied from TS-480, to be verified
-#define TS890_LEVEL_ALL (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC)
-#define TS890_FUNC_ALL (RIG_FUNC_NB|RIG_FUNC_NB2|RIG_FUNC_COMP|RIG_FUNC_VOX|RIG_FUNC_NR|RIG_FUNC_NR|RIG_FUNC_BC|RIG_FUNC_BC2|RIG_FUNC_RIT|RIG_FUNC_XIT|RIG_FUNC_TUNER|RIG_FUNC_SEND_MORSE)
+#define TS890_LEVEL_SET (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC|RIG_LEVEL_KEYSPD|RIG_LEVEL_CWPITCH|RIG_LEVEL_ATT)
+#define TS890_LEVEL_GET (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC|RIG_LEVEL_KEYSPD|RIG_LEVEL_ALC|RIG_LEVEL_SWR|RIG_LEVEL_COMP_METER|RIG_LEVEL_ID_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_TEMP_METER|RIG_LEVEL_CWPITCH|RIG_LEVEL_RAWSTR|RIG_LEVEL_STRENGTH|RIG_LEVEL_ATT)
+#define TS890_FUNC_ALL (RIG_FUNC_NB|RIG_FUNC_NB2|RIG_FUNC_COMP|RIG_FUNC_VOX|RIG_FUNC_NR|RIG_FUNC_BC|RIG_FUNC_BC2|RIG_FUNC_RIT|RIG_FUNC_XIT|RIG_FUNC_TUNER|RIG_FUNC_SEND_MORSE)
 
 #define TS890_VFO_OPS (RIG_OP_UP|RIG_OP_DOWN|RIG_OP_BAND_UP|RIG_OP_BAND_DOWN|RIG_OP_CPY|RIG_OP_TUNE)
 
@@ -102,6 +105,55 @@ int kenwood_ts890_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     return kenwood_transaction(rig, levelbuf, NULL, 0);
 }
 
+/* Helper to get and parse meter values using RM
+ * Note that we turn readings on, but nothing off.
+ * 'pips' is the number of LED bars lit in the digital meter, max=70
+ */
+static
+int ts890_get_meter_reading(RIG *rig, char meter, int *pips)
+{
+    char reading[9];   /* 8 char + '\0' */
+    int retval;
+    char target[] = "RMx1"; /* Turn on reading this meter */
+
+    target[2] = meter;
+    retval = kenwood_transaction(rig, target, NULL, 0);
+
+    if (retval != RIG_OK)
+    {
+        return retval;
+    }
+
+    /* Read the first value */
+    retval = kenwood_transaction(rig, "RM", reading, sizeof(reading));
+
+    if (retval != RIG_OK)
+    {
+        return retval;
+    }
+
+    /* Find the one we want */
+    while (strncmp(reading, target, 3) != 0)
+    {
+        /* That wasn't it, get the next one */
+        retval = kenwood_transaction(rig, NULL, reading, sizeof(reading));
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        if (reading[0] != target[0] || reading[1] != target[1])
+        {
+            /* Somebody else's data, bail */
+            return -RIG_EPROTO;
+        }
+    }
+
+    sscanf(reading + 3, "%4d", pips);
+    return RIG_OK;
+
+}
 
 int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 {
@@ -114,6 +166,7 @@ int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     switch (level)
     {
+    // TODO: This doesn't appear in TS890_LEVEL_GET - should it?
     case RIG_LEVEL_VOXDELAY:
         retval = kenwood_safe_transaction(rig, "VD0", ackbuf, sizeof(ackbuf), 6);
 
@@ -219,6 +272,141 @@ int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         return RIG_OK;
 
+    case RIG_LEVEL_ALC:
+        retval = ts890_get_meter_reading(rig, '1', &levelint);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        val->f = (float)levelint / 35.0;  /* Half scale [0,35] -> [0.0,1.0] */
+        return RIG_OK;
+
+    case RIG_LEVEL_SWR:
+        retval = ts890_get_meter_reading(rig, '2', &levelint);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        if (rig->caps->swr_cal.size)
+        {
+            val->f = rig_raw2val_float(levelint, &rig->caps->swr_cal);
+        }
+        else
+        {
+            /* Linear approximations of a very non-linear function */
+            if (levelint < 12) { val->f = 1.0 + (float)levelint / 22.0; }
+            else if (levelint < 24) { val->f = 1.5 + (float)(levelint - 11) / 24.0; }
+            else if (levelint < 36) { val->f = 2.0 + (float)(levelint - 23) / 12.0; }
+            else { val->f = 3.0 + (float)(levelint - 35) / 6.0; }
+        }
+
+        return RIG_OK;
+
+    case RIG_LEVEL_COMP_METER:
+        retval = ts890_get_meter_reading(rig, '3', &levelint);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        if (levelint < 21) { val->f = (float)levelint / 2.0; }   /* db */
+        else if (levelint < 51) { val->f = 10.0 + (float)(levelint - 20) / 3.0; }
+        else { val->f = 20.0 + (float)(levelint - 50) / 4.0; }
+
+        return RIG_OK;
+
+    case RIG_LEVEL_ID_METER:
+        retval = ts890_get_meter_reading(rig, '4', &levelint);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        val->f = (20.0 * (float)levelint) / 70.0;   /* amperes */
+        return RIG_OK;
+
+    case RIG_LEVEL_VD_METER:
+        retval = ts890_get_meter_reading(rig, '5', &levelint);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        val->f = (15.0 * (float)levelint) / 65.0;   /* volts */
+        return RIG_OK;
+
+    case RIG_LEVEL_TEMP_METER:
+#if 0
+        retval = ts890_get_meter_reading(rig, '6', &levelint);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+#endif
+        return -RIG_ENIMPL;
+
+    case RIG_LEVEL_STRENGTH:
+    {
+        cal_table_float_t *table;
+        /* Values taken from the TS-890S In-Depth Manual (IDM), p. 8
+         * 0.03 - 21.5 MHz, Preamp 1
+         */
+        /* Meter Type 1 - Kenwood specific, factory default */
+        static cal_table_float_t meter_type1 =
+	{
+            9, { { 0, -28.4f}, { 3, -26}, {11, -19.5f},
+                {19, -13}, {27, -6.5f}, {35, 0},
+                {48, 20}, {59, 40}, {70, 60}
+	        } };
+	/* Meter Type 2 - IARU recommended */
+        static cal_table_float_t meter_type2 =
+        {
+            9, { { 0, -54}, { 3, -48}, {11, -36},
+                {19, -24}, {27, -12}, {35, 0},
+                {48, 20}, {59, 40}, {70, 60}
+	        } };
+        /* Find out which meter type is in use */
+        retval = kenwood_safe_transaction(rig, "EX00011", ackbuf, sizeof(ackbuf), 11);
+
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+        if (strncmp(ackbuf + 8, "000", 3) == 0)
+        {
+            table = &meter_type1;
+        }
+        else if (strncmp(ackbuf + 8, "001", 3) == 0)
+        {
+            table = &meter_type2;
+        }
+	else
+	{
+	    rig_debug(RIG_DEBUG_ERR, "%s: Unexpected meter type: %s\n",
+		      __func__, ackbuf);
+	    return -RIG_EPROTO;
+	}
+        retval = kenwood_safe_transaction(rig, "SM", ackbuf, 10, 6);
+        if (retval != RIG_OK)
+        {
+            return retval;
+        }
+
+        sscanf(ackbuf + 2, "%d", &val->i);
+	/* Convert reading back to dB (rounded) */
+        val->i = (int)floorf(rig_raw2val_float(val->i, table) + 0.5f);
+        return RIG_OK;
+    }
+
     default:
         return kenwood_get_level(rig, vfo, level, val);
     }
@@ -231,6 +419,17 @@ static struct kenwood_priv_caps ts890s_priv_caps =
     .cmdtrm = EOM_KEN,
 };
 
+/* SWR meter calibration table */
+/* The full scale value reads infinity, so arbitrary */
+#define TS890_SWR_CAL { 5, \
+      { \
+    { 0, 1.0 }, \
+    { 11, 1.5 }, \
+    { 23, 2.0 }, \
+    { 35, 3.0 }, \
+    { 70, 15.0 } \
+      } }
+
 /*
  * TS-890S rig capabilities
  * Copied from ts480_caps, many of the values have not been verified.
@@ -241,7 +440,7 @@ const struct rig_caps ts890s_caps =
     RIG_MODEL(RIG_MODEL_TS890S),
     .model_name = "TS-890S",
     .mfg_name = "Kenwood",
-    .version = BACKEND_VER ".3",
+    .version = BACKEND_VER ".11",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -256,15 +455,17 @@ const struct rig_caps ts890s_caps =
     .serial_handshake = RIG_HANDSHAKE_NONE,
     .write_delay = 0,
     .post_write_delay = 0,
-    .timeout = 200,
+    .timeout = 500,
     .retry = 10,
     .preamp = {12, RIG_DBLST_END,},
-    .attenuator = {12, RIG_DBLST_END,},
+    .attenuator = {6, 12, 18, RIG_DBLST_END,},
     .max_rit = kHz(9.99),
     .max_xit = kHz(9.99),
     .max_ifshift = Hz(0),
-    .targetable_vfo = RIG_TARGETABLE_FREQ,
+    .targetable_vfo = RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE,
     .transceive = RIG_TRN_RIG,
+    .agc_level_count = 5,
+    .agc_levels = { RIG_AGC_OFF, RIG_AGC_SLOW, RIG_AGC_MEDIUM, RIG_AGC_FAST, RIG_AGC_ON },
 
     .rx_range_list1 = {
         {kHz(100),   Hz(59999999), TS890_ALL_MODES, -1, -1, TS890_VFO},
@@ -350,6 +551,8 @@ const struct rig_caps ts890s_caps =
     },
     .vfo_ops = TS890_VFO_OPS,
 
+    .swr_cal = TS890_SWR_CAL,
+
     .priv = (void *)& ts890s_priv_caps,
     .rig_init = kenwood_init,
     .rig_open = kenwood_open,
@@ -376,12 +579,20 @@ const struct rig_caps ts890s_caps =
     .set_ant = kenwood_set_ant,
     .get_ant = kenwood_get_ant,
     .send_morse =  kenwood_send_morse,
+    .stop_morse =  kenwood_stop_morse,
     .wait_morse =  rig_wait_morse,
     .scan = kenwood_scan,     /* not working, invalid arguments using rigctl; kenwood_scan does only support on/off and not tone and CTCSS scan */
-    .has_set_level = TS890_LEVEL_ALL,
-    .has_get_level = TS890_LEVEL_ALL,
+    .has_set_level = TS890_LEVEL_SET,
+    .has_get_level = TS890_LEVEL_GET,
     .set_level = kenwood_ts890_set_level,
     .get_level = kenwood_ts890_get_level,
+    .level_gran =
+    {
+#include "level_gran_kenwood.h"
+        [LVL_ATT]     = { .min = { .i = 0 }, .max = { .i = 18 }, .step = { .i = 6 } },
+        [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 1100 }, .step = { .i = 5 } },
+        [LVL_SQL] = { .min = { .f = 0 }, .max = { .f = 1.0f }, .step = { .f = 1.0/255.0 } },
+    },
     .has_get_func = TS890_FUNC_ALL,
     .has_set_func = TS890_FUNC_ALL,
     .set_func = kenwood_set_func,

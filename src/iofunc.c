@@ -50,7 +50,6 @@
 #include "usb_port.h"
 #include "network.h"
 #include "cm108.h"
-#include "gpio.h"
 #include "asyncpipe.h"
 
 #if defined(WIN32) && defined(HAVE_WINDOWS_H)
@@ -952,12 +951,12 @@ int HAMLIB_API write_block_sync(hamlib_port_t *p, const unsigned char *txbuffer,
                                 size_t count)
 {
 
-    if (!p->asyncio)
+    if (p->asyncio)
     {
-        return -RIG_EINTERNAL;
+        return (int) write(p->fd_sync_write, txbuffer, count);
     }
 
-    return (int) write(p->fd_sync_write, txbuffer, count);
+    return (int) write(p->fd, txbuffer, count);
 }
 
 int HAMLIB_API write_block_sync_error(hamlib_port_t *p,
@@ -1262,7 +1261,8 @@ static int read_string_generic(hamlib_port_t *p,
         return -RIG_EINTERNAL;
     }
 
-    rig_debug(RIG_DEBUG_TRACE, "%s called, rxmax=%d direct=%d, expected_len=%d\n", __func__,
+    rig_debug(RIG_DEBUG_TRACE, "%s called, rxmax=%d direct=%d, expected_len=%d\n",
+              __func__,
               (int)rxmax, direct, expected_len);
 
     if (!p || !rxbuffer)
@@ -1337,19 +1337,18 @@ static int read_string_generic(hamlib_port_t *p,
          * read 1 character from the rig, (check if in stop set)
          * The file descriptor must have been set up non blocking.
          */
-        do
         {
 #if 0
 #ifndef __MINGW32__
-            // The ioctl works on Linux but not mingw 
-            int avail=0;
+            // The ioctl works on Linux but not mingw
+            int avail = 0;
             ioctl(p->fd, FIONREAD, &avail);
             //rig_debug(RIG_DEBUG_ERR, "xs: avail=%d expected_len=%d, minlen=%d, direct=%d\n", __func__, avail, expected_len, minlen, direct);
 #endif
 #endif
             rd_count = port_read_generic(p, &rxbuffer[total_count],
                                          expected_len == 1 ? 1 : minlen, direct);
-//            rig_debug(RIG_DEBUG_VERBOSE, "%s: read %d bytes\n", __func__, (int)rd_count);
+//            rig_debug(RIG_DEBUG_VERBOSE, "%s: read %d bytes tot=%d\n", __func__, (int)rd_count, total_count);
             minlen -= rd_count;
 
             if (errno == EAGAIN)
@@ -1359,6 +1358,7 @@ static int read_string_generic(hamlib_port_t *p,
                           direct);
             }
         }
+
         while (++i < 10 && errno == EBUSY);   // 50ms should be enough
 
         /* if we get 0 bytes or an error something is wrong */
@@ -1380,6 +1380,8 @@ static int read_string_generic(hamlib_port_t *p,
 
         total_count += (int) rd_count;
 
+        if (total_count == rxmax) { break; }
+
         if (stopset && memchr(stopset, rxbuffer[total_count - 1], stopset_len))
         {
             if (minlen == 1) { minlen = total_count; }
@@ -1392,6 +1394,18 @@ static int read_string_generic(hamlib_port_t *p,
 
             break;
         }
+    }
+
+    if (total_count > 1 && rxbuffer[0] == ';')
+    {
+        while (rxbuffer[0] == ';' && rxbuffer[0] != 0 && total_count >  1)
+        {
+            memmove(rxbuffer, &rxbuffer[1], strlen((char *)rxbuffer) - 1);
+            --total_count;
+        }
+
+        rig_debug(RIG_DEBUG_VERBOSE,
+                  "%s: skipping single ';' chars at beginning of reply\n", __func__);
     }
 
     /*

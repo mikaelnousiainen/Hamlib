@@ -22,8 +22,9 @@
 #ifndef _UNIDEN_H
 #define _UNIDEN_H 1
 
+#include <stddef.h>
+
 #include <hamlib/rig.h>
-#include <cal.h>
 
 #define BACKEND_VER	"20200621"
 

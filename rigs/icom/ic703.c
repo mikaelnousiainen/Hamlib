@@ -19,14 +19,13 @@
  *
  */
 
-#include <config.h>
-
 #include <stdlib.h>
 
 #include "hamlib/rig.h"
 #include "icom.h"
 #include "bandplan.h"
 #include "idx_builtin.h"
+#include "tones.h"
 
 #define IC703_ALL_RX_MODES (RIG_MODE_AM|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_FM)
 
@@ -110,7 +109,9 @@ const struct rig_caps ic703_caps =
     .has_set_level =  RIG_LEVEL_SET(IC703_LEVEL_ALL),
     .has_get_parm =  RIG_PARM_NONE,
     .has_set_parm =  RIG_PARM_NONE, /* FIXME: parms */
-    .level_gran = {
+    .level_gran =
+    {
+#include "level_gran_icom.h"
         // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
     },

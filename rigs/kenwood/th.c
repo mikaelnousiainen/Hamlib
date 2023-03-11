@@ -20,8 +20,7 @@
  *
  */
 
-#include <hamlib/config.h>
-
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -30,7 +29,6 @@
 #include "hamlib/rig.h"
 #include "kenwood.h"
 #include "th.h"
-#include "serial.h"
 #include "misc.h"
 #include "num_stdio.h"
 
@@ -240,9 +238,9 @@ th_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     freq_sent = freq_sent >= MHz(470) ? (round(freq_sent / 10000) * 10000) :
                 freq_sent;
     // cppcheck-suppress *
-    SNPRINTF(buf, sizeof(buf), "FQ %011"PRIll",%X", (int64_t) freq_sent, step);
+    SNPRINTF(buf, sizeof(buf), "FQ %011"PRIll",%X\r", (int64_t) freq_sent, step);
 
-    return kenwood_transaction(rig, buf, buf, sizeof(buf));
+    return kenwood_transaction(rig, buf, buf, strlen(buf));
 }
 
 /*
@@ -334,7 +332,7 @@ th_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     SNPRINTF(mdbuf, sizeof(mdbuf), "MD %c", kmode);
 
-    return kenwood_transaction(rig, mdbuf, mdbuf, sizeof(mdbuf));
+    return kenwood_transaction(rig, mdbuf, mdbuf, strlen(mdbuf));
 }
 
 /*
@@ -413,6 +411,7 @@ th_set_vfo(RIG *rig, vfo_t vfo)
 {
     int retval;
     char cmd[8];
+    char cmdbuf[8];
 
     rig_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
 
@@ -444,7 +443,7 @@ th_set_vfo(RIG *rig, vfo_t vfo)
             return kenwood_wrong_vfo(__func__, vfo);
         }
 
-        return kenwood_transaction(rig, cmd, cmd, sizeof(cmd));
+        return kenwood_transaction(rig, cmd, cmd, strlen(cmd));
     }
 
     /* No "VMC" cmd on THD72A/THD74 */
@@ -470,7 +469,7 @@ th_set_vfo(RIG *rig, vfo_t vfo)
 
     case RIG_VFO_MEM:
         strncpy(cmd, "BC", sizeof(cmd));
-        retval = kenwood_transaction(rig, cmd, cmd, sizeof(cmd));
+        retval = kenwood_transaction(rig, cmd, cmd, 7);
 
         if (retval != RIG_OK)
         {
@@ -493,7 +492,7 @@ th_set_vfo(RIG *rig, vfo_t vfo)
         return kenwood_wrong_vfo(__func__, vfo);
     }
 
-    return kenwood_transaction(rig, cmd, cmd, sizeof(cmd));
+    return kenwood_transaction(rig, cmd, cmdbuf, strlen(cmd));
 }
 
 int
@@ -507,7 +506,7 @@ th_get_vfo_char(RIG *rig, vfo_t *vfo, char *vfoch)
 
     /* Get VFO band */
 
-    retval = kenwood_transaction(rig, "BC", buf, sizeof(buf));
+    retval = kenwood_transaction(rig, "BC", buf, 7);
 
     if (retval != RIG_OK)
     {
@@ -653,7 +652,7 @@ int tm_set_vfo_bc2(RIG *rig, vfo_t vfo)
     case RIG_VFO_MEM:
         /* get current band */
         SNPRINTF(cmd, sizeof(cmd), "BC");
-        retval = kenwood_transaction(rig, cmd, cmd, sizeof(cmd));
+        retval = kenwood_transaction(rig, cmd, cmd, 7);
 
         if (retval != RIG_OK)
         {
@@ -670,7 +669,7 @@ int tm_set_vfo_bc2(RIG *rig, vfo_t vfo)
     }
 
     SNPRINTF(cmd, sizeof(cmd), "VMC %d,%d", vfonum, vfomode);
-    retval = kenwood_transaction(rig, cmd, cmd, sizeof(cmd));
+    retval = kenwood_transaction(rig, cmd, cmd, 8);
 
     if (retval != RIG_OK)
     {
@@ -683,7 +682,7 @@ int tm_set_vfo_bc2(RIG *rig, vfo_t vfo)
     }
 
     SNPRINTF(cmd, sizeof(cmd), "BC %d,%d", vfonum, txvfonum);
-    return kenwood_transaction(rig, cmd, cmd, sizeof(cmd));
+    return kenwood_transaction(rig, cmd, cmd, 7);
 }
 
 
@@ -737,7 +736,7 @@ int th_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
 
     /* Set VFO mode. To be done for TX vfo also? */
     SNPRINTF(vfobuf, sizeof(vfobuf), "VMC %d,0", vfonum);
-    retval = kenwood_transaction(rig, vfobuf, vfobuf, sizeof(vfobuf));
+    retval = kenwood_transaction(rig, vfobuf, vfobuf, strlen(vfobuf));
 
     if (retval != RIG_OK)
     {
@@ -745,7 +744,7 @@ int th_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
     }
 
     SNPRINTF(vfobuf, sizeof(vfobuf), "BC %d,%d", vfonum, txvfonum);
-    retval = kenwood_transaction(rig, vfobuf, NULL, 0);
+    retval = kenwood_transaction(rig, vfobuf, vfobuf, 7);
 
     if (retval != RIG_OK)
     {
@@ -768,7 +767,7 @@ int th_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *txvfo)
 
     /* Get VFO band */
 
-    retval = kenwood_safe_transaction(rig, "BC", buf, 10, 4);
+    retval = kenwood_safe_transaction(rig, "BC", buf, 10, 6);
 
     if (retval != RIG_OK)
     {
@@ -804,7 +803,7 @@ th_set_trn(RIG *rig, int trn)
 {
     char buf[5];
     SNPRINTF(buf, sizeof(buf), "AI %c", RIG_TRN_RIG == trn ? '1' : '0');
-    return kenwood_transaction(rig, buf, buf, sizeof(buf));
+    return kenwood_transaction(rig, buf, buf, strlen(buf));
 }
 
 /*
@@ -819,7 +818,7 @@ th_get_trn(RIG *rig, int *trn)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
 
-    retval = kenwood_transaction(rig, "AI", buf, sizeof(buf));
+    retval = kenwood_transaction(rig, "AI", buf, 5);
 
     if (retval != RIG_OK)
     {

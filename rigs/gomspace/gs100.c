@@ -22,10 +22,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,12 +29,7 @@
 
 #include "hamlib/rig.h"
 #include "serial.h"
-#include "parallel.h"
-#include "cm108.h"
-#include "gpio.h"
 #include "misc.h"
-#include "tones.h"
-#include "idx_builtin.h"
 #include "register.h"
 
 #include "gs100.h"
@@ -410,17 +401,21 @@ struct rig_caps GS100_caps =
     .vfo_ops = GS100_VFO_OPS,
     .rx_range_list1 =  { {
             .startf = MHz(430), .endf = MHz(440), .modes = GS100_MODES,
-            .low_power = -1, .high_power = -1, GS100_VFOS,
+            .low_power = 0, .high_power = 0, GS100_VFOS,
             .label = "GS100#1"
         }, RIG_FRNG_END,
     },
     .tx_range_list1 =  { {
             .startf = MHz(430), .endf = MHz(440), .modes = GS100_MODES,
-            .low_power = -1, .high_power = -1, GS100_VFOS,
+            .low_power = 0, .high_power = 0, GS100_VFOS,
             .label = "GS100#1"
         }, RIG_FRNG_END,
     },
     .tuning_steps = { {GS100_MODES, Hz(10)}, RIG_TS_END, },
+    .filters =  {
+        {RIG_MODE_ALL, RIG_FLT_ANY},
+        RIG_FLT_END
+    },
     .priv = NULL,
     .rig_init = gs100_init,
     .rig_cleanup = gs100_cleanup,

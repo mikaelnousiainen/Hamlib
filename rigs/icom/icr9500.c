@@ -19,18 +19,11 @@
  *
  */
 
-#include <hamlib/config.h>
-
-
 #include <hamlib/rig.h>
-#include "serial.h"
-#include "misc.h"
 #include "idx_builtin.h"
 
 #include "icom.h"
-#include "icom_defs.h"
-#include "frame.h"
-
+#include "tones.h"
 
 #define ICR9500_MODES (RIG_MODE_AM|RIG_MODE_AMS|\
         RIG_MODE_SSB|RIG_MODE_FM|RIG_MODE_RTTY|RIG_MODE_RTTYR|\
@@ -39,7 +32,7 @@
 #define ICR9500_OPS (RIG_OP_FROM_VFO|RIG_OP_TO_VFO|RIG_OP_MCL)
 
 #define ICR9500_FUNCS (RIG_FUNC_NB|RIG_FUNC_TSQL|RIG_FUNC_NR|RIG_FUNC_MN|RIG_FUNC_ANF|RIG_FUNC_VSC|RIG_FUNC_LOCK)
-#define ICR9500_LEVELS (RIG_LEVEL_PREAMP|RIG_LEVEL_ATT|RIG_LEVEL_AGC|RIG_LEVEL_NR|RIG_LEVEL_PBT_IN|RIG_LEVEL_PBT_OUT|RIG_LEVEL_CWPITCH|RIG_LEVEL_NOTCHF_RAW|RIG_LEVEL_SQL|RIG_LEVEL_RAWSTR|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_APF)
+#define ICR9500_LEVELS (RIG_LEVEL_PREAMP|RIG_LEVEL_ATT|RIG_LEVEL_AGC|RIG_LEVEL_NR|RIG_LEVEL_PBT_IN|RIG_LEVEL_PBT_OUT|RIG_LEVEL_CWPITCH|RIG_LEVEL_NOTCHF_RAW|RIG_LEVEL_SQL|RIG_LEVEL_RAWSTR|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_APF|RIG_LEVEL_AGC_TIME)
 #define ICR9500_PARMS (RIG_PARM_ANN|RIG_PARM_BACKLIGHT)
 #define ICR9500_SCAN_OPS (RIG_SCAN_MEM|RIG_SCAN_VFO|RIG_SCAN_SLCT|RIG_SCAN_PRIO)    /* TBC */
 
@@ -88,7 +81,7 @@ const struct rig_caps icr9500_caps =
     RIG_MODEL(RIG_MODEL_ICR9500),
     .model_name = "IC-R9500",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".0",
+    .version =  BACKEND_VER ".1",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_RECEIVER,
@@ -112,7 +105,9 @@ const struct rig_caps icr9500_caps =
     .has_set_level =  RIG_LEVEL_SET(ICR9500_LEVELS),
     .has_get_parm =  ICR9500_PARMS,
     .has_set_parm =  RIG_PARM_SET(ICR9500_PARMS),
-    .level_gran = {
+    .level_gran =
+    {
+#include "level_gran_icom.h"
         // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
     },

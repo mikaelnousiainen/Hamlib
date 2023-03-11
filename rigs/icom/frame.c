@@ -23,6 +23,10 @@
 
 #include <string.h>  /* String function definitions */
 
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
 #include "hamlib/rig.h"
 #include "serial.h"
 #include "misc.h"
@@ -289,6 +293,13 @@ read_another_frame:
     if (frm_len < 0)
     {
         set_transaction_inactive(rig);
+
+        if (priv_caps->re_civ_addr != priv->re_civ_addr)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: Icom timeout civ expected=%02x, used=%02x\n",
+                      __func__, priv_caps->re_civ_addr, priv->re_civ_addr);
+        }
+
         /* RIG_TIMEOUT: timeout getting response, return timeout */
         /* other error: return it */
         RETURNFUNC(frm_len);
@@ -518,6 +529,12 @@ static int read_icom_frame_generic(hamlib_port_t *p,
     }
     while ((read < rxbuffer_len) && (rxbuffer[read - 1] != FI)
             && (rxbuffer[read - 1] != COL));
+
+    // Check that we have a valid frame preamble (which might be just a single preable character)
+    if (rxbuffer[0] != PR)
+    {
+        return -RIG_EPROTO;
+    }
 
     return (read);
 }

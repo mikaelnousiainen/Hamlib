@@ -25,13 +25,11 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include "hamlib/rig.h"
 #include "bandplan.h"
 #include "newcat.h"
+#include "yaesu.h"
 #include "ft5000.h"
-#include "idx_builtin.h"
 #include "tones.h"
 
 const struct newcat_priv_caps ftdx5000_priv_caps =
@@ -51,7 +49,7 @@ const struct newcat_priv_caps ftdx5000_priv_caps =
         { .index = 8, .set_value = 0, .get_value = '6', .width = 3000, .optional = 0 },
         { .index = 9, .set_value = 0, .get_value = '9', .width = 600, .optional = 0 },
         { .index = 10, .set_value = 0, .get_value = 'A', .width = 300, .optional = 0 },
-    }
+    },
 };
 
 const struct confparams ftdx5000_ext_levels[] =
@@ -140,7 +138,7 @@ const struct rig_caps ftdx5000_caps =
     RIG_MODEL(RIG_MODEL_FTDX5000),
     .model_name =         "FTDX-5000",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".6",
+    .version =            NEWCAT_VER ".9",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -163,7 +161,9 @@ const struct rig_caps ftdx5000_caps =
     .has_set_level =      RIG_LEVEL_SET(FTDX5000_LEVELS),
     .has_get_parm =       RIG_PARM_NONE,
     .has_set_parm =       RIG_PARM_NONE,
-    .level_gran = {
+    .level_gran =
+    {
+#include "level_gran_yaesu.h"
         // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
         [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 1050 }, .step = { .i = 10 } },

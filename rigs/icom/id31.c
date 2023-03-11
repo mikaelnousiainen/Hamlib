@@ -20,12 +20,10 @@
  *
  */
 
-#include <hamlib/config.h>
-
-
 #include "hamlib/rig.h"
 #include "idx_builtin.h"
 #include "icom.h"
+#include "tones.h"
 
 /*
  * Specs and protocol details comes from the chapter 11 of ID-31A_E_CD_ENG_1.pdf
@@ -82,7 +80,7 @@ const struct rig_caps id31_caps =
     RIG_MODEL(RIG_MODEL_ID31),
     .model_name = "ID-31",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".0",
+    .version =  BACKEND_VER ".1",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_HANDHELD,
@@ -151,8 +149,10 @@ const struct rig_caps id31_caps =
 
     .tuning_steps =     {
         // Rem: no support for changing tuning step
+        {RIG_MODE_ALL, 1},
         RIG_TS_END,
     },
+
     /* mode/filter list, remember: order matters! */
     .filters =  {
         {RIG_MODE_FM, kHz(12)},
@@ -177,7 +177,7 @@ const struct rig_caps id31_caps =
     .get_mode =  icom_get_mode,
 
     .set_powerstat = icom_set_powerstat,
-    .get_powerstat = icom_get_powerstat,
+//    .get_powerstat = icom_get_powerstat, // not capable
     .decode_event =  icom_decode_event,
 
     .set_func =  icom_set_func,

@@ -19,16 +19,14 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
 
 #include "hamlib/rig.h"
 #include "icom.h"
 #include "icom_defs.h"
 #include "frame.h"
-#include "idx_builtin.h"
 #include "bandplan.h"
+#include "tones.h"
 
 
 /*
@@ -174,7 +172,10 @@ const struct rig_caps ic706_caps =
     .has_set_level =  RIG_LEVEL_NONE,
     .has_get_parm =  RIG_PARM_NONE,
     .has_set_parm =  RIG_PARM_NONE, /* FIXME: parms */
-    .level_gran =  {},      /* granularity */
+    .level_gran =
+    {
+#include "level_gran_icom.h"
+    },
     .parm_gran =  {},
     .ctcss_list =  NULL,
     .dcs_list =  NULL,
@@ -319,7 +320,10 @@ const struct rig_caps ic706mkii_caps =
     .has_set_level =  RIG_LEVEL_NONE,
     .has_get_parm =  RIG_PARM_NONE,
     .has_set_parm =  RIG_PARM_NONE, /* FIXME: parms */
-    .level_gran =  {},      /* granularity */
+    .level_gran =
+    {
+#include "level_gran_icom.h"
+    },
     .parm_gran =  {},
     .ctcss_list =  NULL,
     .dcs_list =  NULL,
@@ -487,9 +491,9 @@ const struct rig_caps ic706mkiig_caps =
     .has_set_level =  RIG_LEVEL_SET(IC706IIG_LEVEL_ALL),
     .has_get_parm =  RIG_PARM_NONE,
     .has_set_parm =  RIG_PARM_NONE, /* FIXME: parms */
-    .level_gran = {
-        // cppcheck-suppress *
-        [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
+    .level_gran =
+    {
+#include "level_gran_icom.h"
     },
     .parm_gran =  {},
     .ctcss_list =  common_ctcss_list,

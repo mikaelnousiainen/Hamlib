@@ -19,13 +19,13 @@
  *
  */
 
-#include <hamlib/config.h>
-
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
 
 #include <hamlib/rig.h>
 #include <serial.h>
+#include "tones.h"
 #include <misc.h>
 #include <iofunc.h>
 #include <num_stdio.h>
@@ -43,7 +43,7 @@
 
 #define DXSR8_PARM_ALL RIG_PARM_NONE
 
-#define DXSR8_VFO RIG_VFO_NONE
+#define DXSR8_VFO RIG_VFO_A
 
 /* Line Feed */
 #define EOM "\r\n"

@@ -50,7 +50,7 @@
 typedef char ncboolean;
 
 /* shared function version */
-#define NEWCAT_VER "20221025"
+#define NEWCAT_VER "20230228"
 
 /* Hopefully large enough for future use, 128 chars plus '\0' */
 #define NEWCAT_DATA_LEN                 129
@@ -128,6 +128,7 @@ struct newcat_priv_data
     char last_if_response[NEWCAT_DATA_LEN];
     int poweron; /* to prevent powering on more than once */
     int question_mark_response_means_rejected; /* the question mark response has multiple meanings */
+    char front_rear_status; /* e.g. FTDX5000 EX103 status */
 };
 
 /*

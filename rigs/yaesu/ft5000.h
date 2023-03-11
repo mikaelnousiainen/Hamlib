@@ -64,7 +64,7 @@
 
 /* TBC */
 #define FTDX5000_FUNCS (RIG_FUNC_TONE|RIG_FUNC_TSQL|RIG_FUNC_LOCK|\
-               RIG_FUNC_MON|RIG_FUNC_NB|RIG_FUNC_NR|RIG_FUNC_VOX|\
+               RIG_FUNC_MON|RIG_FUNC_NB|RIG_FUNC_NB2|RIG_FUNC_NR|RIG_FUNC_VOX|\
                RIG_FUNC_FBKIN|RIG_FUNC_COMP|RIG_FUNC_ANF|RIG_FUNC_MN|\
                RIG_FUNC_RIT|RIG_FUNC_XIT|\
                RIG_FUNC_TUNER|RIG_FUNC_APF)
@@ -141,7 +141,8 @@
 /* Delay between bytes sent to FT-5000
  * Should not exceed value set in CAT TOT menu (rig default is 10 mSec)
  */
-#define FTDX5000_WRITE_DELAY                    1
+// a 1ms delay was not working with microham and eltima ports
+#define FTDX5000_WRITE_DELAY                    0
 
 
 /* Delay sequential fast writes */

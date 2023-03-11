@@ -20,9 +20,8 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
+#include <string.h>
 
 #include <hamlib/rig.h>
 #include "kenwood.h"
@@ -122,7 +121,7 @@ const struct rig_caps ts990s_caps =
     RIG_MODEL(RIG_MODEL_TS990S),
     .model_name = "TS-990S",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".4",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -137,7 +136,7 @@ const struct rig_caps ts990s_caps =
     .serial_handshake =  RIG_HANDSHAKE_HARDWARE,
     .write_delay =  0,
     .post_write_delay =  0, /* ms */
-    .timeout =  200,
+    .timeout =  500,
     .retry =  10,
 
     .has_get_func =  TS2000_FUNC_ALL,
@@ -146,7 +145,12 @@ const struct rig_caps ts990s_caps =
     .has_set_level =  RIG_LEVEL_SET(TS2000_LEVEL_ALL),
     .has_get_parm =  RIG_PARM_NONE,
     .has_set_parm =  RIG_PARM_NONE,    /* FIXME: parms */
-    .level_gran =  {},                 /* FIXME: granularity */
+    .level_gran =
+    {
+#include "level_gran_kenwood.h"
+      [LVL_ATT]     = { .min = { .i = 0 }, .max = { .i = 18 }, .step = { .i = 6 } },
+      [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 1100 }, .step = { .i = 10 } },
+    },
     .parm_gran =  {},
     .vfo_ops =  TS990S_VFO_OP,
     .scan_ops =  TS990S_SCAN_OP,
@@ -157,6 +161,8 @@ const struct rig_caps ts990s_caps =
     .max_xit =  Hz(9990),
     .targetable_vfo =  RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE,
     .transceive =  RIG_TRN_RIG,
+    .agc_level_count = 5,
+    .agc_levels = { RIG_AGC_OFF, RIG_AGC_SLOW, RIG_AGC_MEDIUM, RIG_AGC_FAST, RIG_AGC_ON },
     .bank_qty =   0,
     .chan_desc_sz =  7,
 
@@ -336,6 +342,7 @@ const struct rig_caps ts990s_caps =
     .set_ant =  kenwood_set_ant,
     .get_ant =  kenwood_get_ant,
     .send_morse =  kenwood_send_morse,
+    .stop_morse =  kenwood_stop_morse,
     .wait_morse =  rig_wait_morse,
     .vfo_op =  kenwood_vfo_op,
     .scan =  kenwood_scan,
@@ -532,18 +539,6 @@ int ts990s_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         val->f = lvl / 255.0;
     }
     break;
-
-    case RIG_LEVEL_CWPITCH:
-        retval = kenwood_safe_transaction(rig, "PT", lvlbuf, sizeof(lvlbuf), 5);
-
-        if (retval != RIG_OK)
-        {
-            return retval;
-        }
-
-        sscanf(lvlbuf + 2, "%d", &lvl);
-        val->i = 300 + lvl * 10;
-        break;
 
     case RIG_LEVEL_RFPOWER:
         retval = kenwood_safe_transaction(rig, "PC", lvlbuf, sizeof(lvlbuf), 5);

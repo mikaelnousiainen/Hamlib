@@ -18,10 +18,7 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-#include <hamlib/config.h>
 
-// cppcheck-suppress *
-#include <stdio.h>
 // cppcheck-suppress *
 #include <stdlib.h>
 // cppcheck-suppress *
@@ -33,7 +30,6 @@
 
 #include <hamlib/rig.h>
 #include <serial.h>
-#include <misc.h>
 #include <cal.h>
 #include <token.h>
 #include <register.h>
@@ -418,6 +414,16 @@ const pbwidth_t rtty_fil[] =
     0,
 };
 
+/* AGC Time value lookups */
+const agc_time_t agc_level[] = // default
+{
+    0, 0.1, 0.2, 0.3, 0.5, 0.8, 1.2, 1.6, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0
+};
+const agc_time_t agc_level2[] = // AM Mode for 7300/9700/705
+{
+    0, 0.3, 0.5, 0.8, 1.2, 1.6, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0
+};
+
 struct icom_addr
 {
     rig_model_t model;
@@ -703,6 +709,7 @@ int icom_init(RIG *rig)
         || rig->caps->rig_model == RIG_MODEL_IC821H
         || rig->caps->rig_model == RIG_MODEL_IC910
         || rig->caps->rig_model == RIG_MODEL_IC2730
+        || rig->caps->rig_model == RIG_MODEL_ID5100
     )
     {
         priv->x25cmdfails = 1;
@@ -981,6 +988,18 @@ icom_rig_open(RIG *rig)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: %s v%s\n", __func__, rig->caps->model_name,
               rig->caps->version);
+
+    if (rs->auto_power_on && priv->poweron == 0)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE,
+                  "%s asking for power on *****************************************\n", __func__);
+        rig_set_powerstat(rig, 1);
+        rig_debug(RIG_DEBUG_VERBOSE,
+                  "%s asking for power on #2 =======================================\n",
+                  __func__);
+        priv->poweron = 1;
+    }
+
 retry_open:
     retval_echo = icom_get_usb_echo_off(rig);
 
@@ -1117,7 +1136,9 @@ icom_rig_close(RIG *rig)
 
     ENTERFUNC;
 
-    if (priv->poweron != 0 && rs->auto_power_off)
+    if (priv->poweron == 0) { RETURNFUNC(RIG_OK); } // nothing to do
+
+    if (priv->poweron == 1 && rs->auto_power_off)
     {
         // maybe we need power off?
         rig_debug(RIG_DEBUG_VERBOSE, "%s trying power off\n", __func__);
@@ -1315,6 +1336,7 @@ int icom_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     }
 
     freq_len = priv->civ_731_mode ? 4 : 5;
+
     /*
      * to_bcd requires nibble len
      */
@@ -1353,8 +1375,21 @@ int icom_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     {
         cmd = C_SET_FREQ;
         subcmd = -1;
-        retval = icom_transaction(rig, cmd, subcmd, freqbuf, freq_len, ackbuf,
-                                  &ack_len);
+
+        if (ICOM_IS_ID5100 || ICOM_IS_ID4100 || ICOM_IS_ID31 || ICOM_IS_ID51)
+        {
+            // for these rigs 0x00 is setting the freq and 0x03 is just for reading
+            cmd = 0x00;
+            // temporary fix for ID5100 not giving ACK/NAK on 0x00 freq on E8 firmware
+            retval = icom_transaction(rig, cmd, subcmd, freqbuf, freq_len, NULL,
+                                      NULL);
+            return RIG_OK;
+        }
+        else
+        {
+            retval = icom_transaction(rig, cmd, subcmd, freqbuf, freq_len, ackbuf,
+                                      &ack_len);
+        }
     }
 
     hl_usleep(50 * 1000); // pause for transceive message and we'll flush it
@@ -1678,7 +1713,13 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         RETURNFUNC(RIG_OK);
     }
 
-    if (freq_len != 4 && freq_len != 5)
+    if (freq_len == 3 && (ICOM_IS_ID5100 || ICOM_IS_ID4100 || ICOM_IS_ID31
+                          || ICOM_IS_ID51))
+    {
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: 3-byte ID5100/4100 length - turn off XONXOFF flow control\n", __func__);
+    }
+    else if (freq_len != 4 && freq_len != 5)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: wrong frame len=%d\n",
                   __func__, freq_len);
@@ -1688,7 +1729,7 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         RETURNFUNC(-RIG_ERJCTED);
     }
 
-    if (freq_len != (priv->civ_731_mode ? 4 : 5))
+    if (freq_len != 3 && freq_len != (priv->civ_731_mode ? 4 : 5))
     {
         rig_debug(RIG_DEBUG_WARN, "%s: freq len (%d) differs from expected\n",
                   __func__, freq_len);
@@ -1698,6 +1739,8 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
      * from_bcd requires nibble len
      */
     *freq = from_bcd(freqbuf + freqbuf_offset, freq_len * 2);
+
+    if (freq_len == 3) { *freq *= 10000; } // 3-byte freq for ID5100 is in 10000Hz units so convert to Hz
 
     if (vfo == RIG_VFO_MEM && civ_731_mode) { priv->civ_731_mode = 1; }
 
@@ -2136,7 +2179,8 @@ int icom_set_mode_with_data(RIG *rig, vfo_t vfo, rmode_t mode,
                       || rig->caps->rig_model == RIG_MODEL_IC785x
                       || rig->caps->rig_model == RIG_MODEL_IC9100
                       || rig->caps->rig_model == RIG_MODEL_IC9700
-                      || rig->caps->rig_model == RIG_MODEL_IC705;
+                      || rig->caps->rig_model == RIG_MODEL_IC705
+                      || rig->caps->rig_model == RIG_MODEL_X6100;
 
     ENTERFUNC;
 
@@ -3450,6 +3494,33 @@ int icom_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         lvl_sc = S_LVL_COMP;
         break;
 
+    case RIG_LEVEL_AGC_TIME:
+        lvl_cn = C_CTL_MEM;
+        lvl_sc = 0x04;
+        cmd_len = 1;
+        {
+            int i;
+            icom_val = 0;
+            const float *agcp = agc_level;
+
+            if (rig->state.current_mode == RIG_MODE_AM) { agcp = agc_level2; }
+
+            rig_debug(RIG_DEBUG_ERR, "%s: val.f=%g\n", __func__, val.f);
+
+            for (i = 0; i <= 13; ++i)
+            {
+                if (agcp[i] <= val.f)
+                {
+                    rig_debug(RIG_DEBUG_ERR, "%s: agcp=%g <= val.f=%g at %d\n", __func__, agcp[i],
+                              val.f, i);
+                    icom_val = i;
+                }
+            }
+
+            cmdbuf[0] = icom_val;
+        }
+        break;
+
     case RIG_LEVEL_AGC:
         lvl_cn = C_CTL_FUNC;
         lvl_sc = S_FUNC_AGC;
@@ -3460,7 +3531,7 @@ int icom_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             int found = 0;
 
             for (i = 0;
-                    i <= RIG_AGC_LAST && priv_caps->agc_levels[i].level != RIG_AGC_LAST
+                    i <= HAMLIB_MAX_AGC_LEVELS && priv_caps->agc_levels[i].level != RIG_AGC_LAST
                     && priv_caps->agc_levels[i].icom_level >= 0; i++)
             {
                 if (priv_caps->agc_levels[i].level == val.i)
@@ -4051,6 +4122,20 @@ int icom_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         cmdbuf[0] = icom_get_spectrum_vfo(rig, vfo);
         break;
 
+    case RIG_LEVEL_USB_AF:
+        lvl_cn = C_CTL_SCP;
+        lvl_sc = S_SCP_ATT;
+        cmd_len = 1;
+
+        break;
+
+    case RIG_LEVEL_AGC_TIME:
+        lvl_cn = C_CTL_MEM;
+        lvl_sc = 0x04; // IC-9700, 7300, 705 so far
+        cmd_len = 0;
+
+        break;
+
     default:
         rig_debug(RIG_DEBUG_ERR, "%s: unsupported get_level %s\n", __func__,
                   rig_strlevel(level));
@@ -4102,7 +4187,7 @@ int icom_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             int found = 0;
 
             for (i = 0;
-                    i <= RIG_AGC_LAST && priv_caps->agc_levels[i].level >= 0; i++)
+                    i <= HAMLIB_MAX_AGC_LEVELS && priv_caps->agc_levels[i].level >= 0; i++)
             {
                 if (priv_caps->agc_levels[i].icom_level == icom_val)
                 {
@@ -4349,6 +4434,20 @@ int icom_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     case RIG_LEVEL_SPECTRUM_EDGE_HIGH:
         val->i = (int) from_bcd(respbuf + cmdhead + 5, 5 * 2);
+        break;
+
+    case RIG_LEVEL_AGC_TIME:
+
+        // some rigs have different level interpretaions for different modes
+        if (rig->state.current_mode == RIG_MODE_AM)
+        {
+            val->f = agc_level2[icom_val];
+        }
+        else
+        {
+            val->f = agc_level[icom_val];
+        }
+
         break;
 
     /* RIG_LEVEL_ATT/RIG_LEVEL_SPECTRUM_ATT: returned value is already an integer in dB (coded in BCD) */
@@ -6314,7 +6413,6 @@ int icom_get_split_freq_mode(RIG *rig, vfo_t vfo, freq_t *tx_freq,
     RETURNFUNC(retval);
 }
 
-
 /*
  * icom_set_split
  * Assumes rig!=NULL, rig->state.priv!=NULL
@@ -6322,6 +6420,7 @@ int icom_get_split_freq_mode(RIG *rig, vfo_t vfo, freq_t *tx_freq,
 int icom_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
 {
     struct icom_priv_data *priv = (struct icom_priv_data *) rig->state.priv;
+    const struct icom_priv_caps *priv_caps = rig->caps->priv;
     unsigned char ackbuf[MAXFRAMELEN];
     int ack_len = sizeof(ackbuf), retval;
     int split_sc;
@@ -6375,6 +6474,7 @@ int icom_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
 
     switch (split)
     {
+    case 0x10:  // simplex for ID-5100
     case RIG_SPLIT_OFF:
 
         // if either VFOA or B is the vfo we set to VFOA when split is turned off
@@ -6515,10 +6615,29 @@ int icom_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
         RETURNFUNC2(-RIG_EINVAL);
     }
 
-    if (RIG_OK != (retval = icom_transaction(rig, C_CTL_SPLT, split_sc, NULL, 0,
-                            ackbuf, &ack_len)))
+    if (priv_caps->dualwatch_split)
     {
-        RETURNFUNC2(retval);
+        int wvfo = tx_vfo & (RIG_VFO_A | RIG_VFO_MAIN) ? S_SUB : S_MAIN;
+
+        if (RIG_OK != (retval = icom_set_func(rig, RIG_VFO_CURR, RIG_FUNC_DUAL_WATCH,
+                                              split_sc)))
+        {
+            RETURNFUNC2(retval);
+        }
+
+        if (RIG_OK != (retval = icom_transaction(rig, C_SET_VFO, wvfo, NULL, 0,
+                                ackbuf, &ack_len)))
+        {
+            RETURNFUNC2(retval);
+        }
+    }
+    else
+    {
+        if (RIG_OK != (retval = icom_transaction(rig, C_CTL_SPLT, split_sc, NULL, 0,
+                                ackbuf, &ack_len)))
+        {
+            RETURNFUNC2(retval);
+        }
     }
 
     if ((ack_len >= 1 && ackbuf[0] != ACK) && (ack_len >= 2 && ackbuf[1] != NAK))
@@ -6600,6 +6719,7 @@ int icom_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
 
     switch (splitbuf[1])
     {
+    case 0x10:
     case S_SPLT_OFF:
         *split = RIG_SPLIT_OFF;
         break;
@@ -7003,8 +7123,9 @@ int icom_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         break;
 
     case RIG_FUNC_DUAL_WATCH:
-        if ((rig->caps->rig_model == RIG_MODEL_IC9100) ||
-                (rig->caps->rig_model == RIG_MODEL_IC9700))
+        if ((rig->caps->rig_model == RIG_MODEL_IC9100)
+                || (rig->caps->rig_model == RIG_MODEL_IC9700)
+                || (rig->caps->rig_model == RIG_MODEL_ID5100))
         {
             fct_cn = C_CTL_FUNC;
             fct_sc = S_MEM_DUALMODE;
@@ -7272,6 +7393,13 @@ int icom_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         }
 
         break;
+
+    case RIG_FUNC_OVF_STATUS:
+    {
+        fct_cn = C_RD_SQSM;
+        fct_sc = S_OVF;
+        break;
+    }
 
     default:
         rig_debug(RIG_DEBUG_ERR, "%s: unsupported get_func %s\n", __func__,
@@ -7876,12 +8004,13 @@ int icom_set_powerstat(RIG *rig, powerstat_t status)
     {
     case RIG_POWER_ON:
 
-        sleep(1);         // let serial bus idle for a while
         // ic7300 manual says ~150 for 115,200
         // we'll just send a few more to be sure for all speeds
         memset(fe_buf, 0xfe, fe_max);
         // sending more than enough 0xfe's to wake up the rs232
         write_block(&rs->rigport, fe_buf, fe_max);
+        hl_usleep(200 *
+                  1000); // need to wait a bit for RigPI and others to queue the echo
 
         // we'll try 0x18 0x01 now -- should work on STBY rigs too
         pwr_sc = S_PWR_ON;
@@ -7890,6 +8019,28 @@ int icom_set_powerstat(RIG *rig, powerstat_t status)
         retval =
             icom_transaction(rig, C_SET_PWR, pwr_sc, NULL, 0, ackbuf, &ack_len);
 
+        if (rig->caps->rig_model == RIG_MODEL_IC7300)
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: waiting 5 seconds for rig to wake up\n",
+                      __func__);
+            sleep(5);  // IC7300 is slow to start up -- may need to add more rigs
+        }
+
+        // poweron == 0 means never powered -- == 2 means CAT turned off
+        if (priv->poweron == 0 || priv->poweron == 2)
+        {
+            retval = -1;
+
+            for (i = 0; i < 5 && retval != RIG_OK; ++i)
+            {
+                retval = icom_get_usb_echo_off(rig);
+
+                if (retval != RIG_OK) { sleep(1); }
+            }
+
+            return RIG_OK;
+        }
+
         break;
 
     default:
@@ -7897,6 +8048,7 @@ int icom_set_powerstat(RIG *rig, powerstat_t status)
         fe_buf[0] = 0;
         retval =
             icom_transaction(rig, C_SET_PWR, pwr_sc, NULL, 0, ackbuf, &ack_len);
+        priv->poweron = 2;
     }
 
     i = 0;
@@ -7943,6 +8095,12 @@ int icom_set_powerstat(RIG *rig, powerstat_t status)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: Wait failed for get_powerstat\n",
                   __func__);
+        // close and re-open the rig
+        // on linux the USB gets reset during power on
+        rig_close(rig);
+        sleep(1);
+        rig_open(rig);
+
         retval = -RIG_ETIMEOUT;
     }
 
@@ -7975,6 +8133,8 @@ int icom_get_powerstat(RIG *rig, powerstat_t *status)
 
     ENTERFUNC;
 
+    *status = RIG_POWER_OFF; // default return until proven otherwise
+
     /* r75 has no way to get power status, so fake it */
     if (rig->caps->rig_model == RIG_MODEL_ICR75)
     {
@@ -7993,6 +8153,17 @@ int icom_get_powerstat(RIG *rig, powerstat_t *status)
 
         *status = ((ack_len == 6) && (ackbuf[0] == C_CTL_MEM)) ?
                   RIG_POWER_ON : RIG_POWER_OFF;
+    }
+
+    if (rig->caps->rig_model == RIG_MODEL_IC7300)
+    {
+        freq_t freq;
+        int retrysave = rig->caps->retry;
+        rig->state.rigport.retry = 0;
+        int retval = rig_get_freq(rig, RIG_VFO_A, &freq);
+        rig->state.rigport.retry = retrysave;
+        *status = retval == RIG_OK ? RIG_POWER_ON : RIG_POWER_OFF;
+        return retval;
     }
     else
     {

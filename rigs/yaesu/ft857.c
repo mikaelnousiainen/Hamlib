@@ -50,8 +50,6 @@
  * doesn't work from front panel either.
  */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
 #include <string.h>     /* String function definitions */
 
@@ -246,7 +244,7 @@ const struct rig_caps ft857_caps =
     RIG_MODEL(RIG_MODEL_FT857),
     .model_name =     "FT-857",
     .mfg_name =       "Yaesu",
-    .version =        "20220712.0",
+    .version =        "20230206.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_TRANSCEIVER,
@@ -269,7 +267,10 @@ const struct rig_caps ft857_caps =
     .has_set_level =  RIG_LEVEL_BAND_SELECT,
     .has_get_parm =   RIG_PARM_NONE,
     .has_set_parm =   RIG_PARM_NONE,
-    .level_gran =     {},                     /* granularity */
+    .level_gran =
+    {
+#include "level_gran_yaesu.h"
+    },
     .parm_gran =      {},
     .ctcss_list =     common_ctcss_list,
     .dcs_list =       common_dcs_list,   /* only 104 supported */
@@ -340,6 +341,7 @@ const struct rig_caps ft857_caps =
     * per testing by Rich Newsom, WA4SXZ
     */
     .filters =  {
+        {RIG_MODE_ALL, RIG_FLT_ANY},
 //        {RIG_MODE_SSB, kHz(2.2)},
 //        {RIG_MODE_CW, kHz(2.2)},
 //        {RIG_MODE_CWR, kHz(2.2)},
@@ -603,13 +605,22 @@ static int ft857_send_icmd(RIG *rig, int index, unsigned char *data)
 int ft857_get_vfo(RIG *rig, vfo_t *vfo)
 {
     unsigned char c;
+    static int ignore = 0;
     *vfo = RIG_VFO_B;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called \n", __func__);
 
+    // Some 857's cannnot read so we'll just return the cached value if we've seen an error
+    if (ignore)
+    {
+        *vfo = rig->state.cache.vfo;
+        return RIG_OK;
+    }
     if (ft857_read_eeprom(rig, 0x0068, &c) < 0)   /* get vfo status */
     {
-        return -RIG_EPROTO;
+        ignore = 1;
+        *vfo = rig->state.cache.vfo;
+        return RIG_OK;
     }
 
     if ((c & 0x1) == 0) { *vfo = RIG_VFO_A; }

@@ -19,10 +19,9 @@
  *
  */
 
-#include <hamlib/config.h>
-
+#include <stdint.h>
 #include <stdio.h>
-#include <ctype.h>
+#include <string.h>
 
 #include "hamlib/rig.h"
 #include "serial.h"
@@ -1364,7 +1363,7 @@ int aor_get_chan_all_cb(RIG *rig, vfo_t vfo, chan_cb_t chan_cb, rig_ptr_t arg)
      * future data for channel channel_num
      */
     chan = NULL;
-    retval = chan_cb(rig, &chan, chan_next, chan_list, arg);
+    retval = chan_cb(rig, vfo, &chan, chan_next, chan_list, arg);
 
     if (retval != RIG_OK)
     {
@@ -1414,7 +1413,7 @@ int aor_get_chan_all_cb(RIG *rig, vfo_t vfo, chan_cb_t chan_cb, rig_ptr_t arg)
              * provide application with channel data,
              * and ask for a new channel structure
              */
-            chan_cb(rig, &chan, chan_next, chan_list, arg);
+            chan_cb(rig, vfo, &chan, chan_next, chan_list, arg);
 
             if (j >= LINES_PER_MA - 1)
             {

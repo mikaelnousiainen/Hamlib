@@ -19,16 +19,14 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
 #include <ctype.h>
 
 #include "hamlib/rig.h"
+#include "misc.h"
 #include "serial.h"
-#include "cal.h"
 #include "register.h"
 #include "idx_builtin.h"
 

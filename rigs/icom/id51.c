@@ -20,15 +20,12 @@
  *
  */
 
-#include <hamlib/config.h>
-
-
 #include "hamlib/rig.h"
 #include "token.h"
 #include "icom.h"
 #include "idx_builtin.h"
 #include "icom_defs.h"
-#include "frame.h"
+#include "tones.h"
 
 /*
  * Specs and protocol details comes from the chapter 17 of ID-51A_E_PLUS2_CD_0.pdf
@@ -90,7 +87,7 @@ const struct rig_caps id51_caps =
     RIG_MODEL(RIG_MODEL_ID51),
     .model_name = "ID-51",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".0",
+    .version =  BACKEND_VER ".1",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_ALPHA,
     .rig_type =  RIG_TYPE_HANDHELD,
@@ -164,8 +161,10 @@ const struct rig_caps id51_caps =
 
     .tuning_steps =     {
         // Rem: no support for changing tuning step
+        {RIG_MODE_ALL, 1},
         RIG_TS_END,
     },
+
     /* mode/filter list, remember: order matters! */
     .filters =  {
         {RIG_MODE_FM | RIG_MODE_AM, kHz(12)},
@@ -184,7 +183,7 @@ const struct rig_caps id51_caps =
     .rig_open =  icom_rig_open,
     .rig_close =  icom_rig_close,
     .set_powerstat =  icom_set_powerstat,
-    .get_powerstat =  icom_get_powerstat,
+//    .get_powerstat =  icom_get_powerstat, // not capable
 
     .set_freq =  icom_set_freq,
     .get_freq =  icom_get_freq,

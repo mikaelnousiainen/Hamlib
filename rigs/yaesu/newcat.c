@@ -27,9 +27,6 @@
  *
  */
 
-
-#include <hamlib/config.h>
-
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
 #include <math.h>
@@ -57,7 +54,8 @@ typedef enum nc_rigid_e
     NC_RIGID_FT450D          = 244,
     NC_RIGID_FT950           = 310,
     NC_RIGID_FT891           = 135,
-    NC_RIGID_FT991           = 135,
+    NC_RIGID_FT991           = 570,
+    NC_RIGID_FT991A          = 670,
     NC_RIGID_FT2000          = 251,
     NC_RIGID_FT2000D         = 252,
     NC_RIGID_FTDX1200        = 583,
@@ -68,7 +66,8 @@ typedef enum nc_rigid_e
     NC_RIGID_FTDX3000        = 460,
     NC_RIGID_FTDX3000DM      = 462, // an undocumented FT-DX3000DM 50W rig
     NC_RIGID_FTDX101D        = 681,
-    NC_RIGID_FTDX101MP       = 682
+    NC_RIGID_FTDX101MP       = 682,
+    NC_RIGID_FT710           = 800,
 } nc_rigid_t;
 
 
@@ -490,6 +489,7 @@ int newcat_init(RIG *rig)
      */
 
     is_ft450 = newcat_is_rig(rig, RIG_MODEL_FT450);
+    is_ft450 |= newcat_is_rig(rig, RIG_MODEL_FT450D);
     is_ft891 = newcat_is_rig(rig, RIG_MODEL_FT891);
     is_ft950 = newcat_is_rig(rig, RIG_MODEL_FT950);
     is_ft991 = newcat_is_rig(rig, RIG_MODEL_FT991);
@@ -543,6 +543,9 @@ int newcat_open(RIG *rig)
     struct newcat_priv_data *priv = rig->state.priv;
     struct rig_state *rig_s = &rig->state;
     const char *handshake[3] = {"None", "Xon/Xoff", "Hardware"};
+    int err;
+    int set_only = 0;
+    int retry_save = 0;
 
     ENTERFUNC;
 
@@ -586,32 +589,53 @@ int newcat_open(RIG *rig)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: rig_id=%d\n", __func__, priv->rig_id);
     rig->state.rigport.timeout = timeout;
 
-#if 0 // possible future enhancement?
-
     // some rigs have a CAT TOT timeout that defaults to 10ms
     // so we'll increase CAT timeout to 100ms
+    // 10ms seemed problematic on some rigs/computers
     if (priv->rig_id == NC_RIGID_FT2000
             || priv->rig_id == NC_RIGID_FT2000D
             || priv->rig_id == NC_RIGID_FT891
             || priv->rig_id == NC_RIGID_FT991
-            || priv->rig_id == NC_RIGID_FT950)
+            || priv->rig_id == NC_RIGID_FT991A
+            || priv->rig_id == NC_RIGID_FT950
+            || priv->rig_id == NC_RIGID_FTDX3000
+            || priv->rig_id == NC_RIGID_FTDX3000DM)
     {
-        int err;
-        char *cmd = "EX0291%c";
+        char *cmd = "EX0291;EX029;"; // FT2000/D
 
-        if (priv->rig_id == NC_RIGID_FT950) { cmd = "EX0271%c"; }
-        else if (priv->rig_id == NC_RIGID_FT891) { cmd = "EX05071c"; }
-        else if (priv->rig_id == NC_RIGID_FT991) { cmd = "EX0321c"; }
+        if (priv->rig_id == NC_RIGID_FT950 || rig->caps->rig_model == RIG_MODEL_FT950) { cmd = "EX0271;EX027;"; }
+        else if (priv->rig_id == NC_RIGID_FT891
+                 || rig->caps->rig_model == RIG_MODEL_FT891) { cmd = "EX05071;EX0507;"; }
+        else if (priv->rig_id == NC_RIGID_FT991
+                 || rig->caps->rig_model == RIG_MODEL_FT991) { cmd = "EX0321;EX032;"; }
+        else if (priv->rig_id == NC_RIGID_FT991A
+                 || rig->caps->rig_model == RIG_MODEL_FT991) { cmd = "EX0321;EX032;"; }
+        else if (priv->rig_id == NC_RIGID_FTDX3000
+                 || rig->caps->rig_model == RIG_MODEL_FTDX3000) { cmd = "EX0391;"; set_only = 1; }
+        else if (priv->rig_id == NC_RIGID_FTDX3000DM
+                 || rig->caps->rig_model == RIG_MODEL_FTDX3000) { cmd = "EX0391;"; set_only = 1; }
+        else if (priv->rig_id == NC_RIGID_FTDX5000
+                 || rig->caps->rig_model == RIG_MODEL_FTDX5000) { cmd = "EX0331;EX033"; }
 
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), cmd, cat_term);
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s", cmd);
 
-        if (RIG_OK != (err = newcat_set_cmd(rig)))
+        retry_save = rig->state.rigport.retry;
+        rig->state.rigport.retry = 0;
+        if (set_only)
         {
-            RETURNFUNC(err);
+            err = newcat_set_cmd(rig);
+        }
+        else
+        {
+            err = newcat_get_cmd(rig);
+        }
+        rig->state.rigport.retry = retry_save;
+
+        if (err != RIG_OK)
+        {
+          // if we can an err we just ignore the failure -- Win4Yaesu was not recognizing EX032 command  
         }
     }
-
-#endif
 
     if (priv->rig_id == NC_RIGID_FTDX3000 || priv->rig_id == NC_RIGID_FTDX3000DM)
     {
@@ -619,31 +643,32 @@ int newcat_open(RIG *rig)
         rig_debug(RIG_DEBUG_VERBOSE, "%s: disabling FTDX3000 band select\n", __func__);
     }
 
-    if (priv->rig_id == NC_RIGID_FTDX5000)
-    {
-        int err;
-        // set the CAT TIME OUT TIMER to 100ms
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX0331;");
+#if 0 // this apparently does not work
 
-        if (RIG_OK != (err = newcat_set_cmd(rig)))
+    if (is_ftdx5000)
+    {
+        // Remember EX103 status
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX103;");
+        rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
+
+        if (set_only)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: FTDX5000 CAT RATE error: %s\n", __func__,
-                      rigerror(err));
+            err = newcat_set_cmd(rig);
         }
+        else
+        {
+            err = newcat_get_cmd(rig);
+        }
+
+        if (err != RIG_OK)
+        {
+            RETURNFUNC(err);
+        }
+
+        if (priv->ret_data[6] == ';') { priv->front_rear_status = priv->ret_data[5]; }
     }
 
-    if (priv->rig_id == NC_RIGID_FTDX3000 || priv->rig_id == NC_RIGID_FTDX3000DM)
-    {
-        int err;
-        // set the CAT TIME OUT TIMER to 100ms
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX0391;");
-
-        if (RIG_OK != (err = newcat_set_cmd(rig)))
-        {
-            rig_debug(RIG_DEBUG_ERR, "%s: FTDX5000 CAT RATE error: %s\n", __func__,
-                      rigerror(err));
-        }
-    }
+#endif
 
     RETURNFUNC(RIG_OK);
 }
@@ -675,6 +700,19 @@ int newcat_close(RIG *rig)
         rig_set_powerstat(rig, 0);
         priv->poweron = 0;
     }
+
+#if 0 // this apparently does not work -- we can't query EX103
+
+    if (is_ftdx5000)
+    {
+        // Restore EX103 status
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX103%c;",
+                 priv->front_rear_status);
+        rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
+        newcat_set_cmd(rig); // don't care about the return
+    }
+
+#endif
 
     RETURNFUNC(RIG_OK);
 }
@@ -771,8 +809,95 @@ int newcat_get_conf2(RIG *rig, token_t token, char *val, int val_len)
     RETURNFUNC(ret);
 }
 
+static int freq_60m[] = { 5332000, 5348000, 5358500, 5373000, 5405000 };
 
+/* returns 0 if no exeption or 1 if rig needs special handling */
+int newcat_60m_exception(RIG *rig, freq_t freq, mode_t mode)
+{
+    struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
+    int err;
+    int channel = -1;
+    int i;
+    rmode_t tmode;
+    pbwidth_t twidth;
 
+    if (!(freq > 5.2 && freq < 5.5)) // we're not on 60M
+    {
+        return 0;
+    }
+
+    if (mode != RIG_MODE_CW && mode != RIG_MODE_USB && mode != RIG_MODE_PKTUSB
+            && mode != RIG_MODE_RTTYR)
+    {
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: only USB, PKTUSB, RTTYR, and CW allowed for 60M operations\n", __func__);
+        return -RIG_EINVAL;
+    }
+
+    // some rigs need to skip freq/mode settings as 60M only operates in memory mode
+    if (is_ft991) { return 1; }
+
+    if (!is_ftdx10 && !is_ft710 && !is_ftdx101d && !is_ftdx101mp) { return 0; }
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: 60M exception ignoring freq/mode commands\n",
+              __func__);
+    // If US mode we need to use memory channels
+    SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX0301%c", cat_term);
+
+    if ((err = newcat_get_cmd(rig)) != RIG_OK)
+    {
+        RETURNFUNC2(err);
+    }
+
+    // 01 is the only exception so far -- others may be like UK and have full control too
+    if (strncmp(&priv->ret_data[6], "01", 2) != 0) { return 0; } // no exception
+
+    // so now we should have a rig that has fixed memory channels 501-510 in USB/CW-U mode
+
+    // toggle vfo mode if we need to
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: 60M exception ignoring freq/mode commands\n",
+              __func__);
+
+    rig_get_mode(rig, RIG_VFO_A, &tmode, &twidth);
+
+    if (tmode != RIG_VFO_MEM)
+    {
+        err = newcat_vfomem_toggle(rig);
+
+        if (err != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: Error toggling VFO_MEM\n", __func__);
+            return -err;
+        }
+    }
+
+    // find the nearest slot below what is requested
+    for (i = 0; i < 5; ++i)
+    {
+        if ((long)freq == freq_60m[i]) { channel = i; }
+    }
+
+    if (channel < 0)
+    {
+        rig_debug(RIG_DEBUG_ERR,
+                  "%s: 60M allowed frequencies are 5.332, 5.348, 5.3585, 5.373,5.405, got %g\n",
+                  __func__, freq / 1000);
+        return -RIG_EINVAL;
+    }
+
+    if (mode == RIG_MODE_CW) { channel += 5; }
+
+    SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "MC%3d%c", channel + 501,
+             cat_term);
+
+    if ((err = newcat_set_cmd(rig)) != RIG_OK)
+    {
+        RETURNFUNC2(err);
+    }
+
+    return 1;
+}
 
 /*
  * newcat_set_freq
@@ -782,20 +907,6 @@ int newcat_get_conf2(RIG *rig, token_t token, char *val, int val_len)
  * Does not SET priv->current_vfo
  *
  */
-
-int newcat_60m_exception(RIG *rig, freq_t freq)
-{
-    // can we improve this to set memory mode and pick the memory slot?
-    if (is_ftdx10 && freq > 5.2 && freq < 5.5)
-    {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: 60M exception ignoring freq/mode commands\n",
-                  __func__);
-        return 1;
-    }
-
-    return 0;
-}
-
 int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
     char c;
@@ -804,10 +915,12 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     const struct rig_caps *caps;
     struct newcat_priv_data *priv;
     int special_60m = 0;
+    rmode_t tmode;
+    pbwidth_t twidth;
 
     ENTERFUNC;
 
-    if (newcat_60m_exception(rig, freq))
+    if (newcat_60m_exception(rig, freq, rig->state.cache.modeMainA))
     {
         // we don't try to set freq on 60m for some rigs since we must be in memory mode
         // and we can't run split mode on 60M memory mode either
@@ -831,6 +944,14 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     priv = (struct newcat_priv_data *)rig->state.priv;
     caps = rig->caps;
+
+    rig_get_mode(rig, RIG_VFO_A, &tmode, &twidth);
+
+    if (tmode == RIG_VFO_MEM)
+    {
+        // then we need to toggle back to VFO mode
+        newcat_vfomem_toggle(rig);
+    }
 
     rig_debug(RIG_DEBUG_TRACE, "%s: passed vfo = %s\n", __func__, rig_strvfo(vfo));
 //    rig_debug(RIG_DEBUG_TRACE, "%s: translated vfo = %s\n", __func__, rig_strvfo(tvfo));
@@ -900,7 +1021,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         if (vfo != rig->state.tx_vfo) { return -RIG_ENTARGET; }
     }
 
-    if (is_ftdx3000 || is_ftdx3000dm || is_ftdx5000)
+    if (is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx1200)
     {
         // we have a few rigs that can't set freq while PTT_ON
         // so we'll try a few times to see if we just need to wait a bit
@@ -1336,7 +1457,7 @@ int newcat_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     ENTERFUNC;
 
-    if (newcat_60m_exception(rig, rig->state.cache.freqMainA)) { RETURNFUNC(RIG_OK); } // we don't set mode in this case
+    if (newcat_60m_exception(rig, rig->state.cache.freqMainA, mode)) { RETURNFUNC(RIG_OK); } // we don't set mode in this case
 
     if (!newcat_valid_command(rig, "MD"))
     {
@@ -1357,9 +1478,21 @@ int newcat_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     {
         rig_get_mode(rig, vfo, &tmode, &twidth);
 
-        if (mode == tmode && (twidth == width || twidth == RIG_PASSBAND_NOCHANGE))
+        if (mode == tmode && (twidth == width || width == RIG_PASSBAND_NOCHANGE))
         {
             RETURNFUNC(RIG_OK);
+        }
+
+        if (mode != tmode)
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: mode changing from %s to %s\n", __func__,
+                      rig_strrmode(mode), rig_strrmode(tmode));
+        }
+
+        if (width != twidth)
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: width changing from %d to %d\n", __func__,
+                      (int)width, (int)twidth);
         }
     }
 
@@ -1735,7 +1868,7 @@ int newcat_get_vfo(RIG *rig, vfo_t *vfo)
 int newcat_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 {
     struct newcat_priv_data *priv  = (struct newcat_priv_data *)rig->state.priv;
-    int err;
+    int err = -RIG_EPROTO;
     char txon[] = "TX1;";
     char txoff[] = "TX0;";
 
@@ -1750,24 +1883,45 @@ int newcat_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 
     switch (ptt)
     {
-    // the FTDX5000 uses menu 103 for front/rear audio in USB mode
     case RIG_PTT_ON_MIC:
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX1030;");
+
+        /* Build the command string */
+        // the FTDX5000 uses menu 103 for front/rear audio in USB mode
+        if (is_ftdx5000)
+        {
+            // Ensure FT5000 is back to MIC input
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX1030;");
+            rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
+            newcat_set_cmd(rig); // don't care about the return
+        }
+
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s", txon);
         rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
         err = newcat_set_cmd(rig);
         break;
 
     case RIG_PTT_ON_DATA:
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX1031;");
+
+        /* Build the command string */
+        // the FTDX5000 uses menu 103 for front/rear audio in USB mode
+        if (is_ftdx5000)
+        {
+            // Ensure FT5000 is back to MIC input
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX1031;");
+            rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
+            newcat_set_cmd(rig); // don't care about the return
+        }
+
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s", txon);
         rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
         err = newcat_set_cmd(rig);
         break;
 
     case RIG_PTT_ON:
-        /* Build the command string */
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s", txon);
         rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
         err = newcat_set_cmd(rig);
+
         break;
 
     case RIG_PTT_OFF:
@@ -3017,7 +3171,7 @@ int newcat_set_ctcss_tone(RIG *rig, vfo_t vfo, tone_t tone)
         RETURNFUNC(err);
     }
 
-    if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+    if (rig->caps->targetable_vfo & RIG_TARGETABLE_TONE)
     {
         main_sub_vfo = (RIG_VFO_B == vfo || RIG_VFO_SUB == vfo) ? '1' : '0';
     }
@@ -3084,7 +3238,7 @@ int newcat_get_ctcss_tone(RIG *rig, vfo_t vfo, tone_t *tone)
         RETURNFUNC(err);
     }
 
-    if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+    if (rig->caps->targetable_vfo & RIG_TARGETABLE_TONE)
     {
         main_sub_vfo = (RIG_VFO_B == vfo || RIG_VFO_SUB == vfo) ? '1' : '0';
     }
@@ -3462,6 +3616,7 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
 int newcat_get_powerstat(RIG *rig, powerstat_t *status)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
+    struct rig_state *state = &rig->state;
     int err;
     char ps;
     char command[] = "PS";
@@ -3474,6 +3629,11 @@ int newcat_get_powerstat(RIG *rig, powerstat_t *status)
     {
         RETURNFUNC(-RIG_ENAVAIL);
     }
+
+    // when not powered on need a dummy byte to wake it up
+    // then sleep  from 1 to 2 seconds so we'll do 1.5 secs
+    write_block(&state->rigport, (unsigned char *) "PS;", 3);
+    hl_usleep(1200000);
 
     SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%c", command, cat_term);
 
@@ -3626,7 +3786,7 @@ int newcat_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
         RETURNFUNC(err);
     }
 
-    if ((rig->caps->targetable_vfo & RIG_TARGETABLE_MODE) && !is_ft2000)
+    if (rig->caps->targetable_vfo & RIG_TARGETABLE_ANT)
     {
         main_sub_vfo = (RIG_VFO_B == vfo || RIG_VFO_SUB == vfo) ? '1' : '0';
     }
@@ -3797,6 +3957,9 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         if (val.f > 1.0) { RETURNFUNC(-RIG_EINVAL); }
 
         fpf = newcat_scale_float(255, val.f);
+
+        if (is_ftdx10 || is_ft710) { main_sub_vfo = '0'; }
+
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "AG%c%03d%c", main_sub_vfo, fpf,
                  cat_term);
         break;
@@ -3833,7 +3996,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_EINVAL);
         }
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ftdx10 && !is_ft710)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -3875,6 +4038,11 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "IS%c0%+.4d%c", main_sub_vfo,
                      val.i, cat_term);
         }
+        else if (is_ftdx10 || is_ft710)
+        {
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "IS00%+.4d%c",
+                     val.i, cat_term);
+        }
         else if (is_ft891)
         {
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "IS0%d%+.4d%c",
@@ -3887,7 +4055,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
                      val.i, cat_term);
         }
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE && !is_ft2000)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ft2000
+                && !is_ftdx10 && !is_ft710)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -4070,7 +4239,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         {
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "PA00%c", cat_term);
 
-            if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE && !is_ft2000)
+            if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ft2000
+                    && !is_ftdx10 && !is_ft710)
             {
                 priv->cmd_str[2] = main_sub_vfo;
             }
@@ -4094,7 +4264,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_EINVAL);
         }
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL  && !is_ft2000
+                && !is_ftdx10 && !is_ft710)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -4111,7 +4282,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         {
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "RA00%c", cat_term);
 
-            if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE && !is_ft2000)
+            if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ft2000
+                    && !is_ftdx10 && !is_ft710)
             {
                 priv->cmd_str[2] = main_sub_vfo;
             }
@@ -4135,7 +4307,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_EINVAL);
         }
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ft2000
+                && !is_ftdx10 && !is_ft710)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -4156,6 +4329,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         {
             scale = 255;
         }
+
+        if (is_ftdx10 || is_ft710) { main_sub_vfo = 0; }
 
         fpf = newcat_scale_float(scale, val.f);
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "RG%c%03d%c", main_sub_vfo, fpf,
@@ -4186,21 +4361,30 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         }
         else
         {
-            fpf = newcat_scale_float(15, val.f);
-
-            if (fpf < 1)
+            if (is_ft991)
             {
-                fpf = 1;
+                fpf = newcat_scale_float(15, val.f);
+
+                if (fpf > 15) { fpf = 15; }
+
+                if (fpf < 1) { fpf = 1; }
+            }
+            else
+            {
+                fpf = newcat_scale_float(15, val.f);
+
+                if (fpf > 15) { fpf = 10; }
             }
 
-            if (fpf > 15)
+            if (fpf < 0)
             {
-                fpf = 15;
+                fpf = 0;
             }
 
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "RL0%02d%c", fpf, cat_term);
 
-            if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE && !is_ft2000)
+            if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ft2000
+                    && !is_ftdx10 && !is_ft710)
             {
                 priv->cmd_str[2] = main_sub_vfo;
             }
@@ -4342,6 +4526,12 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         fpf = newcat_scale_float(scale, val.f);
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "SQ%c%03d%c", main_sub_vfo, fpf,
                  cat_term);
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ftdx10 && !is_ft710)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     case RIG_LEVEL_VOXDELAY:
@@ -4442,7 +4632,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         else if (is_ft991)
         {
             fpf = newcat_scale_float(100, val.f);
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX147%03d%c", fpf, cat_term);
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX145%03d%c", fpf, cat_term);
         }
         else if (is_ft891)
         {
@@ -4518,7 +4708,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         {
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "BP%03d%c", val.i, cat_term);
         }
-        else if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        else if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ft2000
+                 && !is_ftdx10 && !is_ft710)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -4591,6 +4782,12 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "NL00%02d%c", fpf, cat_term);
 
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ftdx10 && !is_ft710
+                && !is_ftdx101mp)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     default:
@@ -4652,7 +4849,8 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "PA0%c", cat_term);
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ft2000
+                && !is_ftdx10 && !is_ft710)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -4667,6 +4865,12 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "AG%c%c", main_sub_vfo,
                  cat_term);
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ftdx10 && !is_ft710)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     case RIG_LEVEL_AGC:
@@ -4677,6 +4881,12 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "GT%c%c", main_sub_vfo,
                  cat_term);
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ftdx10 && !is_ft710)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     case RIG_LEVEL_IF:
@@ -4698,7 +4908,8 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "IS%c%c", main_sub_vfo,
                  cat_term);
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ft2000
+                && !is_ftdx10 && !is_ft710)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -4783,7 +4994,8 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "RA0%c", cat_term);
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ft2000
+                && !is_ftdx10 && !is_ft710)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -4817,7 +5029,8 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "RL0%c", cat_term);
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ft2000
+                && !is_ftdx10 && !is_ft710)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -4841,6 +5054,12 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "SQ%c%c", main_sub_vfo,
                  cat_term);
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ftdx10 && !is_ft710)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     case RIG_LEVEL_VOXDELAY:
@@ -4870,6 +5089,13 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "NL0%c", cat_term);
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ftdx10 && !is_ft710
+                && !is_ftdx101mp)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
         break;
 
     /*
@@ -5060,7 +5286,8 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         {
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "BP%c", cat_term);
         }
-        else if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        else if (rig->caps->targetable_vfo & RIG_TARGETABLE_LEVEL && !is_ft2000
+                 && !is_ftdx10 && !is_ft710)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -5675,7 +5902,7 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         RETURNFUNC(err);
     }
 
-    if (rig->caps->targetable_vfo & (RIG_TARGETABLE_MODE | RIG_TARGETABLE_TONE))
+    if (rig->caps->targetable_vfo & RIG_TARGETABLE_FUNC)
     {
         main_sub_vfo = (RIG_VFO_B == vfo || RIG_VFO_SUB == vfo) ? '1' : '0';
     }
@@ -5701,7 +5928,7 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "BC0%d%c", status ? 1 : 0,
                  cat_term);
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE && !is_ft2000)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_FUNC && !is_ft2000 && !is_ftdx10)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -5738,7 +5965,7 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "BP00%03d%c", status ? 1 : 0,
                  cat_term);
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE && !is_ft2000)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_FUNC && !is_ft2000 && !is_ftdx10)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -5852,6 +6079,22 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         }
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "NB0%d%c", status ? 1 : 0,
+                 cat_term);
+
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        {
+            priv->cmd_str[2] = main_sub_vfo;
+        }
+
+        break;
+
+    case RIG_FUNC_NB2:
+        if (!newcat_valid_command(rig, "NB"))
+        {
+            RETURNFUNC(-RIG_ENAVAIL);
+        }
+
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "NB0%d%c", status ? 2 : 0,
                  cat_term);
 
         if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
@@ -6043,7 +6286,7 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
     ENTERFUNC;
 
-    if (rig->caps->targetable_vfo & (RIG_TARGETABLE_MODE | RIG_TARGETABLE_TONE))
+    if (rig->caps->targetable_vfo & RIG_TARGETABLE_FUNC)
     {
         main_sub_vfo = (RIG_VFO_B == vfo || RIG_VFO_SUB == vfo) ? '1' : '0';
     }
@@ -6174,6 +6417,7 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         break;
 
     case RIG_FUNC_NB:
+    case RIG_FUNC_NB2:
         if (!newcat_valid_command(rig, "NB"))
         {
             RETURNFUNC(-RIG_ENAVAIL);
@@ -6181,7 +6425,7 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "NB0%c", cat_term);
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_FUNC)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -6196,7 +6440,7 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "NR0%c", cat_term);
 
-        if (rig->caps->targetable_vfo & RIG_TARGETABLE_MODE)
+        if (rig->caps->targetable_vfo & RIG_TARGETABLE_FUNC)
         {
             priv->cmd_str[2] = main_sub_vfo;
         }
@@ -6345,10 +6589,17 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
     case RIG_FUNC_ANF:
     case RIG_FUNC_FBKIN:
-    case RIG_FUNC_NB:
     case RIG_FUNC_NR:
     case RIG_FUNC_VOX:
         *status = (retfunc[0] == '0') ? 0 : 1;
+        break;
+
+    case RIG_FUNC_NB:
+        *status = (retfunc[0] == '1') ? 1 : 0;
+        break;
+
+    case RIG_FUNC_NB2:
+        *status = (retfunc[0] == '2') ? 1 : 0;
         break;
 
     case RIG_FUNC_TONE:
@@ -8487,7 +8738,7 @@ int newcat_set_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
             else if (width <= 1700) { w = 15; }
             else if (width <= 2000) { w = 16; }
             else if (width <= 2400) { w = 17; }
-            else { w = 18; }
+            else { w = 18; } // 3000Hz
 
             break;
 
@@ -10484,7 +10735,7 @@ int newcat_set_cmd_validate(RIG *rig)
     // For FA and FB rig.c now tries to verify the set_freq actually works
     // For example the FT-2000 can't do a FA set followed by an immediate read
     // We were using "ID" to verify the command but rig.c now does
-    // a verifcation of frequency and retries if it doesn't match
+    // a verification of frequency and retries if it doesn't match
     if ((strncmp(priv->cmd_str, "FA", 2) == 0) && (strlen(priv->cmd_str) > 3))
     {
         strcpy(valcmd, "FA;");
@@ -10573,14 +10824,7 @@ int newcat_set_cmd_validate(RIG *rig)
     }
     else if (strncmp(priv->cmd_str, "EX", 2) == 0)
     {
-        char *p = strchr(priv->cmd_str, ';');
-
-        if (p)
-        {
-            strcpy(valcmd, priv->cmd_str); // we query the same number
-            *p = '\0';
-            *(p - 1) = ';';
-        }
+        strcpy(valcmd, "");
     }
     else
     {
@@ -10593,12 +10837,17 @@ int newcat_set_cmd_validate(RIG *rig)
         int bytes;
         char cmd[256]; // big enough
         rig_flush(&state->rigport);  /* discard any unsolicited data */
-        SNPRINTF(cmd, sizeof(cmd), "%s%s", priv->cmd_str, valcmd);
+        SNPRINTF(cmd, sizeof(cmd), "%s", priv->cmd_str);
         rc = write_block(&state->rigport, (unsigned char *) cmd, strlen(cmd));
 
         if (rc != RIG_OK) { RETURNFUNC(-RIG_EIO); }
 
         if (strlen(valcmd) == 0) { RETURNFUNC(RIG_OK); }
+
+        SNPRINTF(cmd, sizeof(cmd), "%s", valcmd);
+        rc = write_block(&state->rigport, (unsigned char *) cmd, strlen(cmd));
+
+        if (rc != RIG_OK) { RETURNFUNC(-RIG_EIO); }
 
         bytes = read_string(&state->rigport, (unsigned char *) priv->ret_data,
                             sizeof(priv->ret_data),
@@ -11557,7 +11806,7 @@ int newcat_set_clock(RIG *rig, int year, int month, int day, int hour, int min,
         RETURNFUNC2(err);
     }
 
-    if (hour < 0) RETURNFUNC2(RIG_OK);
+    if (hour < 0) { RETURNFUNC2(RIG_OK); }
 
     SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "DT1%02d%02d%02d%c", hour, min,
              sec, cat_term);

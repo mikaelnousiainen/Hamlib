@@ -19,8 +19,6 @@
 *
 */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -127,7 +125,11 @@ const struct rig_caps ts850_caps =
     .has_set_level =  TS850_LEVEL_SET,
     .has_get_parm =  RIG_PARM_NONE,
     .has_set_parm =  RIG_PARM_NONE,
-    .level_gran =  {},
+    .level_gran =
+    {
+#include "level_gran_kenwood.h"
+      [LVL_CWPITCH] = { .min = { .i = 400 }, .max = { .i = 1000 }, .step = { .i = 50 } },
+    },
     .parm_gran =  {},
     .extparms = ts850_ext_parms,
     .ctcss_list =  kenwood38_ctcss_list,
@@ -140,6 +142,7 @@ const struct rig_caps ts850_caps =
     .vfo_ops = TS850_VFO_OPS,
     .targetable_vfo =  RIG_TARGETABLE_FREQ,
     .transceive =  RIG_TRN_RIG,
+    // No AGC levels
     .bank_qty =   0,
     .chan_desc_sz =  3,
     .chan_list =  {
@@ -490,19 +493,6 @@ int ts850_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         val->f = (float)atoi(&lvlbuf[3]) / 30.0;
         break;
-
-    case RIG_LEVEL_CWPITCH:
-        retval = kenwood_transaction(rig, "PT", lvlbuf, sizeof(lvlbuf));
-
-        if (retval != RIG_OK)
-        {
-            return retval;
-        }
-
-        val->i = atoi(&lvlbuf[2]);
-        val->i = (val->i - 8) * 50 + 800;
-        break;
-
 
     default:
         return kenwood_get_level(rig, vfo, level, val);

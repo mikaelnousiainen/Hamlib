@@ -26,13 +26,11 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include "hamlib/rig.h"
 #include "bandplan.h"
-#include "idx_builtin.h"
 #include "tones.h"
 #include "newcat.h"
+#include "yaesu.h"
 #include "ftdx10.h"
 
 const struct newcat_priv_caps ftdx10_priv_caps =
@@ -137,7 +135,7 @@ const struct rig_caps ftdx10_caps =
     RIG_MODEL(RIG_MODEL_FTDX10),
     .model_name =         "FTDX-10",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".3",
+    .version =            NEWCAT_VER ".6",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -149,7 +147,7 @@ const struct rig_caps ftdx10_caps =
     .serial_data_bits =   8,
     .serial_stop_bits =   2,
     .serial_parity =      RIG_PARITY_NONE,
-    .serial_handshake =   RIG_HANDSHAKE_HARDWARE,
+    .serial_handshake =   RIG_HANDSHAKE_NONE,
     .write_delay =        FTDX10_WRITE_DELAY,
     .post_write_delay =   FTDX10_POST_WRITE_DELAY,
     .timeout =            2000,
@@ -160,7 +158,9 @@ const struct rig_caps ftdx10_caps =
     .has_set_level =      RIG_LEVEL_SET(FTDX10_LEVELS),
     .has_get_parm =       RIG_PARM_NONE,
     .has_set_parm =       RIG_PARM_NONE,
-    .level_gran = {
+    .level_gran =
+    {
+#include "level_gran_yaesu.h"
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
         [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 1050 }, .step = { .i = 10 } },
         [LVL_KEYSPD] = { .min = { .i = 4 }, .max = { .i = 60 }, .step = { .i = 1 } },
@@ -177,7 +177,7 @@ const struct rig_caps ftdx10_caps =
     .agc_levels =         { RIG_AGC_OFF, RIG_AGC_FAST, RIG_AGC_MEDIUM, RIG_AGC_SLOW, RIG_AGC_AUTO },
     .vfo_ops =            FTDX10_VFO_OPS,
     .scan_ops =           RIG_SCAN_VFO,
-    .targetable_vfo =     RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE | RIG_TARGETABLE_FUNC | RIG_TARGETABLE_LEVEL | RIG_TARGETABLE_COMMON,
+    .targetable_vfo =     RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE | RIG_TARGETABLE_FUNC | RIG_TARGETABLE_LEVEL | RIG_TARGETABLE_COMMON | RIG_TARGETABLE_TONE,
     .transceive =         RIG_TRN_OFF, /* May enable later as the FTDX10 has an Auto Info command */
     .bank_qty =           0,
     .chan_desc_sz =       0,
@@ -185,6 +185,7 @@ const struct rig_caps ftdx10_caps =
     .swr_cal =            FTDX10_SWR_CAL,
     .chan_list =          {
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
+        { 501, 510, RIG_MTYPE_BAND, NEWCAT_MEM_CAP },    /* 60M Channels, 5-01 - 5-10, if available */
         RIG_CHAN_END,
     },
 

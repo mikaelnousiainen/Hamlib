@@ -19,13 +19,11 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
 
 #include <hamlib/rig.h>
+#include "idx_builtin.h"
 #include "tentec2.h"
-#include "bandplan.h"
 
 
 #define RX350_MODES (RIG_MODE_FM|RIG_MODE_CW|RIG_MODE_SSB|\
@@ -45,6 +43,27 @@
 #define RX350_VFO (RIG_VFO_A|RIG_VFO_B)
 
 #define RX350_VFO_OPS (RIG_OP_TO_VFO|RIG_OP_FROM_VFO)
+
+// Taken from RX320_STR_CAL -- unknown if accurate for RX350
+#define RX350_STR_CAL { 17, { \
+                {      0, -60 }, \
+                {     10, -50 }, \
+                {     20, -40 }, \
+                {     30, -30 }, \
+                {     40, -20 }, \
+                {     50, -15 }, \
+                {    100, -10 }, \
+                {    200, -5 }, \
+                {    225, -3 }, \
+                {    256,  0 }, \
+                {    512,  1 }, \
+                {    768,  3}, \
+                {   1024,  4 }, \
+                {   1280,  5 }, \
+                {   2560,  10 }, \
+                {   5120,  20 }, \
+                {  10000,  30 }, \
+        } }
 
 
 /*
@@ -85,7 +104,10 @@ const struct rig_caps rx350_caps =
     .has_set_level =  RIG_LEVEL_SET(RX350_LEVELS),
     .has_get_parm =  RX350_PARMS,
     .has_set_parm =  RX350_PARMS,
-    .level_gran =  {},                 /* FIXME: granularity */
+    .level_gran =
+    {
+        [LVL_RAWSTR]        = { .min = { .i = 0 },     .max = { .i = 255 } }
+    },
     .parm_gran =  {},
     .ctcss_list =  NULL,
     .dcs_list =  NULL,
@@ -131,6 +153,7 @@ const struct rig_caps rx350_caps =
         {RX350_MODES, 0}, /* 34 filters */
         RIG_FLT_END,
     },
+    .str_cal = RX350_STR_CAL,
     .priv = (void *)NULL,
 
     .set_freq =  tentec2_set_freq,

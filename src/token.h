@@ -93,6 +93,8 @@
 #define TOK_FLUSHX        TOKEN_FRONTEND(36)
 /** \brief  Asynchronous data transfer support */
 #define TOK_ASYNC        TOKEN_FRONTEND(37)
+/** \brief  Tuner external control pathname */
+#define TOK_TUNER_CONTROL_PATHNAME TOKEN_FRONTEND(38)
 
 /*
  * rig specific tokens
@@ -123,6 +125,8 @@
 #define TOK_TWIDDLE_TIMEOUT  TOKEN_FRONTEND(128)
 /** \brief rig: Supporess get_freq on VFOB for satellite RIT tuning */
 #define TOK_TWIDDLE_RIT  TOKEN_FRONTEND(129)
+#define TOK_OFFSET_VFOA  TOKEN_FRONTEND(130)
+#define TOK_OFFSET_VFOB  TOKEN_FRONTEND(131)
 /*
  * rotator specific tokens
  * (strictly, should be documented as rotator_internal)

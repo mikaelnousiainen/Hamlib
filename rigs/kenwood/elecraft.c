@@ -24,11 +24,12 @@
  */
 
 #include <string.h>
-#include <stdlib.h>
+#include <stdio.h>
 
 #include "serial.h"
 #include "elecraft.h"
 #include "kenwood.h"
+#include "misc.h"
 
 
 static const struct elec_ext_id_str elec_ext_id_str_lst[] =
@@ -97,10 +98,18 @@ int elecraft_open(RIG *rig)
     char buf[KENWOOD_MAX_BUF_LEN];
     struct kenwood_priv_data *priv = rig->state.priv;
     char *model = "Unknown";
+    struct rig_state *rs = &rig->state;
 
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called, rig version=%s\n", __func__,
               rig->caps->version);
+
+    if (rs->auto_power_on && priv->poweron == 0)
+    {
+        rig_set_powerstat(rig, 1);
+        priv->poweron = 1;
+    }
+
 
     /* Actual read extension levels from radio.
      *
@@ -162,6 +171,18 @@ int elecraft_open(RIG *rig)
         if (err != RIG_OK)
         {
             return err;
+        }
+    }
+
+    if (rig->caps->rig_model != RIG_MODEL_XG3)   // XG3 doesn't have extended
+    {
+        // turn on k2 extended to get PC values in more resolution
+        err = kenwood_transaction(rig, "K22;", NULL, 0);
+
+        if (err != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: error setting K22='%s'...continuing\n", __func__,
+                      rigerror(err));
         }
     }
 
@@ -310,8 +331,8 @@ int elecraft_open(RIG *rig)
         kenwood_get_trn(rig, &priv->trn_state);  /* ignore errors */
         /* Currently we cannot cope with AI mode so turn it off in
              case last client left it on */
-        kenwood_set_trn(rig, RIG_TRN_OFF); /* ignore status in case
-                                                                                        it's not supported */
+        kenwood_set_trn(rig,
+                        RIG_TRN_OFF); /* ignore status in case it's not supported */
     }
 
     // For rigs like K3X vfo emulation need to set VFO_A to start

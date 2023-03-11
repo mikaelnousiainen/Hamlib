@@ -34,8 +34,6 @@
 #include "hamlib/rig.h"
 #include "token.h"
 
-#include "kit.h"
-
 /*
  * Compile this model only if libusb is available
  */
@@ -653,7 +651,7 @@ static int fifisdr_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         /* Transform Hamlib enum value to FiFi-SDR selector */
         fifi_agc = 0;
 
-        switch ((enum agc_level_e)val.i)
+        switch (val.i)
         {
         case RIG_AGC_OFF:       fifi_agc = 0;   break;
 

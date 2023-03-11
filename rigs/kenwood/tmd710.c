@@ -34,20 +34,16 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
-#include <ctype.h>
 
 #include "hamlib/rig.h"
 #include "kenwood.h"
 #include "th.h"
 #include "tones.h"
 #include "num_stdio.h"
-#include "misc.h"
 
 static int tmd710_open(RIG *rig);
 static int tmd710_do_get_freq(RIG *rig, vfo_t vfo, freq_t *freq);
@@ -259,7 +255,7 @@ const struct rig_caps tmd710_caps =
     .rig_model =  RIG_MODEL_TMD710,
     .model_name = "TM-D710(G)",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER ".5",
+    .version =  BACKEND_VER ".6",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_MOBILE | RIG_FLAG_APRS | RIG_FLAG_TNC,
@@ -271,7 +267,7 @@ const struct rig_caps tmd710_caps =
     .serial_data_bits =  8,
     .serial_stop_bits =  1,
     .serial_parity =  RIG_PARITY_NONE,
-    .serial_handshake =  RIG_HANDSHAKE_NONE,
+    .serial_handshake =  RIG_HANDSHAKE_HARDWARE,
     .write_delay =  0,
     .post_write_delay =  0,
     .timeout =  1000,
@@ -283,7 +279,10 @@ const struct rig_caps tmd710_caps =
     .has_set_level =  RIG_LEVEL_SET(TMD710_LEVEL_ALL),
     .has_get_parm =  TMD710_PARMS,
     .has_set_parm =  TMD710_PARMS,
-    .level_gran = {},
+    .level_gran =
+    {
+#include "level_gran_kenwood.h"
+    },
     .parm_gran =  {},
     .ctcss_list =  kenwood42_ctcss_list,
     .dcs_list =  common_dcs_list,
@@ -438,7 +437,10 @@ const struct rig_caps tmv71_caps =
     .has_set_level =  RIG_LEVEL_SET(TMD710_LEVEL_ALL),
     .has_get_parm =  TMD710_PARMS,
     .has_set_parm =  TMD710_PARMS,
-    .level_gran = {},
+    .level_gran =
+    {
+#include "level_gran_kenwood.h"
+    },
     .parm_gran =  {},
     .ctcss_list =  kenwood42_ctcss_list,
     .dcs_list =  common_dcs_list,

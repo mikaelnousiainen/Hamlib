@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
 
@@ -63,9 +62,10 @@ extern int read_history();
 
 
 #include <hamlib/rotator.h>
-#include "misc.h"
 
+#include "rig.h"
 #include "rotctl_parse.h"
+#include "rotlist.h"
 
 /*
  * Prototypes
@@ -369,6 +369,14 @@ int main(int argc, char *argv[])
         rot_token_foreach(my_rot, print_conf_list, (rig_ptr_t)my_rot);
     }
 
+    retcode = rot_open(my_rot);
+
+    if (retcode != RIG_OK)
+    {
+        fprintf(stderr, "rot_open: error = %s \n", rigerror(retcode));
+        exit(2);
+    }
+
     /*
      * Print out capabilities, and exits immediately as we may be interested
      * only in caps, and rig_open may fail.
@@ -378,14 +386,6 @@ int main(int argc, char *argv[])
         dumpcaps_rot(my_rot, stdout);
         rot_cleanup(my_rot);    /* if you care about memory */
         exit(0);
-    }
-
-    retcode = rot_open(my_rot);
-
-    if (retcode != RIG_OK)
-    {
-        fprintf(stderr, "rot_open: error = %s \n", rigerror(retcode));
-        exit(2);
     }
 
     my_rot->state.az_offset = az_offset;

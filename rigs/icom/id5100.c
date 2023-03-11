@@ -20,12 +20,15 @@
  *
  */
 
-#include <hamlib/config.h>
-
+#include <stddef.h>
 
 #include "hamlib/rig.h"
 #include "idx_builtin.h"
 #include "icom.h"
+#include "icom_defs.h"
+#include "frame.h"
+#include "misc.h"
+#include "tones.h"
 
 /*
  * Specs and protocol details comes from the chapter 13 of ID-5100_Full-Inst_Manual.pdf
@@ -39,10 +42,10 @@
  * - Single/dual watch (RIG_LEVEL_BALANCE)
  */
 
-#define ID5100_MODES (RIG_MODE_FM|RIG_MODE_DSTAR)
+#define ID5100_MODES (RIG_MODE_AM|RIG_MODE_AMN|RIG_MODE_FM|RIG_MODE_FMN|RIG_MODE_DSTAR)
 #define ID5100_ALL_RX_MODES (RIG_MODE_AM|ID5100_MODES)
 
-#define ID5100_VFO_ALL (RIG_VFO_MAIN|RIG_VFO_SUB)
+#define ID5100_VFO_ALL (RIG_VFO_A|RIG_VFO_B|RIG_VFO_MAIN|RIG_VFO_SUB)
 
 #define ID5100_SCAN_OPS RIG_SCAN_NONE
 
@@ -53,6 +56,7 @@
                             RIG_FUNC_TSQL| \
                             RIG_FUNC_CSQL| \
                             RIG_FUNC_DSQL| \
+                            RIG_FUNC_DUAL_WATCH| \
                             RIG_FUNC_VOX)
 
 #define ID5100_LEVEL_ALL    (RIG_LEVEL_AF| \
@@ -70,7 +74,141 @@
  */
 #define ID5100_STR_CAL  UNKNOWN_IC_STR_CAL
 
+int id5100_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
+{
+    int retval;
+    unsigned char modebuf;
+    unsigned char ackbuf[MAXFRAMELEN];
+    int icmode = 2;
+    int ack_len = sizeof(ackbuf);
 
+    switch (mode)
+    {
+    case RIG_MODE_AM:  icmode = 2; modebuf = 1; break;
+
+    case RIG_MODE_AMN: icmode = 2; modebuf = 2; break;
+
+    case RIG_MODE_FM:  icmode = 5; modebuf = 1; break;
+
+    case RIG_MODE_FMN: icmode = 5; modebuf = 2; break;
+
+    case RIG_MODE_DSTAR: icmode = 0x17; modebuf = 1; break;
+
+    default:
+        rig_debug(RIG_DEBUG_ERR, "%s: Unknown mode=%s\n", __func__, rig_strrmode(mode));
+        return -RIG_EINVAL;
+    }
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: mode=%d, modebuf=%c\n", __func__, icmode,
+              modebuf);
+
+    retval = icom_transaction(rig, C_SET_MODE, icmode, &modebuf, 1, ackbuf,
+                              &ack_len);
+
+    return retval;
+}
+
+int id5100_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
+{
+    int retval;
+    int mode_len;
+    unsigned char modebuf[4];
+
+    retval = icom_transaction(rig, C_RD_MODE, -1, NULL, 0, modebuf, &mode_len);
+
+    if (retval != RIG_OK)
+    {
+        return retval;
+    }
+
+    switch (modebuf[1])
+    {
+    case 2:
+        *mode = modebuf[2] == 1 ? RIG_MODE_AM : RIG_MODE_AMN;
+        *width = modebuf[2] == 1 ? 12000 : 6000; break;
+
+    case 5:
+        *mode = modebuf[2] == 1 ? RIG_MODE_FM : RIG_MODE_FMN;
+        *width = modebuf[2] == 1 ? 10000 : 5000; break;
+
+    case 0x17:
+        *mode = RIG_MODE_DSTAR;
+        *width = 6000; break;
+    }
+
+    return RIG_OK;
+}
+
+int id5100_set_vfo(RIG *rig, vfo_t vfo)
+{
+    unsigned char ackbuf[MAXFRAMELEN];
+    int ack_len = sizeof(ackbuf), retval;
+    //struct rig_state *rs = &rig->state;
+    //struct icom_priv_data *priv = (struct icom_priv_data *) rs->priv;
+
+    ENTERFUNC;
+
+    if (vfo == RIG_VFO_CURR) { vfo = rig->state.current_vfo; }
+
+    if (vfo == RIG_VFO_A || vfo == RIG_VFO_B)
+    {
+        // then we need to turn off dual watch
+
+        if (RIG_OK != (retval = icom_set_func(rig, RIG_VFO_CURR, RIG_FUNC_DUAL_WATCH,
+                                              0)))
+        {
+            RETURNFUNC2(retval);
+        }
+    }
+    else if (vfo == RIG_VFO_MAIN || vfo == RIG_VFO_SUB)
+        if (RIG_OK != (retval = icom_set_func(rig, RIG_VFO_CURR, RIG_FUNC_DUAL_WATCH,
+                                              1)))
+        {
+            RETURNFUNC2(retval);
+        }
+
+    int myvfo = S_MAIN;
+
+    if (vfo == RIG_VFO_B || vfo == RIG_VFO_SUB)
+    {
+        myvfo = S_SUB;
+    }
+
+    if (RIG_OK != (retval = icom_transaction(rig, C_SET_VFO, myvfo, NULL, 0, ackbuf,
+                            &ack_len)))
+    {
+        RETURNFUNC2(retval);
+    }
+
+    return retval;
+}
+
+int id5100_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
+{
+    //unsigned char ackbuf[MAXFRAMELEN];
+    //int ack_len = sizeof(ackbuf), icvfo, retval;
+    int retval;
+    //struct rig_state *rs = &rig->state;
+    //struct icom_priv_data *priv = (struct icom_priv_data *) rs->priv;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s\n", __func__, rig_strvfo(vfo));
+
+    if (vfo == RIG_VFO_CURR || vfo == RIG_VFO_A || vfo == RIG_VFO_B)
+    {
+        return id5100_set_vfo(rig, vfo);
+    }
+
+    if (vfo == RIG_VFO_MAIN)
+    {
+        retval = RIG_OK;
+    }
+    else
+    {
+        retval = RIG_OK;
+    }
+
+    return retval;
+}
 
 /*
  */
@@ -79,6 +217,7 @@ static struct icom_priv_caps id5100_priv_caps =
     0x8C,   /* default address */
     0,      /* 731 mode */
     1,      /* no XCHG */
+    .dualwatch_split = 1
 };
 
 const struct rig_caps id5100_caps =
@@ -86,9 +225,9 @@ const struct rig_caps id5100_caps =
     RIG_MODEL(RIG_MODEL_ID5100),
     .model_name = "ID-5100",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".1",
+    .version =  BACKEND_VER ".4",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_BETA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_MOBILE,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,
@@ -98,18 +237,20 @@ const struct rig_caps id5100_caps =
     .serial_data_bits =  8,
     .serial_stop_bits =  1,
     .serial_parity =  RIG_PARITY_NONE,
-    .serial_handshake =  RIG_HANDSHAKE_XONXOFF,
+    .serial_handshake =  RIG_HANDSHAKE_NONE,
     .write_delay =  0,
     .post_write_delay =  0,
     .timeout =  1000,
-    .retry =  3,
+    .retry =  0,
     .has_get_func =  ID5100_FUNC_ALL,
     .has_set_func =  ID5100_FUNC_ALL,
     .has_get_level =  ID5100_LEVEL_ALL,
     .has_set_level =  RIG_LEVEL_SET(ID5100_LEVEL_ALL),
     .has_get_parm =  ID5100_PARM_ALL,
     .has_set_parm =  ID5100_PARM_ALL,
-    .level_gran = {
+    .level_gran =
+    {
+#include "level_gran_icom.h"
         // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
     },
@@ -159,6 +300,7 @@ const struct rig_caps id5100_caps =
 
     .tuning_steps =     {
         // Rem: no support for changing tuning step
+        {RIG_MODE_ALL, 1},
         RIG_TS_END,
     },
     /* mode/filter list, remember: order matters! */
@@ -177,16 +319,17 @@ const struct rig_caps id5100_caps =
     .rig_init =   icom_init,
     .rig_cleanup =   icom_cleanup,
     .rig_open =  icom_rig_open,
-    .rig_close =  icom_rig_open,
+    .rig_close =  icom_rig_close,
 
     .set_freq =  icom_set_freq,
     .get_freq =  icom_get_freq,
-    .set_mode =  icom_set_mode,
-    .get_mode =  icom_get_mode,
-    .set_vfo =  icom_set_vfo,
+    .set_mode =  id5100_set_mode,
+    .get_mode =  id5100_get_mode,
+    .set_vfo =  id5100_set_vfo,
+    .set_split_vfo = id5100_set_split_vfo,
 
     .set_powerstat = icom_set_powerstat,
-    .get_powerstat = icom_get_powerstat,
+    //.get_powerstat = icom_get_powerstat, // ID-5100 cannot get power status
     .decode_event =  icom_decode_event,
 
     .set_func =  icom_set_func,

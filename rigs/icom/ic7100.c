@@ -19,8 +19,6 @@
  *
  */
 
-#include <hamlib/config.h>
-
 #include <stdlib.h>
 
 #include <hamlib/rig.h>
@@ -30,6 +28,7 @@
 #include "idx_builtin.h"
 #include "bandplan.h"
 #include "token.h"
+#include "tones.h"
 #include "misc.h"
 
 
@@ -96,7 +95,8 @@
                             RIG_LEVEL_VD_METER| \
                             RIG_LEVEL_ID_METER| \
                             RIG_LEVEL_MONITOR_GAIN| \
-                            RIG_LEVEL_NB)
+                            RIG_LEVEL_NB | \
+                            RIG_LEVEL_AGC_TIME)
 
 #define IC7100_PARM_ALL (RIG_PARM_ANN|RIG_PARM_BACKLIGHT|RIG_PARM_KEYLIGHT|RIG_PARM_BEEP|RIG_PARM_TIME)
 
@@ -306,7 +306,7 @@ const struct rig_caps ic7100_caps =
     RIG_MODEL(RIG_MODEL_IC7100),
     .model_name = "IC-7100",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".3",
+    .version =  BACKEND_VER ".4",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -329,7 +329,9 @@ const struct rig_caps ic7100_caps =
     .has_set_level =  RIG_LEVEL_SET(IC7100_LEVEL_ALL),
     .has_get_parm =  IC7100_PARM_ALL,
     .has_set_parm =  IC7100_PARM_ALL,
-    .level_gran = {
+    .level_gran =
+    {
+#include "level_gran_icom.h"
         // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
         [LVL_VOXDELAY] = { .min = { .i = 0 }, .max = { .i = 20 }, .step = { .i = 1 } },
