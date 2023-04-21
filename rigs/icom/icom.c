@@ -1074,7 +1074,7 @@ retry_open:
     }
     else if (retval != RIG_OK)
     {
-        // didnt' ask for power on so let's retry one more time
+        // didn't ask for power on so let's retry one more time
 
         if (retry_flag)
         {
@@ -2726,7 +2726,7 @@ int icom_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 
             if (*width == 0) { *width = rig->state.cache.widthMainA; } // we'll use VFOA's width
 
-            // dont' really care about cache time here
+            // don't really care about cache time here
             // this is just to prevent vfo swapping while getting width
             rig->state.cache.widthMainB = retval;
             rig_debug(RIG_DEBUG_TRACE, "%s(%d): vfosave=%s, currvfo=%s\n", __func__,
@@ -2798,8 +2798,8 @@ int icom_set_vfo(RIG *rig, vfo_t vfo)
     {
         // if rig doesn't have Main/Sub
         // or if rig has both Main/Sub and A/B -- e.g. 9700
-        // and we dont' have split or satmode turned on
-        // then we dont' use Sub -- instead we use Main/VFOB
+        // and we don't have split or satmode turned on
+        // then we don't use Sub -- instead we use Main/VFOB
         vfo = RIG_VFO_B;
         rig_debug(RIG_DEBUG_TRACE,
                   "%s: Rig does not have MAIN/SUB so Sub changed to %s\n",
@@ -7790,7 +7790,7 @@ int icom_set_dcs_code(RIG *rig, vfo_t vfo, tone_t code)
         RETURNFUNC(-RIG_EINVAL);
     }
 
-    /* DCS Polarity ignored, by setting code_len to 3 it's foretval to 0 (= Tx:norm, Rx:norm). */
+    /* DCS Polarity ignored, by setting code_len to 3 it's forced to 0 (= Tx:norm, Rx:norm). */
     code_len = 3;
     to_bcd_be(codebuf, code, code_len * 2);
 

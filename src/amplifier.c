@@ -132,7 +132,7 @@ static int remove_opened_amp(const AMP *amp)
 
 #ifdef XXREMOVEDXX
 /**
- * \brief Executess cfunc() on each #AMP handle.
+ * \brief Executes cfunc() on each #AMP handle.
  *
  * \param cfunc The function to be executed on each #AMP handle.
  * \param data Data pointer to be passed to cfunc()
@@ -236,7 +236,7 @@ AMP *HAMLIB_API amp_init(amp_model_t amp_model)
     switch (caps->port_type)
     {
     case RIG_PORT_SERIAL:
-        // Dont' think we need a default port here
+        // Don't think we need a default port here
         //strncpy(rs->ampport.pathname, DEFAULT_SERIAL_PORT, HAMLIB_FILPATHLEN - 1);
         rs->ampport.parm.serial.rate = caps->serial_rate_max;   /* fastest ! */
         rs->ampport.parm.serial.data_bits = caps->serial_data_bits;

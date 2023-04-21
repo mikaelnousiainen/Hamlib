@@ -309,7 +309,7 @@ int main(int argc, char *argv[])
             exit(0);
 
         case 'V':
-            printf("rigctl %s\n", hamlib_version2);
+            printf("rigctld %s\n", hamlib_version2);
             exit(0);
 
         case 'R':
@@ -1230,9 +1230,9 @@ void *handle_socket(void *arg)
 
     mutex_rigctld(0);
 #else
-    mutext_rigctld(1);
+    mutex_rigctld(1);
     retcode = rig_open(my_rig);
-    mutext_rigctld(1);
+    mutex_rigctld(1);
 
     if (RIG_OK == retcode && verbose > RIG_DEBUG_ERR)
     {

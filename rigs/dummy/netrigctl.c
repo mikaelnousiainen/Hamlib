@@ -265,7 +265,7 @@ static int netrigctl_open(RIG *rig)
 
     if (sscanf(buf, "CHKVFO %d", &priv->rigctld_vfo_mode) == 1)
     {
-        rig->state.vfo_opt = 1;
+        rig->state.vfo_opt = priv->rigctld_vfo_mode;
         rig_debug(RIG_DEBUG_TRACE, "%s: chkvfo=%d\n", __func__, priv->rigctld_vfo_mode);
     }
     else if (ret == 2)
@@ -2050,9 +2050,12 @@ static int netrigctl_get_powerstat(RIG *rig, powerstat_t *status)
 
     ret = netrigctl_transaction(rig, cmd, strlen(cmd), buf);
 
-    if (ret == 0)
+    if (ret > 0)
     {
-        *status = atoi(buf);
+        int offset=0;
+        // see if there is a RPRT answer to make SDR++ happy
+        if (strstr(buf,"RPRT")) offset=4;
+            *status = atoi(&buf[offset]);
     }
     else
     {
@@ -2732,7 +2735,7 @@ struct rig_caps netrigctl_caps =
     RIG_MODEL(RIG_MODEL_NETRIGCTL),
     .model_name =     "NET rigctl",
     .mfg_name =       "Hamlib",
-    .version =        "20230117.0",
+    .version =        "20204010.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,

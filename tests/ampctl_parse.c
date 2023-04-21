@@ -868,7 +868,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
 
         rp_getline("\nAmplifier command: ");
 
-        /* EOF (Ctl-D) received on empty input line, bail out gracefully. */
+        /* EOF (Ctrl-D) received on empty input line, bail out gracefully. */
         if (!input_line)
         {
             fprintf_flush(fout, "\n");
@@ -952,7 +952,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
             char cmd_name[MAXNAMSIZ];
 
             /* if there is no terminating '\0' character in the source string,
-             * srncpy() doesn't add one even if the supplied length is less
+             * strncpy() doesn't add one even if the supplied length is less
              * than the destination array.  Truncate the source string here.
              */
             if (strlen(parsed_input[0] + 1) >= MAXNAMSIZ)
@@ -1100,7 +1100,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
 
                 rp_getline(pmptstr);
 
-                if (!(strcmp(input_line, "")))
+                if (!input_line || !(strcmp(input_line, "")))
                 {
                     fprintf(fout, "? for help, q to quit.\n");
                     fflush(fout);
@@ -1161,7 +1161,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
 
                 rp_getline(pmptstr);
 
-                if (!(strcmp(input_line, "")))
+                if (!input_line || !(strcmp(input_line, "")))
                 {
                     fprintf(fout, "? for help, q to quit.\n");
                     fflush(fout);
@@ -1493,7 +1493,6 @@ void usage_amp(FILE *fout)
 }
 
 
-#if 0
 int print_conf_list(const struct confparams *cfp, rig_ptr_t data)
 {
     AMP *amp = (AMP *) data;
@@ -1538,7 +1537,7 @@ int print_conf_list(const struct confparams *cfp, rig_ptr_t data)
 
     return 1;  /* != 0, we want them all ! */
 }
-#endif
+
 
 static int hash_model_list(const struct amp_caps *caps, void *data)
 {

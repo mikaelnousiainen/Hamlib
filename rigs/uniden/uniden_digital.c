@@ -46,7 +46,7 @@
  * use the address returned from one of the commands.  If you decide
  * the latter method, the order is slightly confusing but, I have it
  * well documented within DSctl.  The latter method is also as much
- * as 30% faster then using the Uniden software or "Get Next
+ * as 30% faster than using the Uniden software or "Get Next
  * Location" command.
  */
 
@@ -293,7 +293,7 @@ const char *uniden_digital_get_info(RIG *rig)
      * STS command returns 3 lines including system, truck, freq info
      *
      * XXX indicates the BCD996T returns some non-printable ascii chars
-     * within it's comma separated fields. See pg 30-32 of BCD996T_Protocol.pdf.
+     * within its comma separated fields. See pg 30-32 of BCD996T_Protocol.pdf.
      * These chars cause abnomalies on stdout! */
 
     /* FIXME: Strip or replace non-printable chars return from STS command!

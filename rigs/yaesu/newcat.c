@@ -811,7 +811,7 @@ int newcat_get_conf2(RIG *rig, token_t token, char *val, int val_len)
 
 static int freq_60m[] = { 5332000, 5348000, 5358500, 5373000, 5405000 };
 
-/* returns 0 if no exeption or 1 if rig needs special handling */
+/* returns 0 if no exception or 1 if rig needs special handling */
 int newcat_60m_exception(RIG *rig, freq_t freq, mode_t mode)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
@@ -1169,7 +1169,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
                           __func__, rigerror(err));
             }
 
-            hl_usleep(500 * 1000); // wait for BS to do it's thing and swap back
+            hl_usleep(500 * 1000); // wait for BS to do its thing and swap back
 
             if (newcat_valid_command(rig, "VS"))
             {
@@ -1193,7 +1193,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
                           __func__, rigerror(err));
             }
 
-            hl_usleep(500 * 1000); // wait for BS to do it's thing
+            hl_usleep(500 * 1000); // wait for BS to do its thing
         }
 
 
@@ -3536,7 +3536,7 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
 
     ENTERFUNC;
 
-#if 0 // all Yaeus rigs have PS and calling this here interferes with power on
+#if 0 // all Yaesu rigs have PS and calling this here interferes with power on
 
     if (!newcat_valid_command(rig, "PS"))
     {
@@ -3557,9 +3557,8 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
 
     case RIG_POWER_OFF:
     case RIG_POWER_STANDBY:
-        ps = '0';
-        write_block(&state->rigport, (unsigned char *) "PS0;", 4);
-        break;
+        retval = write_block(&state->rigport, (unsigned char *) "PS0;", 4);
+        RETURNFUNC(retval);
 
     default:
         RETURNFUNC(-RIG_ENAVAIL);
@@ -7810,7 +7809,7 @@ int newcat_set_tx_vfo(RIG *rig, vfo_t tx_vfo)
 
     if (is_ftdx101d || is_ftdx101mp)
     {
-        // what other Yaeus rigs should be using this?
+        // what other Yaesu rigs should be using this?
         // The DX101D returns FT0 when in split and not transmitting
         command = "ST";
     }
@@ -7841,7 +7840,7 @@ int newcat_get_tx_vfo(RIG *rig, vfo_t *tx_vfo)
 
     if (is_ftdx101d || is_ftdx101mp)
     {
-        // what other Yaeus rigs should be using this?
+        // what other Yaesu rigs should be using this?
         // The DX101D returns FT0 when in split and not transmitting
         command = "ST";
     }
@@ -10532,7 +10531,6 @@ int newcat_get_cmd(RIG *rig)
         || strcmp(priv->cmd_str, "CO11;") == 0
         || strcmp(priv->cmd_str, "CO12;") == 0
         || strcmp(priv->cmd_str, "CO13;") == 0
-        || strcmp(priv->cmd_str, "IS1;") == 0
         || strcmp(priv->cmd_str, "IS0;") == 0
         || strcmp(priv->cmd_str, "IS1;") == 0
         || strcmp(priv->cmd_str, "MD0;") == 0
@@ -10545,10 +10543,7 @@ int newcat_get_cmd(RIG *rig)
         || strcmp(priv->cmd_str, "NL1;") == 0
         || strcmp(priv->cmd_str, "NR0;") == 0
         || strcmp(priv->cmd_str, "NR1;") == 0
-        || strcmp(priv->cmd_str, "NR0;") == 0
-        || strcmp(priv->cmd_str, "NR1;") == 0
         || strcmp(priv->cmd_str, "OI;") == 0
-        || strcmp(priv->cmd_str, "OS0;") == 0
         || strcmp(priv->cmd_str, "OS0;") == 0
         || strcmp(priv->cmd_str, "OS1;") == 0
         || strcmp(priv->cmd_str, "PA0;") == 0
@@ -10826,6 +10821,14 @@ int newcat_set_cmd_validate(RIG *rig)
     {
         strcpy(valcmd, "");
     }
+    else if (strncmp(priv->cmd_str, "ST;", 3) == 0)
+    {
+        strcpy(valcmd, "");
+    }
+    else if (strncmp(priv->cmd_str, "ST", 2) == 0)
+    {
+        strcpy(valcmd, "X;");
+    }
     else
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: %s not implemented\n", __func__, priv->cmd_str);
@@ -10843,6 +10846,22 @@ int newcat_set_cmd_validate(RIG *rig)
         if (rc != RIG_OK) { RETURNFUNC(-RIG_EIO); }
 
         if (strlen(valcmd) == 0) { RETURNFUNC(RIG_OK); }
+
+        // we can use a single ; to get a response of ?; for some rigs
+        // this list can be expanded as we get more testing
+        // seems newer rigs have this older ones time out
+        switch(rig->caps->rig_model)
+        {
+            case RIG_MODEL_FT991:
+            case RIG_MODEL_FTDX101MP:
+            case RIG_MODEL_FTDX3000:
+                strcpy(valcmd, "X;");
+                break;
+            // these models do not work with a single ;
+            case RIG_MODEL_FT897:
+            default:
+                break;
+        }
 
         SNPRINTF(cmd, sizeof(cmd), "%s", valcmd);
         rc = write_block(&state->rigport, (unsigned char *) cmd, strlen(cmd));
@@ -10878,7 +10897,7 @@ int newcat_set_cmd_validate(RIG *rig)
         {
             // for the BS command we can only run it once
             // so we'll assume it worked
-            // maybe Yaeus will make this command more intelligent
+            // maybe Yaesu will make this command more intelligent
             if (strstr(priv->cmd_str, "BS")) { RETURNFUNC(RIG_OK); }
 
             // if the first two chars match we are validated
@@ -10964,7 +10983,7 @@ int newcat_set_cmd(RIG *rig)
 
         if (strncmp(priv->cmd_str, "BS", 2) == 0)
         {
-            // the BS command needs time to do it's thing
+            // the BS command needs time to do its thing
             hl_usleep(500 * 1000);
             priv->cache_start.tv_sec = 0; // invalidate the cache
         }

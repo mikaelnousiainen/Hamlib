@@ -480,7 +480,7 @@ static int rig_check_rig_caps()
 }
 
 /**
- * \brief allocate a new RIG handle
+ * \brief Allocate a new #RIG handle.
  * \param rig_model The rig model for this new handle
  *
  * Allocates a new RIG handle and initializes the associated data
@@ -560,7 +560,7 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
 #endif
 
     rs->priv = NULL;
-    rs->async_data_enabled = 0;
+    rs->async_data_enabled = 1;
     rs->rigport.fd = -1;
     rs->pttport.fd = -1;
     rs->comm_state = 0;
@@ -843,7 +843,7 @@ int HAMLIB_API rig_open(RIG *rig)
         RETURNFUNC(-RIG_EINVAL);
     }
 
-    // rigctl/rigctld may have deprecated values -- backwards compatility
+    // rigctl/rigctld may have deprecated values -- backwards compatibility
     if (rs->rigport_deprecated.pathname[0] != 0)
     {
         strcpy(rs->rigport.pathname, rs->rigport_deprecated.pathname);
@@ -1280,7 +1280,12 @@ int HAMLIB_API rig_open(RIG *rig)
             powerstat_t powerflag;
             status = rig_get_powerstat(rig, &powerflag);
 
-            if (status == RIG_OK && powerflag == RIG_POWER_OFF) { return (-RIG_EPOWER); }
+            if (status == RIG_OK && powerflag == RIG_POWER_OFF && rig->state.auto_power_on == 0) 
+            { 
+                rig_debug(RIG_DEBUG_ERR, "%s: rig power is off, use --set-conf=auto_power_on if power on is wanted\n", __func__);
+
+                return (-RIG_EPOWER); 
+            }
 
             // don't need auto_power_on if power is already on
             if (status == RIG_OK && powerflag == RIG_POWER_ON) { rig->state.auto_power_on = 0; }
@@ -1645,13 +1650,11 @@ int HAMLIB_API rig_set_twiddle(RIG *rig, int seconds)
 /**
  * \brief For GPredict to avoid reading frequency on uplink VFO
  * \param rig   The rig handle
- * \param seconds    1=Ignore Sub, 2=Ignore Main
+ * \param val   1=Ignore Sub, 2=Ignore Main
  *
  * \return RIG_OK if the operation has been successful, otherwise
  * a negative value if an error occurred (in which case, cause is
  * set appropriately).
- *
- * \sa rig_set_uplink()
  */
 int HAMLIB_API rig_set_uplink(RIG *rig, int val)
 {
@@ -3070,7 +3073,7 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
                 }
 
 #if 0
-                hl_usleep(50 * 1000); // give PTT a chance to do it's thing
+                hl_usleep(50 * 1000); // give PTT a chance to do its thing
 
                 // don't use the cached value and check to see if it worked
                 elapsed_ms(&rig->state.cache.time_ptt, HAMLIB_ELAPSED_INVALIDATE);
@@ -4537,10 +4540,10 @@ int HAMLIB_API rig_set_split_mode(RIG *rig,
                   __LINE__, rig_strvfo(tx_vfo), rig_strrmode(tx_mode));
     }
 
-    // code below here should be dead code now -- but maybe we have  VFO situatiuon we need to handle
+    // code below here should be dead code now -- but maybe we have VFO situation we need to handle
     if (caps->rig_model == RIG_MODEL_NETRIGCTL)
     {
-        // special handlingt for netrigctl to avoid set_vfo
+        // special handling for netrigctl to avoid set_vfo
         retcode = caps->set_split_mode(rig, vfo, tx_mode, tx_width);
         ELAPSED2;
         RETURNFUNC(retcode);
@@ -4827,7 +4830,7 @@ int HAMLIB_API rig_set_split_freq_mode(RIG *rig,
 
         HAMLIB_TRACE;
         retcode = caps->set_split_freq_mode(rig, vfo, tx_freq, tx_mode, tx_width);
-#if 0 // this verification seems to be causing bad behavior on some reigs
+#if 0 // this verification seems to be causing bad behavior on some rigs
 
         // we query freq after set to ensure it really gets done
         do
@@ -4948,7 +4951,7 @@ int HAMLIB_API rig_get_split_freq_mode(RIG *rig,
 /**
  * \brief set the split mode
  * \param rig   The rig handle
- * \param vfo   The target VFO
+ * \param rx_vfo   The receive VFO
  * \param split The split mode to set to
  * \param tx_vfo    The transmit VFO
  *
@@ -5705,7 +5708,7 @@ int HAMLIB_API rig_get_ts(RIG *rig, vfo_t vfo, shortfreq_t *ts)
  * \brief set the antenna
  * \param rig   The rig handle
  * \param vfo   The target VFO
- * \param ant   The anntena to select
+ * \param ant   The antenna to select
  * \param option An option that the ant command for the rig recognizes
  *
  *  Select the antenna connector.
@@ -6015,7 +6018,7 @@ int HAMLIB_API rig_mW2power(RIG *rig,
  *
  *  Returns the best frequency resolution of the rig, for a given \a mode.
  *
- * \return the frequency resolution in Hertz if the operation h
+ * \return the frequency resolution in Hertz if the operation
  * has been successful, otherwise a negative value if an error occurred.
  *
  */
@@ -6054,7 +6057,7 @@ shortfreq_t HAMLIB_API rig_get_resolution(RIG *rig, rmode_t mode)
  * See #RIG_POWER_ON, #RIG_POWER_OFF and #RIG_POWER_STANDBY defines
  * for the \a status.
  *
- * \return RIG_OK if the operation has been successful, ortherwise
+ * \return RIG_OK if the operation has been successful, otherwise
  * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
@@ -7066,7 +7069,7 @@ static unsigned long gen_crc(unsigned char *p, size_t n)
  * \brief get freq/mode/width for requested VFO
  * \param rig   The rig handle
  *
- * returns a string for all known VFOs plus rig split status and satellite mode status
+ * \returns a string for all known VFOs plus rig split status and satellite mode status
  */
 int HAMLIB_API rig_get_rig_info(RIG *rig, char *response, int max_response_len)
 {
@@ -7238,8 +7241,8 @@ int HAMLIB_API rig_get_vfo_info(RIG *rig, vfo_t vfo, freq_t *freq,
 /**
  * \brief get list of available vfos
  * \param rig   The rig handle
- * \param char*  char buffer[SPRINTF_MAX_SIZE] to hold result
- * \param len   max length of char buffer
+ * \param buf   char buffer to hold result
+ * \param buflen   max length of char buffer
  *
  * Retrieves all usable vfo entries for the rig
  *
@@ -7453,7 +7456,7 @@ int HAMLIB_API rig_cookie(RIG *rig, enum cookie_e cookie_cmd, char *cookie,
             date_strget(cookie, cookie_len, 0);
             size_t len = strlen(cookie);
             // add on our random number to ensure uniqueness
-            // The cookie should never be longer then HAMLIB_COOKIE_SIZE
+            // The cookie should never be longer than HAMLIB_COOKIE_SIZE
             SNPRINTF(cookie + len, HAMLIB_COOKIE_SIZE - len, " %d\n", rand());
             strcpy(cookie_save, cookie);
             time_last_used = time_curr;

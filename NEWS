@@ -1,8 +1,8 @@
 Hamlib -- History of visible changes.
 
 Copyright (C) 2000-2003  Frank Singleton
-Copyright (C) 2000-2021  Stephane Fillod, and others
-Copyright (C) 2000-2021  Michael Black W9MDB, and others
+Copyright (C) 2000-2023  Stephane Fillod, and others
+Copyright (C) 2000-2023  Michael Black W9MDB, and others
 
 Please send Hamlib bug reports to hamlib-developer@lists.sourceforge.net
 
@@ -13,6 +13,7 @@ Version 5.x -- future
         * Change FT1000MP Mark V model names to align with FT1000MP
 
 Version 4.6
+        * Add saebrtrack rotor https://sites.google.com/site/marklhammond/saebrtrack
         * Add offset_vfoa and offset_vfob applying to rig_set_freq
         * Fix K4 to put it in K40 mode when requesting ID
         * 2023-11-XX -- Planned for Nov 2023
@@ -20,7 +21,7 @@ Version 4.6
         * Add rigctlsync utility to synchronize frequency from a rig to SDR# (or others)
         * Add SDR# rig for use with SDR#'s gpredict plugin -- can only get/set freq 
         * Add Apex Shared Loop rotator -- unidirectional only so far
-        * Add client_version to rigctld so client can report it's version for future use/compatility/alternatives
+        * Add client_version to rigctld so client can report it's version for future use/compatibility/alternatives
         * Add --set-conf=tuner_control_pathname=hamlib_tuner_control (default)
           If file exists then it will be called with 0/1 (Off/On) argument
           with 'U TUNER 0' or 'U TUNER 1"
@@ -30,6 +31,14 @@ Version 4.6
         * Fix FTDX3000 rig split
 
 Version 4.5.5
+        * 2023-04-05
+        * Add park to rotorez.c
+        * Fix rig power on/off from rigctl cmd line and rigctld
+        * Enable async mode by default to prevent WSJT-X crash on IC9700 with transceive on
+        * Fix IC7610 get_powerstat to disable it -- cannot read power status
+        * Fix K3 K22 command error for remote operations
+        * Fix Gemini DX1200 gemini_set_level
+        * Fix async I/O to not call flush
         * Change EX startup commands for Yaesu rigs to allow errors...Win4Yaesu not recognizing EX commands
         * Fix jst145 set_freq and get_freq
         * Restore tcflush as some odd behavior was seen that tclush fixes
@@ -41,7 +50,7 @@ Version 4.5.5
         * Add fix for TMD700
         * Improve FT-857 get_vfo response when error occurs
         * Allow FT-857 to use cached vfo on get_vfo when error occurs reading EEPROM
-        * Fix FTDX10 FT710 set_level AFy
+        * Fix FTDX10 FT710 set_level AF
         * Fix FT-450D detection
         * Fix VFO A/B swapping for gpredict -- hopefully better behavior for VFO swapping rigs
           Should avoid setting RX freq while TX and avoid TX freq while RX
@@ -58,7 +67,7 @@ Version 4.5.5
         * Fix power on/off/on for Icom rigs with rigctld power_on=0
         
 Version 4.5.4
-        * 2023-XX-XX
+        * 2023-01-10
         * Fix CM108 ptt setting for non-default usage
         * Fix power on/off for Icom rigs with rigctld power_on=0
         * Fix get_powerstat status return for non-PS kenwood rigs
@@ -199,7 +208,7 @@ Version 4.3.1
             - scripts: Update example in readme, since 4.0 817 is 1020
             - Make testlibusb.c compatible with libusb < 1.0.23
               Note: On systems with libusb < 1.0.23 a warning will be emitted
-              but compliation should proceed without error.
+              but compilation should proceed without error.
             - Update testlibusb.c warning to "may be" instead of "will be"
             - Change kenwood to only set VFOA default on 1st rig_open call
 
