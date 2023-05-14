@@ -108,63 +108,62 @@ again:
         if (bytes != 5)
         {
             printf("Not 5 bytes?  bytes=%d\n", bytes);
-            continue;
         }
 
         switch (buf[4])
         {
-        case 0x00:
-            printf("CAT On\n");
+        case 0x00: printf("LOCK ON\n"); break;
+
+        case 0x80: printf("LOCK OFF\n"); break;
+
+        case 0x08: printf("PTT ON\n"); break;
+
+        case 0x88: printf("PTT OFF\n"); break;
+
+        case 0x07: printf("MODE\n"); break;
+
+        case 0x05: printf("CLAR ON\n"); break;
+
+        case 0x85: printf("CLAR OFF\n"); break;
+
+        case 0xF5: printf("FREQ\n"); break;
+
+        case 0x81: printf("VFO TOGGLE\n"); break;
+
+        case 0x02: printf("SPLIT ON\n"); break;
+
+        case 0x82: printf("SPLIT OFF\n"); break;
+
+        case 0x09: printf("REPEATER SHIFT\n"); break;
+
+        case 0xF9: printf("REPEATER FREQ\n"); break;
+
+        case 0x0A: printf("CTCSS/DCS MODE\n"); break;
+
+        case 0x0B: printf("CTCSS TONE\n"); break;
+
+        case 0x0C: printf("DCS CODE\n"); break;
+
+        case 0xE7: printf("READ RX STATUS\n"); break;
+
+        case 0xF7: printf("READ TX STATUS\n"); break;
+
+        case 0x03:
+            printf("READ RX STATUS\n");
+            buf[0] = 0x01;
+            buf[1] = 0x40;
+            buf[2] = 0x74;
+            buf[3] = 0x00;
+            buf[4] = 0x03; n = write(fd, buf, 5);
             break;
 
-        case 0x80:
-            printf("CAT Off\n");
-            break;
-
-        case 0x01:
-            printf("FREQ_SET\n");
-            break;
-
-        case 0x07:
-            printf("MODE_SET\n");
-            break;
-
-        case 0x0e:
-            printf("Full Duplex On\n");
-            break;
-
-        case 0x8e:
-            printf("Full Duplex Off\n");
-            break;
-
-        case 0x08:
-            printf("Tx\n");
-            break;
-
-        case 0x88:
-            printf("Rx\n");
-            break;
-
-        case 0x17:
-            printf("Full Duplex Rx Mode\n");
-            break;
-
-        case 0x27:
-            printf("Full Duplex Tx Mode\n");
-            break;
-
-        case 0x1e:
-            printf("Full Duplex Rx Freq\n");
-            break;
-
-        case 0x2e:
-            printf("Full Duplex Tx Freq\n");
+        case 0xbb:
+            buf[0] = 80; buf[1] = 0; printf("READ EPROM\n");
+            n = write(fd, buf, 2);
             break;
 
         default: printf("Unknown cmd=%02x\n", buf[4]);
         }
-
-        fflush(stdout);
     }
 
     return 0;

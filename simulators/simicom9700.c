@@ -4,7 +4,13 @@
 // gcc -g -Wall -o simicom simicom.c -lhamlib
 // On mingw in the hamlib src directory
 // gcc -static -I../include -g -Wall -o simicom simicom.c -L../../build/src/.libs -lhamlib -lwsock32 -lws2_32
-#define _XOPEN_SOURCE 600
+#define _XOPEN_SOURCE 700
+// since we are POSIX here we need this
+struct ip_mreq
+  {
+    int dummy;
+  };
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -240,7 +246,7 @@ void frameParse(int fd, unsigned char *frame, int len)
             if (frame[6] != 0xfd)
             {
                 frame[6] = 0xfb;
-                dumphex(frame,7);
+                dumphex(frame, 7);
                 n = write(fd, frame, 7);
                 printf("ACK x14 x08\n");
             }
@@ -248,7 +254,7 @@ void frameParse(int fd, unsigned char *frame, int len)
             {
                 to_bcd(&frame[6], (long long)128, 2);
                 frame[8] = 0xfb;
-                dumphex(frame,9);
+                dumphex(frame, 9);
                 n = write(fd, frame, 9);
                 printf("SEND x14 x08\n");
             }
@@ -488,13 +494,17 @@ void frameParse(int fd, unsigned char *frame, int len)
 #else
 
     case 0x25:
+        printf("x25 send nak\n");
         frame[4] = 0xfa;
         frame[5] = 0xfd;
+        n = write(fd, frame, 6);
         break;
 
     case 0x26:
+        printf("x26 send nak\n");
         frame[4] = 0xfa;
         frame[5] = 0xfd;
+        n = write(fd, frame, 6);
         break;
 #endif
 
@@ -597,7 +607,7 @@ int main(int argc, char **argv)
         }
         else
         {
-            usleep(1000 * 1000);
+            hl_usleep(1000 * 1000);
         }
 
         rigStatus();

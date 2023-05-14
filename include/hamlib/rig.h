@@ -37,6 +37,16 @@
 #include <inttypes.h>
 #include <time.h>
 
+// to stop warnings about including winsock2.h before windows.h
+#if defined(_WIN32)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif
+
 // For MSVC install the NUGet pthread package
 #if defined(_MSC_VER)
 #define HAVE_STRUCT_TIMESPEC
@@ -45,6 +55,7 @@
 
 /* Rig list is in a separate file so as not to mess up w/ this one */
 #include <hamlib/riglist.h>
+//#include <hamlib/config.h>
 
 /**
  * \addtogroup rig
@@ -930,6 +941,7 @@ enum meter_level_e {
  */
 typedef union {
     signed int i;       /*!< Signed integer */
+    unsigned int u;     /*!< Unsigned integer */
     float f;            /*!< Single precision float */
     char *s;            /*!< Pointer to char string */
     const char *cs;     /*!< Pointer to constant char string */
@@ -2280,8 +2292,8 @@ typedef struct hamlib_port {
             int value;      /*!< Toggle PTT ON or OFF */
         } gpio;             /*!< GPIO attributes */
     } parm;                 /*!< Port parameter union */
-    int client_port;      /*!< client socket port for tcp connection */
-    RIG *rig;             /*!< our parent RIG device */
+    int client_port;        /*!< client socket port for tcp connection */
+    RIG *rig;               /*!< our parent RIG device */
     int asyncio;            /*!< enable asynchronous data handling if true -- async collides with python keyword so _async is used */
 #if defined(_WIN32)
     hamlib_async_pipe_t *sync_data_pipe;         /*!< pipe data structure for synchronous data */
@@ -2292,6 +2304,7 @@ typedef struct hamlib_port {
     int fd_sync_error_write;    /*!< file descriptor for writing synchronous data error codes */
     int fd_sync_error_read;     /*!< file descriptor for reading synchronous data error codes */
 #endif
+    short timeout_retry;    /*!< number of retries to make in case of read timeout errors, some serial interfaces may require this, 0 to disable */
 } hamlib_port_t;
 
  
@@ -2464,6 +2477,28 @@ struct rig_cache {
     int satmode; // if rig is in satellite mode
 };
 
+/**
+ * \brief Multicast data items the are unique per rig instantiation
+ * This is meant for internal Hamlib use only
+ */
+#include <hamlib/multicast.h>
+struct multicast_s
+{
+    int multicast_running;
+    int sock;
+    int seqnumber;
+    int runflag; // = 0;
+    pthread_t threadid;
+    // this mutex is needed to control serial access
+    // as of 2023-05-13 we have main thread and multicast thread needing it
+    // eventually we should be able to use cached info only in the main thread to avoid contention
+    pthread_mutex_t mutex;
+    int mutex_initialized;
+//#ifdef HAVE_ARPA_INET_H
+    struct ip_mreq mreq; // = {0};
+    struct sockaddr_in dest_addr; // = {0};
+//#endif
+};
 
 /**
  * \brief Rig state containing live data and customized fields.
@@ -2594,6 +2629,7 @@ struct rig_state {
     char client_version[32];  /*!<! Allow client to report version for compatibility checks/capability */
     freq_t offset_vfoa; /*!< Offset to apply to VFOA/Main set_freq */
     freq_t offset_vfob; /*!< Offset to apply to VFOB/Sub set_freq */
+    struct multicast_s *multicast; /*!< Pointer to multicast server data */
 };
 
 //! @cond Doxygen_Suppress
@@ -2684,7 +2720,13 @@ extern HAMLIB_EXPORT(int) rig_open HAMLIB_PARAMS((RIG *rig));
  */
 
 extern HAMLIB_EXPORT(int)
+rig_flush_force(hamlib_port_t *port, int flush_async_data);
+
+extern HAMLIB_EXPORT(int)
 rig_flush(hamlib_port_t *port);
+
+extern HAMLIB_EXPORT(void)
+rig_lock(RIG *rig, int lock);
 
 #if BUILTINFUNC
 #define rig_set_freq(r,v, f) rig_set_vfo(r,v,f,__builtin_FUNCTION())

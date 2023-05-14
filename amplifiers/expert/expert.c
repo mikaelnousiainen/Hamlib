@@ -81,9 +81,26 @@ int expert_init(AMP *amp)
     return RIG_OK;
 }
 
+int expert_open(AMP *amp)
+{
+    unsigned char cmd = 0x80;
+    unsigned char response[256];
+
+    rig_debug(RIG_DEBUG_TRACE, "%s: entered\n", __func__);
+
+    expert_transaction(amp, &cmd, 1, response, 256);
+
+    return RIG_OK;
+}
+
 int expert_close(AMP *amp)
 {
+
+    unsigned char cmd = 0x81;
+    unsigned char response[256];
+
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    expert_transaction(amp, &cmd, 1, response, 4);
 
     if (amp->state.priv) { free(amp->state.priv); }
 
@@ -103,17 +120,21 @@ int expert_flushbuffer(AMP *amp)
     return rig_flush(&rs->ampport);
 }
 
-int expert_transaction(AMP *amp, const unsigned char *cmd, int cmd_len, unsigned char *response, int response_len)
+int expert_transaction(AMP *amp, const unsigned char *cmd, int cmd_len,
+                       unsigned char *response, int response_len)
 {
     struct amp_state *rs;
     int err;
     int len = 0;
-    int loop;
     char cmdbuf[64];
-    int checksum=0;
-    int bytes = 0;
+    int checksum = 0;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called, cmd=%s\n", __func__, cmd);
+    if (cmd) { rig_debug(RIG_DEBUG_VERBOSE, "%s called, cmd=%s\n", __func__, cmd); }
+    else
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: cmd empty\n", __func__);
+        return -RIG_EINVAL;
+    }
 
     if (!amp) { return -RIG_EINVAL; }
 
@@ -122,23 +143,27 @@ int expert_transaction(AMP *amp, const unsigned char *cmd, int cmd_len, unsigned
     rs = &amp->state;
 
     cmdbuf[0] = cmdbuf[1] = cmdbuf[2] = 0x55;
-    memcpy(&cmdbuf,cmd,cmd_len);
-    for(int i=0;i<cmd_len;++i) checksum += cmd[i];
+
+    for (int i = 0; i < cmd_len; ++i) { checksum += cmd[i]; }
+
     checksum = checksum % 256;
     cmdbuf[3] = cmd_len;
-    cmdbuf[3+cmd_len+1] = checksum;
+    memcpy(&cmdbuf[4], cmd, cmd_len);
+    cmdbuf[3 + cmd_len + 1] = checksum;
 
     // Now send our command
-    err = write_block(&rs->ampport, (unsigned char *) cmdbuf, 3+cmd_len+2);
+    err = write_block(&rs->ampport, (unsigned char *) cmdbuf, 3 + cmd_len + 2);
 
     if (err != RIG_OK) { return err; }
 
     if (response) // if response expected get it
     {
+        int bytes = 0;
         response[0] = 0;
         // read the 4-byte header x55x55x55xXX where XX is the hex # of bytes
         len = read_block_direct(&rs->ampport, (unsigned  char *) response, 4);
-        rig_debug(RIG_DEBUG_ERR, "%s: len=%d, bytes=%02x\n", __func__, len, response[3]);
+        rig_debug(RIG_DEBUG_ERR, "%s: len=%d, bytes=%02x\n", __func__, len,
+                  response[3]);
 
         if (len < 0)
         {
@@ -146,16 +171,18 @@ int expert_transaction(AMP *amp, const unsigned char *cmd, int cmd_len, unsigned
                       rigerror(len));
             return len;
         }
-        if (len == 4) bytes = response[3];
+
+        if (len == 4) { bytes = response[3]; }
+
         rig_debug(RIG_DEBUG_ERR, "%s: bytes=%d\n", __func__, bytes);
-        len = read_block_direct(&rs->ampport, (unsigned  char *) response, bytes-3 );
-        dump_hex(response,len);
+        len = read_block_direct(&rs->ampport, (unsigned  char *) response, bytes - 3);
+        dump_hex(response, len);
     }
     else   // if no response expected try to get one
     {
         char responsebuf[KPABUFSZ];
         responsebuf[0] = 0;
-        loop = 3;
+        int loop = 3;
 
         do
         {
@@ -195,7 +222,7 @@ const char *expert_get_info(AMP *amp)
 
 int expert_get_freq(AMP *amp, freq_t *freq)
 {
-    char responsebuf[KPABUFSZ];
+    char responsebuf[KPABUFSZ] = "\0";
     int retval;
     unsigned long tfreq;
     int nargs;
@@ -204,7 +231,7 @@ int expert_get_freq(AMP *amp, freq_t *freq)
 
     if (!amp) { return -RIG_EINVAL; }
 
-    retval = expert_transaction(amp, NULL,0, NULL, sizeof(responsebuf));
+    retval = expert_transaction(amp, NULL, 0, NULL, sizeof(responsebuf));
 
     if (retval != RIG_OK) { return retval; }
 
@@ -223,7 +250,7 @@ int expert_get_freq(AMP *amp, freq_t *freq)
 
 int expert_set_freq(AMP *amp, freq_t freq)
 {
-    char responsebuf[KPABUFSZ];
+    char responsebuf[KPABUFSZ] = "\0";
     int retval;
     unsigned long tfreq;
     int nargs;
@@ -260,7 +287,7 @@ int expert_set_freq(AMP *amp, freq_t freq)
 
 int expert_get_level(AMP *amp, setting_t level, value_t *val)
 {
-    char responsebuf[KPABUFSZ];
+    char responsebuf[KPABUFSZ] = "\0";
     unsigned char cmd[8];
     int retval;
     int fault;
@@ -340,6 +367,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
     switch (level)
     {
     case AMP_LEVEL_SWR:
+
         //nargs = sscanf(responsebuf, "^SW%f", &float_value);
 
         if (nargs != 1)
@@ -354,6 +382,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
 
     case AMP_LEVEL_NH:
     case AMP_LEVEL_PF:
+
         //nargs = sscanf(responsebuf, "^DF%d,%d", &int_value, &int_value2);
 
         if (nargs != 2)
@@ -505,7 +534,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
 
 int expert_get_powerstat(AMP *amp, powerstat_t *status)
 {
-    unsigned char responsebuf[KPABUFSZ];
+    unsigned char responsebuf[KPABUFSZ] = "\0";
     int retval;
     int operate = 0;
     int ampon = 0;
@@ -643,7 +672,7 @@ const struct amp_caps expert_amp_caps =
     AMP_MODEL(AMP_MODEL_EXPERT_FA),
     .model_name =   "1.3K-FA/1.5K-FA/2K-FA",
     .mfg_name =     "Expert",
-    .version =      "20230320.0",
+    .version =      "20230328.0",
     .copyright =    "LGPL",
     .status =     RIG_STATUS_ALPHA,
     .amp_type =     AMP_TYPE_OTHER,
@@ -661,7 +690,7 @@ const struct amp_caps expert_amp_caps =
     .has_get_level = AMP_LEVEL_SWR | AMP_LEVEL_NH | AMP_LEVEL_PF | AMP_LEVEL_PWR_INPUT | AMP_LEVEL_PWR_FWD | AMP_LEVEL_PWR_REFLECTED | AMP_LEVEL_FAULT,
     .has_set_level = 0,
 
-    .amp_open = NULL,
+    .amp_open = expert_open,
     .amp_init = expert_init,
     .amp_close = expert_close,
     .reset = expert_reset,

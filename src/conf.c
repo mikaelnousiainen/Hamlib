@@ -70,6 +70,11 @@ static const struct confparams frontend_cfg_params[] =
         "0", RIG_CONF_NUMERIC, { .n = { 0, 10, 1 } }
     },
     {
+        TOK_TIMEOUT_RETRY, "timeout_retry", "Number of retries for read timeouts",
+        "Set the number of retries for data read timeouts that may occur especially with some serial interfaces",
+        "0", RIG_CONF_NUMERIC, { .n = { 0, 100, 1 } }
+    },
+    {
         TOK_RANGE_SELECTED, "Selected range list", "Range list#",
         "The tx/rx range list in use",
         "0", RIG_CONF_NUMERIC, { .n = { 1, 5, 1 } }
@@ -379,7 +384,8 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
     case TOK_HANDSHAKE:
         if (rs->rigport.type.rig != RIG_PORT_SERIAL)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: setting handshake is invalid for non-serial port rig type\n",
+            rig_debug(RIG_DEBUG_ERR,
+                      "%s: setting handshake is invalid for non-serial port rig type\n",
                       __func__);
             return -RIG_EINVAL;
         }
@@ -737,6 +743,15 @@ static int frontend_set_conf(RIG *rig, token_t token, const char *val)
         rs->tuner_control_pathname = strdup(val); // yeah -- need to free it
         break;
 
+    case TOK_TIMEOUT_RETRY:
+        if (1 != sscanf(val, "%ld", &val_i))
+        {
+            return -RIG_EINVAL;
+        }
+
+        rs->rigport.timeout_retry = val_i;
+        break;
+
     case TOK_OFFSET_VFOA:
         if (1 != sscanf(val, "%ld", &val_i))
         {
@@ -873,7 +888,8 @@ static int frontend_get_conf2(RIG *rig, token_t token, char *val, int val_len)
     case TOK_HANDSHAKE:
         if (rs->rigport.type.rig != RIG_PORT_SERIAL)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: getting handshake is invalid for non-serial port rig type\n",
+            rig_debug(RIG_DEBUG_ERR,
+                      "%s: getting handshake is invalid for non-serial port rig type\n",
                       __func__);
             return -RIG_EINVAL;
         }
@@ -1109,6 +1125,10 @@ static int frontend_get_conf2(RIG *rig, token_t token, char *val, int val_len)
         SNPRINTF(val, val_len, "%d", rs->async_data_enabled);
         break;
 
+    case TOK_TIMEOUT_RETRY:
+        SNPRINTF(val, val_len, "%d", rs->rigport.timeout_retry);
+        break;
+
     default:
         return -RIG_EINVAL;
     }
@@ -1295,7 +1315,8 @@ int HAMLIB_API rig_set_conf(RIG *rig, token_t token, const char *val)
     // Some parameters can be ignored
     if (token == TOK_HANDSHAKE && (rs->rigport.type.rig != RIG_PORT_SERIAL))
     {
-        rig_debug(RIG_DEBUG_WARN, "%s: handshake is not valid for non-serial port rig\n", __func__);
+        rig_debug(RIG_DEBUG_WARN,
+                  "%s: handshake is not valid for non-serial port rig\n", __func__);
         return RIG_OK; // this allows rigctld to continue and just print a warning instead of error
     }
 

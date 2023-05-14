@@ -974,34 +974,39 @@ int check_level_param(RIG *rig, setting_t level, value_t val, gran_t **gran)
     gran_t *this_gran;
 
     this_gran = &rig->caps->level_gran[rig_setting2idx(level)];
+
     if (gran)
-        {
-	    *gran = this_gran;
-	}
+    {
+        *gran = this_gran;
+    }
+
     if (RIG_LEVEL_IS_FLOAT(level))
+    {
+        /* If min==max==0, all values are OK here but may be checked later */
+        if (this_gran->min.f == 0.0f && this_gran->max.f == 0.0f)
         {
-	  /* If min==max==0, all values are OK here but may be checked later */
-	  if (this_gran->min.f == 0.0f && this_gran->max.f == 0.0f)
-	    {
-	      return RIG_OK;
-	    }
-	  if (val.f < this_gran->min.f || val.f > this_gran->max.f)
-	    {
-	      return -RIG_EINVAL;
-	    }
-	}
+            return RIG_OK;
+        }
+
+        if (val.f < this_gran->min.f || val.f > this_gran->max.f)
+        {
+            return -RIG_EINVAL;
+        }
+    }
     else
+    {
+        /* If min==max==0, all values are OK here but may be checked later */
+        if (this_gran->min.i == 0 && this_gran->max.i == 0)
         {
-	  /* If min==max==0, all values are OK here but may be checked later */
-	  if (this_gran->min.i == 0 && this_gran->max.i == 0)
-	    {
-	      return RIG_OK;
-	    }
-	  if (val.i < this_gran->min.i || val.i > this_gran->max.i)
-	    {
-	      return -RIG_EINVAL;
-	    }
-	}
+            return RIG_OK;
+        }
+
+        if (val.i < this_gran->min.i || val.i > this_gran->max.i)
+        {
+            return -RIG_EINVAL;
+        }
+    }
+
     return RIG_OK;
 }
 
@@ -2147,24 +2152,33 @@ int HAMLIB_API parse_hoststr(char *hoststr, int hoststr_len, char host[256],
     return -1;
 }
 
-//K3 was showing stacked command replies so re-enabling this
-//#define RIG_FLUSH_REMOVE
-int HAMLIB_API rig_flush(hamlib_port_t *port)
+
+/**
+ * \brief Force flush of rig communication data buffers.
+ * \param port communication port
+ * \param flush_async_data  Flushes also asynchronous I/O pipes if non-zero.
+ * \return status code
+ *
+ * This function should be used only in special cases like after handling raw command data from Hamlib clients.
+ * When asynchronous I/O is enabled, responses to raw commands may disrupt processing of all commands,
+ * because the responses and up in the async I/O pipes.
+ */
+int HAMLIB_API rig_flush_force(hamlib_port_t *port, int flush_async_data)
 {
-    // Data should never be flushed when using async I/O
-    if (port->asyncio)
+    if (port->type.rig == RIG_PORT_NONE)
     {
         return RIG_OK;
+    }
+
+    // Flush also the async I/O pipes
+    if (port->asyncio && flush_async_data)
+    {
+        port_flush_sync_pipes(port);
     }
 
 #ifndef RIG_FLUSH_REMOVE
     rig_debug(RIG_DEBUG_TRACE, "%s: called for %s device\n", __func__,
               port->type.rig == RIG_PORT_SERIAL ? "serial" : "network");
-
-    if (port->type.rig == RIG_PORT_NONE)
-    {
-        return RIG_OK;
-    }
 
     if (port->type.rig == RIG_PORT_NETWORK
             || port->type.rig == RIG_PORT_UDP_NETWORK)
@@ -2183,6 +2197,17 @@ int HAMLIB_API rig_flush(hamlib_port_t *port)
 #else
     return RIG_OK;
 #endif
+}
+
+int HAMLIB_API rig_flush(hamlib_port_t *port)
+{
+    // Data should never be flushed when using async I/O
+    if (port->asyncio)
+    {
+        return RIG_OK;
+    }
+
+    return rig_flush_force(port, 0);
 }
 
 

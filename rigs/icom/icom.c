@@ -682,7 +682,7 @@ int icom_init(RIG *rig)
     priv->rx_vfo = RIG_VFO_NONE;
     rig->state.current_vfo = RIG_VFO_NONE;
     priv->filter = RIG_PASSBAND_NOCHANGE;
-    priv->x25cmdfails = 0;
+    priv->x25cmdfails = -1;
     priv->x1cx03cmdfails = 0;
 
     // we can add rigs here that will never use the 0x25 cmd
@@ -706,10 +706,12 @@ int icom_init(RIG *rig)
         || rig->caps->rig_model == RIG_MODEL_IC7000
         || rig->caps->rig_model == RIG_MODEL_IC7100
         || rig->caps->rig_model == RIG_MODEL_IC7200
+        || rig->caps->rig_model == RIG_MODEL_IC7700
         || rig->caps->rig_model == RIG_MODEL_IC821H
         || rig->caps->rig_model == RIG_MODEL_IC910
         || rig->caps->rig_model == RIG_MODEL_IC2730
         || rig->caps->rig_model == RIG_MODEL_ID5100
+        || rig->caps->rig_model == RIG_MODEL_IC9100
     )
     {
         priv->x25cmdfails = 1;
@@ -868,7 +870,7 @@ static vfo_t icom_current_vfo(RIG *rig)
     struct rig_state *rs = &rig->state;
     struct icom_priv_data *priv = (struct icom_priv_data *) rs->priv;
 
-    if (priv->x25cmdfails == 0) // these newer rigs get special treatment
+    if (priv->x25cmdfails <= 0) // these newer rigs get special treatment
     {
         return icom_current_vfo_x25(rig);
     }
@@ -1504,7 +1506,8 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     unsigned char freqbuf[MAXFRAMELEN];
     int freqbuf_offset = 1;
     unsigned char ackbuf[MAXFRAMELEN];
-    int freq_len, retval = -RIG_EINTERNAL;
+    int retval = RIG_OK;
+    int freq_len;
     int cmd, subcmd;
     int ack_len = sizeof(ackbuf);
     int civ_731_mode = 0; // even these rigs have 5-byte channels
@@ -1628,7 +1631,7 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     // we'll use 0x25 command to get unselected frequency
     // we have to assume current_vfo is accurate to determine what "other" means
-    if (priv->x25cmdfails == 0)
+    if (priv->x25cmdfails <= 0)
     {
         int cmd2 = 0x25;
         int subcmd2 = 0x00;
@@ -1650,18 +1653,27 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
         retval = icom_transaction(rig, cmd2, subcmd2, NULL, 0, freqbuf, &freq_len);
 
-        if (retval != RIG_OK)
+        if (retval == RIG_OK)
         {
-            priv->x25cmdfails = 1;
-            rig_debug(RIG_DEBUG_WARN,
-                      "%s: rig probe shows 0x25 CI-V cmd not available\n", __func__);
+            priv->x25cmdfails = 0;
+        }
+        else
+        {
+            if (priv->x25cmdfails < 0)
+            {
+                priv->x25cmdfails = 1;
+            }
+
+            rig_debug(RIG_DEBUG_TRACE,
+                      "%s: rig probe shows 0x25 CI-V cmd not available for this rig/firmware\n",
+                      __func__);
         }
 
         freq_len--; // 0x25 cmd is 1 byte longer than 0x03 cmd
         freqbuf_offset = 2;
     }
 
-    if (priv->x25cmdfails) // then we're doing this the hard way....swap+read
+    if (priv->x25cmdfails == 1) // then we're doing this the hard way....swap+read
     {
         freqbuf_offset = 1;
         HAMLIB_TRACE;
@@ -1680,8 +1692,8 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     }
 
 #if 0
-    else if (!priv->x25cmdfails
-             && (vfo & (RIG_VFO_A | RIG_VFO_MAIN | RIG_VFO_MAIN_A | RIG_VFO_SUB_A)))
+    else if (priv->x25cmdfail == 0)
+        && (vfo & (RIG_VFO_A | RIG_VFO_MAIN | RIG_VFO_MAIN_A | RIG_VFO_SUB_A)))
     {
         // we can use the 0x03 command for the default VFO
         retval = icom_transaction(rig, cmd, subcmd, NULL, 0, freqbuf, &freq_len);
@@ -1691,7 +1703,10 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     if (retval != RIG_OK)
     {
-        if (vfo == RIG_VFO_MEM && civ_731_mode) { priv->civ_731_mode = 1; }
+        if (vfo == RIG_VFO_MEM && civ_731_mode)
+        {
+            priv->civ_731_mode = 1;
+        }
 
         RETURNFUNC(retval);
     }
@@ -1720,9 +1735,9 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
                   "%s: 3-byte ID5100/4100 length - turn off XONXOFF flow control\n", __func__);
     }
     else if (freq_len != 4 && freq_len != 5)
-    {
-        rig_debug(RIG_DEBUG_ERR, "%s: wrong frame len=%d\n",
-                  __func__, freq_len);
+{
+    rig_debug(RIG_DEBUG_ERR, "%s: wrong frame len=%d\n",
+              __func__, freq_len);
 
         if (vfo == RIG_VFO_MEM && civ_731_mode) { priv->civ_731_mode = 1; }
 
@@ -1742,36 +1757,36 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     if (freq_len == 3) { *freq *= 10000; } // 3-byte freq for ID5100 is in 10000Hz units so convert to Hz
 
-    if (vfo == RIG_VFO_MEM && civ_731_mode) { priv->civ_731_mode = 1; }
+if (vfo == RIG_VFO_MEM && civ_731_mode) { priv->civ_731_mode = 1; }
 
-    switch (vfo)
-    {
-    case RIG_VFO_A: priv->vfoa_freq = *freq; break;
+switch (vfo)
+{
+case RIG_VFO_A: priv->vfoa_freq = *freq; break;
 
-    case RIG_VFO_MAIN_A: priv->maina_freq = *freq; break;
+case RIG_VFO_MAIN_A: priv->maina_freq = *freq; break;
 
-    case RIG_VFO_SUB_A: priv->suba_freq = *freq; break;
+case RIG_VFO_SUB_A: priv->suba_freq = *freq; break;
 
-    case RIG_VFO_B: priv->vfob_freq = *freq; break;
+case RIG_VFO_B: priv->vfob_freq = *freq; break;
 
-    case RIG_VFO_MAIN_B: priv->mainb_freq = *freq; break;
+case RIG_VFO_MAIN_B: priv->mainb_freq = *freq; break;
 
-    case RIG_VFO_SUB_B: priv->subb_freq = *freq; break;
+case RIG_VFO_SUB_B: priv->subb_freq = *freq; break;
 
-    case RIG_VFO_MAIN: priv->main_freq = *freq; break;
+case RIG_VFO_MAIN: priv->main_freq = *freq; break;
 
-    case RIG_VFO_SUB: priv->sub_freq = *freq; break;
+case RIG_VFO_SUB: priv->sub_freq = *freq; break;
 
-    case RIG_VFO_OTHER: priv->other_freq = *freq; break;
+case RIG_VFO_OTHER: priv->other_freq = *freq; break;
 
-    case RIG_VFO_NONE: // VFO_NONE will become VFO_CURR
-        rig->state.current_vfo = RIG_VFO_CURR;
+case RIG_VFO_NONE: // VFO_NONE will become VFO_CURR
+    rig->state.current_vfo = RIG_VFO_CURR;
 
-    case RIG_VFO_CURR: priv->curr_freq = *freq; break;
+case RIG_VFO_CURR: priv->curr_freq = *freq; break;
 
-    default:
-        rig_debug(RIG_DEBUG_ERR, "%s: unknown VFO?  VFO=%s\n", __func__,
-                  rig_strvfo(vfo));
+default:
+    rig_debug(RIG_DEBUG_ERR, "%s: unknown VFO?  VFO=%s\n", __func__,
+              rig_strvfo(vfo));
     }
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s exit vfo=%s, curr_vfo=%s\n", __func__,
@@ -3067,7 +3082,7 @@ int icom_set_vfo(RIG *rig, vfo_t vfo)
         }
 
     default:
-        if (!priv->x25cmdfails)
+        if (priv->x25cmdfails == 0)
             rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__,
                       rig_strvfo(vfo));
 
@@ -3505,13 +3520,13 @@ int icom_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
             if (rig->state.current_mode == RIG_MODE_AM) { agcp = agc_level2; }
 
-            rig_debug(RIG_DEBUG_ERR, "%s: val.f=%g\n", __func__, val.f);
+            rig_debug(RIG_DEBUG_ERR, "%s: val.f=%f\n", __func__, val.f);
 
             for (i = 0; i <= 13; ++i)
             {
                 if (agcp[i] <= val.f)
                 {
-                    rig_debug(RIG_DEBUG_ERR, "%s: agcp=%g <= val.f=%g at %d\n", __func__, agcp[i],
+                    rig_debug(RIG_DEBUG_ERR, "%s: agcp=%f <= val.f=%f at %d\n", __func__, agcp[i],
                               val.f, i);
                     icom_val = i;
                 }
@@ -5068,10 +5083,16 @@ int icom_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
 {
     unsigned char pttbuf[MAXFRAMELEN];
     int ptt_len, retval;
+    int retry = 5;
 
     ENTERFUNC;
-    retval = icom_transaction(rig, C_CTL_PTT, S_PTT, NULL, 0,
-                              pttbuf, &ptt_len);
+
+    do
+    {
+        retval = icom_transaction(rig, C_CTL_PTT, S_PTT, NULL, 0,
+                                  pttbuf, &ptt_len);
+    }
+    while (--retry > 0 && retval != RIG_OK);
 
     if (retval != RIG_OK)
     {
@@ -5493,7 +5514,7 @@ int icom_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
 
     // If the rigs supports the 0x25 command we'll use it
     // This eliminates VFO swapping and improves split operations
-    if (priv->x25cmdfails == 0)
+    if (priv->x25cmdfails <= 0)
     {
         int satmode = 0;
 
@@ -5537,10 +5558,19 @@ int icom_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
 
             if (retval == RIG_OK) // then we're done!!
             {
+                priv->x25cmdfails = 0;
                 RETURNFUNC2(retval);
+            }
+            else
+            {
+                if (priv->x25cmdfails < 0)
+                {
+                    priv->x25cmdfails = 1;
+                }
             }
         }
 
+        // Rig is in SATMODE and the command 0x25 fails in SATMODE
         priv->x25cmdfails = 1;
     }
 
@@ -5722,7 +5752,7 @@ int icom_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq)
     // If the rigs supports the 0x25 command we'll use it
     // This eliminates VFO swapping and improves split operations
     // This does not work in satellite mode for the 9700
-    if (priv->x25cmdfails == 0)
+    if (priv->x25cmdfails <= 0)
     {
         int cmd, subcmd;
         int satmode = 0;
@@ -5739,7 +5769,7 @@ int icom_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq)
 
         if (satmode == 0) // only worth trying if not in satmode
         {
-            if (priv->x25cmdfails == 0)
+            if (priv->x25cmdfails <= 0)
             {
                 int retry_save = rs->rigport.retry;
                 rs->rigport.retry = 0;
@@ -5754,11 +5784,12 @@ int icom_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq)
 
                 if (retval == RIG_OK) // then we're done!!
                 {
+                    priv->x25cmdfails = 0;
                     *tx_freq = from_bcd(ackbuf + 2, (priv->civ_731_mode ? 4 : 5) * 2);
                     RETURNFUNC2(retval);
                 }
 
-                priv->x25cmdfails = 1;
+                if (priv->x25cmdfails < 0) priv->x25cmdfails = 1;
             }
         }
         else   // we're in satmode so we try another command
@@ -5779,7 +5810,6 @@ int icom_get_split_freq(RIG *rig, vfo_t vfo, freq_t *tx_freq)
                 priv->x1cx03cmdfails = 1;
             }
         }
-
     }
 
     /* This method works also in memory mode(RIG_VFO_MEM) */
@@ -6750,7 +6780,8 @@ int icom_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
         {
             rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): satmode changed to reset x25cmdfails\n",
                       __func__, __LINE__);
-            priv->x25cmdfails = satmode; // reset this so it tries again
+            // Reset x25cmdfails to current status, because it fails in SATMODE
+            priv->x25cmdfails = satmode;
         }
     }
 
@@ -7152,8 +7183,8 @@ int icom_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
             fct_sc = S_MEM_SATMODE;
         }
 
-        priv->x25cmdfails =
-            status; // we reset this to current status -- fails in SATMODE
+        // Reset x25cmdfails to current status, because it fails in SATMODE
+        priv->x25cmdfails = status;
         priv->x1cx03cmdfails = 0; // we reset this to try it again
         rig->state.cache.satmode = status;
         icom_satmode_fix(rig, status);
@@ -7426,7 +7457,7 @@ int icom_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
     {
         *status = ackbuf[2] == 2 ? 1 : 0;
     }
-    else if (func == RIG_FUNC_SATMODE)
+    else if (func == RIG_FUNC_SATMODE && rig->caps->rig_model != RIG_MODEL_IC9100)
     {
         struct rig_state *rs = &rig->state;
         struct icom_priv_data *priv = rs->priv;
@@ -7434,7 +7465,7 @@ int icom_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         *status = ackbuf[2 + fct_len];
         icom_satmode_fix(rig, *status);
 
-        // we'll reset this based on current status
+        // Reset x25cmdfails to current status, because it fails in SATMODE
         priv->x25cmdfails = *status;
     }
     else

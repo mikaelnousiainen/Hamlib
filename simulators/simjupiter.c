@@ -1,6 +1,12 @@
 // can run this using rigctl/rigctld and socat pty devices
 // gcc -o simft897 simft897.c
-#define _XOPEN_SOURCE 600
+#define _XOPEN_SOURCE 700
+// since we are POSIX here we need this
+struct ip_mreq
+  {
+    int dummy;
+  };
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -106,8 +112,9 @@ again:
 
         switch (buf[0])
         {
-        case '?': printf("Query %c\n", buf[1]);break;
-        case '*': printf("Set %c\n", buf[1]);break;
+        case '?': printf("Query %c\n", buf[1]); break;
+
+        case '*': printf("Set %c\n", buf[1]); break;
 
         default: printf("Unknown cmd=%02x\n", buf[4]);
         }

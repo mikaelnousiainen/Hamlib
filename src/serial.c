@@ -63,6 +63,8 @@
 #  endif
 #endif
 
+#include <hamlib/rig.h>
+
 //! @cond Doxygen_Suppress
 #if defined(WIN32) && !defined(HAVE_TERMIOS_H)
 #  include "win32termios.h"
@@ -74,7 +76,6 @@
 #endif
 //! @endcond
 
-#include <hamlib/rig.h>
 #include "serial.h"
 #include "misc.h"
 
@@ -254,8 +255,8 @@ int HAMLIB_API serial_open(hamlib_port_t *rp)
         return (err);
     }
 
-    serial_flush(rp); // ensure nothing is there when we open
     hl_usleep(50 * 1000); // give a little time for MicroKeyer to finish
+    serial_flush(rp); // ensure nothing is there when we open
 
     return (RIG_OK);
 }
@@ -794,7 +795,8 @@ int HAMLIB_API serial_flush(hamlib_port_t *p)
 
     p->timeout = timeout_save;
     rig_debug(RIG_DEBUG_VERBOSE, "tcflush%s\n", "");
-    tcflush(p->fd, TCIFLUSH); // we also do this flush https://github.com/Hamlib/Hamlib/issues/1241
+    tcflush(p->fd,
+            TCIFLUSH); // we also do this flush https://github.com/Hamlib/Hamlib/issues/1241
     return (RIG_OK);
 }
 

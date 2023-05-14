@@ -168,7 +168,7 @@ const char hamlib_copyright[231] = /* hamlib 1.2 ABI specifies 231 bytes */
 #define CHECK_RIG_ARG(r) (!(r) || !(r)->caps || !(r)->state.comm_state)
 #define CHECK_RIG_CAPS(r) (!(r) || !(r)->caps)
 
-#define LOCK \
+#define LOCK(n) if (rig->state.depth == 0) { rig_debug(RIG_DEBUG_ERR, "%s: lock!! *******************************************\n", __func__);  rig_lock(rig,n); }
 
 #ifdef PTHREAD
 #define MUTEX(var) static pthread_mutex_t var = PTHREAD_MUTEX_INITIALIZER
@@ -509,8 +509,9 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
         return (NULL);
     }
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: rig_model=%s %s\n", __func__, caps->mfg_name,
-              caps->model_name);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: rig_model=%s %s %s\n", __func__,
+              caps->mfg_name,
+              caps->model_name, caps->version);
 
     if (caps->hamlib_check_rig_caps != NULL)
     {
@@ -620,7 +621,13 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
 
     rs->rigport.write_delay = caps->write_delay;
     rs->rigport.post_write_delay = caps->post_write_delay;
-    rs->rigport.timeout = caps->timeout;
+
+    // since we do two timeouts now we can cut the timeout in half for serial
+    if (caps->port_type == RIG_PORT_SERIAL)
+    {
+        rs->rigport.timeout = caps->timeout / 2;
+    }
+
     rs->rigport.retry = caps->retry;
     rs->pttport.type.ptt = caps->ptt_type;
     rs->dcdport.type.dcd = caps->dcd_type;
@@ -824,11 +831,11 @@ int HAMLIB_API rig_open(RIG *rig)
     //unsigned int net1, net2, net3, net4, net5, net6, net7, net8, port;
     int is_network = 0;
 
-    ENTERFUNC;
+    ENTERFUNC2;
 
     if (!rig || !rig->caps)
     {
-        RETURNFUNC(-RIG_EINVAL);
+        RETURNFUNC2(-RIG_EINVAL);
     }
 
     caps = rig->caps;
@@ -840,7 +847,7 @@ int HAMLIB_API rig_open(RIG *rig)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: 'USB' is not a valid COM port name\n", __func__);
         errno = 2;
-        RETURNFUNC(-RIG_EINVAL);
+        RETURNFUNC2(-RIG_EINVAL);
     }
 
     // rigctl/rigctld may have deprecated values -- backwards compatibility
@@ -980,7 +987,7 @@ int HAMLIB_API rig_open(RIG *rig)
                   rs->comm_state);
         port_close(&rs->rigport, rs->rigport.type.rig);
         rs->comm_state = 0;
-        RETURNFUNC(-RIG_EINVAL);
+        RETURNFUNC2(-RIG_EINVAL);
     }
 
     rs->rigport.fd = -1;
@@ -994,7 +1001,7 @@ int HAMLIB_API rig_open(RIG *rig)
                       "%s: cannot set RTS with hardware handshake \"%s\"\n",
                       __func__,
                       rs->rigport.pathname);
-            RETURNFUNC(-RIG_ECONF);
+            RETURNFUNC2(-RIG_ECONF);
         }
 
         if ('\0' == rs->pttport.pathname[0]
@@ -1008,7 +1015,7 @@ int HAMLIB_API rig_open(RIG *rig)
                           "%s: cannot set RTS with PTT by RTS \"%s\"\n",
                           __func__,
                           rs->rigport.pathname);
-                RETURNFUNC(-RIG_ECONF);
+                RETURNFUNC2(-RIG_ECONF);
             }
 
             if (rs->rigport.parm.serial.dtr_state != RIG_SIGNAL_UNSET
@@ -1018,11 +1025,12 @@ int HAMLIB_API rig_open(RIG *rig)
                           "%s: cannot set DTR with PTT by DTR \"%s\"\n",
                           __func__,
                           rs->rigport.pathname);
-                RETURNFUNC(-RIG_ECONF);
+                RETURNFUNC2(-RIG_ECONF);
             }
         }
     }
 
+    rs->rigport.timeout = caps->timeout;
     status = port_open(&rs->rigport);
 
     if (status < 0)
@@ -1030,7 +1038,7 @@ int HAMLIB_API rig_open(RIG *rig)
         rig_debug(RIG_DEBUG_VERBOSE, "%s: rs->comm_state==0?=%d\n", __func__,
                   rs->comm_state);
         rs->comm_state = 0;
-        RETURNFUNC(status);
+        RETURNFUNC2(status);
     }
 
     switch (rs->pttport.type.ptt)
@@ -1248,7 +1256,7 @@ int HAMLIB_API rig_open(RIG *rig)
     if (status < 0)
     {
         port_close(&rs->rigport, rs->rigport.type.rig);
-        RETURNFUNC(status);
+        RETURNFUNC2(status);
     }
 
     status = async_data_handler_start(rig);
@@ -1256,7 +1264,7 @@ int HAMLIB_API rig_open(RIG *rig)
     if (status < 0)
     {
         port_close(&rs->rigport, rs->rigport.type.rig);
-        RETURNFUNC(status);
+        RETURNFUNC2(status);
     }
 
     add_opened_rig(rig);
@@ -1271,7 +1279,7 @@ int HAMLIB_API rig_open(RIG *rig)
      * In case of failure, just close down and report error code.
      */
     int retry_save = rs->rigport.retry;
-    rs->rigport.retry = 1;
+    rs->rigport.retry = 0;
 
     if (caps->rig_open != NULL)
     {
@@ -1280,11 +1288,14 @@ int HAMLIB_API rig_open(RIG *rig)
             powerstat_t powerflag;
             status = rig_get_powerstat(rig, &powerflag);
 
-            if (status == RIG_OK && powerflag == RIG_POWER_OFF && rig->state.auto_power_on == 0) 
-            { 
-                rig_debug(RIG_DEBUG_ERR, "%s: rig power is off, use --set-conf=auto_power_on if power on is wanted\n", __func__);
+            if (status == RIG_OK && powerflag == RIG_POWER_OFF
+                    && rig->state.auto_power_on == 0)
+            {
+                rig_debug(RIG_DEBUG_ERR,
+                          "%s: rig power is off, use --set-conf=auto_power_on=1 if power on is wanted\n",
+                          __func__);
 
-                return (-RIG_EPOWER); 
+                RETURNFUNC2(-RIG_EPOWER);
             }
 
             // don't need auto_power_on if power is already on
@@ -1299,7 +1310,7 @@ int HAMLIB_API rig_open(RIG *rig)
                           __func__);
                 // A TS-480 user was showing ;;;;PS; not working so we'll just show the error message for now
                 // https://github.com/Hamlib/Hamlib/issues/1226
-                //return (-RIG_EPOWER);
+                //RETURNFUNC2 (-RIG_EPOWER);
             }
         }
 
@@ -1312,7 +1323,7 @@ int HAMLIB_API rig_open(RIG *rig)
             port_close(&rs->rigport, rs->rigport.type.rig);
             memcpy(&rs->rigport_deprecated, &rs->rigport, sizeof(hamlib_port_t_deprecated));
             rs->comm_state = 0;
-            RETURNFUNC(status);
+            RETURNFUNC2(status);
         }
     }
 
@@ -1414,7 +1425,7 @@ int HAMLIB_API rig_open(RIG *rig)
     memcpy(&rs->rigport_deprecated, &rs->rigport, sizeof(hamlib_port_t_deprecated));
     memcpy(&rs->pttport_deprecated, &rs->pttport, sizeof(hamlib_port_t_deprecated));
     memcpy(&rs->dcdport_deprecated, &rs->dcdport, sizeof(hamlib_port_t_deprecated));
-    RETURNFUNC(RIG_OK);
+    RETURNFUNC2(RIG_OK);
 }
 
 
@@ -1773,6 +1784,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     vfo_t vfo_save;
 
     ELAPSED1;
+    LOCK(1);
 #if BUILTINFUNC
     rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s, freq=%.0f, called from %s\n",
               __func__,
@@ -1781,12 +1793,14 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s, freq=%.0f\n", __func__,
               rig_strvfo(vfo), freq);
 #endif
-    if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN) freq += rig->state.offset_vfoa;
-    else if (vfo == RIG_VFO_B || vfo == RIG_VFO_SUB) freq += rig->state.offset_vfob;
+
+    if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN) { freq += rig->state.offset_vfoa; }
+    else if (vfo == RIG_VFO_B || vfo == RIG_VFO_SUB) { freq += rig->state.offset_vfob; }
 
     if (CHECK_RIG_ARG(rig))
     {
         ELAPSED2;
+        LOCK(0);
         RETURNFUNC2(-RIG_EINVAL);
     }
 
@@ -1830,6 +1844,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     if (caps->set_freq == NULL)
     {
         ELAPSED2;
+        LOCK(0);
         RETURNFUNC2(-RIG_ENAVAIL);
     }
 
@@ -1851,6 +1866,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             }
 
             ELAPSED2;
+            LOCK(0);
             RETURNFUNC2(
                 RIG_OK); // would be better as error but other software won't handle errors
         }
@@ -1867,9 +1883,9 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
             // some rig will return -RIG_ENTARGET if cannot set ptt while transmitting
             // we will just return RIG_OK and the frequency set will be ignored
-            if (retcode == -RIG_ENTARGET) { RETURNFUNC(RIG_OK); }
+            if (retcode == -RIG_ENTARGET) { LOCK(0); RETURNFUNC(RIG_OK); }
 
-            if (retcode != RIG_OK) { RETURNFUNC(retcode); }
+            if (retcode != RIG_OK) { LOCK(0); RETURNFUNC(retcode); }
 
             // Unidirectional rigs do not reset cache
             if (rig->caps->rig_model != RIG_MODEL_FT736R)
@@ -1886,7 +1902,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
                 // WSJT-X does a 55Hz check so we can stop early if that's the case
                 if ((long long)freq % 100 == 55) { retry = 0; }
 
-                if (retcode != RIG_OK) { RETURNFUNC(retcode); }
+                if (retcode != RIG_OK) { LOCK(0); RETURNFUNC(retcode); }
 
                 if (tfreq != freq)
                 {
@@ -1919,6 +1935,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         if (!caps->set_vfo)
         {
             ELAPSED2;
+            LOCK(0);
             RETURNFUNC2(-RIG_ENAVAIL);
         }
 
@@ -1943,6 +1960,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             }
 
             ELAPSED2;
+            LOCK(0);
             RETURNFUNC2(
                 RIG_OK); // would be better as error but other software won't handle errors
         }
@@ -1978,6 +1996,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             if (retcode != RIG_OK)
             {
                 ELAPSED2;
+                LOCK(0);
                 RETURNFUNC(retcode);
             }
         }
@@ -2003,6 +2022,7 @@ int HAMLIB_API rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     }
 
     ELAPSED2;
+    LOCK(0);
     RETURNFUNC2(retcode);
 }
 
@@ -2031,8 +2051,11 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     rmode_t mode;
     pbwidth_t width;
 
+    LOCK(1);
+
     if (CHECK_RIG_ARG(rig))
     {
+        LOCK(0);
         RETURNFUNC2(-RIG_EINVAL);
     }
 
@@ -2041,6 +2064,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     if (!freq)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: freq ptr invalid\n", __func__);
+        LOCK(0);
         RETURNFUNC2(-RIG_EINVAL);
     }
 
@@ -2073,6 +2097,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         rig_get_cache(rig, vfo, freq, &cache_ms_freq, &mode, &cache_ms_mode, &width,
                       &cache_ms_width);
         ELAPSED2;
+        LOCK(0);
         return (RIG_OK);
     }
 
@@ -2093,6 +2118,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         if (retcode != RIG_OK)
         {
             ELAPSED2;
+            LOCK(0);
             RETURNFUNC2(retcode);
         }
 
@@ -2103,6 +2129,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
                       __func__);
             *freq = rig->state.cache.freqMainA;
             ELAPSED2;
+            LOCK(0);
             return (RIG_OK);
         }
     }
@@ -2122,6 +2149,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
                   "%s: %s cache hit age=%dms, freq=%.0f, use_cached_freq=%d\n", __func__,
                   rig_strvfo(vfo), cache_ms_freq, *freq, rig->state.use_cached_freq);
         ELAPSED2;
+        LOCK(0);
         return (RIG_OK);
     }
     else
@@ -2138,6 +2166,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     if (caps->get_freq == NULL)
     {
         ELAPSED2;
+        LOCK(0);
         RETURNFUNC2(-RIG_ENAVAIL);
     }
 
@@ -2182,6 +2211,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         if (!caps->set_vfo)
         {
             ELAPSED2;
+            LOCK(0);
             RETURNFUNC2(-RIG_ENAVAIL);
         }
 
@@ -2191,6 +2221,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         if (retcode != RIG_OK)
         {
             ELAPSED2;
+            LOCK(0);
             RETURNFUNC2(retcode);
         }
 
@@ -2246,6 +2277,7 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     }
 
     ELAPSED2;
+    LOCK(0);
     return (retcode);
 }
 
@@ -2514,7 +2546,7 @@ int HAMLIB_API rig_get_mode(RIG *rig,
     {
         *mode = rig->state.cache.modeMainA;
         *width = rig->state.cache.widthMainA;
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
     }
 
     if ((*mode != RIG_MODE_NONE && cache_ms_mode < rig->state.cache.timeout_ms)
@@ -3469,6 +3501,7 @@ int HAMLIB_API rig_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
             ELAPSED2;
             RETURNFUNC(retcode);
         }
+
 #endif
 
         if (strcmp(rs->pttport.pathname, rs->rigport.pathname)
@@ -3504,6 +3537,7 @@ int HAMLIB_API rig_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
             ELAPSED2;
             RETURNFUNC(retcode);
         }
+
 #endif
 
         if (strcmp(rs->pttport.pathname, rs->rigport.pathname)
@@ -6130,7 +6164,16 @@ int HAMLIB_API rig_get_powerstat(RIG *rig, powerstat_t *status)
     HAMLIB_TRACE;
     retcode = rig->caps->get_powerstat(rig, status);
 
+    if (retcode == RIG_EIO)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: hard error, reopening rig\n", __func__);
+        rig_close(rig);
+        rig_open(rig);
+    }
+
     if (retcode != RIG_OK) { *status = RIG_POWER_ON; } // if failed assume power is on
+
+    if (*status == RIG_POWER_OFF && rig->state.auto_power_on) { rig->caps->set_powerstat(rig, RIG_POWER_ON); }
 
     RETURNFUNC(retcode);
 }
@@ -7477,10 +7520,12 @@ int HAMLIB_API rig_cookie(RIG *rig, enum cookie_e cookie_cmd, char *cookie,
     return ret;
 }
 
+static pthread_mutex_t initializer = PTHREAD_MUTEX_INITIALIZER;
+
 HAMLIB_EXPORT(void) sync_callback(int lock)
 {
 #ifdef HAVE_PTHREAD
-    static pthread_mutex_t client_lock = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t client_lock = initializer;
 
     if (lock)
     {
@@ -7494,6 +7539,33 @@ HAMLIB_EXPORT(void) sync_callback(int lock)
     }
 
 #endif
+}
+
+void rig_lock(RIG *rig, int lock)
+{
+#ifdef HAVE_PTHREAD
+
+    if (rig->state.multicast == NULL) return; // not initialized yet
+
+    if (!rig->state.multicast->mutex_initialized)
+    {
+        rig->state.multicast->mutex = initializer;
+        rig->state.multicast->mutex_initialized = 1;
+    }
+
+    if (lock)
+    {
+        pthread_mutex_lock(&rig->state.multicast->mutex);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: client lock engaged\n", __func__);
+    }
+    else
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: client lock disengaged\n", __func__);
+        pthread_mutex_unlock(&rig->state.multicast->mutex);
+    }
+
+#endif
+
 }
 
 
@@ -7696,82 +7768,97 @@ HAMLIB_EXPORT(int) rig_send_raw(RIG *rig, const unsigned char *send,
     struct rig_state *rs = &rig->state;
     unsigned char buf[200];
     int nbytes;
+    int retval;
+    int simulate = rig->caps->rig_model == RIG_MODEL_DUMMY ||
+            rig->caps->rig_model == RIG_MODEL_NONE ||
+            rs->rigport.rig == RIG_PORT_NONE;
     ENTERFUNC;
-
-    if (rig->caps->rig_model == RIG_MODEL_DUMMY
-            || rig->caps->rig_model == RIG_MODEL_NONE)
-    {
-        rig_debug(RIG_DEBUG_ERR, "%s: not implemented for model %s\n", __func__,
-                  rig->caps->model_name);
-        return -RIG_ENAVAIL;
-    }
 
     ELAPSED1;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: writing %d bytes\n", __func__, send_len);
-    int retval = write_block(&rs->rigport, send, send_len);
 
-    if (retval < 0)
+    set_transaction_active(rig);
+
+    if (simulate)
     {
-        // TODO: error handling? can writing to a pipe really fail in ways we can recover from?
-        rig_debug(RIG_DEBUG_ERR, "%s: write_block_sync() failed, result=%d\n", __func__,
-                  retval);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: simulating response for model %s\n",
+                __func__, rig->caps->model_name);
+        retval = send_len;
+    }
+    else
+    {
+        retval = write_block(&rs->rigport, send, send_len);
+
+        if (retval < 0)
+        {
+            // TODO: error handling? can writing to a pipe really fail in ways we can recover from?
+            rig_debug(RIG_DEBUG_ERR, "%s: write_block_sync() failed, result=%d\n", __func__, retval);
+        }
     }
 
     if (reply)
     {
-        if (term ==
-                NULL) // we have to have terminating char or else we can't read the response
+        if (simulate)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: term==NULL, must have terminator to read reply\n",
-                      __func__);
-            RETURNFUNC(-RIG_EINVAL);
+            // Simulate a response by copying the command
+            memcpy(buf, send, send_len);
+            nbytes = send_len + 1;
         }
-
-        if (*term == 0xfd) // then we want an Icom frame
+        else
         {
-            rig_debug(RIG_DEBUG_VERBOSE, "%s: reading icom frame\n", __func__);
-            retval = read_icom_frame(&rs->rigport, buf, sizeof(buf));
+            if (term == NULL)
+            {
+                rig_debug(RIG_DEBUG_VERBOSE, "%s: reading binary frame\n", __func__);
+                retval = read_string(&rs->rigport, buf, reply_len, NULL, 0, 0, 1);
+            }
+            else if (*term == 0xfd) // then we want an Icom frame
+            {
+                rig_debug(RIG_DEBUG_VERBOSE, "%s: reading icom frame\n", __func__);
+                retval = read_icom_frame(&rs->rigport, buf, sizeof(buf));
+            }
+            else // we'll assume the provided terminator works
+            {
+                rig_debug(RIG_DEBUG_VERBOSE, "%s: reading frame terminated by 0x%x\n", __func__, *term);
+                retval = read_string(&rs->rigport, buf, sizeof(buf), (const char *)term,
+                                            1, 0, 1);
+            }
+
+            if (retval < RIG_OK)
+            {
+                rig_debug(RIG_DEBUG_ERR, "%s: read_string, result=%d\n", __func__, retval);
+                rig_flush_force(&rs->rigport, 1);
+                set_transaction_inactive(rig);
+                RETURNFUNC(retval);
+            }
+
             nbytes = retval;
-        }
-        else if (term == NULL)
-        {
-            rig_debug(RIG_DEBUG_VERBOSE, "%s: reading binary frame\n", __func__);
-            nbytes = read_string_direct(&rs->rigport, buf, reply_len, (const char *)term,
-                                        1, 0, 1);
-        }
-        else // we'll assume the provided terminator works
-        {
-            rig_debug(RIG_DEBUG_VERBOSE, "%s: reading frame terminated by '%s'\n", __func__,
-                      term);
-            nbytes = read_string_direct(&rs->rigport, buf, sizeof(buf), (const char *)term,
-                                        1, 0, 1);
-        }
 
-        if (retval < RIG_OK)
-        {
-            rig_debug(RIG_DEBUG_ERR, "%s: read_string_direct, result=%d\n", __func__,
-                      retval);
-            RETURNFUNC(retval);
-        }
-
-        if (nbytes >= reply_len)
-        {
-            rig_debug(RIG_DEBUG_ERR, "%s: reply_len(%d) less than reply from rig(%d)\n",
-                      __func__, reply_len, nbytes);
-            return -RIG_EINVAL;
+            if (nbytes >= reply_len)
+            {
+                rig_debug(RIG_DEBUG_ERR, "%s: reply_len(%d) less than reply from rig(%d)\n",
+                          __func__, reply_len, nbytes);
+                rig_flush_force(&rs->rigport, 1);
+                set_transaction_inactive(rig);
+                return -RIG_EINVAL;
+            }
         }
 
         memcpy(reply, buf, reply_len - 1);
     }
     else
     {
+        rig_flush_force(&rs->rigport, 1);
+        set_transaction_inactive(rig);
         RETURNFUNC(retval);
     }
 
+    rig_flush_force(&rs->rigport, 1);
+    set_transaction_inactive(rig);
+
     ELAPSED2;
 
-    RETURNFUNC(nbytes > 0 ? nbytes : -RIG_EPROTO);
+    RETURNFUNC(nbytes >= 0 ? nbytes : -RIG_EPROTO);
 }
 
 HAMLIB_EXPORT(int) rig_set_lock_mode(RIG *rig, int mode)
