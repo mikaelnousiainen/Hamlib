@@ -49,7 +49,7 @@ dnl added to AC_CONFIG_FILES near the end of this file.  See README.developer
 dnl Beware of duplication should a backend directory include both rig and
 dnl rotor definitions, e.g. "dummy".  Optional backends will not be listed
 dnl here but will be added later, e.g. "winradio".
-RIG_BACKEND_LIST="rigs/adat rigs/alinco rigs/aor rigs/barrett rigs/codan rigs/dorji rigs/drake rigs/dummy rigs/elad rigs/flexradio rigs/icom rigs/icmarine rigs/jrc rigs/kachina rigs/kenwood rigs/kit rigs/lowe rigs/pcr rigs/prm80 rigs/racal rigs/rft rigs/rs rigs/skanti rigs/tapr rigs/tentec rigs/tuner rigs/uniden rigs/winradio rigs/wj rigs/yaesu rigs/gomspace rigs/mds"
+RIG_BACKEND_LIST="rigs/adat rigs/alinco rigs/aor rigs/barrett rigs/codan rigs/dorji rigs/drake rigs/dummy rigs/elad rigs/flexradio rigs/icom rigs/icmarine rigs/jrc rigs/kachina rigs/kenwood rigs/kit rigs/lowe rigs/pcr rigs/prm80 rigs/racal rigs/rft rigs/rs rigs/skanti rigs/tapr rigs/tentec rigs/tuner rigs/uniden rigs/winradio rigs/wj rigs/yaesu rigs/gomspace rigs/mds rigs/anytone"
 ROT_BACKEND_LIST="rotators/amsat rotators/apex rotators/ars rotators/celestron rotators/cnctrk rotators/grbltrk rotators/easycomm rotators/ether6 rotators/flir rotators/fodtrack rotators/gs232a rotators/heathkit rotators/m2 rotators/meade rotators/rotorez rotators/sartek rotators/saebrtrack rotators/spid rotators/ts7400 rotators/prosistel rotators/ioptron rotators/satel rotators/radant rotators/oh3aarot"
 # Amplifiers are all in the amplifiers directory
 AMP_BACKEND_LIST="amplifiers/elecraft amplifiers/gemini amplifiers/expert"
@@ -225,6 +225,16 @@ AC_CHECK_FUNC([gethostbyname],
 	      [AC_CHECK_LIB([ws2_32],
 			    [main],
 			    [NET_LIBS="$NET_LIBS -lws2_32"],
+			    [],
+			    [])
+	      ])
+
+# Winsock2 32 bit
+AC_CHECK_FUNC([timeBeginPeriod],
+	      [],
+	      [AC_CHECK_LIB([winmm],
+			    [main],
+			    [NET_LIBS="$NET_LIBS -lwinmm"],
 			    [],
 			    [])
 	      ])
@@ -903,6 +913,7 @@ rigs/wj/Makefile
 rigs/yaesu/Makefile
 rigs/gomspace/Makefile
 rigs/mds/Makefile
+rigs/anytone/Makefile
 tests/Makefile
 scripts/Makefile
 android/Makefile

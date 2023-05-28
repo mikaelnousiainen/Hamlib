@@ -693,7 +693,7 @@ int newcat_close(RIG *rig)
 
     ENTERFUNC;
 
-    if (!no_restore_ai && priv->trn_state >= 0 && rig_s->comm_state)
+    if (!no_restore_ai && priv->trn_state >= 0 && rig_s->comm_state && rig_s->powerstat != RIG_POWER_OFF)
     {
         /* restore AI state */
         newcat_set_trn(rig, priv->trn_state); /* ignore status in
@@ -1073,7 +1073,6 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
         if (priv->ret_data[2] != target_vfo)
         {
-            HAMLIB_TRACE;
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "VS%c%c", target_vfo, cat_term);
             rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
 
@@ -1144,7 +1143,6 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
             && rig->caps->get_vfo != NULL
             && rig->caps->set_vfo != NULL) // gotta' have get_vfo too
     {
-        HAMLIB_TRACE;
 
         if (rig->state.current_vfo != vfo)
         {
@@ -1580,6 +1578,11 @@ int newcat_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     if (!newcat_valid_command(rig, "MD"))
     {
         RETURNFUNC(-RIG_ENAVAIL);
+    }
+    if (rig->state.powerstat == 0)
+    {
+        rig_debug(RIG_DEBUG_WARN, "%s: Cannot get from rig when power is off\n", __func__);
+        return RIG_OK; // to prevent repeats
     }
 
     err = newcat_set_vfo_from_alias(rig, &vfo);
@@ -2877,7 +2880,7 @@ int newcat_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
     if (offset == 0)
     {
         rig_debug(RIG_DEBUG_ERR,
-                  "%s: incorrect length of IF response, expected 27 or 28, got %du", __func__,
+                  "%s: incorrect length of IF response, expected 27 or 28, got %du\n", __func__,
                   (int)strlen(priv->ret_data));
         RETURNFUNC(-RIG_EPROTO);
     }
@@ -2993,7 +2996,7 @@ int newcat_get_xit(RIG *rig, vfo_t vfo, shortfreq_t *xit)
     if (offset == 0)
     {
         rig_debug(RIG_DEBUG_ERR,
-                  "%s: incorrect length of IF response, expected 27 or 28, got %du", __func__,
+                  "%s: incorrect length of IF response, expected 27 or 28, got %du\n", __func__,
                   (int)strlen(priv->ret_data));
         RETURNFUNC(-RIG_EPROTO);
     }
@@ -3538,7 +3541,6 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
     int retval;
     int i = 0;
     int retry_save;
-    char ps;
 
     ENTERFUNC;
 
@@ -3554,9 +3556,8 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
     switch (status)
     {
     case RIG_POWER_ON:
-        ps = '1';
-        // when powering on need a dummy byte to wake it up
-        // then sleep  from 1 to 2 seconds so we'll do 1.5 secs
+        // When powering on a Yaesu rig needs dummy bytes to wake it up,
+        // then wait from 1 to 2 seconds and issue the power-on command again
         write_block(&state->rigport, (unsigned char *) "PS1;", 4);
         hl_usleep(1200000);
         break;
@@ -3567,10 +3568,11 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
         RETURNFUNC(retval);
 
     default:
-        RETURNFUNC(-RIG_ENAVAIL);
+        RETURNFUNC(-RIG_EINVAL);
     }
 
-    SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "PS%c%c", ps, cat_term);
+    // Power on may require a second command
+    SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "PS1%c", cat_term);
 
     retval = write_block(&state->rigport, (unsigned char *) priv->cmd_str,
                          strlen(priv->cmd_str));
@@ -3620,9 +3622,9 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
  */
 int newcat_get_powerstat(RIG *rig, powerstat_t *status)
 {
-    struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
-    //struct rig_state *state = &rig->state;
-    int err;
+    struct rig_state *state = (struct rig_state *) &rig->state;
+    struct newcat_priv_data *priv = (struct newcat_priv_data *) rig->state.priv;
+    int result;
     char ps;
     char command[] = "PS";
 
@@ -3635,25 +3637,61 @@ int newcat_get_powerstat(RIG *rig, powerstat_t *status)
         RETURNFUNC(-RIG_ENAVAIL);
     }
 
-    // when not powered on need a dummy byte to wake it up
-    // then sleep  from 1 to 2 seconds so we'll do 1.5 secs
-//    write_block(&state->rigport, (unsigned char *) "PS;", 3);
+    // The first PS command has two purposes:
+    // 1. to detect that the rig is turned on when it responds with PS1 immediately
+    // 2. to act as dummy wake-up data for a rig that is turned off
     SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%c", command, cat_term);
-    newcat_get_cmd(rig); // don't care about the return
-    if (priv->ret_data[2] == '1')
-    {
-        *status = 1;
-        RETURNFUNC(RIG_OK);
 
+    // Timeout needs to be set temporarily to a low value,
+    // so that the second command can be sent in 2 seconds, which is what Yaesu rigs expect.
+    short retry_save;
+    short timeout_retry_save;
+    int timeout_save;
+
+    retry_save = state->rigport.retry;
+    timeout_retry_save = state->rigport.timeout_retry;
+    timeout_save = state->rigport.timeout;
+
+    state->rigport.retry = 0;
+    state->rigport.timeout_retry = 0;
+    state->rigport.timeout = 500;
+
+    result = newcat_get_cmd(rig);
+
+    state->rigport.retry = retry_save;
+    state->rigport.timeout_retry = timeout_retry_save;
+    state->rigport.timeout = timeout_save;
+
+    // Rig may respond here already
+    if (result == RIG_OK)
+    {
+        ps = priv->ret_data[2];
+
+        switch (ps)
+        {
+        case '1':
+            *status = RIG_POWER_ON;
+            RETURNFUNC(RIG_OK);
+
+        case '0':
+            *status = RIG_POWER_OFF;
+            RETURNFUNC(RIG_OK);
+
+        default:
+            // fall through to retry command
+            break;
+        }
     }
-    hl_usleep(1200000); // then we must be waking up
-    rig_flush(&rig->state.rigport);  /* discard any unsolicited data */
 
+    // Yeasu rigs in powered-off state require the PS command to be sent between 1 and 2 seconds after dummy data
+    hl_usleep(1100000);
+    // Discard any unsolicited data
+    rig_flush(&rig->state.rigport);
 
-    /* Get Power status */
-    if (RIG_OK != (err = newcat_get_cmd(rig)))
+    result = newcat_get_cmd(rig);
+    if (result != RIG_OK)
     {
-        RETURNFUNC(err);
+        RETURNFUNC(result);
     }
 
     ps = priv->ret_data[2];
@@ -3669,7 +3707,7 @@ int newcat_get_powerstat(RIG *rig, powerstat_t *status)
         break;
 
     default:
-        RETURNFUNC(-RIG_ENAVAIL);
+        RETURNFUNC(-RIG_EPROTO);
     }
 
     RETURNFUNC(RIG_OK);
@@ -7814,7 +7852,6 @@ int newcat_set_tx_vfo(RIG *rig, vfo_t tx_vfo)
             newcat_is_rig(rig, RIG_MODEL_FTDX10) ||
             newcat_is_rig(rig, RIG_MODEL_FTDX3000))
     {
-        HAMLIB_TRACE;
         p1 = p1 + 2;    /* use non-Toggle commands */
 
         // If VFOB is active then we change VFOB with FT3 instead of VFOA
@@ -10417,6 +10454,11 @@ int newcat_get_vfo_mode(RIG *rig, vfo_t vfo, rmode_t *vfo_mode)
     {
         RETURNFUNC(err);
     }
+    if (rig->state.powerstat == 0)
+    {
+        rig_debug(RIG_DEBUG_WARN, "%s: Cannot get from rig when power is off\n", __func__);
+        return RIG_OK; // to prevent repeats
+    }
 
     /* vfo, mem, P7 ************************** */
     // e.g. FT450 has 27 byte IF response, FT991 has 28 byte if response (one more byte for P2 VFO A Freq)
@@ -10429,7 +10471,7 @@ int newcat_get_vfo_mode(RIG *rig, vfo_t vfo, rmode_t *vfo_mode)
 
     default:
         rig_debug(RIG_DEBUG_ERR,
-                  "%s: incorrect length of IF response, expected 27 or 28, got %d", __func__,
+                  "%s: incorrect length of IF response, expected 27 or 28, got %d\n", __func__,
                   (int)strlen(priv->ret_data));
         RETURNFUNC(-RIG_EPROTO);
     }
@@ -10502,8 +10544,16 @@ int newcat_get_cmd(RIG *rig)
     int retry_count = 0;
     int rc = -RIG_EPROTO;
     int is_read_cmd = 0;
+    int is_power_status_cmd = strncmp(priv->cmd_str, "PS", 2) == 0;
 
     ENTERFUNC;
+    priv->ret_data[0] = 0;  // ensure zero-length ret_data by default
+
+    if (state->powerstat == 0 && !is_power_status_cmd)
+    {
+        rig_debug(RIG_DEBUG_WARN, "%s: Cannot get from rig when power is off\n", __func__);
+        return RIG_OK; // to prevent repeats
+    }
 
     // try to cache rapid repeats of the IF command
     // this is for WSJT-X/JTDX sequence of v/f/m/t
@@ -10576,26 +10626,23 @@ int newcat_get_cmd(RIG *rig)
         || strcmp(priv->cmd_str, "VT0;") == 0
         || strcmp(priv->cmd_str, "VT1;") == 0;
 
-    if (priv->cmd_str[2] !=
-            ';' && !is_read_cmd) // then we must be setting something so we'll invalidate the cache
+    if (priv->cmd_str[2] != ';' && !is_read_cmd)
     {
+        // then we must be setting something so we'll invalidate the cache
         rig_debug(RIG_DEBUG_TRACE, "%s: cache invalidated\n", __func__);
         priv->cache_start.tv_sec = 0;
     }
 
-
     while (rc != RIG_OK && retry_count++ <= state->rigport.retry)
     {
         rig_flush(&state->rigport);  /* discard any unsolicited data */
-
         if (rc != -RIG_BUSBUSY)
         {
             /* send the command */
             rig_debug(RIG_DEBUG_TRACE, "cmd_str = %s\n", priv->cmd_str);
 
-            if (RIG_OK != (rc = write_block(&state->rigport,
-                                            (unsigned char *) priv->cmd_str,
-                                            strlen(priv->cmd_str))))
+            rc = write_block(&state->rigport, (unsigned char *) priv->cmd_str, strlen(priv->cmd_str));
+            if (rc != RIG_OK)
             {
                 RETURNFUNC(rc);
             }
@@ -10606,6 +10653,12 @@ int newcat_get_cmd(RIG *rig)
                               sizeof(priv->ret_data),
                               &cat_term, sizeof(cat_term), 0, 1)) <= 0)
         {
+            // if we get a timeout from PS probably means power is off
+            if (rc == -RIG_ETIMEOUT && is_power_status_cmd)
+            {
+                rig_debug(RIG_DEBUG_WARN, "%s: rig power is off?\n", __func__);
+                RETURNFUNC(rc);
+            }
             continue;             /* usually a timeout - retry */
         }
 
@@ -10861,23 +10914,6 @@ int newcat_set_cmd_validate(RIG *rig)
 
         if (strlen(valcmd) == 0) { RETURNFUNC(RIG_OK); }
 
-        // we can use a single ; to get a response of ?; for some rigs
-        // this list can be expanded as we get more testing
-        // seems newer rigs have this older ones time out
-        switch (rig->caps->rig_model)
-        {
-        case RIG_MODEL_FT991:
-        case RIG_MODEL_FTDX101MP:
-        case RIG_MODEL_FTDX3000:
-            strcpy(valcmd, ";");
-            break;
-
-        // these models do not work with a single ;
-        case RIG_MODEL_FT897:
-        default:
-            break;
-        }
-
         SNPRINTF(cmd, sizeof(cmd), "%s", valcmd);
         rc = write_block(&state->rigport, (unsigned char *) cmd, strlen(cmd));
 
@@ -10889,7 +10925,7 @@ int newcat_set_cmd_validate(RIG *rig)
 
         // FA and FB success is now verified in rig.c with a followup query
         // so no validation is needed
-        if (strncmp(priv->cmd_str, "FA", 2) == 0 || strncmp(priv->cmd_str, "FB", 2))
+        if (strncmp(priv->cmd_str, "FA", 2) == 0 || strncmp(priv->cmd_str, "FB", 2) == 0)
         {
             return RIG_OK;
         }
@@ -10919,6 +10955,7 @@ int newcat_set_cmd_validate(RIG *rig)
             if (strncmp(priv->cmd_str, "VS", 2) == 0
                     && strncmp(priv->cmd_str, priv->ret_data, 2) == 0) { RETURNFUNC(RIG_OK); }
             else if (strcmp(priv->cmd_str, priv->ret_data) == 0) { RETURNFUNC(RIG_OK); }
+            else if (priv->cmd_str[0] == ';' && priv->ret_data[0]=='?') { hl_usleep(50*1000);RETURNFUNC(RIG_OK); }
             else { rc = -RIG_EPROTO; }
         }
 
