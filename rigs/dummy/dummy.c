@@ -2240,7 +2240,7 @@ int dummy_get_clock(RIG *rig, int *year, int *month, int *day, int *hour,
 #define DUMMY_VFO_OP  0x7ffffffUL /* All possible VFO OPs */
 #define DUMMY_SCAN    0x7ffffffUL /* All possible scan OPs */
 
-#define DUMMY_VFOS (RIG_VFO_TX|RIG_VFO_TX|RIG_VFO_A|RIG_VFO_B|RIG_VFO_C|RIG_VFO_MEM|RIG_VFO_MAIN|RIG_VFO_SUB|RIG_VFO_MAIN_A|RIG_VFO_MAIN_B|RIG_VFO_SUB_A|RIG_VFO_SUB_B)
+#define DUMMY_VFOS (RIG_VFO_A|RIG_VFO_B|RIG_VFO_C|RIG_VFO_MEM|RIG_VFO_MAIN|RIG_VFO_SUB|RIG_VFO_MAIN_A|RIG_VFO_MAIN_B|RIG_VFO_SUB_A|RIG_VFO_SUB_B)
 
 #define DUMMY_MODES (RIG_MODE_AM | RIG_MODE_CW | RIG_MODE_RTTY | \
                      RIG_MODE_SSB | RIG_MODE_FM | RIG_MODE_WFM | \
@@ -2279,7 +2279,7 @@ struct rig_caps dummy_caps =
     RIG_MODEL(RIG_MODEL_DUMMY),
     .model_name =     "Dummy",
     .mfg_name =       "Hamlib",
-    .version =        "20221128.0",
+    .version =        "20230611.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,
@@ -2690,6 +2690,7 @@ DECLARE_INITRIG_BACKEND(dummy)
     rig_register(&dummy_no_vfo_caps);
     rig_register(&aclog_caps);
     rig_register(&sdrsharp_caps);
+    rig_register(&quisk_caps);
 //    rig_register(&tci1x_caps);
     return RIG_OK;
 }

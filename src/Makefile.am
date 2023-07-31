@@ -10,7 +10,8 @@ RIGSRC = hamlibdatetime.h rig.c serial.c serial.h misc.c misc.h register.c regis
    	network.c network.h cm108.c cm108.h gpio.c gpio.h idx_builtin.h token.h \
    	par_nt.h microham.c microham.h amplifier.c amp_reg.c amp_conf.c \
    	amp_conf.h amp_settings.c extamp.c sleep.c sleep.h sprintflst.c \
-   	sprintflst.h cache.c cache.h snapshot_data.c snapshot_data.h multicast.c
+   	sprintflst.h cache.c cache.h snapshot_data.c snapshot_data.h multicast.c fifo.c fifo.h \
+    serial_cfg_params.h
 
 if VERSIONDLL
 RIGSRC +=	\
@@ -28,6 +29,7 @@ libhamlib_la_DEPENDENCIES = $(top_builddir)/lib/libmisc.la $(top_builddir)/secur
 
 EXTRA_DIST = Android.mk hamlibdatetime.h.in
 
+
 # If we have  a .git directory then we will  generate the hamlibdate.h
 # file and  replace it if it  is different. Fall  back to a copy  of a
 # generic hamlibdatetime.h.in in the source tree. Build looks in build
@@ -36,9 +38,10 @@ EXTRA_DIST = Android.mk hamlibdatetime.h.in
 hamlibdatetime.h: FORCE
 	@if test -x $(top_srcdir)/.git ; then \
 		echo "/* This date time is from the last non-merge commit to Hamlib. */" > $(builddir)/$(@F).tmp ;\
-		echo "#define HAMLIBDATETIME "\"$$(TZ=UTC git --git-dir=$(top_srcdir)/.git log --no-merges --date='format-local:%b %d %H:%M:%SZ %Y SHA=' --format='%cd' -n 1)$$(git --git-dir=$(top_srcdir)/.git log --no-merges -n 1 | head -n 1 | cut -c8-13)\"  >> $(builddir)/$(@F).tmp ;\
+		echo "#define HAMLIBDATETIME "\"$$(TZ=UTC git --git-dir=$(top_srcdir)/.git log --no-merges --date='format-local:%Y-%m-%dT%H:%M:%SZ SHA=' --format='%cd' -n 1)$$(git --git-dir=$(top_srcdir)/.git log --no-merges -n 1 | head -n 1 | cut -c8-13)\"  >> $(builddir)/$(@F).tmp ;\
 		diff -qN $(builddir)/$(@F).tmp $(builddir)/$(@F) ; test $$? -eq 0 || { echo "Generating SCS header \"$(builddir)/$(@F)\"" ; mv -f $(builddir)/$(@F).tmp $(builddir)/$(@F) ; } ;\
 		rm -f $(builddir)/$(@F).tmp ;\
+		touch -c $(top_srcdir)/src/version_dll.rc ;\
 	else \
 		test -f $(srcdir)/$(@F) || cp $(srcdir)/$(@F).in $(srcdir)/$(@F) ;\
 	fi

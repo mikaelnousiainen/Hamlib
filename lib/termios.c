@@ -1,5 +1,6 @@
 #include <hamlib/rig.h>
 #include <hamlib/config.h>
+#include "misc.h"
 
 #if defined(WIN32) && !defined(HAVE_TERMIOS_H)
 
@@ -9,9 +10,11 @@
 #ifdef DEBUG
 #define DEBUG_VERBOSE
 #define DEBUG_ERRORS
-#define report(a) fprintf(stderr,a)
-#define report_warning(a) fprintf(stderr,a)
-#define report_error(a) fprintf(stderr,a)
+static char message[256];
+static char datestr[64];
+#define report(a) fprintf(stderr, "%s: %s", date_strget(datestr, sizeof(datestr), 0), a)
+#define report_warning(a) fprintf(stderr, "%s: %s", date_strget(datestr, sizeof(datestr), 0), a)
+#define report_error(a) fprintf(stderr, "%s: %s", date_strget(datestr, sizeof(datestr), 0), a)
 #else
 #define report(a) do {} while (0)
 #define report_warning(a) do {} while (0)
@@ -65,31 +68,8 @@ int my_errno;
 #if 0
 extern int errno;
 #endif
-struct termios_list
-{
-    char filename[512];
-    int my_errno;
-    int interrupt;
-    int event_flag;
-    int tx_happened;
-    unsigned long *hComm;
-    struct termios *ttyset;
-    struct serial_struct *sstruct;
-    /* for DTR DSR */
-    unsigned char MSR;
-    struct async_struct *astruct;
-    struct serial_icounter_struct *sis;
-    int open_flags;
-    OVERLAPPED rol;
-    OVERLAPPED wol;
-    OVERLAPPED sol;
-    int fd;
-    struct termios_list *next;
-    struct termios_list *prev;
-};
-struct termios_list *first_tl = NULL;
 
-static struct termios_list *find_port(int);
+struct termios_list *first_tl = NULL;
 
 /*----------------------------------------------------------
 serial_test
@@ -130,7 +110,7 @@ int win32_serial_test(char *filename)
 
 static void termios_setflags(int fd, int termios_flags[])
 {
-    struct termios_list *index = find_port(fd);
+    struct termios_list *index = win32_serial_find_port(fd);
     int i, result;
     int windows_flags[11] = { 0, EV_RXCHAR, EV_TXEMPTY, EV_CTS, EV_DSR,
                               EV_RING | 0x2000, EV_RLSD, EV_ERR,
@@ -761,7 +741,7 @@ int win32_serial_close(int fd)
         return (0);
     }
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -1101,7 +1081,7 @@ termios_list()
    comments:
 ----------------------------------------------------------*/
 
-static struct termios_list *find_port(int fd)
+struct termios_list *win32_serial_find_port(int fd)
 {
 
     char message[80];
@@ -1489,7 +1469,7 @@ int win32_serial_write(int fd, const char *Str, int length)
         return 0;
     }
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -1588,7 +1568,7 @@ int win32_serial_read(int fd, void *vb, int size)
         return 0;
     }
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -1650,7 +1630,7 @@ int win32_serial_read(int fd, void *vb, int size)
         do
         {
             ClearErrors(index, &stat);
-            hl_usleep(1000);
+            hl_usleep(100);
         }
         while (stat.cbInQue < index->ttyset->c_cc[VMIN] && c > clock());
 
@@ -1787,7 +1767,7 @@ int win32_serial_read(int fd, void *vb, int size)
         return 0;
     }
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -2409,7 +2389,7 @@ int tcgetattr(int fd, struct termios *s_termios)
         return 0;
     }
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -2652,7 +2632,7 @@ int tcsetattr(int fd, int when, struct termios *s_termios)
         return 0;
     }
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -2863,7 +2843,7 @@ int tcsendbreak(int fd, int duration)
 
     ENTER("tcsendbreak");
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -2908,7 +2888,7 @@ int tcdrain(int fd)
     int old_flag;
 
     ENTER("tcdrain");
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -2985,7 +2965,7 @@ int tcflush(int fd, int queue_selector)
 
     ENTER("tcflush");
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -3166,7 +3146,7 @@ int win32_serial_ioctl(int fd, int request, ...)
         return 0;
     }
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -3635,7 +3615,7 @@ int win32_serial_fcntl(int fd, int command, ...)
         return 0;
     }
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -3688,7 +3668,7 @@ termios_interrupt_event_loop()
 ----------------------------------------------------------*/
 static void termios_interrupt_event_loop(int fd, int flag)
 {
-    struct termios_list *index = find_port(fd);
+    struct termios_list *index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -3738,7 +3718,7 @@ int  win32_serial_select(int  n,  fd_set  *readfds,  fd_set  *writefds,
         goto fail;
     }
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -3895,7 +3875,7 @@ int  win32_serial_select(int  n,  fd_set  *readfds,  fd_set  *writefds,
         return 1;
     }
 
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -4028,7 +4008,7 @@ static int termiosGetParityErrorChar(int fd)
     DCB dcb;
 
     ENTER("termiosGetParityErrorChar");
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {
@@ -4058,7 +4038,7 @@ static void termiosSetParityError(int fd, char value)
     struct termios_list *index;
 
     ENTER("termiosSetParityErrorChar");
-    index = find_port(fd);
+    index = win32_serial_find_port(fd);
 
     if (!index)
     {

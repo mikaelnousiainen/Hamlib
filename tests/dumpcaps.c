@@ -75,7 +75,7 @@ int dumpcaps(RIG *rig, FILE *fout)
     char freqbuf[20];
     int backend_warnings = 0;
     char warnbuf[4096];
-    char prntbuf[1024];  /* a malloc would be better.. */
+    char prntbuf[2048];  /* a malloc would be better.. */
     char *label1, *label2, *label3, *label4, *label5;
     char *labelrx1; // , *labelrx2, *labelrx3, *labelrx4, *labelrx5;
 
@@ -92,6 +92,7 @@ int dumpcaps(RIG *rig, FILE *fout)
     fprintf(fout, "Caps dump for model: %u\n", caps->rig_model);
     fprintf(fout, "Model name:\t%s\n", caps->model_name);
     fprintf(fout, "Mfg name:\t%s\n", caps->mfg_name);
+    fprintf(fout, "Hamlib version:\t%s\n", hamlib_version2);
     fprintf(fout, "Backend version:\t%s\n", caps->version);
     fprintf(fout, "Backend copyright:\t%s\n", caps->copyright);
     fprintf(fout, "Backend status:\t%s\n", rig_strstatus(caps->status));
@@ -236,10 +237,10 @@ int dumpcaps(RIG *rig, FILE *fout)
     }
 
     fprintf(fout,
-            "Write delay: %dmS, timeout %dmS, %d retry\n",
+            "Write delay: %dms, timeout %dms, %d retry\n",
             caps->write_delay, caps->timeout, caps->retry);
     fprintf(fout,
-            "Post Write delay: %dmS\n",
+            "Post write delay: %dms\n",
             caps->post_write_delay);
 
     fprintf(fout,

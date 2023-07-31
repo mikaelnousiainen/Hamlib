@@ -1113,7 +1113,7 @@ const char *HAMLIB_API rig_strlevel(setting_t level)
 {
     int i;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    rig_debug(RIG_DEBUG_CACHE, "%s called\n", __func__);
 
     if (level == RIG_LEVEL_NONE)
     {
@@ -1940,7 +1940,8 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
               __func__, funcname, linenum,
               rig_strvfo(vfo), rig_strvfo(rig->state.current_vfo), split);
 
-    if (rig->caps->rig_model == RIG_MODEL_ID5100)
+    if (rig->caps->rig_model == RIG_MODEL_ID5100
+        || rig->caps->rig_model == RIG_MODEL_IC9700)
     {
         return vfo; // no change to requested vfo
     }
@@ -2188,8 +2189,8 @@ int HAMLIB_API rig_flush_force(hamlib_port_t *port, int flush_async_data)
     }
 
 #ifndef RIG_FLUSH_REMOVE
-    rig_debug(RIG_DEBUG_TRACE, "%s: called for %s device\n", __func__,
-              port->type.rig == RIG_PORT_SERIAL ? "serial" : "network");
+//    rig_debug(RIG_DEBUG_TRACE, "%s: called for %s device\n", __func__,
+//              port->type.rig == RIG_PORT_SERIAL ? "serial" : "network");
 
     if (port->type.rig == RIG_PORT_NETWORK
             || port->type.rig == RIG_PORT_UDP_NETWORK)

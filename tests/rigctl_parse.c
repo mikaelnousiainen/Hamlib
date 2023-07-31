@@ -36,6 +36,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
+#include <rig_tests.h>
 
 // If true adds some debug statements to see flow of rigctl parsing
 int debugflow = 0;
@@ -264,6 +265,10 @@ declare_proto_rig(set_lock_mode);
 declare_proto_rig(get_lock_mode);
 declare_proto_rig(send_raw);
 declare_proto_rig(client_version);
+declare_proto_rig(hamlib_version);
+declare_proto_rig(test);
+declare_proto_rig(cm108_get_bit);
+declare_proto_rig(cm108_set_bit);
 
 
 /*
@@ -378,6 +383,11 @@ static struct test_table test_list[] =
     { 0xa3, "get_lock_mode",     ACTION(get_lock_mode), ARG_NOVFO, "Locked" },
     { 0xa4, "send_raw",          ACTION(send_raw), ARG_NOVFO | ARG_IN1 | ARG_IN2 | ARG_OUT3, "Terminator", "Command", "Send raw answer" },
     { 0xa5, "client_version",    ACTION(client_version), ARG_NOVFO | ARG_IN1, "Version", "Client version" },
+    { 0xa6, "get_vfo_list",    ACTION(get_vfo_list), ARG_NOVFO },
+    { 0xa7, "test",    ACTION(test), ARG_NOVFO | ARG_IN, "routine" },
+    { 0xa8, "hamlib_version",    ACTION(hamlib_version), ARG_NOVFO },
+    { 0xa9, "get_gpio",    ACTION(cm108_get_bit), ARG_NOVFO | ARG_IN1 | ARG_OUT1, "GPIO#", "0/1" },
+    { 0xaa, "set_gpio",    ACTION(cm108_set_bit), ARG_NOVFO | ARG_IN , "GPIO#", "0/1" },
     { 0x00, "", NULL },
 };
 
@@ -1732,7 +1742,7 @@ readline_repeat:
     else
     {
         // Allow only certain commands when the rig is powered off
-        if ((rig_powerstat == RIG_POWER_OFF || rig_powerstat == RIG_POWER_STANDBY)
+        if (my_rig->state.powerstat == RIG_POWER_OFF && (rig_powerstat == RIG_POWER_OFF || rig_powerstat == RIG_POWER_STANDBY)
                 && cmd_entry->cmd != '1' // dump_caps
                 && cmd_entry->cmd != '3' // dump_conf
                 && cmd_entry->cmd != 0x8f // dump_state
@@ -1840,10 +1850,11 @@ readline_repeat:
 }
 
 
-void version()
+declare_proto_rig(hamlib_version)
 {
-    printf("rigctl(d), %s\n\n", hamlib_version2);
-    printf("%s\n", hamlib_copyright);
+    fprintf(fout, "rigctl(d), %s\n\n", hamlib_version2);
+    fprintf(fout, "%s\n", hamlib_copyright);
+    return RIG_OK;
 }
 
 declare_proto_rig(client_version)
@@ -2024,6 +2035,7 @@ int set_conf(RIG *my_rig, char *conf_parms)
     char *p, *n;
     int token;
 
+    rig_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
     p = conf_parms;
 
     while (p && *p != '\0')
@@ -2432,6 +2444,20 @@ declare_proto_rig(get_vfo_list)
     }
 
     fprintf(fout, "%s%c\n", prntbuf[0] ? prntbuf : "None", ext_resp);
+
+    RETURNFUNC2(RIG_OK);
+}
+
+/* '\test' */
+declare_proto_rig(test)
+{
+    ENTERFUNC2;
+    if (!strcmp(arg1, "?"))
+    {
+        fprintf(fout, "cw\n");
+        RETURNFUNC2(RIG_OK);
+    }
+    if (strcmp(arg1, "cw")==0) rig_test_cw(rig);
 
     RETURNFUNC2(RIG_OK);
 }
@@ -4354,7 +4380,18 @@ declare_proto_rig(dump_caps)
 {
     ENTERFUNC2;
 
-    dumpcaps(rig, fout);
+#if 1
+    if (rig->caps->rig_model == RIG_MODEL_NETRIGCTL)
+    {
+        char cmd[32];
+        SNPRINTF(cmd, sizeof(cmd), "\\dump_caps\n");
+        dumpstate(rig, fout);
+    }
+    else
+#endif
+    {
+        dumpcaps(rig, fout);
+    }
 
     RETURNFUNC2(RIG_OK);
 }
@@ -4467,6 +4504,7 @@ declare_proto_rig(dump_state)
     // protocol 1 allows fields can be listed/processed in any order
     // protocol 1 fields can be multi-line -- just write the thing to allow for it
     // backward compatible as new values will just generate warnings
+    rig_debug(RIG_DEBUG_ERR, "%s: chk_vfo_executed=%d\n", __func__, chk_vfo_executed);
     if (chk_vfo_executed) // for 3.3 compatiblility
     {
         fprintf(fout, "vfo_ops=0x%x\n", rig->caps->vfo_ops);
@@ -4523,13 +4561,45 @@ declare_proto_rig(dump_state)
             fprintf(fout, "\n");
         }
 
+
+        fprintf(fout, "level_gran=");
+
+        for (i = 0; i < RIG_SETTING_MAX; ++i)
+        {
+            if (RIG_LEVEL_IS_FLOAT(i))
+            {
+                fprintf(fout, "%d=%g,%g,%g;", i, rig->state.level_gran[i].min.f,
+                        rig->state.level_gran[i].max.f, rig->state.level_gran[i].step.f);
+            }
+            else
+            {
+                fprintf(fout, "%d=%d,%d,%d;", i, rig->state.level_gran[i].min.i,
+                        rig->state.level_gran[i].max.i, rig->state.level_gran[i].step.i);
+            }
+        }
+
+        fprintf(fout, "\nparm_gran=");
+
+        for (i = 0; i < RIG_SETTING_MAX; ++i)
+        {
+            if (RIG_LEVEL_IS_FLOAT(i))
+            {
+                fprintf(fout, "%d=%g,%g,%g;", i, rig->state.parm_gran[i].min.f,
+                        rig->state.parm_gran[i].max.f, rig->state.parm_gran[i].step.f);
+            }
+            else
+            {
+                fprintf(fout, "%d=%d,%d,%d;", i, rig->state.level_gran[i].min.i,
+                        rig->state.level_gran[i].max.i, rig->state.level_gran[i].step.i);
+            }
+        }
+        fprintf(fout, "\n");
+        
+        rig->state.rig_model = rig->caps->rig_model;
+        fprintf(fout, "rig_model=%d\n", rig->state.rig_model);
+        fprintf(fout, "hamlib_version=%s\n", hamlib_version2);
         fprintf(fout, "done\n");
     }
-
-#if 0 // why isn't this implemented?  Does anybody care?
-    gran_t level_gran[RIG_SETTING_MAX];   /*!< level granularity */
-    gran_t parm_gran[RIG_SETTING_MAX];  /*!< parm granularity */
-#endif
 
     RETURNFUNC2(RIG_OK);
 }
@@ -4721,10 +4791,12 @@ declare_proto_rig(set_powerstat)
     CHKSCN1ARG(sscanf(arg1, "%d", &stat));
 
     retval = rig_set_powerstat(rig, (powerstat_t) stat);
+
     if (retval == RIG_OK)
     {
         rig_powerstat = stat; // update our global so others can see powerstat
     }
+
     fflush(fin);
     RETURNFUNC2(retval);
 }
@@ -4750,7 +4822,7 @@ declare_proto_rig(get_powerstat)
         fprintf(fout, "%s: ", cmd->arg1);
     }
 
-    fprintf(fout, "%d\n", stat);
+    fprintf(fout, "%d%c", stat, resp_sep);
     rig_powerstat = stat; // update our global so others can see powerstat
 
     RETURNFUNC2(status);
@@ -4859,8 +4931,10 @@ declare_proto_rig(send_cmd)
         else
         {
             int nbytes = 0;
-            sscanf(arg2, "%d", &nbytes);
-            SNPRINTF(bufcmd, sizeof(bufcmd), "%c %s %d\n", cmd->cmd, arg1, nbytes);
+            int n = sscanf(arg2, "%d", &nbytes);
+
+            if (n == 1) {SNPRINTF(bufcmd, sizeof(bufcmd), "%c %s %d\n", cmd->cmd, arg1, nbytes);}
+            else {SNPRINTF(bufcmd, sizeof(bufcmd), "%c %s %s\n", cmd->cmd, arg1, arg2);}
         }
 
         cmd_len = strlen(bufcmd);
@@ -4899,7 +4973,7 @@ declare_proto_rig(send_cmd)
     if (simulate)
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: simulating response for model %s\n",
-                __func__, rig->caps->model_name);
+                  __func__, rig->caps->model_name);
     }
     else
     {
@@ -4927,6 +5001,7 @@ declare_proto_rig(send_cmd)
     }
 
     retval = 0;
+
     do
     {
         if (arg2) { sscanf(arg2, "%d", &rxbytes); }
@@ -4937,7 +5012,15 @@ declare_proto_rig(send_cmd)
             eom_buf[0] = 0;
         }
 
+        int hexval;
         if (arg2[0] == ';') { eom_buf[0] = ';'; }
+        else if (strstr(arg2,"fd")) eom_buf[0] = 0xfd; // ICOM answer terminator
+        else
+        { 
+            sscanf(arg2,"\\0x%2x", &hexval);
+            eom_buf[0] = hexval;
+        }
+        
 
         if (simulate)
         {
@@ -5049,6 +5132,7 @@ declare_proto_rig(chk_vfo)
 {
     ENTERFUNC2;
 
+rig_debug(RIG_DEBUG_ERR, "%s: **********************************\n", __func__);
     if ((interactive && prompt) || (interactive && !prompt && ext_resp))
     {
         fprintf(fout, "%s: ", cmd->arg1);    /* i.e. "Frequency" */
@@ -5298,7 +5382,7 @@ declare_proto_rig(set_clock)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: utc_offset=%d\n", __func__, utc_offset);
 
     RETURNFUNC2(rig_set_clock(rig, year, mon, day, hour, min, sec, msec,
-                             utc_offset));
+                              utc_offset));
 }
 
 /* '0xf9' */
@@ -5491,7 +5575,9 @@ declare_proto_rig(send_raw)
 
     rig_debug(RIG_DEBUG_TRACE, "%s:\n", __func__);
 
-    result = rig_send_raw(rig, (unsigned char *)sendp, arg2_len, buf,buf_len, term);
+    result = rig_send_raw(rig, (unsigned char *)sendp, arg2_len, buf, buf_len,
+                          term);
+
     if (result < 0)
     {
         return result;
@@ -5526,4 +5612,52 @@ declare_proto_rig(send_raw)
     }
 
     return RIG_OK;
+}
+
+declare_proto_rig(cm108_get_bit)
+{
+    rig_debug(RIG_DEBUG_TRACE, "%s:\n", __func__);
+
+    int gpio = -1;
+    int bit = -1;
+    // try GPIO format first
+    int n = sscanf(arg1,"GPIO%d", &gpio);
+    if (n == 0)
+        n = sscanf(arg1,"%d", &gpio);
+    if  (n != 1) return -RIG_EINVAL;
+    int retval = rig_cm108_get_bit(&rig->state.pttport, gpio, &bit);
+    if (retval != RIG_OK)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: %s\n", __func__, strerror(retval));
+        return retval;
+    }
+    rig_debug(RIG_DEBUG_TRACE, "%s: gpio=%d\n", __func__, gpio);
+    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
+    {
+        fprintf(fout, "%s: ", cmd->arg2);
+    }
+    fprintf(fout, "%d (simulated)\n", 1);
+
+
+    return RIG_OK;
+}
+
+declare_proto_rig(cm108_set_bit)
+{
+    rig_debug(RIG_DEBUG_TRACE, "%s:\n", __func__);
+    int gpio, bit=-1;
+    // try GPIO format first
+    int n = sscanf(arg1,"GPIO%d", &gpio);
+    if (n == 0)
+        n = sscanf(arg1,"%d", &gpio);
+    if  (n != 1) return -RIG_EINVAL;
+    n = sscanf(arg2, "%d", &bit);
+    if  (n != 1) return -RIG_EINVAL;
+    rig_debug(RIG_DEBUG_TRACE, "%s: set gpio=%d, bit=%d\n", __func__, gpio, bit);
+    int retval = rig_cm108_set_bit(&rig->state.pttport, gpio, bit);
+    if (retval != RIG_OK)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: %s\n", __func__, strerror(retval));
+    }
+    return retval;
 }

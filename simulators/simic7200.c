@@ -7,9 +7,9 @@
 #define _XOPEN_SOURCE 700
 // since we are POSIX here we need this
 struct ip_mreq
-  {
+{
     int dummy;
-  };
+};
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +47,19 @@ int satmode = 0;
 int agc_time = 1;
 int ovf_status = 0;
 int powerstat = 1;
+int keyspd = 85;
+int filter_width = 38;
+int preamp = 0;
+int attenuator = 0;
+int autonotch = 0;
+int aflevel = 128;
+int noiseblanker = 0;
+int manualnotch = 0;
+int mnf = 0;
+int noisereduction = 0;
+int speechcompressor = 0;
+int agc = 0;
+int vox = 0;
 
 void dumphex(unsigned char *buf, int n)
 {
@@ -58,7 +71,7 @@ void dumphex(unsigned char *buf, int n)
 int
 frameGet(int fd, unsigned char *buf)
 {
-    int i = 0;
+    int i = 0, n;
     memset(buf, 0, BUFSIZE);
     unsigned char c;
 
@@ -71,7 +84,16 @@ again:
 
         if (c == 0xfd)
         {
-            dumphex(buf, i);
+            char mytime[256];
+            date_strget(mytime, sizeof(mytime), 1);
+            printf("%s: %s ", mytime, __func__); dumphex(buf, i);
+#if 0
+            // echo
+            n = write(fd, buf, i);
+
+            if (n != i) { printf("%s: error on write: %s\n", __func__, strerror(errno)); }
+
+#endif
             return i;
         }
 
@@ -109,6 +131,10 @@ void frameParse(int fd, unsigned char *frame, int len)
         dumphex(frame, len);
         return;
     }
+
+    // reverse the addressing
+    frame[3] = frame[2];
+    frame[2] = 0xe0;
 
     switch (frame[4])
     {
@@ -182,6 +208,10 @@ void frameParse(int fd, unsigned char *frame, int len)
 
         case 0x01: current_vfo = RIG_VFO_B; break;
 
+        case 0xa0: current_vfo = freq = freqA; freqA = freqB; freqB = freq; break;
+
+        case 0xb0: current_vfo = RIG_VFO_MAIN; break;
+
         case 0xd0: current_vfo = RIG_VFO_MAIN; break;
 
         case 0xd1: current_vfo = RIG_VFO_SUB; break;
@@ -215,6 +245,23 @@ void frameParse(int fd, unsigned char *frame, int len)
 
         break;
 
+    case 0x11:
+        if (frame[6] == 0xfd)
+        {
+            frame[6] = attenuator;
+            frame[7] = 0xfd;
+            n = write(fd, frame, 8);
+        }
+        else
+        {
+            attenuator = frame[6];
+            frame[4] = 0xfb;
+            frame[5] = 0xfd;
+            n = write(fd, frame, 6);
+        }
+
+        break;
+
     case 0x12: // we're simulating the 3-byte version -- not the 2-byte
         if (frame[5] != 0xfd)
         {
@@ -241,22 +288,62 @@ void frameParse(int fd, unsigned char *frame, int len)
         {
             static int power_level = 0;
 
+        case 0x01:
+            if (frame[6] == 0xfd)
+            {
+                frame[6] = aflevel;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+            }
+            else
+            {
+                aflevel = frame[6];
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
+            }
+
+            break;
+
         case 0x07:
         case 0x08:
             if (frame[6] != 0xfd)
             {
-                frame[6] = 0xfb;
-                dumphex(frame, 7);
-                n = write(fd, frame, 7);
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                dumphex(frame, 6);
+                hl_usleep(10 * 1000);
+                n = write(fd, frame, 6);
                 printf("ACK x14 x08\n");
             }
             else
             {
                 to_bcd(&frame[6], (long long)128, 2);
-                frame[8] = 0xfb;
+                frame[8] = 0xfd;
                 dumphex(frame, 9);
                 n = write(fd, frame, 9);
                 printf("SEND x14 x08\n");
+            }
+
+            break;
+
+        case 0x0c:
+            dumphex(frame, 10);
+            printf("subcmd=0x0c #1\n");
+
+            if (frame[6] != 0xfd) // then we have data
+            {
+                printf("subcmd=0x0c #1\n");
+                keyspd = from_bcd(&frame[6], 2);
+                frame[6] = 0xfb;
+                n = write(fd, frame, 7);
+            }
+            else
+            {
+                printf("subcmd=0x0c #1\n");
+                to_bcd(&frame[6], keyspd, 2);
+                frame[8] = 0xfd;
+                n = write(fd, frame, 9);
             }
 
             break;
@@ -272,6 +359,23 @@ void frameParse(int fd, unsigned char *frame, int len)
             n = write(fd, frame, 9);
             break;
         }
+
+    case 0x0d:
+        if (frame[6] == 0xfd)
+        {
+            frame[6] = mnf;
+            frame[7] = 0xfd;
+            n = write(fd, frame, 8);
+        }
+        else
+        {
+            mnf = frame[6];
+            frame[4] = 0xfb;
+            frame[5] = 0xfd;
+            n = write(fd, frame, 6);
+        }
+
+        break;
 
         break;
 
@@ -302,6 +406,142 @@ void frameParse(int fd, unsigned char *frame, int len)
     case 0x16:
         switch (frame[5])
         {
+        case 0x02:
+            if (frame[6] == 0xfd)
+            {
+                frame[6] = preamp;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+            }
+            else
+            {
+                preamp = frame[6];
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
+            }
+
+            break;
+
+        case 0x12:
+            if (frame[6] == 0xfd)
+            {
+                frame[6] = agc;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+            }
+            else
+            {
+                agc = frame[6];
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
+            }
+
+            break;
+
+        case 0x22:
+            if (frame[6] == 0xfd)
+            {
+                frame[6] = noiseblanker;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+            }
+            else
+            {
+                noiseblanker = frame[6];
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
+            }
+
+            break;
+
+        case 0x40:
+            if (frame[6] == 0xfd)
+            {
+                frame[6] = noisereduction;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+            }
+            else
+            {
+                noisereduction = frame[6];
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
+            }
+
+            break;
+
+        case 0x41:
+            if (frame[6] == 0xfd)
+            {
+                frame[6] = autonotch;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+            }
+            else
+            {
+                autonotch = frame[6];
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
+            }
+
+            break;
+
+        case 0x44:
+            if (frame[6] == 0xfd)
+            {
+                frame[6] = speechcompressor;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+            }
+            else
+            {
+                speechcompressor = frame[6];
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
+            }
+
+            break;
+
+        case 0x46:
+            if (frame[6] == 0xfd)
+            {
+                frame[6] = vox;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+            }
+            else
+            {
+                vox = frame[6];
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
+            }
+
+            break;
+
+        case 0x48:
+            if (frame[6] == 0xfd)
+            {
+                frame[6] = manualnotch;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+            }
+            else
+            {
+                manualnotch = frame[6];
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
+            }
+
+            break;
+
         case 0x5a:
             if (frame[6] == 0xfe)
             {
@@ -319,12 +559,6 @@ void frameParse(int fd, unsigned char *frame, int len)
 
         break;
 
-    case 0x18: // miscellaneous things
-        frame[5] = 1;
-        frame[6] = 0xfd;
-        n = write(fd, frame, 7);
-        break;
-
     case 0x19: // miscellaneous things
         frame[5] = 0x94;
         frame[6] = 0xfd;
@@ -340,6 +574,26 @@ void frameParse(int fd, unsigned char *frame, int len)
 
             frame[7] = 0xfd;
             n = write(fd, frame, 8);
+            break;
+
+        case 0x02: // filter width
+            printf("frame[6]==x%02x, frame[7]=0%02x\n", frame[6], frame[7]);
+
+            if (frame[6] == 0xfd)   // the we are reading
+            {
+                frame[6] = filter_width;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+            }
+            else
+            {
+                printf("FILTER_WIDTH RESPONSE******************************");
+                filter_width = frame[6];
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
+            }
+
             break;
 
         case 0x04: // AGC TIME
@@ -362,10 +616,21 @@ void frameParse(int fd, unsigned char *frame, int len)
 
             break;
 
-        case 0x07: // satmode
-            frame[4] = 0;
-            frame[7] = 0xfd;
-            n = write(fd, frame, 8);
+        case 0x06: // Data mode
+            if (frame[6] == 0xfd) // then we're replying with mode
+            {
+                frame[6] = datamodeA;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+            }
+            else
+            {
+                datamodeA = frame[6];
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
+            }
+
             break;
 
         }
@@ -385,9 +650,9 @@ void frameParse(int fd, unsigned char *frame, int len)
             else
             {
                 ptt = frame[6];
-                frame[7] = 0xfb;
-                frame[8] = 0xfd;
-                n = write(fd, frame, 9);
+                frame[4] = 0xfb;
+                frame[5] = 0xfd;
+                n = write(fd, frame, 6);
             }
 
             break;
@@ -396,102 +661,6 @@ void frameParse(int fd, unsigned char *frame, int len)
 
         break;
 
-
-#ifdef X25
-
-    case 0x25:
-        if (frame[6] == 0xfd)
-        {
-            if (frame[5] == 0x00)
-            {
-                to_bcd(&frame[6], (long long)freqA, (civ_731_mode ? 4 : 5) * 2);
-                printf("get_freqA=%.0f\n", freqA);
-            }
-            else
-            {
-                to_bcd(&frame[6], (long long)freqB, (civ_731_mode ? 4 : 5) * 2);
-                printf("get_freqB=%.0f\n", freqB);
-            }
-
-            frame[11] = 0xfd;
-            unsigned char frame2[11];
-
-            frame2[0] = 0xfe;
-            frame2[1] = 0xfe;
-            frame2[2] = 0x00; // send transceive frame
-            frame2[3] = frame[3]; // send transceive frame
-            frame2[4] = 0x00;
-            frame2[5] = 0x70;
-            frame2[6] = 0x28;
-            frame2[7] = 0x57;
-            frame2[8] = 0x03;
-            frame2[9] = 0x00;
-            frame2[10] = 0xfd;
-            n = write(fd, frame2, 11);
-            n = write(fd, frame, 12);
-        }
-        else
-        {
-            freq = from_bcd(&frame[6], (civ_731_mode ? 4 : 5) * 2);
-            printf("set_freq to %.0f\n", freq);
-
-            if (frame[5] == 0x00) { freqA = freq; }
-            else { freqB = freq; }
-
-            frame[4] = 0xfb;
-            frame[5] = 0xfd;
-            n = write(fd, frame, 6);
-            // send async frame
-            frame[2] = 0x00; // async freq
-            frame[3] = 0xa2;
-            frame[4] = 0x00;
-            frame[5] = 0x00;
-            frame[6] = 0x10;
-            frame[7] = 0x01;
-            frame[8] = 0x96;
-            frame[9] = 0x12;
-            frame[10] = 0xfd;
-            n = write(fd, frame, 11);
-        }
-
-        break;
-
-    case 0x26:
-        for (int i = 0; i < 6; ++i) { printf("%02x:", frame[i]); }
-
-        if (frame[6] == 0xfd) // then a query
-        {
-            for (int i = 0; i < 6; ++i) { printf("%02x:", frame[i]); }
-
-            frame[6] = frame[5] == 0 ? modeA : modeB;
-            frame[7] = frame[5] == 0 ? datamodeA : datamodeB;
-            frame[8] = 0xfb;
-            frame[9] = 0xfd;
-            n = write(fd, frame, 10);
-        }
-        else
-        {
-            for (int i = 0; i < 12; ++i) { printf("%02x:", frame[i]); }
-
-            if (frame[6] == 0)
-            {
-                modeA = frame[7];
-                datamodeA = frame[8];
-            }
-            else
-            {
-                modeB = frame[7];
-                datamodeB = frame[8];
-            }
-
-            frame[4] = 0xfb;
-            frame[5] = 0xfd;
-            n = write(fd, frame, 6);
-        }
-
-        printf("\n");
-        break;
-#else
 
     case 0x25:
         printf("x25 send nak\n");
@@ -506,7 +675,6 @@ void frameParse(int fd, unsigned char *frame, int len)
         frame[5] = 0xfd;
         n = write(fd, frame, 6);
         break;
-#endif
 
     default: printf("cmd 0x%02x unknown\n", frame[4]);
     }
@@ -575,11 +743,7 @@ int main(int argc, char **argv)
     int fd = openPort(argv[1]);
 
     printf("%s: %s\n", argv[0], rig_version());
-#ifdef X25
-    printf("x25/x26 command recognized\n");
-#else
     printf("x25/x26 command rejected\n");
-#endif
 #if defined(WIN32) || defined(_WIN32)
 
     if (argc != 2)

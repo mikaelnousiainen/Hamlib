@@ -190,24 +190,26 @@ above. Note the dummy device has no serial parameters.
 Set configuration parameter(s). Some common ones are:
 .in +4n
 .EX
-.RB   write_delay: "Delay in ms between each byte sent out"
-.RB   post_write_delay: "Delay in ms between each command sent out"
-.RB   timeout: "Timeout in ms"
-.RB   retry: "Max number of retry"
-.RB   ptt_type: "Push-To-Talk interface type override"
-.RB   ptt_pathname: "Path name to the device file of the Push-To-Talk"
-.RB   ptt_bitnum: "Push-To-Talk GPIO bit number"
-.RB   dcd_type: "Data Carrier Detect (or squelch) interface type override"
-.RB   dcd_pathname: "Path name to the device file of the Data Carrier Detect (or squelch)"
-.RB   lo_freq: "Frequency to add to the VFO frequency for use with a transverter"
+.RB   async: "True enables asynchronous data transfer for backends that support it. This allows use of transceive and spectrum data."
 .RB   auto_power_on: "True enables compatible rigs to be powered up on open"
 .RB   auto_power_off: "True enables compatible rigs to be powered down on close"
 .RB   auto_disable_screensaver: "True enables compatible rigs to have their screen saver disabled on open"
+.RB   dcd_type: "Data Carrier Detect (or squelch) interface type override"
+.RB   dcd_pathname: "Path name to the device file of the Data Carrier Detect (or squelch)"
 .RB   disable_yaesu_bandselect: "True disables the automatic band select on band change for Yaesu rigs"
+.RB   dtr_state:  "ON turns on DTR, OFF turns it off, Unset disables it"
+.RB   lo_freq: "Frequency to add to the VFO frequency for use with a transverter"
+.RB   post_write_delay: "Delay in ms between each command sent out"
 .RB   ptt_share: "True enables ptt port to be shared with other apps"
+.RB   ptt_type: "Push-To-Talk interface type override"
+.RB   ptt_pathname: "Path name to the device file of the Push-To-Talk"
+.RB   ptt_bitnum: "Push-To-Talk GPIO bit number"
+.RB   retry: "Max number of retry"
+.RB   rts_state:  "ON turns on DTR, OFF turns it off, Unset disables it"
 .RB   twiddle_timeout: "For satellite ops when VFOB is twiddled will pause VFOB commands until timeout"
 .RB   twiddle_rit: "Suppress get_freq on VFOB for RIT tuning satellites"
-.RB   async: "True enables asynchronous data transfer for backends that support it. This allows use of transceive and spectrum data."
+.RB   timeout: "Timeout in ms"
+.RB   write_delay: "Delay in ms between each byte sent out"
 .RB   tuner_control_pathname: "Path name to a script/program to control a tuner with 1 argument of 0/1 for Tuner Off/On"
 .EE
 .in
@@ -724,6 +726,8 @@ Option returned depends on rig..for Icom is likely the RX only flag.
 Send
 .RI \(aq Morse \(aq
 symbols.  For Yaesu rigs use memory#.
+.EX
+Example from command line:  rigctl -m 3073 -r /dev/ttyUSB0 b "CQ CQ DE ME"
 .
 .TP
 .BR 0xbb ", " stop_morse "
@@ -842,7 +846,60 @@ Func is a token: \(oqFAGC\(cq, \(oqNB\(cq, \(oqCOMP\(cq, \(oqVOX\(cq,
 \(oqARO\(cq, \(oqLOCK\(cq, \(oqMUTE\(cq, \(oqVSC\(cq, \(oqREV\(cq,
 \(oqSQL\(cq, \(oqABM\(cq, \(oqBC\(cq, \(oqMBC\(cq, \(oqRIT\(cq, \(oqAFC\(cq,
 \(oqSATMODE\(cq, \(oqSCOPE\(cq, \(oqRESUME\(cq, \(oqTBURST\(cq, \(oqTUNER\(cq,
-\(oqXIT\(cq.
+\(oqXIT\(cq, \(oqNB2\(cq, \(oqDSQL\(cq, \(oqAFLT\(cq, \(oqANL\(cq, \(oqBC2\(cq,
+\(oqDUAL_WATCH\(cq, \(oqDIVERSITY\(cq, \(oqCSQL\(cq, \(oqSCEN\(cq,
+\(oqTRANSCEIVE\(cq, \(oqSPECTRUM\(cq, \(oqSPECTRUM_HOLD\(cq, \(oqSEND_MORSE\(cq,
+\(oqSEND_VOICE_MEM\(cq, \(oqOVF_STATUS\(cq.
+
+ FAGC -- Fast AGC
+ NB -- Noise Blanker
+ COMP -- Speech Compression
+ VOX -- Voice Operated Relay
+ TONE -- CTCSS Tone TX
+ TSQL -- CTCSS Activate/De-activate RX
+ SBKIN -- Semi Break-in (CW mode)
+ FBKIN -- Full Break-in (CW mode)
+ ANF -- Automatic Notch Filter (DSP)
+ NR -- Noise Reduction (DSP)
+ AIP -- RF pre-amp (AIP on Kenwood, IPO on Yaesu, etc.)
+ APF -- Audio Peak Filter
+ MON -- Monitor transmitted signal
+ MN -- Manual Notch
+ RF -- RTTY Filter
+ ARO -- Auto Repeater Offset
+ LOCK -- Lock
+ MUTE -- Mute
+ VSC -- Voice Scan Control
+ REV -- Reverse transmit and receive frequencies
+ SQL -- Turn Squelch Monitor on/off
+ ABM -- Auto Band Mode
+ BC -- Beat Canceller
+ MBC -- Manual Beat Canceller
+ RIT -- Receiver Incremental Tuning
+ AFC -- Auto Frequency Control ON/OFF
+ SATMODE -- Satellite mode ON/OFF
+ SCOPE -- Simple bandscope ON/OFF
+ RESUME -- Scan auto-resume
+ TBURST -- 1750 Hz tone burst
+ TUNER -- Enable automatic tuner
+ XIT -- Transmitter Incremental Tuning
+ NB2 -- 2nd Noise Blanker
+ CSQL -- DCS Squelch setting
+ AFLT -- AF Filter setting
+ ANL -- Noise limiter setting
+ BC2 -- 2nd Beat Cancel
+ DUAL_WATCH -- Dual Watch / Sub Receiver
+ DIVERSITY -- Diversity receive
+ DSQL -- Digital modes squelch
+ SCEN -- scrambler/encryption
+ SLICE -- Rig slice selection -- Flex
+ TRANSCEIVE -- Send radio state changes automatically ON/OFF
+ SPECTRUM -- Spectrum scope data output ON/OFF
+ SPECTRUM_HOLD -- Pause spectrum scope updates ON/OFF
+ SEND_MORSE -- Send specified characters using CW
+ SEND_VOICE_MEM -- Transmit in SSB message stored in memory
+ OVF -- Read overflow status 0=Off, 1=On
+
 .IP
 Func Status is a non null value for \(lqactivate\(rq or \(lqde-activate\(rq
 otherwise, much as TRUE/FALSE definitions in the C language (true is non-zero
@@ -971,6 +1028,17 @@ Parm is a token: \(oqANN\(cq, \(oqAPO\(cq, \(oqBACKLIGHT\(cq, \(oqBEEP\(cq,
 Passing a \(oq?\(cq (query) as the first argument instead of a Parm token will
 return a space separated list of radio backend supported set parameter tokens.
 Use this to determine the supported parameters of a given radio backend.
+.IP
+ ANN -- "Announce" level, see ann_t
+ APO -- Auto power off, int in minute
+ BACKLIGHT -- LCD light, float [0.0 ... 1.0]
+ BEEP -- Beep on keypressed, int (0,1)
+ TIME -- hh:mm:ss, int in seconds from 00:00:00
+ BAT -- battery level, float [0.0 ... 1.0]
+ KEYLIGHT -- Button backlight, on/off
+ SCREENSAVER -- rig specific timeouts
+ AFIF -- 0=AF audio, 1=IF audio -- see IC-7300/9700/705
+
 .
 .TP
 .BR p ", " get_parm " \(aq" \fIParm\fP \(aq
@@ -1330,6 +1398,27 @@ Examples:
 .BR client_version " \(aq" \fIString\fP "\(aq
 .EX
   Client can send its version to rigctld and get feedback on compatibility, deprecation, and alternatives
+.TP
+.BR hamlib_version
+.EX
+Returns hamlib version with ISO8601 date/time
+.
+.TP
+.BR test
+.EX
+Performs test routines.  Under development.
+.
+.TP
+.BR set_gpio " \(aq" \fIGPIO#\fP "\(aq
+.EX
+Sets GPIO1, GPIO2, GPIO3, GPIO4 on the GPIO ptt port
+Can also use 1,2,3,4
+.
+.TP
+.BR get_gpio " \(aq" \fIGPIO#\fP "\(aq
+.EX
+Reads GPIO1, GPIO2, GPIO3, GPIO4 on the GPIO ptt port
+Can also use 1,2,3,4
 .
 .SH READLINE
 .

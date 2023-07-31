@@ -492,12 +492,10 @@ static int port_read_sync_data(hamlib_port_t *p, void *buf, size_t count)
         switch (result)
         {
         case ERROR_SUCCESS:
-            HAMLIB_TRACE;
             // No error?
             break;
 
         case ERROR_IO_PENDING:
-            HAMLIB_TRACE;
             timeout.QuadPart = (p->timeout * -1000000LL);
 
             if ((result = SetWaitableTimer(hLocal, &timeout, 0, NULL, NULL, 0)) == 0)
@@ -510,7 +508,6 @@ static int port_read_sync_data(hamlib_port_t *p, void *buf, size_t count)
                 wait_result = WaitForMultipleObjects(3, event_handles, FALSE, p->timeout);
             }
 
-            HAMLIB_TRACE;
 
             switch (wait_result)
             {
@@ -558,10 +555,12 @@ static int port_read_sync_data(hamlib_port_t *p, void *buf, size_t count)
         {
         case ERROR_SUCCESS:
             // No error?
+            bytes_read = 0;
             break;
 
         case ERROR_IO_PENDING:
             // Shouldn't happen?
+            bytes_read = 0;
             return -RIG_ETIMEOUT;
 
         default:
@@ -733,7 +732,7 @@ static int port_wait_for_data_direct(hamlib_port_t *p)
     int result;
     tv_timeout.tv_sec = p->timeout / 1000;
     tv_timeout.tv_usec = (p->timeout % 1000) * 1000;
-    rig_debug(RIG_DEBUG_CACHE, "%s(%d): timeout=%ld,%ld\n", __func__, __LINE__, tv_timeout.tv_sec, tv_timeout.tv_usec);
+    //rig_debug(RIG_DEBUG_CACHE, "%s(%d): timeout=%ld,%ld\n", __func__, __LINE__, tv_timeout.tv_sec, tv_timeout.tv_usec);
 
     tv = tv_timeout;    /* select may have updated it */
 
@@ -742,7 +741,7 @@ static int port_wait_for_data_direct(hamlib_port_t *p)
     efds = rfds;
 
     result = port_select(p, fd + 1, &rfds, NULL, &efds, &tv, 1);
-    rig_debug(RIG_DEBUG_CACHE, "%s(%d): timeout=%ld,%ld\n", __func__, __LINE__, tv_timeout.tv_sec, tv_timeout.tv_usec);
+    //rig_debug(RIG_DEBUG_CACHE, "%s(%d): timeout=%ld,%ld\n", __func__, __LINE__, tv_timeout.tv_sec, tv_timeout.tv_usec);
 
     if (result == 0)
     {
@@ -1340,7 +1339,10 @@ static int read_string_generic(hamlib_port_t *p,
     {
         ssize_t rd_count = 0;
         int result;
+        int timeout_save = p->timeout;
+//        p->timeout = 2;
         result = port_wait_for_data(p, direct);
+        p->timeout = timeout_save;
 
         if (result == -RIG_ETIMEOUT)
         {

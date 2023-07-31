@@ -296,25 +296,27 @@ above.
 Set configuration parameter(s). Some common ones are:
 .in +4
 .EX
-.RB write_delay: "Delay in ms between each byte sent out"
-.RB post_write_delay: "Delay in ms between each command sent out"
-.RB timeout: "Timeout in ms"
-.RB retry: "Max number of retry"
-.RB ptt_type: "Push-To-Talk interface type override"
-.RB ptt_pathname: "Path name to the device file of the Push-To-Talk"
-.RB ptt_bitnum: "Push-To-Talk GPIO bit number"
-.RB dcd_type: "Data Carrier Detect (or squelch) interface type override"
-.RB dcd_pathname: "Path name to the device file of the Data Carrier Detect (or squelch)"
-.RB lo_freq: "Frequency to add to the VFO frequency for use with a transverter"
-.RB auto_power_on: "True enables compatible rigs to be powered up on open"
-.RB auto_power_off: "True enables compatible rigs to be powered down on close"
-.RB auto_disable_screensaver: "True enables compatible rigs to have their screen saver disabled on open"
-.RB disable_yaesu_bandselect: "True disables the automatic band select on band change for Yaesu rigs"
-.RB ptt_share: "True enables ptt port to be shared with other apps"
-.RB twiddle_timeout: "For satellite ops when VFOB is twiddled will pause VFOB commands until timeout"
-.RB twiddle_rit: "Suppress get_freq on VFOB for RIT tuning satellites"
-.RB async: "True enables asynchronous data transfer for backends that support it. This allows use of transceive and spectrum data."
-.RB tuner_control_pathname: "Path name to a script/program to control a tuner with 1 argument of 0/1 for Tuner Off/On"
+.RB   async: "True enables asynchronous data transfer for backends that support it. This allows use of transceive and spectrum data."
+.RB   auto_power_on: "True enables compatible rigs to be powered up on open"
+.RB   auto_power_off: "True enables compatible rigs to be powered down on close"
+.RB   auto_disable_screensaver: "True enables compatible rigs to have their screen saver disabled on open"
+.RB   dcd_type: "Data Carrier Detect (or squelch) interface type override"
+.RB   dcd_pathname: "Path name to the device file of the Data Carrier Detect (or squelch)"
+.RB   disable_yaesu_bandselect: "True disables the automatic band select on band change for Yaesu rigs"
+.RB   dtr_state:  "ON turns on DTR, OFF turns it off, Unset disables it"
+.RB   lo_freq: "Frequency to add to the VFO frequency for use with a transverter"
+.RB   post_write_delay: "Delay in ms between each command sent out"
+.RB   ptt_share: "True enables ptt port to be shared with other apps"
+.RB   ptt_type: "Push-To-Talk interface type override"
+.RB   ptt_pathname: "Path name to the device file of the Push-To-Talk"
+.RB   ptt_bitnum: "Push-To-Talk GPIO bit number"
+.RB   retry: "Max number of retry"
+.RB   rts_state:  "ON turns on DTR, OFF turns it off, Unset disables it"
+.RB   twiddle_timeout: "For satellite ops when VFOB is twiddled will pause VFOB commands until timeout"
+.RB   twiddle_rit: "Suppress get_freq on VFOB for RIT tuning satellites"
+.RB   timeout: "Timeout in ms"
+.RB   write_delay: "Delay in ms between each byte sent out"
+.RB   tuner_control_pathname: "Path name to a script/program to control a tuner with 1 argument of 0/1 for Tuner Off/On"
 .EE
 .in
 .IP
@@ -436,7 +438,7 @@ Since most of the
 .B Hamlib
 operations have a
 .BR set " and a " get
-method, a single pper case letter will be used for
+method, a single upper case letter will be used for
 .B set
 methods whereas the corresponding single lower case letter refers to the
 .B get
@@ -723,7 +725,9 @@ number (\(oq0\(cq, \(oq1\(cq, \(oq2\(cq, ...).
 .BR b ", " send_morse " \(aq" \fIMorse\fP \(aq
 Send
 .RI \(aq Morse \(aq
-symbols.
+ymbols.  For Yaesu rigs use memory#.
+.EX
+Example from rigctld socket:  b CQ CQ DE ME
 .
 .TP
 .BR 0xbb ", " stop_morse "
@@ -1198,6 +1202,47 @@ CW Skimmer is started and "set_lock_mode 0" when CW Skimmer is stopped.
 .BR get_lock_mode
 Returns current lock mode status 1=On, 2=Off (only useful with rigctld)
 .
+.TP
+.BR send_raw " \(aq" \fITerminator\fP "\(aq \(aq" \fIString\fP \(aq
+.EX
+Can send ASCII string or 0xnn values -- there can be no spaces in the command string.
+Possible terminator values are CR, LF, ;, ICOM, 0-100 (bytes to read), or -1 meaning unknown (will timeout on read)
+Examples:
+  send_raw ; FA;MD;
+  send_raw icom 0xFE;0xFE;0x94;0x03;0xFD
+  send_raw -1 0xFE;0xFE;0x94;0x03;0xFD
+  send_raw 14 0xFE;0xFE;0x94;0x03;0xFD
+.
+.TP
+.BR client_version " \(aq" \fIString\fP "\(aq
+.EX
+  Client can send its version to rigctld and get feedback on compatibility, deprecation, and alternatives
+.TP
+.BR hamlib_version
+.EX
+Returns hamlib version with ISO8601 date/time
+.
+.TP
+.BR hamlib_version
+.EX
+Returns hamlib version with ISO8601 date/time
+.
+.TP
+.BR test
+.EX
+Performs test routines.  Under development.
+.
+.TP
+.BR set_gpio " \(aq" \fIGPIO#\fP "\(aq
+.EX
+Sets GPIO1, GPIO2, GPIO3, GPIO4 on the GPIO ptt port
+Can also use 1,2,3,4
+.
+.TP
+.BR get_gpio " \(aq" \fIGPIO#\fP "\(aq
+.EX
+Reads GPIO1, GPIO2, GPIO3, GPIO4 on the GPIO ptt port
+Can also use 1,2,3,4
 .
 .SH PROTOCOL
 .

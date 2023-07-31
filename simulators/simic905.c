@@ -404,17 +404,17 @@ void frameParse(int fd, unsigned char *frame, int len)
         {
             if (frame[5] == 0x00)
             {
-                to_bcd(&frame[6], (long long)freqA, (civ_731_mode ? 4 : 5) * 2);
+                to_bcd(&frame[6], (long long)freqA, 6 * 2);
                 printf("X25 get_freqA=%.0f\n", freqA);
             }
             else
             {
-                to_bcd(&frame[6], (long long)freqB, (civ_731_mode ? 4 : 5) * 2);
+                to_bcd(&frame[6], (long long)freqB, 6 * 2);
                 printf("X25 get_freqB=%.0f\n", freqB);
             }
 
-            frame[11] = 0xfd;
-            unsigned char frame2[11];
+            frame[12] = 0xfd;
+            unsigned char frame2[12];
 
             frame2[0] = 0xfe;
             frame2[1] = 0xfe;
@@ -426,9 +426,10 @@ void frameParse(int fd, unsigned char *frame, int len)
             frame2[7] = 0x57;
             frame2[8] = 0x03;
             frame2[9] = 0x00;
-            frame2[10] = 0xfd;
-            n = write(fd, frame2, 11);
-            n = write(fd, frame, 12);
+            frame2[10] = 0x00;
+            frame2[11] = 0xfd;
+            n = write(fd, frame2, 12);
+            n = write(fd, frame, 13);
         }
         else
         {

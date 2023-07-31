@@ -113,7 +113,7 @@ static struct option long_options[] =
 extern char rig_resp_sep;
 extern powerstat_t rig_powerstat;
 
-#define MAXCONFLEN 1024
+#define MAXCONFLEN 2048
 
 int main(int argc, char *argv[])
 {
@@ -553,6 +553,9 @@ int main(int argc, char *argv[])
             }
 
             rig_close(my_rig);
+            dumpstate(my_rig, stdout);
+            rig_close(my_rig);
+            exit(0);
         }
 
         dumpcaps(my_rig, stdout);

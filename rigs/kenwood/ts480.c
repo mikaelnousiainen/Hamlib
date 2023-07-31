@@ -31,6 +31,7 @@
 #include "misc.h"
 #include "token.h"
 #include "kenwood.h"
+#include "cache.h"
 
 #define TS480_ALL_MODES (RIG_MODE_AM|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_FM|RIG_MODE_RTTY|RIG_MODE_RTTYR)
 #define SDRUNO_ALL_MODES (RIG_MODE_AM|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_FM|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_PKTUSB)
@@ -1751,6 +1752,17 @@ const struct rig_caps pt8000a_caps =
         {RIG_MODE_FM, kHz(6.0)},
         RIG_FLT_END,
     },
+    .level_gran =
+    {
+#include "level_gran_kenwood.h"
+        [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
+        [LVL_VOXDELAY] = { .min = { .i = 0 }, .max = { .i = 30 }, .step = { .i = 1 } },
+        [LVL_KEYSPD] = {.min = {.i = 10}, .max = {.i = 60}, .step = {.i = 1}},
+        [LVL_CWPITCH] = {.min = {.i = 400}, .max = {.i = 1000}, .step = {.i = 50}},
+        [LVL_BKIN_DLYMS] = {.min = {.i = 0}, .max = {.i = 1000}, .step = {.i = 50}},
+        [LVL_SLOPE_LOW] = {.min = {.i = 0}, .max = {.i = 2400}, .step = {.i = 10}},
+        [LVL_SLOPE_HIGH] = {.min = {.i = 0}, .max = {.i = 5000}, .step = {.i = 10}},
+    },
     .priv = (void *)& ts480_priv_caps,
     .rig_init = kenwood_init,
     .rig_open = kenwood_open,
@@ -1923,6 +1935,7 @@ const struct rig_caps sdruno_caps =
     },
     .vfo_ops = TS480_VFO_OPS,
     .level_gran = {
+#include "level_gran_kenwood.h"
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
         [LVL_VOXDELAY] = { .min = { .i = 0 }, .max = { .i = 30 }, .step = { .i = 1 } },
         [LVL_KEYSPD] = {.min = {.i = 10}, .max = {.i = 60}, .step = {.i = 1}},
@@ -2010,15 +2023,49 @@ int malachite_init(RIG *rig)
     RETURNFUNC(RIG_OK);
 }
 
+int malachite_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
+{
+    int post_write_delay_save = rig->state.post_write_delay;
+    rig->state.post_write_delay = 0;
+    int retval = kenwood_get_mode(rig, vfo, mode, width);
+    rig->state.post_write_delay = post_write_delay_save;
+    return retval;
+}
+
+int malachite_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
+{
+    int post_write_delay_save = rig->state.post_write_delay;
+    ENTERFUNC;
+    rig->state.post_write_delay = 0;
+    int retval = kenwood_get_freq(rig, vfo, freq);
+    rig->state.post_write_delay = post_write_delay_save;
+    RETURNFUNC(retval);
+}
+
 int malachite_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
     int retval;
 
-    // Malachite has a bug where it takes two freq set to make it work
-    // under some band changes -- so we just do this all the time
-    retval = kenwood_set_freq(rig, vfo, freq + 1);
+    ENTERFUNC;
 
-    if (retval != RIG_OK) { RETURNFUNC(retval); }
+    rig_debug(RIG_DEBUG_TRACE, "%s: freqMainA=%g, freq=%g\n", __func__,
+              rig->state.cache.freqMainA, freq);
+
+    if ((rig->state.cache.freqMainA < 400000000 && freq >= 400000000)
+            || (rig->state.cache.freqMainA >= 400000000 && freq < 400000000)
+            || rig->state.cache.freqMainA == 0)
+    {
+        // Malachite has a bug where it takes two freq set to make it work
+        // under band changes -- so we just do this all the time
+        retval = kenwood_set_freq(rig, vfo, freq + 1);
+        rig->state.post_write_delay = 250; // need a bit more time on band  change
+
+        if (retval != RIG_OK) { RETURNFUNC(retval); }
+    }
+    else
+    {
+        rig->state.post_write_delay = 125;
+    }
 
     retval = kenwood_set_freq(rig, vfo, freq);
 
@@ -2035,7 +2082,7 @@ const struct rig_caps malachite_caps =
     RIG_MODEL(RIG_MODEL_MALACHITE),
     .model_name = "DSP",
     .mfg_name = "Malachite",
-    .version = BACKEND_VER ".2",
+    .version = BACKEND_VER ".4",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_RECEIVER,
@@ -2048,13 +2095,15 @@ const struct rig_caps malachite_caps =
     .serial_parity = RIG_PARITY_NONE,
     .serial_handshake = RIG_HANDSHAKE_NONE,
     .write_delay = 0,
-    .post_write_delay = 400,
+    // Malchite needs 125ms unless going from low to high band -- see malachite_set_freq
+    // Do not change this without checking the 300ms delay in malachite_set_freq
+    .post_write_delay = 250,
     .timeout = 3000,
     .retry = 3,
     .preamp = {0, RIG_DBLST_END,},
     .attenuator = {0, RIG_DBLST_END,},
     .max_ifshift = Hz(0),
-    .targetable_vfo = RIG_TARGETABLE_FREQ,
+//    .targetable_vfo = RIG_TARGETABLE_FREQ,
     .transceive = RIG_TRN_POLL,
 
 
@@ -2077,9 +2126,9 @@ const struct rig_caps malachite_caps =
     .rig_open = kenwood_open,
     .rig_cleanup = kenwood_cleanup,
     .set_freq = malachite_set_freq,
-    .get_freq = kenwood_get_freq,
+    .get_freq = malachite_get_freq,
     .set_mode = kenwood_set_mode,
-    .get_mode = kenwood_get_mode,
+    .get_mode = malachite_get_mode,
     .set_vfo = kenwood_set_vfo, // Malachite only supports VFOA
     .get_vfo = kenwood_get_vfo_if,
     .set_powerstat = kenwood_set_powerstat,

@@ -259,7 +259,9 @@ collision_retry:
             RETURNFUNC(-RIG_EPROTO);
         }
 
-        if (memcmp(buf, sendbuf, frm_len) != 0)
+        // first 2 bytes of everyting are 0xfe so we won't test those
+        // this allows some corruptin of the 0xfe bytes which has been seen in the wild
+        if (memcmp(&buf[2], &sendbuf[2], frm_len-2) != 0)
         {
             /* Frames are different? */
             /* Problem on ci-v bus? */
@@ -733,7 +735,6 @@ int rig2icom_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width,
 void icom2rig_mode(RIG *rig, unsigned char md, int pd, rmode_t *mode,
                    pbwidth_t *width)
 {
-    ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s: mode=0x%02x, pd=%d\n", __func__, md, pd);
     *width = RIG_PASSBAND_NORMAL;
 
@@ -864,6 +865,5 @@ void icom2rig_mode(RIG *rig, unsigned char md, int pd, rmode_t *mode,
     default:
         rig_debug(RIG_DEBUG_ERR, "icom: Unsupported Icom mode width %#.2x\n", pd);
     }
-
 }
 

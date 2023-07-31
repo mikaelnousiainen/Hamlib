@@ -121,7 +121,7 @@ static sig_atomic_t volatile ctrl_c;
 static int volatile ctrl_c;
 #endif
 
-#define MAXCONFLEN 1024
+#define MAXCONFLEN 2048
 
 #if 0
 # ifdef WIN32
@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
             exit(0);
 
         case 'V':
-            version();
+            rig_version();
             exit(0);
 
         case 'B':

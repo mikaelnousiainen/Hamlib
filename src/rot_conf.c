@@ -110,33 +110,7 @@ static const struct confparams rotfrontend_cfg_params[] =
 
 static const struct confparams rotfrontend_serial_cfg_params[] =
 {
-    {
-        TOK_SERIAL_SPEED, "serial_speed", "Serial speed",
-        "Serial port baud rate",
-        "0", RIG_CONF_NUMERIC, { .n = { 300, 115200, 1 } }
-    },
-    {
-        TOK_DATA_BITS, "data_bits", "Serial data bits",
-        "Serial port data bits",
-        "8", RIG_CONF_NUMERIC, { .n = { 5, 8, 1 } }
-    },
-    {
-        TOK_STOP_BITS, "stop_bits", "Serial stop bits",
-        "Serial port stop bits",
-        "1", RIG_CONF_NUMERIC, { .n = { 0, 3, 1 } }
-    },
-    {
-        TOK_PARITY, "serial_parity", "Serial parity",
-        "Serial port parity",
-        "None", RIG_CONF_COMBO, { .c = {{ "None", "Odd", "Even", "Mark", "Space", NULL }} }
-    },
-    {
-        TOK_HANDSHAKE, "serial_handshake", "Serial handshake",
-        "Serial port handshake",
-        "None", RIG_CONF_COMBO, { .c = {{ "None", "XONXOFF", "Hardware", NULL }} }
-    },
-
-    { RIG_CONF_END, NULL, }
+#include "serial_cfg_params.h"
 };
 /** @} */ /* rotator definitions */
 
@@ -353,6 +327,64 @@ int frontrot_set_conf(ROT *rot, token_t token, const char *val)
     case TOK_SOUTH_ZERO:
         rs->south_zero = atoi(val);
         break;
+
+
+    case TOK_RTS_STATE:
+        if (rs->rotport.type.rig != RIG_PORT_SERIAL)
+        {
+            return -RIG_EINVAL;
+        }
+
+        if (!strcmp(val, "Unset"))
+        {
+            rs->rotport.parm.serial.rts_state = RIG_SIGNAL_UNSET;
+            rs->rotport_deprecated.parm.serial.rts_state = RIG_SIGNAL_UNSET;
+        }
+        else if (!strcmp(val, "ON"))
+        {
+            rs->rotport.parm.serial.rts_state = RIG_SIGNAL_ON;
+            rs->rotport_deprecated.parm.serial.rts_state = RIG_SIGNAL_ON;
+        }
+        else if (!strcmp(val, "OFF"))
+        {
+            rs->rotport.parm.serial.rts_state = RIG_SIGNAL_OFF;
+            rs->rotport_deprecated.parm.serial.rts_state = RIG_SIGNAL_OFF;
+        }
+        else
+        {
+            return -RIG_EINVAL;
+        }
+
+        break;
+
+    case TOK_DTR_STATE:
+        if (rs->rotport.type.rig != RIG_PORT_SERIAL)
+        {
+            return -RIG_EINVAL;
+        }
+
+        if (!strcmp(val, "Unset"))
+        {
+            rs->rotport.parm.serial.dtr_state = RIG_SIGNAL_UNSET;
+            rs->rotport_deprecated.parm.serial.dtr_state = RIG_SIGNAL_UNSET;
+        }
+        else if (!strcmp(val, "ON"))
+        {
+            rs->rotport.parm.serial.dtr_state = RIG_SIGNAL_ON;
+            rs->rotport_deprecated.parm.serial.dtr_state = RIG_SIGNAL_ON;
+        }
+        else if (!strcmp(val, "OFF"))
+        {
+            rs->rotport.parm.serial.dtr_state = RIG_SIGNAL_OFF;
+            rs->rotport_deprecated.parm.serial.dtr_state = RIG_SIGNAL_OFF;
+        }
+        else
+        {
+            return -RIG_EINVAL;
+        }
+
+        break;
+
 
     default:
         return -RIG_EINVAL;

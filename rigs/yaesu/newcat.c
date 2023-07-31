@@ -36,6 +36,7 @@
 #include "misc.h"
 #include "cal.h"
 #include "newcat.h"
+#include "serial.h"
 
 /* global variables */
 static const char cat_term = ';';             /* Yaesu command terminator */
@@ -93,6 +94,7 @@ typedef struct _yaesu_newcat_commands
     ncboolean           ftdx10;
     ncboolean           ft101mp;
     ncboolean           ft710;
+    ncboolean           ft9000Old;
 } yaesu_newcat_commands_t;
 
 /**
@@ -220,6 +222,7 @@ static ncboolean is_ftdx3000dm;
 static ncboolean is_ftdx101d;
 static ncboolean is_ftdx101mp;
 static ncboolean is_ftdx10;
+static ncboolean is_ftdx9000Old;
 
 /*
  * Even thought this table does make a handy reference, it could be depreciated as it is not really needed.
@@ -240,124 +243,125 @@ static ncboolean is_ftdx10;
 static const yaesu_newcat_commands_t valid_commands[] =
 {
     /* Command FT-450 FT-950 FT-891 FT-991  FT-2000 FT-9000 FT-5000 FT-1200 FT-3000 FTDX101D FTDX10 FTDX101MP FT710 */
-    {"AB",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"AC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"AG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"AI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"AM",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"AN",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    FALSE, TRUE,     FALSE },
-    {"AO",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE  },
-    {"BA",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,   TRUE,   TRUE,  TRUE,    TRUE,  TRUE,     TRUE  },
-    {"BC",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"BD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"BI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"BM",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE  },
-    {"BP",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"BS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"BU",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"BY",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"CH",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"CN",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"CO",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"CS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"CT",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"DA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"DN",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"DP",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE },
-    {"DS",     TRUE,  FALSE, FALSE, FALSE,  TRUE,   TRUE,   TRUE,   FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE },
-    {"DT",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,    TRUE,  TRUE,     TRUE  },
-    {"ED",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"EK",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   FALSE,  TRUE,   TRUE,   FALSE,   FALSE, TRUE,     FALSE },
-    {"EM",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  FALSE,    TRUE  },
-    {"EN",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,   TRUE,  TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"EU",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"EX",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"FA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"FB",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"FK",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   FALSE,  FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE },
-    {"FN",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE  },
-    {"FR",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"FS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"FT",     TRUE,  TRUE,  FALSE, TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"GT",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"ID",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"IF",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"IS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"KM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"KP",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"KR",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"KS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"KY",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"LK",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"LM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"MA",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"MB",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE  },
-    {"MC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"MD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"MG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"MK",     TRUE,  TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE },
-    {"ML",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"MR",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"MS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"MT",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE  },
-    {"MW",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"MX",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"NA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   FALSE,  TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"NB",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"NL",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"NR",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"OI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"OS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"PA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"PB",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"PC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"PL",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"PR",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"PS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"QI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"QR",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"QS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"RA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"RC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"RD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"RF",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"RG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"RI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"RL",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"RM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"RO",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   FALSE,   FALSE, FALSE,    FALSE },
-    {"RP",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE },
-    {"RS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"RT",     TRUE,  TRUE,  FALSE, TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"RU",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"SC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"SD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"SF",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"SH",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"SM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"SQ",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"SS",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE  },
+    {"AB",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"AC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"AG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"AI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"AM",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"AN",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    FALSE, TRUE,     FALSE, TRUE },
+    {"AO",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"BA",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,   TRUE,   TRUE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"BC",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"BD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"BI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"BM",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"BP",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"BS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"BU",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"BY",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"CF",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,    TRUE,  FALSE,   TRUE, FALSE },
+    {"CH",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"CN",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"CO",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"CS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"CT",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"DA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"DN",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"DP",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE, TRUE },
+    {"DS",     TRUE,  FALSE, FALSE, FALSE,  TRUE,   TRUE,   TRUE,   FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE, TRUE },
+    {"DT",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"ED",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"EK",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   FALSE,  TRUE,   TRUE,   FALSE,   FALSE, TRUE,     FALSE, TRUE },
+    {"EM",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  FALSE,    TRUE, FALSE },
+    {"EN",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,   TRUE,  TRUE,   TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"EU",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"EX",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"FA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"FB",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"FK",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   FALSE,  FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE, TRUE },
+    {"FN",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"FR",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"FS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    FALSE,  TRUE,    FALSE, TRUE },
+    {"FT",     TRUE,  TRUE,  FALSE, TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"GT",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"ID",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"IF",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"IS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"KM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"KP",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"KR",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"KS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"KY",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"LK",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"LM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"MA",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"MB",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"MC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"MD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"MG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"MK",     TRUE,  TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE, TRUE },
+    {"ML",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"MR",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"MS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"MT",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"MW",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"MX",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"NA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   FALSE,  TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"NB",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"NL",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"NR",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"OI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"OS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"PA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"PB",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"PC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"PL",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"PR",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"PS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"QI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"QR",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"QS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"RA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"RC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"RD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"RF",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"RG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"RI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"RL",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"RM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"RO",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   FALSE,   FALSE, FALSE,    FALSE, TRUE },
+    {"RP",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE, FALSE},
+    {"RS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"RT",     TRUE,  TRUE,  FALSE, TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     FALSE, TRUE },
+    {"RU",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"SC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"SD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"SF",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"SH",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"SM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"SQ",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"SS",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
     // ST command has two meanings Step or Split Status
     // If new rig is added that has ST ensure it means Split
     // Otherwise modify newcat_get_tx_vfo
-    {"ST",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE  },
-    {"SV",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"SY",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,     FALSE },
-    {"TS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"TX",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"UL",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"UP",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"VD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"VF",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   FALSE,  FALSE,  TRUE,     FALSE },
-    {"VG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"VM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"VR",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,     FALSE },
-    {"VS",     TRUE,  TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"VT",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,     TRUE  },
-    {"VV",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,     FALSE },
-    {"VX",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"XT",     FALSE, TRUE,  FALSE, TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE  },
-    {"ZI",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE  },
+    {"ST",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"SV",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"SY",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,     FALSE, FALSE},
+    {"TS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"TX",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"UL",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"UP",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"VD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"VF",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   FALSE,  FALSE,  TRUE,     FALSE, TRUE },
+    {"VG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"VM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"VR",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,     FALSE, FALSE },
+    {"VS",     TRUE,  TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, FALSE  },
+    {"VT",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,     TRUE, FALSE  },
+    {"VV",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,     FALSE, FALSE },
+    {"VX",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"XT",     FALSE, TRUE,  FALSE, TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     FALSE, TRUE  },
+    {"ZI",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE  },
 } ;
 
 int valid_commands_count = sizeof(valid_commands) / sizeof(
@@ -398,6 +402,8 @@ static int set_roofing_filter(RIG *rig, vfo_t vfo, int index);
 static int set_roofing_filter_for_width(RIG *rig, vfo_t vfo, int width);
 static int get_roofing_filter(RIG *rig, vfo_t vfo,
                               struct newcat_roofing_filter **roofing_filter);
+static int newcat_set_clarifier(RIG *rig, vfo_t vfo, int rx, int tx);
+static int newcat_get_clarifier(RIG *rig, vfo_t vfo, int *rx, int *tx);
 static int newcat_set_apf_frequency(RIG *rig, vfo_t vfo, int freq);
 static int newcat_get_apf_frequency(RIG *rig, vfo_t vfo, int *freq);
 static int newcat_set_apf_width(RIG *rig, vfo_t vfo, int choice);
@@ -496,6 +502,7 @@ int newcat_init(RIG *rig)
     is_ft991 = newcat_is_rig(rig, RIG_MODEL_FT991);
     is_ft2000 = newcat_is_rig(rig, RIG_MODEL_FT2000);
     is_ftdx9000 = newcat_is_rig(rig, RIG_MODEL_FT9000);
+    is_ftdx9000Old = newcat_is_rig(rig, RIG_MODEL_FT9000OLD);
     is_ftdx5000 = newcat_is_rig(rig, RIG_MODEL_FTDX5000);
     is_ftdx1200 = newcat_is_rig(rig, RIG_MODEL_FTDX1200);
     is_ftdx3000 = newcat_is_rig(rig, RIG_MODEL_FTDX3000);
@@ -1943,9 +1950,12 @@ int newcat_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
         if (rig->state.current_mode != RIG_MODE_CW
                 && rig->state.current_mode != RIG_MODE_CWR
                 && rig->state.current_mode != RIG_MODE_CWN
+                && (is_ftdx3000 || is_ftdx3000dm)
            )
         {
-            hl_usleep(100 * 1000);
+            // DX3000 with seperate rx/tx antennas was failing frequency change
+            // so we increased the sleep from 100ms to 300ms
+            hl_usleep(300 * 1000);
         }
 
         break;
@@ -2247,6 +2257,28 @@ int newcat_set_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t offs)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c", command, offs,
                  cat_term);
     }
+    else if (is_ft710)
+    {
+        if (freq >= 28000000 && freq <= 29700000)
+        {
+            strcpy(command, "EX010318");
+        }
+        else if (freq >= 50000000 && freq <= 54000000)
+        {
+            strcpy(command, "EX010319");
+        }
+        else
+        {
+            // only valid on 10m and 6m bands
+            RETURNFUNC(-RIG_EINVAL);
+        }
+
+        // Step size is 1 kHz
+        offs /= 1000;
+
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c", command, offs,
+                 cat_term);
+    }
     else if (is_ftdx1200)
     {
         if (freq >= 28000000 && freq <= 29700000)
@@ -2454,6 +2486,26 @@ int newcat_get_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t *offs)
         else
         {
             // only valid on 10m to 70cm bands
+            *offs = 0;
+            RETURNFUNC(RIG_OK);
+        }
+
+        // Step size is 1 kHz
+        step = 1000;
+    }
+    else if (is_ft710)
+    {
+        if (freq >= 28000000 && freq <= 29700000)
+        {
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX010318%c", cat_term);
+        }
+        else if (freq >= 50000000 && freq <= 54000000)
+        {
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX010319%c", cat_term);
+        }
+        else
+        {
+            // only valid on 10m and 6m bands
             *offs = 0;
             RETURNFUNC(RIG_OK);
         }
@@ -3558,24 +3610,31 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
     case RIG_POWER_ON:
         // When powering on a Yaesu rig needs dummy bytes to wake it up,
         // then wait from 1 to 2 seconds and issue the power-on command again
+    HAMLIB_TRACE;
         write_block(&state->rigport, (unsigned char *) "PS1;", 4);
         hl_usleep(1200000);
+        write_block(&state->rigport, (unsigned char *) "PS1;", 4);
+        // some rigs reset the serial port during power up
+        // so we reopen the com port  again 
+        HAMLIB_TRACE;
+        //oser_close(&state->rigport);
+        rig_close(rig);
+        hl_usleep(3000000);
+        //state->pttport.fd = ser_open(&state->rigport);
+        rig_open(rig);
         break;
 
     case RIG_POWER_OFF:
     case RIG_POWER_STANDBY:
         retval = write_block(&state->rigport, (unsigned char *) "PS0;", 4);
+        priv->poweron = 0;
         RETURNFUNC(retval);
 
     default:
         RETURNFUNC(-RIG_EINVAL);
     }
 
-    // Power on may require a second command
-    SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "PS1%c", cat_term);
-
-    retval = write_block(&state->rigport, (unsigned char *) priv->cmd_str,
-                         strlen(priv->cmd_str));
+    HAMLIB_TRACE;
 
     retry_save = rig->state.rigport.retry;
     rig->state.rigport.retry = 0;
@@ -3592,6 +3651,7 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
             if (retval == RIG_OK)
             {
                 rig->state.rigport.retry = retry_save;
+                priv->poweron = 1;
                 RETURNFUNC(retval);
             }
 
@@ -3671,10 +3731,12 @@ int newcat_get_powerstat(RIG *rig, powerstat_t *status)
         {
         case '1':
             *status = RIG_POWER_ON;
+            priv->poweron = 1;
             RETURNFUNC(RIG_OK);
 
         case '0':
             *status = RIG_POWER_OFF;
+            priv->poweron = 0;
             RETURNFUNC(RIG_OK);
 
         default:
@@ -3941,6 +4003,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     int fpf;
     char main_sub_vfo = '0';
     char *format;
+    gran_t *level_info;
 
     ENTERFUNC;
 
@@ -3957,6 +4020,13 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         main_sub_vfo = (RIG_VFO_B == vfo || RIG_VFO_SUB == vfo) ? '1' : '0';
     }
 
+    //TODO Replace the next line
+    level_info = &rig->caps->level_gran[rig_setting2idx(level)];
+    // with the next 2 lines
+    //err = check_level_param(rig, level, val, &level_info);
+    //if (err != RIG_OK ) { RETURNFUNC(err); }
+    //endTODO
+    
     switch (level)
     {
     case RIG_LEVEL_RFPOWER:
@@ -3965,7 +4035,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
-        if (is_ft950 || is_ftdx1200 || is_ftdx3000 || is_ft891 || is_ft991
+        if (is_ft950 || is_ftdx1200 || is_ftdx3000 || is_ft891 || is_ft991 || is_ft710
                 || is_ftdx101d || is_ftdx101mp || is_ftdx10)
         {
             scale = 100.;
@@ -4005,11 +4075,12 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
+        //TODO Remove when common level checking enabled
         if (val.f > 1.0) { RETURNFUNC(-RIG_EINVAL); }
 
-        fpf = newcat_scale_float(255, val.f);
+        fpf = (int)((val.f / level_info->step.f) + 0.5f);
 
-        if (is_ftdx10 || is_ft710) { main_sub_vfo = '0'; }
+        if (is_ftdx10) { main_sub_vfo = '0'; }
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "AG%c%03d%c", main_sub_vfo, fpf,
                  cat_term);
@@ -4135,6 +4206,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
+        //TODO Get rid of these checks when limit checking enabled
         if (val.i < 300)
         {
             i = 300;
@@ -4148,15 +4220,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             i = val.i;
         }
 
-        if (is_ft950 || is_ft2000)
-        {
-            kp = (i - 300) / 50;
-        }
-        else
-        {
-            // Most Yaesu rigs seem to use range of 0-75 to represent pitch of 300..1050 Hz in 10 Hz steps
-            kp = (i - 300) / 10;
-        }
+        // Most Yaesu rigs seem to use range of 0-75 to represent pitch of 300..1050 Hz in 10 Hz steps
+        kp = (i - level_info->min.i + (level_info->step.i / 2)) / level_info->step.i;
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "KP%02d%c", kp, cat_term);
         break;
@@ -4182,30 +4247,21 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
-        if (is_ft991 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
+        if (is_ft991 || is_ft710 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
                 || is_ftdx101mp)
         {
             newcat_get_mode(rig, vfo, &mode, &width);
         }
 
+        //TODO Remove when level_gran check enabled
         if (val.f > 1.0) { RETURNFUNC(-RIG_EINVAL); }
 
-        if (is_ftdx1200 || is_ftdx3000 || is_ftdx3000dm || is_ft891 || is_ft991
-                || is_ftdx101d
-                || is_ftdx101mp
-                || is_ftdx10)
-        {
-            fpf = newcat_scale_float(100, val.f);
-        }
-        else
-        {
-            fpf = newcat_scale_float(255, val.f);
-        }
+        fpf = (int) (( val.f / level_info->step.f ) + 0.5f );
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "MG%03d%c", fpf, cat_term);
 
         // Some Yaesu rigs reject this command in RTTY modes
-        if (is_ft991 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
+        if (is_ft991 || is_ft710 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
                 || is_ftdx101mp)
         {
             if (mode & RIG_MODE_RTTY || mode & RIG_MODE_RTTYR)
@@ -4372,18 +4428,10 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
-        if (is_ft891)
-        {
-            scale = 30;
-        }
-        else
-        {
-            scale = 255;
-        }
+        fpf = (int)((val.f / level_info->step.f) + 0.5f);
 
-        if (is_ftdx10 || is_ft710) { main_sub_vfo = 0; }
+        if (is_ftdx10) { main_sub_vfo = '0'; }
 
-        fpf = newcat_scale_float(scale, val.f);
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "RG%c%03d%c", main_sub_vfo, fpf,
                  cat_term);
         break;
@@ -4449,16 +4497,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
-        if (is_ft2000 || is_ftdx9000 || is_ftdx5000)
-        {
-            scale = 255;
-        }
-        else
-        {
-            scale = 100;
-        }
+        fpf = (int) ((val.f / level_info->step.f) + 0.5f);
 
-        fpf = newcat_scale_float(scale, val.f);
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "PL%03d%c", fpf, cat_term);
         break;
 
@@ -4482,7 +4522,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
         millis = dot10ths_to_millis(val.i, keyspd.i);
 
-        if (is_ftdx101d || is_ftdx101mp || is_ftdx10)
+        if (is_ftdx101d || is_ftdx101mp || is_ftdx10 || is_ft710)
         {
             if (millis <= 30) { SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "SD00;"); }
             else if (millis <= 50) { SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "SD01;"); }
@@ -4565,7 +4605,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
-        if (is_ft891 || is_ft991 || is_ftdx101d || is_ftdx101mp || is_ftdx10)
+        if (is_ft891 || is_ft991 || is_ft710 || is_ftdx101d || is_ftdx101mp || is_ftdx10)
         {
             scale = 100;
         }
@@ -4609,7 +4649,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "VD%04d%c", val.i, cat_term);
         }
-        else if (is_ftdx101d || is_ftdx101mp || is_ftdx10) // new lookup table argument
+        else if (is_ftdx101d || is_ftdx101mp || is_ftdx10 || is_ft710) // new lookup table argument
         {
             rig_debug(RIG_DEBUG_TRACE, "%s: ft101 #1 val.i=%d\n", __func__, val.i);
 
@@ -4651,53 +4691,38 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
-        if (is_ft2000 || is_ftdx9000 || is_ftdx5000 || is_ft450)
-        {
-            scale = 255;
-        }
-        else
-        {
-            scale = 100;
-        }
-
-        fpf = newcat_scale_float(scale, val.f);
+        fpf = (int) ((val.f / level_info->step.f) + 0.5f );
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "VG%03d%c", fpf, cat_term);
         break;
 
     case RIG_LEVEL_ANTIVOX:
-        if (is_ftdx101d || is_ftdx101mp || is_ftdx10)
+        fpf = (int) (( val.f / level_info->step.f ) + 0.5f );
+        if (is_ftdx101d || is_ftdx101mp || is_ftdx10 || is_ft710)
         {
-            fpf = newcat_scale_float(100, val.f);
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "AV%03d%c", fpf, cat_term);
         }
         else if (is_ftdx5000)
         {
-            fpf = newcat_scale_float(100, val.f);
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX176%03d%c", fpf, cat_term);
         }
         else if (is_ftdx3000 || is_ftdx3000dm || is_ftdx1200)
         {
-            fpf = newcat_scale_float(100, val.f);
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX183%03d%c", fpf, cat_term);
         }
         else if (is_ft991)
         {
-            fpf = newcat_scale_float(100, val.f);
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX145%03d%c", fpf, cat_term);
         }
         else if (is_ft891)
         {
-            fpf = newcat_scale_float(100, val.f);
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX1619%03d%c", fpf, cat_term);
         }
         else if (is_ft950)
         {
-            fpf = newcat_scale_float(100, val.f);
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX117%03d%c", fpf, cat_term);
         }
         else if (is_ft2000)
         {
-            fpf = newcat_scale_float(100, val.f);
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX042%03d%c", fpf, cat_term);
         }
         else
@@ -4775,7 +4800,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
         if (val.f > 1.0) { RETURNFUNC(-RIG_EINVAL); }
 
-        if (is_ftdx1200 || is_ftdx3000 || is_ftdx3000dm || is_ft891 || is_ft991
+        if (is_ftdx1200 || is_ftdx3000 || is_ftdx3000dm || is_ft891 || is_ft991 || is_ft710
                 || is_ftdx101d
                 || is_ftdx101mp
                 || is_ftdx10)
@@ -4819,7 +4844,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
-        fpf = newcat_scale_float(10, val.f);
+        // Do not scale the value, level maximum value is set to 10
+        fpf = val.f;
 
         if (fpf < 0)
         {
@@ -4865,6 +4891,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     float scale;
     char main_sub_vfo = '0';
     int i;
+    gran_t *level_info;
 
     ENTERFUNC;
 
@@ -4880,6 +4907,8 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     {
         main_sub_vfo = (RIG_VFO_B == vfo || RIG_VFO_SUB == vfo) ? '1' : '0';
     }
+    
+    level_info = &rig->caps->level_gran[rig_setting2idx(level)];
 
     switch (level)
     {
@@ -5007,7 +5036,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
-        if (is_ft991 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
+        if (is_ft991 || is_ft710 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
                 || is_ftdx101mp)
         {
             newcat_get_mode(rig, vfo, &mode, &width);
@@ -5016,7 +5045,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "MG%c", cat_term);
 
         // Some Yaesu rigs reject this command in RTTY modes
-        if (is_ft991 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
+        if (is_ft991 || is_ft710 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
                 || is_ftdx101mp)
         {
             if (mode & RIG_MODE_RTTY || mode & RIG_MODE_RTTYR)
@@ -5286,7 +5315,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         break;
 
     case RIG_LEVEL_ANTIVOX:
-        if (is_ftdx101d || is_ftdx101mp || is_ftdx10)
+        if (is_ftdx101d || is_ftdx101mp || is_ftdx10 || is_ft710)
         {
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "AV%c", cat_term);
         }
@@ -5406,7 +5435,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     {
     case RIG_LEVEL_RFPOWER:
         if (is_ft950 || is_ftdx1200 || is_ftdx3000 || is_ftdx3000dm || is_ft891
-                || is_ft991
+                || is_ft991 || is_ft710
                 || is_ftdx101d || is_ftdx101mp || is_ftdx10)
         {
             scale = 100.;
@@ -5421,24 +5450,6 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
 
         val->f = (float)atoi(retlvl) / scale;
-        break;
-
-    case RIG_LEVEL_VOXGAIN:
-    case RIG_LEVEL_COMP:
-        if (is_ft2000 || is_ftdx9000 || is_ftdx5000 || is_ft450)
-        {
-            scale = 255;
-        }
-        else
-        {
-            scale = 100;
-        }
-
-        val->f = (float) atoi(retlvl) / scale;
-        break;
-
-    case RIG_LEVEL_ANTIVOX:
-        val->f = (float) atoi(retlvl) / 100.;
         break;
 
     case RIG_LEVEL_SWR:
@@ -5576,41 +5587,17 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         break;
 
-    case RIG_LEVEL_MICGAIN:
-        if (is_ftdx1200 || is_ftdx3000 || is_ftdx3000dm || is_ft891 || is_ft991
-                || is_ftdx101d
-                || is_ftdx101mp
-                || is_ftdx10)
-        {
-            scale = 100.;
-        }
-        else
-        {
-            scale = 255.;
-        }
-
-        val->f = (float)atoi(retlvl) / scale;
-        break;
-
     case RIG_LEVEL_AF:
-        val->f = (float)atoi(retlvl) / 255;
-        break;
-
     case RIG_LEVEL_RF:
-        if (is_ft891)
-        {
-            scale = 30.;
-        }
-        else
-        {
-            scale = 255.;
-        }
-
-        val->f = (float)atoi(retlvl) / scale;
+    case RIG_LEVEL_COMP:
+    case RIG_LEVEL_ANTIVOX:
+    case RIG_LEVEL_MICGAIN:
+    case RIG_LEVEL_VOXGAIN:
+        val->f = (float)atoi(retlvl) * level_info->step.f;
         break;
 
     case RIG_LEVEL_SQL:
-        if (is_ft891 || is_ft991 || is_ftdx101d || is_ftdx101mp || is_ftdx10)
+        if (is_ft891 || is_ft991 || is_ft710 || is_ftdx101d || is_ftdx101mp || is_ftdx10)
         {
             scale = 100.;
         }
@@ -5628,7 +5615,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         int millis;
         value_t keyspd;
 
-        if (is_ftdx101d || is_ftdx101mp || is_ftdx10)
+        if (is_ftdx101d || is_ftdx101mp || is_ftdx10 || is_ft710)
         {
             switch (raw_value)
             {
@@ -5749,7 +5736,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     case RIG_LEVEL_VOXDELAY:
         val->i = atoi(retlvl);
 
-        if (is_ftdx101d || is_ftdx101mp)
+        if (is_ftdx101d || is_ftdx101mp || is_ftdx10 || is_ft710)
         {
             switch (val->i)
             {
@@ -5865,15 +5852,9 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         break;
 
     case RIG_LEVEL_CWPITCH:
-        if (is_ft950 || is_ft2000)
-        {
-            val->i = (atoi(retlvl) * 50) + 300;
-        }
-        else
-        {
-            // Most Yaesu rigs seem to use range of 0-75 to represent pitch of 300..1050 Hz in 10 Hz steps
-            val->i = (atoi(retlvl) * 10) + 300;
-        }
+
+        // Most Yaesu rigs seem to use range of 0-75 to represent pitch of 300..1050 Hz in 10 Hz steps
+        val->i = (atoi(retlvl) * level_info->step.i) + level_info->min.i;
 
         break;
 
@@ -5902,7 +5883,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         break;
 
     case RIG_LEVEL_MONITOR_GAIN:
-        if (is_ftdx1200 || is_ftdx3000 || is_ftdx3000dm || is_ft891 || is_ft991
+        if (is_ftdx1200 || is_ftdx3000 || is_ftdx3000dm || is_ft891 || is_ft991 || is_ft710
                 || is_ftdx101d
                 || is_ftdx101mp)
         {
@@ -5913,11 +5894,12 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             scale = 255.;
         }
 
-        val->f = (float)atoi(retlvl) / scale;
+        val->f = ((float) atoi(retlvl)) / scale;
         break;
 
     case RIG_LEVEL_NB:
-        val->f = (float)(atoi(retlvl) / 10.);
+        // Do not scale the value, level maximum value is set to 10
+        val->f = (float) atoi(retlvl);
         break;
 
     case RIG_LEVEL_TEMP_METER:
@@ -6202,13 +6184,13 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
-        if (is_ft991 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
+        if (is_ft991 || is_ft710 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
                 || is_ftdx101mp)
         {
             newcat_get_mode(rig, vfo, &mode, &width);
         }
 
-        if (is_ft891 || is_ft991 || is_ftdx1200 || is_ftdx3000 || is_ftdx3000dm
+        if (is_ft891 || is_ft991 || is_ft710 || is_ftdx1200 || is_ftdx3000 || is_ftdx3000dm
                 || is_ftdx101d
                 || is_ftdx101mp)
         {
@@ -6223,7 +6205,7 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         }
 
         // Some Yaesu rigs reject this command in AM/FM/RTTY modes
-        if (is_ft991 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
+        if (is_ft991 || is_ft710 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx101d
                 || is_ftdx101mp)
         {
             if (mode & RIG_MODE_AM || mode & RIG_MODE_FM || mode & RIG_MODE_AMN
@@ -6260,23 +6242,37 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         break;
 
     case RIG_FUNC_RIT:
-        if (!newcat_valid_command(rig, "RT"))
+        if (is_ft710)
         {
-            RETURNFUNC(-RIG_ENAVAIL);
+            RETURNFUNC(newcat_set_clarifier(rig, vfo, status, -1));
         }
+        else
+        {
+            if (!newcat_valid_command(rig, "RT"))
+            {
+                RETURNFUNC(-RIG_ENAVAIL);
+            }
 
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "RT%d%c", status ? 1 : 0,
-                 cat_term);
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "RT%d%c", status ? 1 : 0,
+                     cat_term);
+        }
         break;
 
     case RIG_FUNC_XIT:
-        if (!newcat_valid_command(rig, "XT"))
+        if (is_ft710)
         {
-            RETURNFUNC(-RIG_ENAVAIL);
+            RETURNFUNC(newcat_set_clarifier(rig, vfo, -1, status));
         }
+        else
+        {
+            if (!newcat_valid_command(rig, "XT"))
+            {
+                RETURNFUNC(-RIG_ENAVAIL);
+            }
 
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "XT%d%c", status ? 1 : 0,
-                 cat_term);
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "XT%d%c", status ? 1 : 0,
+                     cat_term);
+        }
         break;
 
     case RIG_FUNC_APF:
@@ -6285,13 +6281,12 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
-
         if (is_ftdx101d || is_ftdx101mp)
         {
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO%c2%04d%c", main_sub_vfo,
                      status ? 1 : 0, cat_term);
         }
-        else if (is_ftdx10 || is_ft991 || is_ft891)
+        else if (is_ftdx10 || is_ft710 || is_ft991 || is_ft891)
         {
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO02%04d%c", status ? 1 : 0,
                      cat_term);
@@ -6310,6 +6305,8 @@ int newcat_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         {
             RETURNFUNC(-RIG_ENIMPL);
         }
+
+        priv->question_mark_response_means_rejected = 1;
 
         break;
 
@@ -6504,7 +6501,7 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
-        if (is_ftdx1200 || is_ftdx3000 || is_ftdx3000dm || is_ft891 || is_ft991
+        if (is_ftdx1200 || is_ftdx3000 || is_ftdx3000dm || is_ft891 || is_ft991 || is_ft710
                 || is_ftdx101d
                 || is_ftdx101mp)
         {
@@ -6536,21 +6533,35 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         break;
 
     case RIG_FUNC_RIT:
-        if (!newcat_valid_command(rig, "RT"))
+        if (is_ft710)
         {
-            RETURNFUNC(-RIG_ENAVAIL);
+            RETURNFUNC(newcat_get_clarifier(rig, vfo, status, NULL));
         }
+        else
+        {
+            if (!newcat_valid_command(rig, "RT"))
+            {
+                RETURNFUNC(-RIG_ENAVAIL);
+            }
 
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "RT%c", cat_term);
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "RT%c", cat_term);
+        }
         break;
 
     case RIG_FUNC_XIT:
-        if (!newcat_valid_command(rig, "XT"))
+        if (is_ft710)
         {
-            RETURNFUNC(-RIG_ENAVAIL);
+            RETURNFUNC(newcat_get_clarifier(rig, vfo, NULL, status));
         }
+        else
+        {
+            if (!newcat_valid_command(rig, "XT"))
+            {
+                RETURNFUNC(-RIG_ENAVAIL);
+            }
 
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "XT%c", cat_term);
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "XT%c", cat_term);
+        }
         break;
 
     case RIG_FUNC_APF:
@@ -6564,7 +6575,7 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO%c2%c", main_sub_vfo,
                      cat_term);
         }
-        else if (is_ftdx10 || is_ft991 || is_ft891)
+        else if (is_ftdx10 || is_ft710 || is_ft991 || is_ft891)
         {
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO02%c", cat_term);
         }
@@ -6678,11 +6689,7 @@ int newcat_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         break;
 
     case RIG_FUNC_APF:
-        if (is_ftdx101d || is_ftdx101mp)
-        {
-            *status = (retfunc[last_char_index] == '1') ? 1 : 0;
-        }
-        else if (is_ftdx10 || is_ft991 || is_ft891)
+        if (is_ftdx101d || is_ftdx101mp || is_ftdx10 || is_ft991 || is_ft891 || is_ft710)
         {
             *status = (retfunc[last_char_index] == '1') ? 1 : 0;
         }
@@ -6737,7 +6744,7 @@ int newcat_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
         RETURNFUNC(set_roofing_filter(rig, vfo, val.i));
 
     case TOK_KEYER:
-        if (!newcat_valid_command(rig, "ML"))
+        if (!newcat_valid_command(rig, "KR"))
         {
             RETURNFUNC(-RIG_ENAVAIL);
         }
@@ -7121,7 +7128,14 @@ int newcat_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
     switch (op)
     {
     case RIG_OP_TUNE:
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "AC002%c", cat_term);
+        if (is_ft710)
+        {
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "AC003%c", cat_term);
+        }
+        else
+        {
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "AC002%c", cat_term);
+        }
         break;
 
     case RIG_OP_CPY:
@@ -7424,10 +7438,20 @@ int newcat_set_channel(RIG *rig, vfo_t vfo, const channel_t *chan)
     default: c_rptr_shift = '0';
     }
 
+    if (priv->width_frequency == 9)
+    {
+    SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str),
+             "MW%03d%09d%+.4d%c%c%c%c%c%02u%c%c",
+             chan->channel_num, (int)chan->freq, rxit, c_rit, c_xit, c_mode, c_vfo,
+             c_tone, tone, c_rptr_shift, cat_term);
+    }
+    else
+    {
     SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str),
              "MW%03d%08d%+.4d%c%c%c%c%c%02u%c%c",
              chan->channel_num, (int)chan->freq, rxit, c_rit, c_xit, c_mode, c_vfo,
              c_tone, tone, c_rptr_shift, cat_term);
+    }
 
     rig_debug(RIG_DEBUG_TRACE, "%s: cmd_str = %s\n", __func__, priv->cmd_str);
 
@@ -7513,11 +7537,16 @@ int newcat_get_channel(RIG *rig, vfo_t vfo, channel_t *chan, int read_only)
 
         RETURNFUNC(err);
     }
+    int offset=0;
+    if (priv->width_frequency == 9)
+    {
+        offset = 1;
+    }
 
     /* ret_data string to channel_t struct :: this will destroy ret_data */
 
     /* rptr_shift P10 ************************ */
-    retval = priv->ret_data + 25;
+    retval = priv->ret_data + 25 + offset;
 
     switch (*retval)
     {
@@ -7533,13 +7562,13 @@ int newcat_get_channel(RIG *rig, vfo_t vfo, channel_t *chan, int read_only)
     *retval = '\0';
 
     /* CTCSS Encoding P8 ********************* */
-    retval = priv->ret_data + 22;
+    retval = priv->ret_data + 22 + offset;
     c = *retval;
 
     /* CTCSS Tone P9 ************************* */
     chan->ctcss_tone = 0;
     chan->ctcss_sql  = 0;
-    retval = priv->ret_data + 23;
+    retval = priv->ret_data + 23 + offset;
     i = atoi(retval);
 
     if (c == '1')
@@ -7552,7 +7581,7 @@ int newcat_get_channel(RIG *rig, vfo_t vfo, channel_t *chan, int read_only)
     }
 
     /* vfo, mem, P7 ************************** */
-    retval = priv->ret_data + 21;
+    retval = priv->ret_data + 21 + offset;
 
     if (*retval == '1')
     {
@@ -7566,7 +7595,7 @@ int newcat_get_channel(RIG *rig, vfo_t vfo, channel_t *chan, int read_only)
     /* MODE P6 ******************************* */
     chan->width = 0;
 
-    retval = priv->ret_data + 20;
+    retval = priv->ret_data + 20 + offset;
     chan->mode = newcat_rmode(*retval);
 
     if (chan->mode == RIG_MODE_NONE)
@@ -7576,18 +7605,18 @@ int newcat_get_channel(RIG *rig, vfo_t vfo, channel_t *chan, int read_only)
     }
 
     /* Clarifier TX P5 *********************** */
-    retval = priv->ret_data + 19;
+    retval = priv->ret_data + 19 + offset;
     c2 = *retval;
 
     /* Clarifier RX P4 *********************** */
-    retval = priv->ret_data + 18;
+    retval = priv->ret_data + 18 + offset;
     c = *retval;
     *retval = '\0';
 
     /* Clarifier Offset P3 ******************* */
     chan->rit = 0;
     chan->xit = 0;
-    retval = priv->ret_data + 13;
+    retval = priv->ret_data + 13 + offset;
 
     if (c == '1')
     {
@@ -10878,11 +10907,11 @@ int newcat_set_cmd_validate(RIG *rig)
     }
     else if (strncmp(priv->cmd_str, "BU", 2) == 0)
     {
-        strcpy(valcmd, "FA;"); // nothing to validate
+        strcpy(valcmd, ""); // nothing to validate
     }
     else if (strncmp(priv->cmd_str, "BD", 2) == 0)
     {
-        strcpy(valcmd, "FA;"); // nothing to validate
+        strcpy(valcmd, ""); // nothing to validate
     }
     else if (strncmp(priv->cmd_str, "EX", 2) == 0)
     {
@@ -10906,6 +10935,7 @@ int newcat_set_cmd_validate(RIG *rig)
     {
         int bytes;
         char cmd[256]; // big enough
+        repeat:
         rig_flush(&state->rigport);  /* discard any unsolicited data */
         SNPRINTF(cmd, sizeof(cmd), "%s", priv->cmd_str);
         rc = write_block(&state->rigport, (unsigned char *) cmd, strlen(cmd));
@@ -10915,6 +10945,8 @@ int newcat_set_cmd_validate(RIG *rig)
         if (strlen(valcmd) == 0) { RETURNFUNC(RIG_OK); }
 
         SNPRINTF(cmd, sizeof(cmd), "%s", valcmd);
+        // some rigs like FT-450/Signalink need a little time before we can ask for TX status again
+        if (strncmp(valcmd,"TX",2)==0) hl_usleep(50*1000); 
         rc = write_block(&state->rigport, (unsigned char *) cmd, strlen(cmd));
 
         if (rc != RIG_OK) { RETURNFUNC(-RIG_EIO); }
@@ -10922,6 +10954,8 @@ int newcat_set_cmd_validate(RIG *rig)
         bytes = read_string(&state->rigport, (unsigned char *) priv->ret_data,
                             sizeof(priv->ret_data),
                             &cat_term, sizeof(cat_term), 0, 1);
+        // we're expecting a response so we'll repeat if needed
+        if (bytes == 0) goto repeat;
 
         // FA and FB success is now verified in rig.c with a followup query
         // so no validation is needed
@@ -10940,6 +10974,7 @@ int newcat_set_cmd_validate(RIG *rig)
         if (strncmp(priv->cmd_str, "TX", 2) == 0
                 && strncmp(priv->ret_data, "TX", 2) == 0)
         {
+            if (strstr(priv->ret_data,"TX2")) goto repeat;
             // TX command does not echo what's sent so we just check the basic command
             RETURNFUNC(RIG_OK);
         }
@@ -11286,6 +11321,170 @@ int newcat_send_voice_mem(RIG *rig, vfo_t vfo, int ch)
     RETURNFUNC2(newcat_set_cmd(rig));
 }
 
+static int newcat_set_clarifier(RIG *rig, vfo_t vfo, int rx, int tx)
+{
+    struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
+    char main_sub_vfo = '0';
+    int result;
+
+    if (!newcat_valid_command(rig, "CF"))
+    {
+        RETURNFUNC2(-RIG_ENAVAIL);
+    }
+
+    if (rig->caps->targetable_vfo & RIG_TARGETABLE_FREQ)
+    {
+        main_sub_vfo = (RIG_VFO_B == vfo || RIG_VFO_SUB == vfo) ? '1' : '0';
+    }
+
+    // Negative value keeps the current state for RIT/XIT
+    if (rx < 0 || tx < 0)
+    {
+        int current_rx, current_tx;
+        result = newcat_get_clarifier(rig, vfo, &current_rx, &current_tx);
+        if (result == RIG_OK)
+        {
+            if (rx < 0)
+            {
+                rx = current_rx;
+            }
+            if (tx < 0)
+            {
+                tx = current_tx;
+            }
+        }
+        else
+        {
+            if (rx < 0)
+            {
+                rx = 0;
+            }
+            if (tx < 0)
+            {
+                tx = 0;
+            }
+        }
+    }
+
+    SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CF%c00%d%d000%c", main_sub_vfo,
+            rx ? 1 : 0, tx ? 1 : 0, cat_term);
+
+    RETURNFUNC2(newcat_set_cmd(rig));
+}
+
+static int newcat_get_clarifier(RIG *rig, vfo_t vfo, int *rx, int *tx)
+{
+    struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
+    char main_sub_vfo = '0';
+    int err;
+    int ret_data_len;
+    char *ret_data;
+
+    if (!newcat_valid_command(rig, "CF"))
+    {
+        RETURNFUNC2(-RIG_ENAVAIL);
+    }
+
+    if (rig->caps->targetable_vfo & RIG_TARGETABLE_FREQ)
+    {
+        main_sub_vfo = (RIG_VFO_B == vfo || RIG_VFO_SUB == vfo) ? '1' : '0';
+    }
+
+    SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CF%c00%c", main_sub_vfo, cat_term);
+
+    if ((err = newcat_get_cmd(rig)) != RIG_OK)
+    {
+        RETURNFUNC2(err);
+    }
+
+    ret_data_len = strlen(priv->ret_data);
+
+    /* skip command */
+    ret_data = priv->ret_data + strlen(priv->cmd_str) - 1;
+    rig_debug(RIG_DEBUG_TRACE, "%s: ret_data='%s'\n", __func__, ret_data);
+    /* chop term */
+    priv->ret_data[ret_data_len - 1] = '\0';
+
+    if (rx != NULL)
+    {
+        *rx = (ret_data[0] == '1') ? 1 : 0;
+    }
+    if (tx != NULL)
+    {
+        *tx = (ret_data[1] == '1') ? 1 : 0;
+    }
+
+    RETURNFUNC2(RIG_OK);
+}
+
+int newcat_set_clarifier_frequency(RIG *rig, vfo_t vfo, shortfreq_t freq)
+{
+    struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
+    char main_sub_vfo = '0';
+
+    if (!newcat_valid_command(rig, "CF"))
+    {
+        RETURNFUNC2(-RIG_ENAVAIL);
+    }
+
+    if (rig->caps->targetable_vfo & RIG_TARGETABLE_FREQ)
+    {
+        main_sub_vfo = (RIG_VFO_B == vfo || RIG_VFO_SUB == vfo) ? '1' : '0';
+    }
+
+    SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CF%c01%+05d%c", main_sub_vfo,
+        (int) freq, cat_term);
+
+    RETURNFUNC2(newcat_set_cmd(rig));
+}
+
+int newcat_get_clarifier_frequency(RIG *rig, vfo_t vfo, shortfreq_t *freq)
+{
+    struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
+    char main_sub_vfo = '0';
+    int err;
+    int ret_data_len;
+    char *ret_data;
+    int freq_result;
+    int result;
+
+    if (!newcat_valid_command(rig, "CF"))
+    {
+        RETURNFUNC2(-RIG_ENAVAIL);
+    }
+
+    if (rig->caps->targetable_vfo & RIG_TARGETABLE_FREQ)
+    {
+        main_sub_vfo = (RIG_VFO_B == vfo || RIG_VFO_SUB == vfo) ? '1' : '0';
+    }
+
+    SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CF%c01%c", main_sub_vfo, cat_term);
+
+    if ((err = newcat_get_cmd(rig)) != RIG_OK)
+    {
+        RETURNFUNC2(err);
+    }
+
+    ret_data_len = strlen(priv->ret_data);
+
+    /* skip command */
+    ret_data = priv->ret_data + strlen(priv->cmd_str) - 1;
+    rig_debug(RIG_DEBUG_TRACE, "%s: ret_data='%s'\n", __func__, ret_data);
+    /* chop term */
+    priv->ret_data[ret_data_len - 1] = '\0';
+
+    result = sscanf(ret_data, "%05d", &freq_result);
+    if (result != 1)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: error parsing clarifier frequency: %s\n", __func__, ret_data);
+        RETURNFUNC2(-RIG_EPROTO);
+    }
+
+    *freq = (shortfreq_t) freq_result;
+
+    RETURNFUNC2(RIG_OK);
+}
+
 static int newcat_set_apf_frequency(RIG *rig, vfo_t vfo, int freq)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
@@ -11302,7 +11501,7 @@ static int newcat_set_apf_frequency(RIG *rig, vfo_t vfo, int freq)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO%c3%04d%c", main_sub_vfo,
                  (freq + 250) / 10, cat_term);
     }
-    else if (is_ftdx10 || is_ft991 || is_ft891)
+    else if (is_ftdx10 || is_ft991 || is_ft891 || is_ft710)
     {
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO03%04d%c", (freq + 250) / 10,
                  cat_term);
@@ -11338,7 +11537,7 @@ static int newcat_get_apf_frequency(RIG *rig, vfo_t vfo, int *freq)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO%c3%c", main_sub_vfo,
                  cat_term);
     }
-    else if (is_ftdx10 || is_ft991 || is_ft891)
+    else if (is_ftdx10 || is_ft991 || is_ft891 || is_ft710)
     {
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO03%c", cat_term);
     }
@@ -11386,6 +11585,11 @@ static int newcat_set_apf_width(RIG *rig, vfo_t vfo, int choice)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030201%d%c", choice,
                  cat_term);
     }
+    else if (is_ft710)
+    {
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030204%d%c", choice,
+                 cat_term);
+    }
     else if (is_ft991)
     {
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX111%d%c", choice, cat_term);
@@ -11425,6 +11629,10 @@ static int newcat_get_apf_width(RIG *rig, vfo_t vfo, int *choice)
     if (is_ftdx101d || is_ftdx101mp || is_ftdx10)
     {
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030201%c", cat_term);
+    }
+    else if (is_ft710)
+    {
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030204%c", cat_term);
     }
     else if (is_ft991)
     {
@@ -11480,7 +11688,7 @@ static int newcat_set_contour(RIG *rig, vfo_t vfo, int status)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO%c0%04d%c", main_sub_vfo,
                  status ? 1 : 0, cat_term);
     }
-    else if (is_ftdx10 || is_ft991 || is_ft891)
+    else if (is_ftdx10 || is_ft991 || is_ft891 || is_ft710)
     {
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO00%04d%c", status ? 1 : 0,
                  cat_term);
@@ -11522,7 +11730,7 @@ static int newcat_get_contour(RIG *rig, vfo_t vfo, int *status)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO%c0%c", main_sub_vfo,
                  cat_term);
     }
-    else if (is_ftdx10 || is_ft991 || is_ft891)
+    else if (is_ftdx10 || is_ft991 || is_ft891 || is_ft710)
     {
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO00%c", cat_term);
     }
@@ -11576,7 +11784,7 @@ static int newcat_set_contour_frequency(RIG *rig, vfo_t vfo, int freq)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO%c1%04d%c", main_sub_vfo,
                  freq, cat_term);
     }
-    else if (is_ftdx10 || is_ft991 || is_ft891)
+    else if (is_ftdx10 || is_ft991 || is_ft891 || is_ft710)
     {
         // Range is 10..3200 Hz
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO01%04d%c", freq, cat_term);
@@ -11619,7 +11827,7 @@ static int newcat_get_contour_frequency(RIG *rig, vfo_t vfo, int *freq)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO%c1%c", main_sub_vfo,
                  cat_term);
     }
-    else if (is_ftdx10 || is_ft991 || is_ft891)
+    else if (is_ftdx10 || is_ft991 || is_ft891 || is_ft710)
     {
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "CO01%c", cat_term);
     }
@@ -11682,6 +11890,11 @@ static int newcat_set_contour_level(RIG *rig, vfo_t vfo, int level)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030202%+03d%c", level,
                  cat_term);
     }
+    else if (is_ft710)
+    {
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030205%+03d%c", level,
+                 cat_term);
+    }
     else if (is_ft991)
     {
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX112%+03d%c", level, cat_term);
@@ -11722,6 +11935,10 @@ static int newcat_get_contour_level(RIG *rig, vfo_t vfo, int *level)
     if (is_ftdx101d || is_ftdx101mp || is_ftdx10)
     {
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030202%c", cat_term);
+    }
+    else if (is_ft710)
+    {
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030205%c", cat_term);
     }
     else if (is_ft991)
     {
@@ -11776,6 +11993,11 @@ static int newcat_set_contour_width(RIG *rig, vfo_t vfo, int width)
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030203%02d%c", width,
                  cat_term);
     }
+    else if (is_ft710)
+    {
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030206%02d%c", width,
+                 cat_term);
+    }
     else if (is_ft991)
     {
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX113%02d%c", width, cat_term);
@@ -11815,6 +12037,10 @@ static int newcat_get_contour_width(RIG *rig, vfo_t vfo, int *width)
     if (is_ftdx101d || is_ftdx101mp || is_ftdx10)
     {
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030203%c", cat_term);
+    }
+    else if (is_ft710)
+    {
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX030206%c", cat_term);
     }
     else if (is_ft991)
     {
