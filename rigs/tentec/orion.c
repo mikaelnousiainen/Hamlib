@@ -394,7 +394,6 @@ int tt565_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
 #ifdef TT565_ASCII_FREQ
     /*  Use ASCII mode to set frequencies */
-    // cppcheck-suppress *
     SNPRINTF(cmdbuf, sizeof(cmdbuf), "*%cF%"PRIll EOM,
              which_vfo(rig, vfo),
              (int64_t)freq);
@@ -1302,8 +1301,6 @@ int tt565_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         if (rig->caps->rig_model == RIG_MODEL_TT599)
         {
-            double fwd, ref;
-
             /* in Xmit, response is @STF99R10<cr> 99 watts forward,1.0 watt reflected
                 uu = fwd watts
                 vv = rev watts x 10
@@ -1321,6 +1318,8 @@ int tt565_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
             if (lvlbuf[2] == 'T')
             {
+                double fwd, ref;
+
                 ref = atof(strchr(lvlbuf + 2, 'R') + 1) / 10.0;   /* reflected power */
                 fwd = atof(strchr(lvlbuf + 2, 'F') + 1);          /* forward power */
 

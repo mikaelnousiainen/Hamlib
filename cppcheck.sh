@@ -24,7 +24,8 @@ SUPPRESS="\
 --suppress=*:extra/gnuradio/wfm.h \
 --suppress=*:extra/gnuradio/HrAGC.h \
 --suppress=*:extra/gnuradio/gnuradio.cc \
---suppress=missingIncludeSystem
+--suppress=missingIncludeSystem \
+--suppress=*:style/rigs/adat/adat.c
 
 #CHECK="\
 #-D RIG_LEVEL_LINEOUT=1 \
@@ -70,6 +71,7 @@ CHECK="\
 -D SIGINT \
 -D WIN32 \
 -D CLOCK_REALTIME \
+-D HAVE_PTHREAD \
 -D HAVE_SIGNAL"
 
 # If no directory or file name provided, scan the entire project.
@@ -77,6 +79,7 @@ if test $# -eq 0 ; then
         echo "See cppcheck.log when done"
         echo "This takes a while to run"
         cppcheck --inline-suppr \
+                 --check-level=exhaustive \
                  -I src \
                  -I include \
                  -I include/hamlib/ \
@@ -88,10 +91,12 @@ if test $# -eq 0 ; then
                  --std=c99 \
                  $SUPPRESS \
                  $CHECK \
+                 --template='{file}:{line},{severity},{id},{message}' \
                  . \
                  >cppcheck.log 2>&1
 else
         cppcheck --inline-suppr \
+                 --check-level=exhaustive
                  -I src \
                  -I include \
                  -I include/hamlib/ \
@@ -103,5 +108,6 @@ else
                  --std=c99 \
                  $SUPPRESS \
                  $CHECK \
+                 --template='{file}:{line},{severity},{id},{message}'\
                  "$@"
 fi

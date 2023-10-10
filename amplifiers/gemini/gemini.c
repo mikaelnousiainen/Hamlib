@@ -24,11 +24,13 @@
 #include "misc.h"
 #include "gemini.h"
 
+#if 0
 struct fault_list
 {
     int code;
     char *errmsg;
 };
+#endif
 
 /*
  * Initialize data structures
@@ -84,7 +86,6 @@ int gemini_transaction(AMP *amp, const char *cmd, char *response,
 
     struct amp_state *rs;
     int err;
-    int len = 0;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called, cmd=%s\n", __func__, cmd);
 
@@ -102,7 +103,7 @@ int gemini_transaction(AMP *amp, const char *cmd, char *response,
     if (response) // if response expected get it
     {
         response[0] = 0;
-        len = read_string(&rs->ampport, (unsigned char *) response, response_len, "\n",
+        int len = read_string(&rs->ampport, (unsigned char *) response, response_len, "\n",
                           1, 0, 1);
 
         if (len < 0)
@@ -123,6 +124,7 @@ int gemini_transaction(AMP *amp, const char *cmd, char *response,
  * Get Info
  * returns the model name string
  */
+// cppcheck-suppress constParameterPointer
 const char *gemini_get_info(AMP *amp)
 {
     const struct amp_caps *rc;
@@ -157,7 +159,7 @@ int gemini_status_parse(AMP *amp)
     {
         char tmp[8];
         double freq;
-        n += sscanf(p, "BAND=%lf%s", &freq, tmp);
+        n += sscanf(p, "BAND=%lf%7s", &freq, tmp);
 
         if (tmp[0] == 'K') { priv->band = freq * 1000; }
 
@@ -168,10 +170,10 @@ int gemini_status_parse(AMP *amp)
         n += sscanf(p, "VSWR=%lf", &priv->vswr);
         n += sscanf(p, "CURRENT=%d", &priv->current);
         n += sscanf(p, "TEMPERATURE=%d", &priv->temperature);
-        n += sscanf(p, "STATE=%s", priv->state);
-        n += sscanf(p, "PTT=%s", tmp);
+        n += sscanf(p, "STATE=%7s", priv->state);
+        n += sscanf(p, "PTT=%7s", tmp);
         priv->ptt = tmp[0] == 'T';
-        n += sscanf(p, "TRIP=%s", priv->trip);
+        n += sscanf(p, "TRIP=%7s", priv->trip);
 
         if (n == 0)
         {
@@ -187,11 +189,13 @@ int gemini_status_parse(AMP *amp)
 int gemini_get_freq(AMP *amp, freq_t *freq)
 {
     int retval;
-    struct gemini_priv_data *priv = amp->state.priv;
+    struct gemini_priv_data *priv;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (!amp) { return -RIG_EINVAL; }
+
+    priv = amp->state.priv;
 
     retval = gemini_status_parse(amp);
 

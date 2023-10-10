@@ -130,7 +130,6 @@ int elecraft_open(RIG *rig)
 
     if (rig->caps->rig_model == RIG_MODEL_XG3)   // XG3 doesn't have ID
     {
-        struct rig_state *rs = &rig->state;
         char *cmd = "V;";
         char data[32];
 
@@ -319,7 +318,40 @@ int elecraft_open(RIG *rig)
 
         if (err != RIG_OK)
         {
+            rig_debug(RIG_DEBUG_ERR, "%s: Firmware RVM failed\n", __func__);
             return err;
+        }
+        err = elecraft_get_firmware_revision_level(rig, "RVD", priv->fw_rev,
+                (sizeof(k3_fw_rev) / sizeof(k3_fw_rev[0])));
+
+        if (err != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: Firmware RVD failed\n", __func__);
+        }
+
+        if (priv->is_k3)
+        {
+        err = elecraft_get_firmware_revision_level(rig, "RVA", priv->fw_rev,
+                (sizeof(k3_fw_rev) / sizeof(k3_fw_rev[0])));
+
+        if (err != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: Firmware RVA failed\n", __func__);
+        }
+        err = elecraft_get_firmware_revision_level(rig, "RVR", priv->fw_rev,
+                (sizeof(k3_fw_rev) / sizeof(k3_fw_rev[0])));
+
+        if (err != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: Firmware RVR failed\n", __func__);
+        }
+        err = elecraft_get_firmware_revision_level(rig, "RVF", priv->fw_rev,
+                (sizeof(k3_fw_rev) / sizeof(k3_fw_rev[0])));
+
+        if (err != RIG_OK)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: Firmware RVF failed\n", __func__);
+        }
         }
 
         break;
@@ -360,12 +392,12 @@ int elecraft_open(RIG *rig)
 
 int elecraft_close(RIG *rig)
 {
-    struct kenwood_priv_data *priv = rig->state.priv;
-    char cmd[32];
-    int err;
+    const struct kenwood_priv_data *priv = rig->state.priv;
 
     if (priv->save_k2_ext_lvl >= 0)
     {
+        int err;
+        char cmd[32];
         sprintf(cmd, "K2%d;", priv->save_k2_ext_lvl);
         err = kenwood_transaction(rig, cmd, NULL, 0);
 
@@ -462,11 +494,6 @@ int elecraft_get_extension_level(RIG *rig, const char *cmd, int *ext_level)
 
     for (i = 0; elec_ext_id_str_lst[i].level != EXT_LEVEL_NONE; i++)
     {
-        if (strcmp(elec_ext_id_str_lst[i].id, bufptr) != 0)
-        {
-            continue;
-        }
-
         if (strcmp(elec_ext_id_str_lst[i].id, bufptr) == 0)
         {
             *ext_level = elec_ext_id_str_lst[i].level;
@@ -486,6 +513,17 @@ int elecraft_get_firmware_revision_level(RIG *rig, const char *cmd,
     int err;
     char *bufptr;
     char buf[KENWOOD_MAX_BUF_LEN];
+    char rvp = cmd[3];
+    char *rv = "UNK";
+    switch(rvp)
+    {
+        case 'M': rv = "MCU";break;
+        case 'D': rv = "DSP";break;
+        case 'A': rv = "AUX";break;
+        case 'R': rv = "DVR";break;
+        case 'F': rv = "FPF";break;
+        default: rv = "???";break;
+    }
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -519,8 +557,8 @@ int elecraft_get_firmware_revision_level(RIG *rig, const char *cmd,
     /* Copy out */
     strncpy(fw_rev, bufptr, fw_rev_sz - 1);
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s: Elecraft firmware revision is %s\n", __func__,
-              fw_rev);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: Elecraft %s firmware revision is %s\n", __func__,
+              rv, fw_rev);
 
     return RIG_OK;
 }

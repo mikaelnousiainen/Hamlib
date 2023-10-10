@@ -350,12 +350,15 @@ transaction_write:
         skip |= strncmp(cmdstr, "RU", 2) == 0;
         skip |= strncmp(cmdstr, "RD", 2) == 0;
         skip |= strncmp(cmdstr, "KYW", 3) == 0;
+        skip |= strncmp(cmdstr, "KY ", 3) == 0;
         skip |= strncmp(cmdstr, "PS1", 3) == 0;
         skip |= strncmp(cmdstr, "PS0", 3) == 0;
         skip |= strncmp(cmdstr, "K22", 3) == 0;
 
         if (skip)
         {
+            // most command we give them a little time -- but not KY
+            if (strncmp(cmdstr, "KY ", 3)!= 0)
             hl_usleep(200 * 1000); // give little settle time for these commands
             goto transaction_quit;
         }
@@ -364,7 +367,7 @@ transaction_write:
     // Malachite SDR cannot send ID after FA
     if (!datasize && priv->no_id) { RETURNFUNC2(RIG_OK); }
 
-    if (!datasize)
+    if (!datasize && strncmp(cmdstr, "KY",2)!=0)
     {
         rig->state.transaction_active = 0;
 
@@ -716,6 +719,8 @@ int kenwood_safe_transaction(RIG *rig, const char *cmd, char *buf,
         if (checklen && length != expected) /* worth retrying as some rigs
                                    occasionally send short results */
         {
+            // QRPLABS can't seem top decide if they give 37 or 38 bytes for IF command
+            if (strncmp(cmd,"IF",2)==0 && rig->caps->rig_model == RIG_MODEL_QRPLABS) break;
             struct kenwood_priv_data *priv = rig->state.priv;
             rig_debug(RIG_DEBUG_ERR,
                       "%s: wrong answer; len for cmd %s: expected = %d, got %d\n",
@@ -924,7 +929,6 @@ int kenwood_open(RIG *rig)
     {
         /* we need the firmware version for these rigs to deal with f/w defects */
         static char fw_version[7];
-        char *dot_pos;
 
         err = kenwood_transaction(rig, "FV", fw_version, sizeof(fw_version));
 
@@ -937,7 +941,7 @@ int kenwood_open(RIG *rig)
         }
         else
         {
-
+            char *dot_pos;
             /* store the data  after the "FV" which should be  a f/w version
                string of the form n.n e.g. 1.07 */
             priv->fw_rev = &fw_version[2];
@@ -1043,9 +1047,8 @@ int kenwood_open(RIG *rig)
         if (kenwood_id_string_list[i].model == rig->caps->rig_model)
         {
             int retval;
-            split_t split;
             vfo_t tx_vfo;
-            rig_debug(RIG_DEBUG_VERBOSE, "%s: found the right driver for %s(%d)\n",
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: found the right driver for %s(%u)\n",
                       __func__, rig->caps->model_name, rig->caps->rig_model);
             /* get current AI state so it can be restored */
             kenwood_get_trn(rig, &priv->trn_state);  /* ignore errors */
@@ -1061,6 +1064,7 @@ int kenwood_open(RIG *rig)
             if (!RIG_IS_THD74 && !RIG_IS_THD7A && !RIG_IS_TMD700)
             {
                 // call get_split to fill in current split and tx_vfo status
+                split_t split;
                 retval = kenwood_get_split_vfo_if(rig, RIG_VFO_A, &split, &tx_vfo);
 
                 if (retval != RIG_OK)
@@ -1115,7 +1119,7 @@ int kenwood_close(RIG *rig)
                                                  it's not supported */
     }
 
-    if (priv->poweron != 0 && rig->state.auto_power_off)
+    if (rig->state.auto_power_off)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: got PS1 so powerdown\n", __func__);
         rig_set_powerstat(rig, 0);
@@ -1257,7 +1261,7 @@ int kenwood_set_vfo(RIG *rig, vfo_t vfo)
         rig_debug(RIG_DEBUG_VERBOSE, "%s: checking satellite mode status\n", __func__);
         SNPRINTF(cmdbuf, sizeof(cmdbuf), "SA");
 
-        retval = kenwood_transaction(rig, cmdbuf, retbuf, 4);
+        retval = kenwood_transaction(rig, cmdbuf, retbuf, 18);
 
         if (retval != RIG_OK)
         {
@@ -1918,7 +1922,6 @@ int kenwood_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         RETURNFUNC2(-RIG_EINVAL);
     }
 
-    // cppcheck-suppress *
     SNPRINTF(freqbuf, sizeof(freqbuf), "F%c%011"PRIll, vfo_letter, (int64_t)freq);
 
     // we need to modify priv->verify_cmd if ID is not being used
@@ -3383,7 +3386,7 @@ int kenwood_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     case RIG_LEVEL_CWPITCH:
     {
         /* Newer rigs have an extra digit of pitch factor */
-        int len = (RIG_IS_TS890S || RIG_IS_TS990S) ? 3 : 2;
+        len = (RIG_IS_TS890S || RIG_IS_TS990S) ? 3 : 2;
 
         /* Round input freq to nearest multiple of step */
         kenwood_val = (val.i - level_info->min.i + (level_info->step.i / 2))
@@ -4300,8 +4303,6 @@ int kenwood_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
     case RIG_FUNC_FBKIN:
     {
-        int raw_value;
-
         retval = kenwood_safe_transaction(rig, "SD", respbuf, 20, 6);
 
         if (retval != RIG_OK)
@@ -4957,11 +4958,11 @@ int kenwood_get_dcd(RIG *rig, vfo_t vfo, dcd_t *dcd)
  */
 int kenwood_set_trn(RIG *rig, int trn)
 {
-    char buf[5];
     ENTERFUNC;
 
     switch (rig->caps->rig_model)
     {
+    char buf[5];
     case RIG_MODEL_POWERSDR: // powersdr doesn't have AI command
         RETURNFUNC(-RIG_ENAVAIL);
 
@@ -5274,7 +5275,7 @@ int kenwood_send_morse(RIG *rig, vfo_t vfo, const char *msg)
 
             if (!strncmp(m2, "KY2", 3)) { break; }
 
-            if (!strncmp(m2, "KY1", 3)) { hl_usleep(500000); }
+            if (!strncmp(m2, "KY1", 3)) { hl_usleep(50*1000); }
             else { RETURNFUNC(-RIG_EINVAL); }
         }
 
@@ -5325,6 +5326,7 @@ int kenwood_send_morse(RIG *rig, vfo_t vfo, const char *msg)
 
 /*
  * kenwood_stop_morse
+ /
  */
 int kenwood_stop_morse(RIG *rig, vfo_t vfo)
 {
@@ -5338,11 +5340,59 @@ int kenwood_stop_morse(RIG *rig, vfo_t vfo)
 int kenwood_send_voice_mem(RIG *rig, vfo_t vfo, int bank)
 {
     char cmd[16];
+    struct kenwood_priv_data *priv = rig->state.priv;
     ENTERFUNC;
 
+#if 0 // don't really need to turn on the list
     SNPRINTF(cmd, sizeof(cmd), "PB01");
     kenwood_transaction(rig, cmd, NULL, 0);
-    SNPRINTF(cmd, sizeof(cmd), "PB1%d", bank);
+#endif
+    if ((bank < 1 || bank > 3) &&
+        (rig->caps->rig_model == RIG_MODEL_TS2000
+        || rig->caps->rig_model == RIG_MODEL_TS480))
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: TS2000/TS480 channel is from 1 to 3\n", __func__);
+        return -RIG_EINVAL;
+    }
+    // some rigs have 5 channels -- newew ones  have 10 channels
+    if ((bank  < 1 || bank > 5)
+        && (rig->caps->rig_model == RIG_MODEL_TS590SG
+        || rig->caps->rig_model == RIG_MODEL_TS590S))
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: TS590S/SG channel is from 1 to 5\n", __func__);
+        return -RIG_EINVAL;
+    }
+    if (rig->caps->rig_model == RIG_MODEL_TS2000
+        || (rig->caps->rig_model == RIG_MODEL_TS480
+        || (rig->caps->rig_model == RIG_MODEL_TS590SG
+        || rig->caps->rig_model == RIG_MODEL_TS590S)))
+    {
+        SNPRINTF(cmd, sizeof(cmd), "PB%d", bank);
+    }
+    else
+    {
+        SNPRINTF(cmd, sizeof(cmd), "PB1%d1", bank);
+    }
+    priv->voice_bank = bank;
+    RETURNFUNC(kenwood_transaction(rig, cmd, NULL, 0));
+}
+
+int kenwood_stop_voice_mem(RIG *rig, vfo_t vfo)
+{
+    char cmd[16];
+    struct kenwood_priv_data *priv = rig->state.priv;
+    ENTERFUNC;
+    if (rig->caps->rig_model == RIG_MODEL_TS2000
+        || (rig->caps->rig_model == RIG_MODEL_TS480
+        || (rig->caps->rig_model == RIG_MODEL_TS590SG
+        || rig->caps->rig_model == RIG_MODEL_TS590S)))
+    {
+        SNPRINTF(cmd, sizeof(cmd), "PB0");
+    }
+    else
+    {
+        SNPRINTF(cmd, sizeof(cmd), "PB1%d0", priv->voice_bank);
+    }
     RETURNFUNC(kenwood_transaction(rig, cmd, NULL, 0));
 }
 
@@ -5865,11 +5915,6 @@ DECLARE_PROBERIG_BACKEND(kenwood)
     int rates_idx;
     int write_delay = port->write_delay;
     short retry = port->retry;
-
-    if (!port)
-    {
-        return (RIG_MODEL_NONE);
-    }
 
     if (port->type.rig != RIG_PORT_SERIAL)
     {

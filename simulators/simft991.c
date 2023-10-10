@@ -2,10 +2,12 @@
 // gcc -o simyaesu simyaesu.c
 #define _XOPEN_SOURCE 700
 // since we are POSIX here we need this
+#if 0
 struct ip_mreq
-  {
+{
     int dummy;
-  };
+};
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +24,10 @@ char tx_vfo = '0';
 char rx_vfo = '0';
 char modeA = '0';
 char modeB = '0';
+int keyspd = 20;
+int bandselect = 5;
+int  width = 21;
+int narrow = 0;
 
 // ID 0310 == 310, Must drop leading zero
 typedef enum nc_rigid_e
@@ -282,6 +288,38 @@ int main(int argc, char *argv[])
             printf("n=%d\n", n);
 
             if (n < 0) { perror("EX032"); }
+        }
+        else if (strncmp(buf, "KS;", 3) == 0)
+        {
+            sprintf(buf, "KS%d;", keyspd);
+            n = write(fd, buf, strlen(buf));
+        }
+        else if (strncmp(buf, "KS", 2) == 0)
+        {
+            sscanf(buf, "KS%03d", &keyspd);
+        }
+        else if (strncmp(buf, "BS;", 3) == 0) // cannot query BS
+        {
+            sprintf(buf, "BS%02d;", bandselect);
+            n = write(fd, buf, strlen(buf));
+        }
+        else if (strncmp(buf, "SH0;", 4) == 0)
+        {
+            sprintf(buf, "SH0%02d;", width);
+            n = write(fd, buf, strlen(buf));
+        }
+        else if (strncmp(buf, "SH0", 3) == 0)
+        {
+            sscanf(buf, "SH0%02d", &width);
+        }
+        else if (strncmp(buf, "NA0;", 4) == 0)
+        {
+            sprintf(buf, "NA0%d;", narrow);
+            n = write(fd, buf, strlen(buf));
+        }
+        else if (strncmp(buf, "NA0", 3) == 0)
+        {
+            sscanf(buf, "NA0%d", &narrow);
         }
 
         else if (strlen(buf) > 0)

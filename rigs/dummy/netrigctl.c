@@ -803,7 +803,6 @@ static int netrigctl_open(RIG *rig)
             }
             else if (strcmp(setting, "agc_levels") == 0)
             {
-                int i = 0;
                 char *p = strtok(value, " ");
                 rig->caps->agc_levels[0] = RIG_AGC_NONE; // default value gets overwritten
                 rig->caps->agc_level_count = 0;
@@ -812,7 +811,7 @@ static int netrigctl_open(RIG *rig)
                 {
                     int agc_code;
                     char agc_string[32];
-                    int n = sscanf(p, "%d=%s\n", &agc_code, agc_string);
+                    int n = sscanf(p, "%d=%31s\n", &agc_code, agc_string);
 
                     if (n == 2)
                     {
@@ -914,7 +913,7 @@ static int netrigctl_open(RIG *rig)
 
 static int netrigctl_close(RIG *rig)
 {
-    struct rig_state *rs = &rig->state;
+    const struct rig_state *rs = &rig->state;
     int ret;
     char buf[BUF_MAX];
 
@@ -1093,14 +1092,13 @@ static int netrigctl_set_vfo(RIG *rig, vfo_t vfo)
     int ret;
     char cmd[CMD_MAX];
     char buf[BUF_MAX];
-    char vfostr[16] = "";
     struct netrigctl_priv_data *priv;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     priv = (struct netrigctl_priv_data *)rig->state.priv;
 
-    SNPRINTF(cmd, sizeof(cmd), "V%s %s\n", vfostr, rig_strvfo(vfo));
+    SNPRINTF(cmd, sizeof(cmd), "V %s\n", rig_strvfo(vfo));
     rig_debug(RIG_DEBUG_VERBOSE, "%s: cmd='%s'\n", __func__, cmd);
     ret = netrigctl_transaction(rig, cmd, strlen(cmd), buf);
 
@@ -2128,7 +2126,7 @@ static int netrigctl_get_powerstat(RIG *rig, powerstat_t *status)
         // a return of 1 should indicate there is no powerstat command available
         // so we fake the ON status
         // also a problem with Flex 6xxx and Log4OM not working due to lack of PS command
-        if (ret != RIG_ETIMEOUT)
+        if (ret != -RIG_ETIMEOUT)
         {
             rig_debug(RIG_DEBUG_VERBOSE,
                       "%s: PS command failed (ret=%d) so returning RIG_POWER_ON\n", __func__, ret);
@@ -2495,7 +2493,8 @@ static const char *netrigctl_get_info(RIG *rig)
 static int netrigctl_send_dtmf(RIG *rig, vfo_t vfo, const char *digits)
 {
     int ret, len;
-    char *cmdp, cmd[] = "\\send_dtmf ";
+    char *cmdp;
+    const char cmd[] = "\\send_dtmf ";
     char buf[BUF_MAX];
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -2578,7 +2577,8 @@ static int netrigctl_send_voice_mem(RIG *rig, vfo_t vfo, int ch)
 static int netrigctl_send_morse(RIG *rig, vfo_t vfo, const char *msg)
 {
     int ret, len;
-    char *cmdp, cmd[] = "\\send_morse ";
+    char *cmdp; 
+    const char cmd[] = "\\send_morse ";
     char buf[BUF_MAX];
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -2809,7 +2809,7 @@ struct rig_caps netrigctl_caps =
     RIG_MODEL(RIG_MODEL_NETRIGCTL),
     .model_name =     "NET rigctl",
     .mfg_name =       "Hamlib",
-    .version =        "20230617.0",
+    .version =        "20231004.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,

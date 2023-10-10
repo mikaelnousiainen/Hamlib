@@ -257,6 +257,7 @@ static int aclog_transaction(RIG *rig, char *cmd, char *value,
 
     ENTERFUNC;
     ELAPSED1;
+    strcpy(xml,"UNKNOWN");
 
     set_transaction_active(rig);
 
@@ -529,7 +530,7 @@ static int aclog_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     if (p)
     {
         *mode = RIG_MODE_NONE;
-        int n = sscanf(p, "<MODE>%[^<]", modetmp);
+        int n = sscanf(p, "<MODE>%31[^<]", modetmp);
 
         if (n) { *mode = modeMapGetHamlib(modetmp); }
         else
@@ -583,7 +584,7 @@ static int aclog_open(RIG *rig)
     rig_debug(RIG_DEBUG_TRACE, "%s: returned value=%s\n", __func__, value);
     char version_pgm[64];
     sscanf(value,
-           "<CMD><PROGRAMRESPONSE><PGM>N3FJP's Amateur Contact Log</PGM><VER>%[^<]",
+           "<CMD><PROGRAMRESPONSE><PGM>N3FJP's Amateur Contact Log</PGM><VER>%63[^<]",
            version_pgm);
     rig_debug(RIG_DEBUG_VERBOSE, "%s: ACLog version=%s\n", __func__, version_pgm);
 
@@ -608,7 +609,7 @@ static int aclog_open(RIG *rig)
     char transceiver[64];
     strcpy(transceiver, "Unknown");
 
-    if (p) { sscanf(p, "<RIG>%[^<]", transceiver); }
+    if (p) { sscanf(p, "<RIG>%63[^<]", transceiver); }
 
     rig_debug(RIG_DEBUG_VERBOSE, "Transceiver=%s\n", transceiver);
 
@@ -708,10 +709,12 @@ static int aclog_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         RETURNFUNC2(-RIG_EINVAL);
     }
 
+#if 0
     if (vfo == RIG_VFO_CURR)
     {
         vfo = rig->state.current_vfo;
     }
+#endif
 
     SNPRINTF(cmd, sizeof(cmd),
              "<CMD><CHANGEFREQ><VALUE>%lf</VALUE><SUPPRESSMODEDEFAULT>TRUE</SUPPRESSMODEDEFAULT></CMD>\r\n",
@@ -738,7 +741,7 @@ static int aclog_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     char cmd[MAXCMDLEN];
     char *p;
     char *pttmode;
-    char *ttmode;
+    char *ttmode = NULL;
     struct aclog_priv_data *priv = (struct aclog_priv_data *) rig->state.priv;
 
     ENTERFUNC;
@@ -857,7 +860,7 @@ static int aclog_get_vfo(RIG *rig, vfo_t *vfo)
 */
 static const char *aclog_get_info(RIG *rig)
 {
-    struct aclog_priv_data *priv = (struct aclog_priv_data *) rig->state.priv;
+    const struct aclog_priv_data *priv = (struct aclog_priv_data *) rig->state.priv;
 
     return (priv->info);
 }
@@ -865,7 +868,7 @@ static const char *aclog_get_info(RIG *rig)
 static int aclog_power2mW(RIG *rig, unsigned int *mwpower, float power,
                           freq_t freq, rmode_t mode)
 {
-    struct aclog_priv_data *priv = (struct aclog_priv_data *) rig->state.priv;
+    const struct aclog_priv_data *priv = (struct aclog_priv_data *) rig->state.priv;
     ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s: passed power = %f\n", __func__, power);
     rig_debug(RIG_DEBUG_TRACE, "%s: passed freq = %"PRIfreq" Hz\n", __func__, freq);

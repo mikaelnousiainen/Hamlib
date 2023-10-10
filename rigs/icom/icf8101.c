@@ -99,7 +99,15 @@ static int icf8101_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode,
     int modebuf_len;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: vfo=%s\n", __func__, rig_strvfo(vfo));
+    if (retval != RIG_OK)
+    {
+        return retval;
+    }
     retval = icom_transaction(rig, 0x1A, 0x34, NULL, 0, modebuf, &modebuf_len);
+    if (retval != RIG_OK)
+    {
+        return retval;
+    }
     dump_hex(modebuf, modebuf_len);
 
     switch (modebuf[1])
@@ -322,7 +330,7 @@ int icf8101_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
         RETURNFUNC(-RIG_ETIMEOUT);
     }
 
-    if (ack_len != 1 || (ack_len >= 1 && ackbuf[0] != ACK))
+    if (ack_len != 1 || ackbuf[0] != ACK)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: ack NG (%#.2x), len=%d\n", __func__,
                   ackbuf[0], ack_len);
@@ -377,7 +385,7 @@ const struct rig_caps icf8101_caps =
     RIG_MODEL(RIG_MODEL_ICF8101),
     .model_name =   "IC-F8101",
     .mfg_name =   "Icom",
-    .version =    BACKEND_VER ".2",
+    .version =    BACKEND_VER ".3",
     .copyright =    "LGPL",
     .status =   RIG_STATUS_STABLE,
     .rig_type =   RIG_TYPE_TRANSCEIVER,
@@ -401,7 +409,6 @@ const struct rig_caps icf8101_caps =
     .has_get_parm =   RIG_PARM_NONE,
     .has_set_parm =   RIG_PARM_NONE,
     .level_gran = {
-        // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
         [LVL_VOXDELAY] = { .min = { .i = 0 }, .max = { .i = 20 }, .step = { .i = 1 } },
     },

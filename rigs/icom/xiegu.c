@@ -53,7 +53,7 @@
 #define X108G_LEVELS (RIG_LEVEL_PREAMP|RIG_LEVEL_ATT|RIG_LEVEL_AGC|RIG_LEVEL_COMP|RIG_LEVEL_BKINDL|RIG_LEVEL_NR|RIG_LEVEL_PBT_IN|RIG_LEVEL_PBT_OUT|RIG_LEVEL_CWPITCH|RIG_LEVEL_RFPOWER|RIG_LEVEL_MICGAIN|RIG_LEVEL_KEYSPD|RIG_LEVEL_NOTCHF_RAW|RIG_LEVEL_SQL|RIG_LEVEL_RAWSTR|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_VOXGAIN|RIG_LEVEL_VOXDELAY|RIG_LEVEL_SWR|RIG_LEVEL_ALC)
 
 #define X108G_VFOS (RIG_VFO_A|RIG_VFO_B|RIG_VFO_MEM)
-#define X108G_PARMS (RIG_PARM_ANN|RIG_PARM_BACKLIGHT|RIG_PARM_APO|RIG_PARM_TIME|RIG_PARM_BEEP)
+#define X108G_PARMS (RIG_PARM_BACKLIGHT|RIG_PARM_APO|RIG_PARM_TIME|RIG_PARM_BEEP)
 
 #define X108G_VFO_OPS (RIG_OP_CPY|RIG_OP_XCHG|RIG_OP_FROM_VFO|RIG_OP_TO_VFO|RIG_OP_MCL|RIG_OP_TUNE)
 #define X108G_SCAN_OPS (RIG_SCAN_MEM|RIG_SCAN_PROG|RIG_SCAN_SLCT|RIG_SCAN_PRIO)
@@ -174,7 +174,6 @@ const struct rig_caps x108g_caps =
     .has_get_parm =  X108G_PARMS,
     .has_set_parm =  RIG_PARM_SET(X108G_PARMS),
     .level_gran = {
-        // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
     },
     .parm_gran =  {},
@@ -351,7 +350,6 @@ const struct rig_caps x6100_caps =
     .has_get_parm =  X108G_PARMS,
     .has_set_parm =  RIG_PARM_SET(X108G_PARMS),
     .level_gran = {
-        // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
     },
     .parm_gran =  {},
@@ -504,7 +502,7 @@ const struct rig_caps g90_caps =
     RIG_MODEL(RIG_MODEL_G90),
     .model_name = "G90",
     .mfg_name =  "Xiegu",
-    .version =  BACKEND_VER ".4",
+    .version =  BACKEND_VER ".5",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -528,7 +526,6 @@ const struct rig_caps g90_caps =
     .has_get_parm =  X108G_PARMS,
     .has_set_parm =  RIG_PARM_SET(X108G_PARMS),
     .level_gran = {
-        // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
     },
     .parm_gran =  {},
@@ -541,6 +538,7 @@ const struct rig_caps g90_caps =
     .max_ifshift =  Hz(0), /* TODO */
     .targetable_vfo =  0,
     .vfo_ops =  X108G_VFO_OPS,
+    .targetable_vfo =  RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE,
     .scan_ops =  X108G_SCAN_OPS,
     .transceive =  RIG_TRN_RIG,
     .bank_qty =   5,
@@ -632,8 +630,8 @@ const struct rig_caps g90_caps =
 
     .set_freq =  icom_set_freq,
     .get_freq =  icom_get_freq,
-    .set_mode =  icom_set_mode_with_data,
-    .get_mode =  icom_get_mode_with_data,
+    .set_mode =  icom_set_mode,
+    .get_mode =  icom_get_mode,
     .set_vfo =  icom_set_vfo,
     .set_ant =  NULL,  /*automatically set by rig depending band */
     .get_ant =  NULL,
@@ -664,12 +662,12 @@ const struct rig_caps g90_caps =
     .get_ctcss_sql =  icom_get_ctcss_sql,
     .set_dcs_code =  icom_set_dcs_code,
     .get_dcs_code =  icom_get_dcs_code,
-    //.set_split_freq =  x108g_set_split_freq,
-    //.get_split_freq =  icom_get_split_freq,
-    //.set_split_mode =  x108g_set_split_mode,
-    //.get_split_mode =  icom_get_split_mode,
-    //.set_split_vfo =  x108g_set_split_vfo,
-    //.get_split_vfo =  NULL,
+    .set_split_freq =  icom_set_split_freq,
+    .get_split_freq =  icom_get_split_freq,
+    .set_split_mode =  icom_set_split_mode,
+    .get_split_mode =  icom_get_split_mode,
+    .set_split_vfo =  icom_set_split_vfo,
+    .get_split_vfo =  NULL,
     //.set_powerstat = icom_set_powerstat,
     //.get_powerstat = icom_get_powerstat,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
@@ -704,7 +702,6 @@ const struct rig_caps x5105_caps =
     .has_get_parm =  X108G_PARMS,
     .has_set_parm =  RIG_PARM_SET(X108G_PARMS),
     .level_gran = {
-        // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
     },
     .parm_gran =  {},

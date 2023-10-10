@@ -887,7 +887,7 @@ void *multicast_publisher(void *arg)
     RIG *rig = args->rig;
     struct rig_state *rs = &rig->state;
     struct rig_spectrum_line spectrum_line;
-    uint8_t packet_type;
+    uint8_t packet_type = MULTICAST_PUBLISHER_DATA_PACKET_TYPE_SPECTRUM;
 
     struct sockaddr_in dest_addr;
     int socket_fd = args->socket_fd;
@@ -902,6 +902,8 @@ void *multicast_publisher(void *arg)
     dest_addr.sin_addr.s_addr = inet_addr(args->multicast_addr);
     dest_addr.sin_port = htons(args->multicast_port);
 
+    rs->multicast_publisher_run = 1;
+
     while (rs->multicast_publisher_run)
     {
         result = multicast_publisher_read_packet(args, &packet_type, &spectrum_line,
@@ -911,13 +913,13 @@ void *multicast_publisher(void *arg)
         {
             if (result == -RIG_ETIMEOUT)
             {
-                continue;
+ //               continue;
             }
 
             // TODO: how to detect closing of pipe, indicate with error code
             // TODO: error handling, flush pipe in case of error?
-            hl_usleep(500 * 1000);
-            continue;
+            //hl_usleep(500 * 1000);
+//            continue;
         }
 
         result = snapshot_serialize(sizeof(snapshot_buffer), snapshot_buffer, rig,

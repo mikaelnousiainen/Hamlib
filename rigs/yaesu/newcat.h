@@ -50,7 +50,7 @@
 typedef char ncboolean;
 
 /* shared function version */
-#define NEWCAT_VER "20230731"
+#define NEWCAT_VER "20231007"
 
 /* Hopefully large enough for future use, 128 chars plus '\0' */
 #define NEWCAT_DATA_LEN                 129
@@ -129,6 +129,7 @@ struct newcat_priv_data
     int poweron; /* to prevent powering on more than once */
     int question_mark_response_means_rejected; /* the question mark response has multiple meanings */
     char front_rear_status; /* e.g. FTDX5000 EX103 status */
+    int ftdx101_st_missing; /* is ST command gone?  assume not until proven otherwise */
 };
 
 /*
@@ -195,6 +196,8 @@ int newcat_set_level(RIG * rig, vfo_t vfo, setting_t level, value_t val);
 int newcat_get_level(RIG * rig, vfo_t vfo, setting_t level, value_t * val);
 int newcat_set_func(RIG * rig, vfo_t vfo, setting_t func, int status);
 int newcat_get_func(RIG * rig, vfo_t vfo, setting_t func, int *status);
+int newcat_set_parm(RIG * rig, setting_t parm, value_t val);
+int newcat_get_parm(RIG * rig, setting_t parm, value_t *val);
 int newcat_set_mem(RIG * rig, vfo_t vfo, int ch);
 int newcat_get_mem(RIG * rig, vfo_t vfo, int *ch);
 int newcat_vfo_op(RIG * rig, vfo_t vfo, vfo_op_t op);

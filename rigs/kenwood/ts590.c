@@ -1043,7 +1043,6 @@ static int ts590_set_ext_func(RIG *rig, vfo_t vfo, token_t token, int status)
 
 static int ts590_get_ext_func(RIG *rig, vfo_t vfo, token_t token, int *status)
 {
-    char ackbuf[20];
     int retval;
 
     ENTERFUNC;
@@ -1053,6 +1052,7 @@ static int ts590_get_ext_func(RIG *rig, vfo_t vfo, token_t token, int *status)
     case TOK_FUNC_NOISE_REDUCTION_2:
     {
         int value;
+        char ackbuf[20];
 
         retval = kenwood_safe_transaction(rig, "NR", ackbuf, sizeof(ackbuf), 3);
 
@@ -1749,7 +1749,7 @@ const struct rig_caps fx4_caps =
     RIG_MODEL(RIG_MODEL_FX4),
     .model_name = "FX4/C/CR/L",
     .mfg_name = "BG2FX",
-    .version = BACKEND_VER ".7",
+    .version = BACKEND_VER ".8",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -1926,6 +1926,8 @@ const struct rig_caps fx4_caps =
     .send_morse =  kenwood_send_morse,
     .stop_morse =  kenwood_stop_morse,
     .wait_morse =  rig_wait_morse,
+    .send_voice_mem = kenwood_send_voice_mem,
+    .stop_voice_mem = kenwood_stop_voice_mem,
     .set_mem =  kenwood_set_mem,
     .get_mem =  kenwood_get_mem,
     .vfo_ops = TS590_VFO_OPS,

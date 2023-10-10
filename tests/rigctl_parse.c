@@ -241,6 +241,7 @@ declare_proto_rig(send_morse);
 declare_proto_rig(stop_morse);
 declare_proto_rig(wait_morse);
 declare_proto_rig(send_voice_mem);
+declare_proto_rig(stop_voice_mem);
 declare_proto_rig(send_cmd);
 declare_proto_rig(set_powerstat);
 declare_proto_rig(get_powerstat);
@@ -340,19 +341,20 @@ static struct test_table test_list[] =
     { 'Z',  "set_xit",          ACTION(set_xit),        ARG_IN, "XIT" },
     { 'z',  "get_xit",          ACTION(get_xit),        ARG_OUT, "XIT" },
     { 'Y',  "set_ant",          ACTION(set_ant),        ARG_IN, "Antenna", "Option" },
-    { 'y',  "get_ant",          ACTION(get_ant),        ARG_IN1 | ARG_OUT2 | ARG_NOVFO, "AntCurr", "Option", "AntTx", "AntRx" },
+    { 'y',  "get_ant",          ACTION(get_ant),        ARG_IN1 | ARG_OUT2, "AntCurr", "Option", "AntTx", "AntRx" },
     { 0x87, "set_powerstat",    ACTION(set_powerstat),  ARG_IN  | ARG_NOVFO, "Power Status" },
     { 0x88, "get_powerstat",    ACTION(get_powerstat),  ARG_OUT | ARG_NOVFO, "Power Status" },
-    { 0x89, "send_dtmf",        ACTION(send_dtmf),      ARG_IN, "Digits" },
-    { 0x8a, "recv_dtmf",        ACTION(recv_dtmf),      ARG_OUT, "Digits" },
-    { '*',  "reset",            ACTION(reset),          ARG_IN, "Reset" },
+    { 0x89, "send_dtmf",        ACTION(send_dtmf),      ARG_IN | ARG_NOVFO, "Digits" },
+    { 0x8a, "recv_dtmf",        ACTION(recv_dtmf),      ARG_OUT | ARG_NOVFO, "Digits" },
+    { '*',  "reset",            ACTION(reset),          ARG_IN | ARG_NOVFO, "Reset" },
     { 'w',  "send_cmd",         ACTION(send_cmd),       ARG_IN1 | ARG_IN_LINE | ARG_OUT2 | ARG_NOVFO, "Cmd", "Reply" },
     { 'W',  "send_cmd_rx",      ACTION(send_cmd),       ARG_IN | ARG_OUT2 | ARG_NOVFO, "Cmd", "Reply"},
     { 'b',  "send_morse",       ACTION(send_morse),     ARG_IN | ARG_NOVFO  | ARG_IN_LINE, "Morse" },
-    { 0xbb, "stop_morse",       ACTION(stop_morse),     },
-    { 0xbc, "wait_morse",       ACTION(wait_morse),     },
-    { 0x94, "send_voice_mem",   ACTION(send_voice_mem), ARG_IN, "Voice Mem#" },
-    { 0x8b, "get_dcd",          ACTION(get_dcd),        ARG_OUT, "DCD" },
+    { 0xbb, "stop_morse",       ACTION(stop_morse),     ARG_NOVFO},
+    { 0xbc, "wait_morse",       ACTION(wait_morse),     ARG_NOVFO},
+    { 0x94, "send_voice_mem",   ACTION(send_voice_mem), ARG_NOVFO | ARG_IN, "Voice Mem#" },
+    { 0xab, "stop_voice_mem",   ACTION(stop_voice_mem), ARG_NOVFO},
+    { 0x8b, "get_dcd",          ACTION(get_dcd),        ARG_OUT | ARG_NOVFO, "DCD" },
     { 0x8d, "set_twiddle",      ACTION(set_twiddle),    ARG_IN  | ARG_NOVFO, "Timeout (secs)" },
     { 0x8e, "get_twiddle",      ACTION(get_twiddle),    ARG_OUT | ARG_NOVFO, "Timeout (secs)" },
     { 0x97, "uplink",           ACTION(set_uplink),     ARG_IN | ARG_NOVFO, "1=Sub, 2=Main" },
@@ -373,7 +375,7 @@ static struct test_table test_list[] =
     { 0xf9, "get_clock",        ACTION(get_clock),      ARG_NOVFO },
     { 0xf8, "set_clock",        ACTION(set_clock),      ARG_IN | ARG_NOVFO, "YYYYMMDDHHMMSS.sss+ZZ" },
     { 0xf1, "halt",             ACTION(halt),           ARG_NOVFO },   /* rigctld only--halt the daemon */
-    { 0x8c, "pause",            ACTION(pause),          ARG_IN, "Seconds" },
+    { 0x8c, "pause",            ACTION(pause),          ARG_IN | ARG_NOVFO, "Seconds" },
     { 0x98, "password",         ACTION(password),       ARG_IN | ARG_NOVFO, "Password" },
 //    { 0x99, "set_password",     ACTION(set_password),   ARG_IN | ARG_NOVFO, "Password" },
     { 0xf7, "get_mode_bandwidths", ACTION(get_mode_bandwidths),   ARG_IN | ARG_NOVFO, "Mode" },
@@ -548,6 +550,7 @@ static int scanfc(FILE *fin, const char *format, void *p)
         int ret;
         *(char *)p = 0;
 
+
         ret = fscanf(fin, format, p);
 
         if (ret < 0)
@@ -559,16 +562,16 @@ static int scanfc(FILE *fin, const char *format, void *p)
 
             if (!feof(fin))
             {
-                rig_debug(RIG_DEBUG_ERR,
-                          "fscanf: parsing '%s' with '%s'\n",
-                          (char *)p,
-                          format);
+                rig_debug(RIG_DEBUG_TRACE,"%s fscanf of:", __func__);
+                dump_hex((unsigned char *)p, strlen(p));
+                rig_debug(RIG_DEBUG_TRACE," failed with format '%s'\n", format);
+                ret = 0x0a;
             }
         }
 
         if (ret < 1) { rig_debug(RIG_DEBUG_TRACE, "%s: ret=%d\n", __func__, ret); }
 
-        if (ferror(fin)) { rig_debug(RIG_DEBUG_TRACE, "%s: errno=%d, %s\n", __func__, errno, strerror(errno)); }
+        if (ferror(fin)) { rig_debug(RIG_DEBUG_ERR, "%s: errno=%d, %s\n", __func__, errno, strerror(errno)); }
 
         return ret;
     }
@@ -1697,9 +1700,11 @@ readline_repeat:
                                      " %s",
                                      rig_strvfo(vfo));
 
-        p1 == NULL ? a1[0] = '\0' : snprintf(a1, sizeof(a1), " %s", p1);
+        p1 == NULL ? a1[0] = '\0' : snprintf(a1, sizeof(a1), "%c%s", *vfo_opt?',':' ',p1);
         p2 == NULL ? a2[0] = '\0' : snprintf(a2, sizeof(a2), " %s", p2);
         p3 == NULL ? a3[0] = '\0' : snprintf(a3, sizeof(a3), " %s", p3);
+
+        if (cmd == 'b') strtok(a1,"\r\n");
 
         fprintf(fout,
                 "%s:%s%s%s%s%c",
@@ -3268,6 +3273,13 @@ declare_proto_rig(set_level)
 
     level = rig_parse_level(arg1);
 
+    if ((!strcmp(arg2, "?") || arg2[0]==0) && level == RIG_LEVEL_METER)
+    {
+        fprintf(fout, "COMP ALC SWR ID/IC VDD DB PO TEMP%c", resp_sep);
+        RETURNFUNC2(RIG_OK);
+    }
+
+
     // some Java apps send comma in international setups so substitute period
     char *p = strchr(arg2, ',');
 
@@ -3283,6 +3295,7 @@ declare_proto_rig(set_level)
         {
             RETURNFUNC2(-RIG_ENAVAIL);    /* no such parameter */
         }
+
 
         switch (cfp->type)
         {
@@ -3311,6 +3324,23 @@ declare_proto_rig(set_level)
         RETURNFUNC2(rig_set_ext_level(rig, vfo, cfp->token, val));
     }
 
+    int dummy;
+    if (level == RIG_LEVEL_METER && sscanf(arg2,"%d",&dummy)==0)
+    {
+        if (strcmp(arg2,"COMP")==0) arg2 = "2";
+        else if (strcmp(arg2,"ALC")==0) arg2 = "4";
+        else if (strcmp(arg2,"SWR")==0) arg2 = "1";
+        else if (strcmp(arg2,"ID")==0 || strcmp(arg2,"IC")==0) arg2 = "8";
+        else if (strcmp(arg2,"VDD")==0) arg2 = "64";
+        else if (strcmp(arg2, "DB")==0) arg2 = "16";
+        else if (strcmp(arg2, "PO")==0) arg2 = "32";
+        else if (strcmp(arg2, "TEMP")==0) arg2 = "128";
+        else
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: unknown meter=%s, only know COMP,ALC,SWR,ID/IC,VDD,DB,PO,TEMP\n", __func__, arg2);
+            RETURNFUNC2(-RIG_EINVAL);
+        }
+    }
     if (RIG_LEVEL_IS_FLOAT(level))
     {
         CHKSCN1ARG(sscanf(arg2, "%f", &val.f));
@@ -3348,7 +3378,6 @@ declare_proto_rig(get_level)
         //fputc('\n', fout);
         RETURNFUNC2(RIG_OK);
     }
-
     level = rig_parse_level(arg1);
 
     if (!rig_has_get_level(rig, level))
@@ -3383,15 +3412,19 @@ declare_proto_rig(get_level)
 
         case RIG_CONF_CHECKBUTTON:
         case RIG_CONF_COMBO:
-            fprintf(fout, "%d\n", val.i);
+            fprintf(fout, "%d%c", val.i, resp_sep);
             break;
 
         case RIG_CONF_NUMERIC:
-            fprintf(fout, "%f\n", val.f);
+            fprintf(fout, "%f%c", val.f, resp_sep);
+            break;
+
+        case RIG_CONF_INT:
+            fprintf(fout, "%d%c", val.i, resp_sep);
             break;
 
         case RIG_CONF_STRING:
-            fprintf(fout, "%s\n", val.s);
+            fprintf(fout, "%s%c", val.s, resp_sep);
             break;
 
         default:
@@ -3412,6 +3445,26 @@ declare_proto_rig(get_level)
     {
         fprintf(fout, "%s: ", cmd->arg2);
     }
+        if (level == RIG_LEVEL_METER && interactive && prompt)
+        {
+            // we will show text answers as they make morse sense for rigtl
+            switch(val.i)
+            {
+                case RIG_METER_COMP: fprintf(fout, "%d=%s%c", val.i, "COMP", resp_sep);break;
+                case RIG_METER_ALC: fprintf(fout, "%d=%s%c", val.i, "ALC", resp_sep);break;
+                case RIG_METER_SWR: fprintf(fout, "%d=%s%c", val.i, "SWR", resp_sep);break;
+                case RIG_METER_IC: fprintf(fout, "%d=%s%c", val.i, "IC", resp_sep);break;
+                case RIG_METER_VDD: fprintf(fout, "%d=%s%c", val.i, "VDD", resp_sep);break;
+                case RIG_METER_DB: fprintf(fout, "%d=%s%c", val.i, "DB", resp_sep);break;
+                case RIG_METER_PO: fprintf(fout, "%d=%s%c", val.i, "PO", resp_sep);break;
+                case RIG_METER_TEMP: fprintf(fout, "%d=%s%c", val.i, "TEMP", resp_sep);break;
+                default:
+                rig_debug(RIG_DEBUG_ERR, "%s: unknown meter=%d, only know COMP,ALC,SWR,ID/IC,VDD,DB,PO,TEMP\n", __func__, val.i);
+                RETURNFUNC2(-RIG_EINVAL);
+            }
+            RETURNFUNC(RIG_OK);
+        }
+
 
     if (RIG_LEVEL_IS_FLOAT(level))
     {
@@ -3507,7 +3560,7 @@ declare_proto_rig(get_func)
             fprintf(fout, "%s: ", cmd->arg2);
         }
 
-        fprintf(fout, "%d\n", func_stat);
+        fprintf(fout, "%d%c", func_stat, resp_sep);
 
         RETURNFUNC2(status);
     }
@@ -3521,10 +3574,9 @@ declare_proto_rig(get_func)
 
     if (interactive && prompt)
     {
-        fprintf(fout, "%s: ", cmd->arg2);
+        fprintf(fout, "%s: ", cmd->arg1);
     }
-
-    fprintf(fout, "%d\n", func_stat);
+    fprintf(fout, "%d%c", func_stat, resp_sep);
 
     RETURNFUNC2(status);
 }
@@ -3544,6 +3596,30 @@ declare_proto_rig(set_parm)
         rig_sprintf_parm(s, sizeof(s), rig->state.has_set_parm);
         fprintf(fout, "%s\n", s);
         RETURNFUNC2(RIG_OK);
+    }
+    if (strcmp(arg1,"BANDSELECT")==0 && !strcmp(arg2,"?"))
+    {
+        char s[SPRINTF_MAX_SIZE];
+        rig_sprintf_parm_gran(s, sizeof(s)-1, RIG_PARM_BANDSELECT, rig->caps->parm_gran);
+        char *p = strchr(s,')');
+        if (p) *p = 0;
+        p = strchr(s,'(');
+
+        if (p)
+        {
+            char *comma;
+            while((comma=strchr(p,','))) *comma=' ';
+            fprintf(fout, "%s\n", p+1);
+            RETURNFUNC2(RIG_OK);
+        }
+        else RETURNFUNC2(-RIG_EINTERNAL);
+    }
+
+    if (strcmp(arg1,"KEYERTYPE")==0 && strcmp(arg2,"?") != 0)
+    {
+        if (strcmp(arg2,"STRAIGHT")==0) {arg2 = "0";}
+        else if (strcmp(arg2,"BUG")==0) {arg2 = "1";}
+        else if (strcmp(arg2,"PADDLE")==0) {arg2 = "2";}
     }
 
     parm = rig_parse_parm(arg1);
@@ -3576,6 +3652,9 @@ declare_proto_rig(set_parm)
             break;
 
         case RIG_CONF_STRING:
+            if (parm == RIG_PARM_KEYERTYPE)
+            val.i = atoi(arg2);
+            else
             val.cs = arg2;
             break;
 
@@ -3593,6 +3672,13 @@ declare_proto_rig(set_parm)
     if (RIG_PARM_IS_FLOAT(parm))
     {
         CHKSCN1ARG(sscanf(arg2, "%f", &val.f));
+    }
+    else if (RIG_PARM_IS_STRING(parm))
+    {
+        if (parm == RIG_PARM_KEYERTYPE)
+        val.i = atoi(arg2);
+        else
+        val.cs = arg2;
     }
     else
     {
@@ -3672,19 +3758,20 @@ declare_proto_rig(get_parm)
 
         case RIG_CONF_CHECKBUTTON:
         case RIG_CONF_COMBO:
-            fprintf(fout, "%d\n", val.i);
+            fprintf(fout, "%d%c", val.i, resp_sep);
             break;
 
         case RIG_CONF_NUMERIC:
-            fprintf(fout, "%f\n", val.f);
+            fprintf(fout, "%f%c", val.f, resp_sep);
             break;
 
         case RIG_CONF_STRING:
-            fprintf(fout, "%s\n", val.s);
+            fprintf(fout, "%s%c", val.s, resp_sep);
             break;
 
         case RIG_CONF_BINARY:
             dump_hex((unsigned char *)buffer, val.b.l);
+            fprintf(fout, "%c", resp_sep);
             break;
 
         default:
@@ -3706,13 +3793,27 @@ declare_proto_rig(get_parm)
         fprintf(fout, "%s: ", cmd->arg2);
     }
 
-    if (RIG_PARM_IS_FLOAT(parm))
+    if (parm == RIG_PARM_KEYERTYPE)
     {
-        fprintf(fout, "%f\n", val.f);
+        char *s = "STRAIGHT";
+        if (val.i == 1) s = "BUG";
+        else if (val.i == 2) s = "PADDLE";
+        fprintf(fout, "%s%cv", s, resp_sep);
+    }
+    else if (RIG_PARM_IS_FLOAT(parm))
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: float\n", __func__);
+        fprintf(fout, "%f%c", val.f, resp_sep);
+    }
+    else if (RIG_PARM_IS_STRING(parm))
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: string\n", __func__);
+        fprintf(fout, "%s%c", val.s, resp_sep);
     }
     else
     {
-        fprintf(fout, "%d\n", val.i);
+        rig_debug(RIG_DEBUG_ERR, "%s: int\n", __func__);
+        fprintf(fout, "%d%c", val.i, resp_sep);
     }
 
     RETURNFUNC2(status);
@@ -4743,6 +4844,12 @@ declare_proto_rig(send_voice_mem)
     CHKSCN1ARG(sscanf(arg1, "%d", &ch));
 
     RETURNFUNC2(rig_send_voice_mem(rig, vfo, ch));
+}
+
+declare_proto_rig(stop_voice_mem)
+{
+    ENTERFUNC2;
+    RETURNFUNC2(rig_stop_voice_mem(rig, vfo));
 }
 
 declare_proto_rig(send_dtmf)

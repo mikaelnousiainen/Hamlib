@@ -450,7 +450,6 @@ static int thd72_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: tsindex=%d, stepsize=%d\n", __func__, tsindex,
               (int)ts);
     freq = roundl(freq / ts) * ts;
-    // cppcheck-suppress *
     SNPRINTF(fbuf, sizeof(fbuf), "%010"PRIll, (int64_t)freq);
     memcpy(buf + 5, fbuf, 10);
     retval = kenwood_simple_transaction(rig, buf, 52);
@@ -1275,13 +1274,19 @@ static int thd72_set_channel(RIG *rig, vfo_t vfo, const channel_t *chan)
 static int thd72_parse_channel(int kind, const char *buf, channel_t *chan)
 {
     int tmp;
+    int n;
     char c;
     const char *data;
 
     if (kind == 0) { data = buf + 5; }
     else { data = buf + 7; }
 
-    sscanf(data, "%"SCNfreq, &chan->freq);
+    n = sscanf(data, "%"SCNfreq, &chan->freq);
+    if (n != 1)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: error scanning %s\n", __func__, data);
+        return -RIG_EPROTO;
+    }
     c = data[46]; // mode
 
     if (c >= '0' && c <= '2')
@@ -1304,12 +1309,22 @@ static int thd72_parse_channel(int kind, const char *buf, channel_t *chan)
         chan->rptr_shift = thd72_rshf_table[c - '0'];
     }
 
-    sscanf(data + 37, "%ld", &chan->rptr_offs);
+    n = sscanf(data + 37, "%ld", &chan->rptr_offs);
+    if (n != 1)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: error scanning data[37]%s\n", __func__, data);
+        return -RIG_EPROTO;
+    }
     c = data[17]; // Tone status
 
     if (c != '0')
     {
-        sscanf(data + 25, "%d", &tmp);
+        n = sscanf(data + 25, "%d", &tmp);
+        if (n != 1)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: error scanning data[25]%s\n", __func__, data);
+            return -RIG_EPROTO;
+        }
 
         if (tmp > 0 && tmp < 42)
         {
@@ -1325,7 +1340,12 @@ static int thd72_parse_channel(int kind, const char *buf, channel_t *chan)
 
     if (c != '0')
     {
-        sscanf(data + 28, "%d", &tmp);
+        n = sscanf(data + 28, "%d", &tmp);
+        if (n != 1)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: error scanning data[28]%s\n", __func__, data);
+            return -RIG_EPROTO;
+        }
 
         if (tmp > 0 && tmp < 42)
         {
@@ -1341,7 +1361,12 @@ static int thd72_parse_channel(int kind, const char *buf, channel_t *chan)
 
     if (c != '0')
     {
-        sscanf(data + 31, "%d", &tmp);
+        n = sscanf(data + 31, "%d", &tmp);
+        if (n != 1)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: error scanning data[31]%s\n", __func__, data);
+            return -RIG_EPROTO;
+        }
         chan->dcs_code = tmp;
     }
     else
@@ -1651,7 +1676,10 @@ const struct rig_caps thd72a_caps =
     {
 #include "level_gran_kenwood.h"
     },
-    .parm_gran =  {},
+    .parm_gran =  {
+        [PARM_TIME] = {.min = {.i = 0}, .max = {.i = 86399}, .step = {.i = 1}},
+        [PARM_APO] = { .min = { .i = 1 }, .max = { .i = 1439} },
+    },
     .ctcss_list =  kenwood42_ctcss_list,
     .dcs_list =  thd72dcs_list,
     .preamp =   { RIG_DBLST_END, },

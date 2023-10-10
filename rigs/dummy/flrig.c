@@ -138,7 +138,7 @@ const struct rig_caps flrig_caps =
     RIG_MODEL(RIG_MODEL_FLRIG),
     .model_name = "FLRig",
     .mfg_name = "FLRig",
-    .version = "20230703.0",
+    .version = "20230802.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -269,6 +269,7 @@ static int check_vfo(vfo_t vfo)
 * So we'll hand craft them
 * xml_build takes a value and returns an xml string for FLRig
 */
+// cppcheck-suppress constParameterPointer
 static char *xml_build(RIG *rig, char *cmd, char *value, char *xmlbuf,
                        int xmlbuflen)
 {
@@ -421,14 +422,14 @@ static int read_transaction(RIG *rig, char *xml, int xml_len)
 {
     int retval;
     int retry;
-    char *delims;
+    //char *delims;
     char *terminator = "</methodResponse>";
     struct rig_state *rs = &rig->state;
 
     ENTERFUNC;
 
     retry = 2;
-    delims = "\n";
+    //delims = "\n";
     xml[0] = 0;
 
     do
@@ -440,9 +441,10 @@ static int read_transaction(RIG *rig, char *xml, int xml_len)
             rig_debug(RIG_DEBUG_WARN, "%s: retry needed? retry=%d\n", __func__, retry);
         }
 
+        rig_debug(RIG_DEBUG_TRACE, "%s: before read_string\n", __func__);
         int len = read_string(&rs->rigport, (unsigned char *) tmp_buf, sizeof(tmp_buf),
-                              delims,
-                              strlen(delims), 0, 1);
+                              "</methodResponse>",
+                              17, 0, 1);
         rig_debug(RIG_DEBUG_TRACE, "%s: string='%s'\n", __func__, tmp_buf);
 
         // if our first response we should see the HTTP header
@@ -485,7 +487,7 @@ static int read_transaction(RIG *rig, char *xml, int xml_len)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: got %s\n", __func__, terminator);
         // Slow down just a bit -- not sure this is needed anymore but not a big deal here
-        hl_usleep(2 * 1000);
+        // hl_usleep(2 * 1000); // try without this
         retval = RIG_OK;
     }
     else
@@ -1374,7 +1376,7 @@ static int flrig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     char cmd_arg[MAXCMDLEN];
     char *p;
     char *pttmode;
-    char *ttmode;
+    char *ttmode = NULL;
     struct flrig_priv_data *priv = (struct flrig_priv_data *) rig->state.priv;
 
     ENTERFUNC;
@@ -1743,7 +1745,7 @@ static int flrig_set_vfo(RIG *rig, vfo_t vfo)
     int retval;
     char cmd_arg[MAXXMLLEN];
     struct rig_state *rs = &rig->state;
-    struct flrig_priv_data *priv = (struct flrig_priv_data *) rig->state.priv;
+    const struct flrig_priv_data *priv = (struct flrig_priv_data *) rig->state.priv;
 
     ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s: vfo=%s\n", __func__,
@@ -2117,7 +2119,7 @@ static int flrig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     char value[MAXARGLEN];
     char *cmd;
     int retval;
-    struct flrig_priv_data *priv = (struct flrig_priv_data *) rig->state.priv;
+    const struct flrig_priv_data *priv = (struct flrig_priv_data *) rig->state.priv;
 
     ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s: vfo=%s\n", __func__,
@@ -2192,7 +2194,7 @@ static int flrig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 */
 static const char *flrig_get_info(RIG *rig)
 {
-    struct flrig_priv_data *priv = (struct flrig_priv_data *) rig->state.priv;
+    const struct flrig_priv_data *priv = (struct flrig_priv_data *) rig->state.priv;
 
     return (priv->info);
 }
@@ -2200,7 +2202,7 @@ static const char *flrig_get_info(RIG *rig)
 static int flrig_power2mW(RIG *rig, unsigned int *mwpower, float power,
                           freq_t freq, rmode_t mode)
 {
-    struct flrig_priv_data *priv = (struct flrig_priv_data *) rig->state.priv;
+    const struct flrig_priv_data *priv = (struct flrig_priv_data *) rig->state.priv;
     ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s: passed power = %f\n", __func__, power);
     rig_debug(RIG_DEBUG_TRACE, "%s: passed freq = %"PRIfreq" Hz\n", __func__, freq);
@@ -2372,6 +2374,7 @@ HAMLIB_EXPORT(int) flrig_set_func(RIG *rig, vfo_t vfo, setting_t func,
         SNPRINTF(cmd_arg, sizeof(cmd_arg),
                  "<params><param><value>%d</value></param></params>", status);
         retval = flrig_transaction(rig, "rig.tune", cmd_arg, NULL, 0);
+        break;
 
     default:
         retval = -RIG_ENIMPL;

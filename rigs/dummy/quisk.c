@@ -744,7 +744,6 @@ static int quisk_open(RIG *rig)
             }
             else if (strcmp(setting, "agc_levels") == 0)
             {
-                int i = 0;
                 char *p = strtok(value, " ");
                 rig->caps->agc_levels[0] = RIG_AGC_NONE; // default value gets overwritten
                 rig->caps->agc_level_count = 0;
@@ -753,7 +752,7 @@ static int quisk_open(RIG *rig)
                 {
                     int agc_code;
                     char agc_string[32];
-                    int n = sscanf(p, "%d=%s\n", &agc_code, agc_string);
+                    int n = sscanf(p, "%d=%31s\n", &agc_code, agc_string);
 
                     if (n == 2)
                     {
@@ -855,7 +854,7 @@ static int quisk_open(RIG *rig)
 
 static int quisk_close(RIG *rig)
 {
-    struct rig_state *rs = &rig->state;
+    const struct rig_state *rs = &rig->state;
     int ret;
     char buf[BUF_MAX];
 

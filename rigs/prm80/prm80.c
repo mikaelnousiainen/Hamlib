@@ -153,7 +153,6 @@ static int read_prompt_and_send(hamlib_port_t *rigport,
                                 int space_after_delim)
 {
     char buf[BUFSZ];
-    char spacebuf[4];
     int buflen, retval;
 
     /* no data wanted? flush it anyway by reading it */
@@ -183,6 +182,7 @@ static int read_prompt_and_send(hamlib_port_t *rigport,
     // Read one (dummy) space character after the colon
     if (space_after_delim)
     {
+        char spacebuf[4];
         retval = read_block(rigport, (unsigned char *) spacebuf, 1);
 
         if (retval < 0 && retval != -RIG_ETIMEOUT)
@@ -652,10 +652,7 @@ static int prm80_do_read_system_state(hamlib_port_t *rigport, char *statebuf)
         return ret;
     }
 
-    if (ret >= 0)
-    {
-        statebuf[ret] = '\0';
-    }
+    statebuf[ret] = '\0';
 
     if (ret < CMD_E_RSP_LEN)
     {

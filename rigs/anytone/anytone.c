@@ -85,28 +85,7 @@ DECLARE_PROBERIG_BACKEND(anytone)
 
     if (retval != RIG_OK)
     {
-        retval = RIG_MODEL_NONE;
-    }
-    else
-    {
-        char acBuf[ ANYTONE_RESPSZ + 1 ];
-        int  nRead = 0;
-
-        memset(acBuf, 0, ANYTONE_RESPSZ + 1);
-
-        close(port->fd);
-
-        if ((retval != RIG_OK || nRead < 0))
-        {
-            retval = RIG_MODEL_NONE;
-        }
-        else
-        {
-            rig_debug(RIG_DEBUG_VERBOSE, "Received ID = %s.",
-                      acBuf);
-
-            retval = RIG_MODEL_ADT_200A;
-        }
+        retval = -RIG_EIO;
     }
 
     return retval;
@@ -204,19 +183,12 @@ int anytone_transaction(RIG *rig, unsigned char *cmd, int cmd_len, unsigned char
 
     ENTERFUNC;
 
-    if (rig == NULL)
-    {
-        retval = -RIG_EARG;
-    }
-    else
-    {
-        retval = anytone_send(rig, cmd, cmd_len);
+    retval = anytone_send(rig, cmd, cmd_len);
 
-        if (retval == RIG_OK && expected_len != 0)
-        {
-            int len = anytone_receive(rig, reply, reply_len,  expected_len);
-            rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): rx len=%d\n", __func__, __LINE__, len);
-        }
+    if (retval == RIG_OK && expected_len != 0)
+    {
+        int len = anytone_receive(rig, reply, reply_len,  expected_len);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): rx len=%d\n", __func__, __LINE__, len);
     }
 
     RETURNFUNC(retval);
@@ -242,13 +214,16 @@ int anytone_init(RIG *rig)
         if (p == NULL)
         {
             retval = -RIG_ENOMEM;
+            RETURNFUNC(retval);
         }
-
-        rig->state.priv = p;
-        p->vfo_curr = RIG_VFO_NONE;
+        else
+        {
+            rig->state.priv = p;
+            p->vfo_curr = RIG_VFO_NONE;
 #ifdef HAVE_PTHREAD
-        pthread_mutex_init(&p->mutex, NULL);
+            pthread_mutex_init(&p->mutex, NULL);
 #endif
+        }
     }
 
     RETURNFUNC(retval);
@@ -261,20 +236,15 @@ int anytone_cleanup(RIG *rig)
 {
     int retval = RIG_OK;
 
-    ENTERFUNC;
-
     if (rig == NULL)
     {
-        retval = -RIG_EARG;
+        return -RIG_EARG;
     }
-    else
-    {
-        if (rig->state.priv != NULL)
-        {
-            free(rig->state.priv);
-            rig->state.priv = NULL;
-        }
-    }
+
+    ENTERFUNC;
+
+    free(rig->state.priv);
+    rig->state.priv = NULL;
 
     RETURNFUNC(retval);
 }
@@ -287,11 +257,6 @@ int anytone_open(RIG *rig)
     int retval = RIG_OK;
 
     ENTERFUNC;
-
-    if (rig == NULL)
-    {
-        retval = -RIG_EARG;
-    }
 
     unsigned char cmd[] = { 0x2B,0x41,0x44,0x41,0x54,0x41,0x3A,0x30,0x30,0x2C,0x30,0x30,0x31,0x0d,0x0a,'a',0x0d,0x0a };
     write_block(&rig->state.rigport, cmd, sizeof(cmd));
@@ -339,30 +304,22 @@ int anytone_get_vfo(RIG *rig, vfo_t *vfo)
     int retval = RIG_OK;
     //char cmd[] = { 0x41, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x06 };
     //char cmd[] = { "+ADATA06:00,001",0x41, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x06 };
-    unsigned char cmd[] = { 0x2b,0x41,0x44,0x41,0x54,0x41,0x3a,0x30,0x30,0x2c,0x30,0x30,0x36,0x0d,0x0a,0x04,0x05,0x00,0x00,0x00,0x00,0x0d,0x0a };
 
     ENTERFUNC;
 
-    if (rig == NULL)
-    {
-        retval = -RIG_EARG;
-    }
+    const anytone_priv_data_ptr p = (anytone_priv_data_ptr) rig->state.priv;
+    unsigned char reply[512];
+    unsigned char cmd[] = { 0x2b,0x41,0x44,0x41,0x54,0x41,0x3a,0x30,0x30,0x2c,0x30,0x30,0x36,0x0d,0x0a,0x04,0x05,0x00,0x00,0x00,0x00,0x0d,0x0a };
+    anytone_transaction(rig, cmd, sizeof(cmd), reply, sizeof(reply), 114);
+    if (reply[113] == 0x9b) *vfo = RIG_VFO_A;
+    else if (reply[113] == 0x9c) *vfo = RIG_VFO_B;
     else
     {
-        anytone_priv_data_ptr p = (anytone_priv_data_ptr) rig->state.priv;
-
-        unsigned char reply[512];
-        anytone_transaction(rig, cmd, sizeof(cmd), reply, sizeof(reply), 114);
-        if (reply[113] == 0x9b) *vfo = RIG_VFO_A;
-        else if (reply[113] == 0x9c) *vfo = RIG_VFO_B;
-        else
-        {
-            *vfo = RIG_VFO_A; // default to VFOA
-            rig_debug(RIG_DEBUG_ERR, "%s: unknown vfo=0x%02x\n", __func__, reply[113]);
-        }
-
-        *vfo = p->vfo_curr;
+        *vfo = RIG_VFO_A; // default to VFOA
+        rig_debug(RIG_DEBUG_ERR, "%s: unknown vfo=0x%02x\n", __func__, reply[113]);
     }
+
+    p->vfo_curr = *vfo;
 
     RETURNFUNC(retval);
 }
@@ -372,17 +329,8 @@ int anytone_get_vfo(RIG *rig, vfo_t *vfo)
 // ---------------------------------------------------------------------------
 int anytone_set_vfo(RIG *rig, vfo_t vfo)
 {
-    int retval = RIG_OK;
-    //anytone_priv_data_t *p = rig->state.priv;
-
     ENTERFUNC;
     RETURNFUNC(RIG_OK);
-
-    if (rig == NULL)
-    {
-        retval = -RIG_EARG;
-    }
-    RETURNFUNC(retval);
 }
 
 // ---------------------------------------------------------------------------
@@ -394,17 +342,10 @@ int anytone_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
 
     ENTERFUNC;
 
-    if (rig == NULL)
-    {
-        retval = -RIG_EARG;
-    }
-    else
-    {
-        anytone_priv_data_t *p = rig->state.priv;
-        *ptt = p->ptt;
-    }
+    anytone_priv_data_t *p = rig->state.priv;
+    *ptt = p->ptt;
 
-    return retval;
+    RETURNFUNC(retval);
 }
 // ---------------------------------------------------------------------------
 // anytone_set_ptt
@@ -415,26 +356,19 @@ int anytone_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 
     ENTERFUNC;
 
-    if (rig == NULL)
-    {
-        retval = -RIG_EARG;
-    }
-    else
-    {
-        //char buf[8] = { 0x41, 0x00, 0x00, 0x00, 0x27, 0x00, 0x00, 0x06 };
-        unsigned char ptton[] =  { 0x2B,0x41,0x44,0x41,0x54,0x41,0x3A,0x30,0x30,0x2C,0x30,0x30,0x31,0x0d,0x0a,0x61,0x0d,0x0a };
-        unsigned char pttoff[] = { 0x2B,0x41,0x44,0x41,0x54,0x41,0x3A,0x30,0x30,0x2C,0x30,0x32,0x33,0x0d,0x0a,0x56,0x0d,0x0a };
-        void *pttcmd = ptton;
-        if (!ptt) pttcmd = pttoff;
+    //char buf[8] = { 0x41, 0x00, 0x00, 0x00, 0x27, 0x00, 0x00, 0x06 };
+    unsigned char ptton[] =  { 0x2B,0x41,0x44,0x41,0x54,0x41,0x3A,0x30,0x30,0x2C,0x30,0x30,0x31,0x0d,0x0a,0x61,0x0d,0x0a };
+    unsigned char pttoff[] = { 0x2B,0x41,0x44,0x41,0x54,0x41,0x3A,0x30,0x30,0x2C,0x30,0x32,0x33,0x0d,0x0a,0x56,0x0d,0x0a };
+    void *pttcmd = ptton;
+    if (!ptt) pttcmd = pttoff;
 
-        //if (!ptt) { cmd = " (unsigned char*)+ADATA:00,023\r\nV\r\n"; }
+    //if (!ptt) { cmd = " (unsigned char*)+ADATA:00,023\r\nV\r\n"; }
 
-        MUTEX_LOCK(p->mutex);
-        anytone_transaction(rig, pttcmd, sizeof(ptton), NULL, 0, 0);
-        anytone_priv_data_t *p = rig->state.priv;
-        p->ptt = ptt;
-        MUTEX_UNLOCK(p->mutex);
-    }
+    MUTEX_LOCK(p->mutex);
+    anytone_transaction(rig, pttcmd, sizeof(ptton), NULL, 0, 0);
+    anytone_priv_data_t *p = rig->state.priv;
+    p->ptt = ptt;
+    MUTEX_UNLOCK(p->mutex);
 
     RETURNFUNC(retval);
 }

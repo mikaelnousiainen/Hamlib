@@ -140,8 +140,8 @@ int id5100_set_vfo(RIG *rig, vfo_t vfo)
 {
     unsigned char ackbuf[MAXFRAMELEN];
     int ack_len = sizeof(ackbuf), retval;
-    //struct rig_state *rs = &rig->state;
-    //struct icom_priv_data *priv = (struct icom_priv_data *) rs->priv;
+    struct rig_state *rs = &rig->state;
+    struct icom_priv_data *priv = (struct icom_priv_data *) rs->priv;
 
     ENTERFUNC;
 
@@ -150,7 +150,8 @@ int id5100_set_vfo(RIG *rig, vfo_t vfo)
     if (vfo == RIG_VFO_A || vfo == RIG_VFO_B)
     {
         // then we need to turn off dual watch
-
+        // and 0x25 works in this mode
+        priv->x25cmdfails = 0;
         if (RIG_OK != (retval = icom_set_func(rig, RIG_VFO_CURR, RIG_FUNC_DUAL_WATCH,
                                               0)))
         {
@@ -158,11 +159,15 @@ int id5100_set_vfo(RIG *rig, vfo_t vfo)
         }
     }
     else if (vfo == RIG_VFO_MAIN || vfo == RIG_VFO_SUB)
+    {
+        // x25 does not work in DUAL_WATCH mode
+        priv->x25cmdfails = 1;
         if (RIG_OK != (retval = icom_set_func(rig, RIG_VFO_CURR, RIG_FUNC_DUAL_WATCH,
                                               1)))
         {
             RETURNFUNC2(retval);
         }
+    }
 
     int myvfo = S_MAIN;
 
@@ -182,26 +187,20 @@ int id5100_set_vfo(RIG *rig, vfo_t vfo)
 
 int id5100_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
 {
-    //unsigned char ackbuf[MAXFRAMELEN];
-    //int ack_len = sizeof(ackbuf), icvfo, retval;
     int retval;
-    //struct rig_state *rs = &rig->state;
-    //struct icom_priv_data *priv = (struct icom_priv_data *) rs->priv;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called vfo=%s\n", __func__, rig_strvfo(vfo));
-
-    if (vfo == RIG_VFO_CURR || vfo == RIG_VFO_A || vfo == RIG_VFO_B)
+ 
+    // ID5100 puts tx on Main an rx on Sub
+    if (tx_vfo == RIG_VFO_A || tx_vfo == RIG_VFO_MAIN)
     {
-        return icom_set_vfo(rig, vfo);
-    }
-
-    if (vfo == RIG_VFO_MAIN)
-    {
-        retval = RIG_OK;
+        // we must set RX vfo to SUB
+        retval = rig_set_vfo(rig, RIG_VFO_SUB);
     }
     else
     {
-        retval = RIG_OK;
+        rig_debug(RIG_DEBUG_ERR, "%s: ID5100 split must have Tx=Main=Tx, Rx=Sub, got Tx=%s, Rx=%s\n", __func__, rig_strvfo(tx_vfo), rig_strvfo(vfo));
+        retval = -RIG_EINVAL;
     }
 
     return retval;
@@ -222,7 +221,7 @@ const struct rig_caps id5100_caps =
     RIG_MODEL(RIG_MODEL_ID5100),
     .model_name = "ID-5100",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".4",
+    .version =  BACKEND_VER ".5",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_MOBILE,
@@ -248,7 +247,6 @@ const struct rig_caps id5100_caps =
     .level_gran =
     {
 #include "level_gran_icom.h"
-        // cppcheck-suppress *
         [LVL_RAWSTR] = { .min = { .i = 0 }, .max = { .i = 255 } },
     },
     .extparms = icom_ext_parms,

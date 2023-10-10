@@ -290,6 +290,8 @@ read_another_frame:
      */
     buf[0] = 0;
     frm_len = read_icom_frame(&rs->rigport, buf, sizeof(buf));
+    if (frm_len > 4 && memcmp(buf, sendbuf, frm_len) == 0)
+        priv->serial_USB_echo_off = 0;
 
 #if 0
 
@@ -399,15 +401,15 @@ read_another_frame:
     // TODO: Does ctrlid (detected by icom_is_async_frame) vary (seeing some code above using 0x80 for non-full-duplex)?
     if (icom_is_async_frame(rig, frm_len, buf))
     {
-        int elapsed_ms;
+        int elapsedms;
         icom_process_async_frame(rig, frm_len, buf);
 
         gettimeofday(&current_time, NULL);
         timersub(&current_time, &start_time, &elapsed_time);
 
-        elapsed_ms = (int)(elapsed_time.tv_sec * 1000 + elapsed_time.tv_usec / 1000);
+        elapsedms = (int)(elapsed_time.tv_sec * 1000 + elapsed_time.tv_usec / 1000);
 
-        if (elapsed_ms > rs->rigport.timeout)
+        if (elapsedms > rs->rigport.timeout)
         {
             set_transaction_inactive(rig);
             RETURNFUNC(-RIG_ETIMEOUT);
@@ -420,7 +422,7 @@ read_another_frame:
 
     *data_len = frm_data_len;
 
-    if (data != NULL && data_len != NULL) { memcpy(data, buf + 4, *data_len); }
+    if (data != NULL) { memcpy(data, buf + 4, *data_len); }
 
     /*
      * TODO: check addresses in reply frame
@@ -584,7 +586,7 @@ int rig2icom_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width,
     unsigned char icmode;
     signed char icmode_ext;
     pbwidth_t width_tmp = width;
-    struct icom_priv_data *priv_data = (struct icom_priv_data *) rig->state.priv;
+    const struct icom_priv_data *priv_data = (struct icom_priv_data *) rig->state.priv;
 
     ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s: mode=%d, width=%d\n", __func__, (int)mode,

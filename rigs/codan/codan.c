@@ -217,7 +217,7 @@ int codan_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     }
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: result=%s", __func__, result);
-    int n = sscanf(result, "MODE: %[A-Z], %[A-Z], %d, %d", modeA, modeB, &center,
+    int n = sscanf(result, "MODE: %7[A-Z], %7[A-Z], %d, %d", modeA, modeB, &center,
                    &widthA);
 
     if (n != 4)
@@ -363,7 +363,7 @@ int codan_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
         return retval;
     }
 
-    char *p = strstr(response, "Ptt");
+    const char *p = strstr(response, "Ptt");
 
     if (p)
     {

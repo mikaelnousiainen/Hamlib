@@ -138,7 +138,7 @@ const struct rig_caps ft991_caps =
     RIG_MODEL(RIG_MODEL_FT991),
     .model_name =         "FT-991",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".16",
+    .version =            NEWCAT_VER ".18",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -159,12 +159,19 @@ const struct rig_caps ft991_caps =
     .has_set_func =       FT991_FUNCS,
     .has_get_level =      FT991_LEVELS,
     .has_set_level =      RIG_LEVEL_SET(FT991_LEVELS),
-    .has_get_parm =       RIG_PARM_NONE,
-    .has_set_parm =       RIG_PARM_NONE,
+    .has_get_parm =       RIG_PARM_BANDSELECT,
+    .has_set_parm =       RIG_PARM_BANDSELECT,
     .level_gran = {
 #include "level_gran_yaesu.h"
         [LVL_MICGAIN] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f/100.0f } },
+        [LVL_SQL] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f/100.0f } },
+        [LVL_MONITOR_GAIN] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f/100.0f } },
+        [LVL_RFPOWER] = { .min = { .f = .05 }, .max = { .f = 1.0 }, .step = { .f = 1.0f/100.0f } },
     },
+    .parm_gran =  {
+        [PARM_BANDSELECT] = {.min = {.f = 0.0f}, .max = {.f = 1.0f}, .step = {.s = "BAND160M,BAND80M,BANDUNUSED,BAND40M,BAND30M,BAND20M,BAND17M,BAND15M,BAND12M,BAND10M,BAND6M,BANDGEN,BANDMW,BANDUNUSED,BANDAIR,BAND70CM,BAND33CM"}}
+        },
+
     .ctcss_list =         common_ctcss_list,
     .dcs_list =           common_dcs_list,
     .preamp =             { 10, 20, RIG_DBLST_END, },
@@ -187,7 +194,8 @@ const struct rig_caps ft991_caps =
     .comp_meter_cal =     FT991_COMP_CAL,
     .chan_list =          {
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
-        { 100, 117, RIG_MTYPE_EDGE, NEWCAT_MEM_CAP },    /* two by two */
+        {   100,  117, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP }, // P1L-P9U PMS channels
+        {   118,  127, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP }, // 5xx 5MHz band
         RIG_CHAN_END,
     },
 
@@ -317,6 +325,8 @@ const struct rig_caps ft991_caps =
     .get_xit =            newcat_get_xit,
     .get_func =           newcat_get_func,
     .set_func =           newcat_set_func,
+    .get_parm =           newcat_get_parm,
+    .set_parm =           newcat_set_parm,
     .get_level =          newcat_get_level,
     .set_level =          newcat_set_level,
     .get_mem =            newcat_get_mem,
@@ -353,6 +363,7 @@ const struct rig_caps ft991_caps =
     .send_voice_mem =     newcat_send_voice_mem,
     .set_clock =          newcat_set_clock,
     .get_clock =          newcat_get_clock,
+    .morse_qsize =        50,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 

@@ -3,9 +3,9 @@
 #define _XOPEN_SOURCE 700
 // since we are POSIX here we need this
 struct ip_mreq
-  {
+{
     int dummy;
-  };
+};
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,9 +88,6 @@ int openPort(char *comport) // doesn't matter for using pts devices
 int main(int argc, char *argv[])
 {
     unsigned char buf[256];
-    unsigned char *pbuf;
-    int n;
-
 
 again:
     int fd = openPort(argv[1]);

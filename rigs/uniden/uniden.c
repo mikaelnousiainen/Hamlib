@@ -629,7 +629,6 @@ int uniden_get_channel(RIG *rig, vfo_t vfo, channel_t *chan, int read_only)
     /* TODO: Trunk, Delay, Recording */
 
     chan->flags = (membuf[22] == 'N') ? RIG_CHFLAG_SKIP : 0;
-    // cppcheck-suppress *
     chan->levels[LVL_ATT].i = (membuf[25] == 'N') ? rig->state.attenuator[0] : 0;
     sscanf(membuf + 41, "%d", &tone);
 
@@ -686,9 +685,6 @@ int uniden_set_channel(RIG *rig, vfo_t vfo, const channel_t *chan)
     char cmdbuf[BUFSZ], membuf[BUFSZ];
     size_t mem_len = BUFSZ;
     int ret;
-#if 0 // deprecated
-    int trunked = 0;
-#endif
 
     if (chan->vfo != RIG_VFO_MEM)
     {
@@ -696,13 +692,7 @@ int uniden_set_channel(RIG *rig, vfo_t vfo, const channel_t *chan)
     }
 
     /* PM089T08511625 */
-    SNPRINTF(cmdbuf, sizeof(cmdbuf), "PM%03d%c%08u" EOM, chan->channel_num,
-#if 0
-             trunked ? 'T' : ' ',
-#else
-             ' ',
-#endif
-             (unsigned)(chan->freq / 100));
+    SNPRINTF(cmdbuf, sizeof(cmdbuf), "PM%03d%c%08u" EOM, chan->channel_num, ' ', (unsigned)(chan->freq / 100));
 
     ret = uniden_transaction(rig, cmdbuf, strlen(cmdbuf), NULL, membuf, &mem_len);
 

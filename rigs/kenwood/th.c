@@ -72,8 +72,8 @@ th_decode_event(RIG *rig)
         int step, shift, rev, tone, ctcss, tonefq, ctcssfq;
 
         retval = num_sscanf(asyncbuf,
-                            "BUF %d,%"SCNfreq",%X,%d,%d,%d,%d,,%d,,%d,%"SCNfreq",%d",
-                            &vfo, &freq, &step, &shift, &rev, &tone,
+                            "BUF %u,%"SCNfreq",%X,%d,%d,%d,%d,,%d,,%d,%"SCNfreq",%d",
+                            &vfo, &freq, (unsigned int*)&step, &shift, &rev, &tone,
                             &ctcss, &tonefq, &ctcssfq, &offset, &mode);
 
         if (retval != 11)
@@ -87,7 +87,7 @@ th_decode_event(RIG *rig)
         vfo = (vfo == 0) ? RIG_VFO_A : RIG_VFO_B;
         mode = (mode == 0) ? RIG_MODE_FM : RIG_MODE_AM;
 
-        rig_debug(RIG_DEBUG_TRACE, "%s: Buffer (vfo %d, freq %"PRIfreq" Hz, mode %d)\n",
+        rig_debug(RIG_DEBUG_TRACE, "%s: Buffer (vfo %u, freq %"PRIfreq" Hz, mode %d)\n",
                   __func__, vfo, freq, mode);
 
         /* Callback execution */
@@ -113,7 +113,7 @@ th_decode_event(RIG *rig)
 
         vfo_t vfo;
         int lev;
-        retval = sscanf(asyncbuf, "SM %d,%d", &vfo, &lev);
+        retval = sscanf(asyncbuf, "SM %u,%d", &vfo, &lev);
 
         if (retval != 2)
         {
@@ -144,7 +144,7 @@ th_decode_event(RIG *rig)
         vfo_t vfo;
         int busy;
 
-        retval = sscanf(asyncbuf, "BY %d,%d", &vfo, &busy);
+        retval = sscanf(asyncbuf, "BY %u,%d", &vfo, &busy);
 
         if (retval != 2)
         {
@@ -164,7 +164,7 @@ th_decode_event(RIG *rig)
     {
 
         vfo_t vfo;
-        retval = sscanf(asyncbuf, "BC %d", &vfo);
+        retval = sscanf(asyncbuf, "BC %u", &vfo);
 
         if (retval != 1)
         {
@@ -175,7 +175,7 @@ th_decode_event(RIG *rig)
 
         vfo = (vfo == 0) ? RIG_VFO_A : RIG_VFO_B;
 
-        rig_debug(RIG_DEBUG_TRACE, "%s: VFO event - vfo = %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_TRACE, "%s: VFO event - vfo = %u\n", __func__, vfo);
 
         if (rig->callbacks.vfo_event)
         {
@@ -237,7 +237,6 @@ th_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     step = freq_sent >= MHz(470) ? 4 : step;
     freq_sent = freq_sent >= MHz(470) ? (round(freq_sent / 10000) * 10000) :
                 freq_sent;
-    // cppcheck-suppress *
     SNPRINTF(buf, sizeof(buf), "FQ %011"PRIll",%X\r", (int64_t) freq_sent, step);
 
     return kenwood_transaction(rig, buf, buf, strlen(buf));
@@ -269,7 +268,7 @@ th_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         return retval;
     }
 
-    retval = num_sscanf(buf, "FQ %"SCNfreq",%x", freq, &step);
+    retval = num_sscanf(buf, "FQ %"SCNfreq",%x", freq, (unsigned*)&step);
 
     if (retval != 2)
     {
@@ -522,7 +521,7 @@ th_get_vfo_char(RIG *rig, vfo_t *vfo, char *vfoch)
         break;
 
     case 6: /*intended for D700 BC 0,0*/
-        if ((buf[0] == 'B') && (buf[1] == 'C') && (buf[2] == ' ') && (buf[4] = ','))
+        if ((buf[0] == 'B') && (buf[1] == 'C') && (buf[2] == ' ') && (buf[4] == ','))
         {
             vfoc = buf[3];
         }
@@ -664,7 +663,7 @@ int tm_set_vfo_bc2(RIG *rig, vfo_t vfo)
         break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO %d\n", __func__, vfo);
+        rig_debug(RIG_DEBUG_ERR, "%s: Unsupported VFO %u\n", __func__, vfo);
         return -RIG_EVFO;
     }
 
@@ -1251,7 +1250,7 @@ th_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             return retval;
         }
 
-        if (ackbuf[4] < '0' || ackbuf[4] > '9')
+        if (ackbuf[4] < '0' || ackbuf[4] > '8')
         {
             return -RIG_EPROTO;
         }
@@ -1267,7 +1266,7 @@ th_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             return retval;
         }
 
-        if (ackbuf[4] < '0' || ackbuf[4] > '9')
+        if (ackbuf[4] < '0' || ackbuf[4] > '8')
         {
             return -RIG_EPROTO;
         }
@@ -1454,7 +1453,7 @@ th_get_ctcss_tone(RIG *rig, vfo_t vfo, tone_t *tone)
     /* verify tone index for TH-7DA rig */
     if (tone_idx == 0 || tone_idx == 2 || tone_idx > 39)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: Unexpected CTCSS tone no (%04d)\n",
+        rig_debug(RIG_DEBUG_ERR, "%s: Unexpected CTCSS tone no (%04u)\n",
                   __func__, tone_idx);
         return -RIG_EPROTO;
     }
@@ -1532,7 +1531,7 @@ th_get_ctcss_sql(RIG *rig, vfo_t vfo, tone_t *tone)
     /* verify tone index for TH-7DA rig */
     if (tone_idx == 0 || tone_idx == 2 || tone_idx > 39)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: Unexpected CTCSS no (%04d)\n",
+        rig_debug(RIG_DEBUG_ERR, "%s: Unexpected CTCSS no (%04u)\n",
                   __func__, tone_idx);
         return -RIG_EPROTO;
     }
@@ -2499,7 +2498,7 @@ int th_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
 {
     char cmd[6];
 
-    rig_debug(RIG_DEBUG_TRACE, "%s: ant = %d\n", __func__, ant);
+    rig_debug(RIG_DEBUG_TRACE, "%s: ant = %u\n", __func__, ant);
 
     switch (ant)
     {
@@ -2548,7 +2547,7 @@ int th_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
 
     *ant_curr = RIG_ANT_N(buf[4] - '0');
 
-    rig_debug(RIG_DEBUG_TRACE, "%s: ant = %d\n", __func__, *ant_curr);
+    rig_debug(RIG_DEBUG_TRACE, "%s: ant = %u\n", __func__, *ant_curr);
 
     return RIG_OK;
 }

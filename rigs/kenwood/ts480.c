@@ -1037,7 +1037,6 @@ static int ts480_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
 
 static int ts480_get_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t *val)
 {
-    char ackbuf[20];
     int retval;
     int value;
 
@@ -1049,6 +1048,7 @@ static int ts480_get_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t *val)
     {
         int enabled;
         int level;
+        char ackbuf[20];
 
         retval = kenwood_safe_transaction(rig, "DL", ackbuf, sizeof(ackbuf), 5);
 
@@ -1249,7 +1249,7 @@ const struct rig_caps ts480_caps =
     RIG_MODEL(RIG_MODEL_TS480),
     .model_name = "TS-480",
     .mfg_name = "Kenwood",
-    .version = BACKEND_VER ".2",
+    .version = BACKEND_VER ".3",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -1433,6 +1433,8 @@ const struct rig_caps ts480_caps =
     .get_ext_func = ts480_get_ext_func,
     .send_morse = kenwood_send_morse,
     .wait_morse =  rig_wait_morse,
+    .send_voice_mem = kenwood_send_voice_mem,
+    .stop_voice_mem = kenwood_stop_voice_mem,
     .vfo_op = kenwood_vfo_op,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

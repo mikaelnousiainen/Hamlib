@@ -356,7 +356,7 @@ int ar3030_set_vfo(RIG *rig, vfo_t vfo)
 
 int ar3030_get_vfo(RIG *rig, vfo_t *vfo)
 {
-    struct ar3030_priv_data *priv = (struct ar3030_priv_data *)rig->state.priv;
+    const struct ar3030_priv_data *priv = (struct ar3030_priv_data *)rig->state.priv;
 
     *vfo = priv->curr_vfo;
 
@@ -796,7 +796,6 @@ int ar3030_get_channel(RIG *rig, vfo_t vfo, channel_t *chan, int read_only)
                   rig_passband_normal(rig, chan->mode);
 
 
-    // cppcheck-suppress *
     chan->levels[LVL_ATT].i = infobuf[6] == '0' ? 0 :
                               rig->caps->attenuator[infobuf[4] - '1'];
 

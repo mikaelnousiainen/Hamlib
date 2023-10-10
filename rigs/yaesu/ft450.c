@@ -39,7 +39,7 @@ const struct rig_caps ft450_caps =
     RIG_MODEL(RIG_MODEL_FT450),
     .model_name =         "FT-450",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".3",
+    .version =            NEWCAT_VER ".4",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -60,16 +60,20 @@ const struct rig_caps ft450_caps =
     .has_set_func =       FT450_FUNCS,
     .has_get_level =      FT450_LEVELS,
     .has_set_level =      RIG_LEVEL_SET(FT450_LEVELS),
-    .has_get_parm =       RIG_PARM_NONE,
-    .has_set_parm =       RIG_PARM_NONE,
+    .has_get_parm =       RIG_PARM_BANDSELECT,
+    .has_set_parm =       RIG_PARM_BANDSELECT,
     .level_gran =
     {
 #include "level_gran_yaesu.h"
-        // cppcheck-suppress *
         [LVL_CWPITCH] = { .min = { .i = 400 }, .max = { .i = 800 }, .step = { .i = 100 } },
         [LVL_NOTCHF] = { .min = { .i = 1 }, .max = { .i = 4000 }, .step = { .i = 10 } },
         [LVL_VOXGAIN] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f/255.0f } },
+        [LVL_NR] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f/11.0f } },
     },
+    .parm_gran =  {
+        [PARM_BANDSELECT] = {.min = {.f = 0.0f}, .max = {.f = 1.0f}, .step = {.s = "BAND160M,BAND80M,BANDUNUSED,BAND40M,BAND30M,BAND20M,BAND17M,BAND15M,BAND12M,BAND10M,BAND6M,BANDGEN"}}
+        },
+
     .ctcss_list =         common_ctcss_list,
     .dcs_list =           NULL,
     .preamp =             { 10, RIG_DBLST_END, }, /* TBC: Not specified in manual */
@@ -203,6 +207,7 @@ const struct rig_caps ft450_caps =
     .send_morse =         newcat_send_morse,
     .wait_morse =         rig_wait_morse,
     .scan =               newcat_scan,
+    .morse_qsize =        40,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
