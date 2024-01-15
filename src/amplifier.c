@@ -3,6 +3,7 @@
  *  Copyright (c) 2000-2012 by Stephane Fillod
  *  Copyright (c) 2000-2003 by Frank Singleton
  *  Copyright (C) 2019-2020 by Michael Black
+ *  Copyright (c) 2024 by Mikael Nousiainen OH3BHX
  *
  *
  *   This library is free software; you can redistribute it and/or
@@ -35,6 +36,8 @@
  * \date 2000-2003
  * \author Michael Black
  * \date 2019-2020
+ * \author Mikael Nousiainen OH3BHX
+ * \date 2024
  *
  * This Hamlib interface is a frontend implementing the amplifier wrapper
  * functions.
@@ -730,152 +733,6 @@ const char *HAMLIB_API amp_get_info(AMP *amp)
 
 
 /**
- * \brief Set the value of a requested level.
- *
- * \param amp The #AMP handle.
- * \param level The requested level.
- * \param val The variable to store the \a level value.
- *
- * Set the \a val corresponding to the \a level.
- *
- * \note \a val can be any type defined by #value_t.
- *
- * \return RIG_OK if the operation was successful, otherwise a **negative
- * value** if an error occurred (in which case, cause is set appropriately).
- *
- * \retval RIG_OK The query was successful.
- * \retval RIG_EINVAL \a amp is NULL or inconsistent.
- * \retval RIG_ENAVAIL amp_caps#get_level() capability is not available.
- *
- * \sa amp_set_ext_level()
- */
-int HAMLIB_API amp_set_level(AMP *amp, setting_t level, value_t val)
-{
-    amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
-
-    if (CHECK_AMP_ARG(amp))
-    {
-        return -RIG_EINVAL;
-    }
-
-    if (amp->caps->set_level == NULL)
-    {
-        return -RIG_ENAVAIL;
-    }
-
-    return amp->caps->set_level(amp, level, val);
-}
-
-/**
- * \brief Query the value of a requested level.
- *
- * \param amp The #AMP handle.
- * \param level The requested level.
- * \param val The variable to store the \a level value.
- *
- * Query the \a val corresponding to the \a level.
- *
- * \note \a val can be any type defined by #value_t.
- *
- * \return RIG_OK if the operation was successful, otherwise a **negative
- * value** if an error occurred (in which case, cause is set appropriately).
- *
- * \retval RIG_OK The query was successful.
- * \retval RIG_EINVAL \a amp is NULL or inconsistent.
- * \retval RIG_ENAVAIL amp_caps#get_level() capability is not available.
- *
- * \sa amp_get_ext_level()
- */
-int HAMLIB_API amp_get_level(AMP *amp, setting_t level, value_t *val)
-{
-    amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
-
-    if (CHECK_AMP_ARG(amp))
-    {
-        return -RIG_EINVAL;
-    }
-
-    if (amp->caps->get_level == NULL)
-    {
-        return -RIG_ENAVAIL;
-    }
-
-    return amp->caps->get_level(amp, level, val);
-}
-
-
-/**
- * \brief Set the value of a requested extension levels token.
- *
- * \param amp The #AMP handle.
- * \param level The requested extension levels token.
- * \param val The variable to set the extension \a level token value.
- *
- * Query the \a val corresponding to the extension \a level token.
- *
- * \return RIG_OK if the operation was successful, otherwise a **negative
- * value** if an error occurred (in which case, cause is set appropriately).
- *
- * \retval RIG_OK The query was successful.
- * \retval RIG_EINVAL \a amp is NULL or inconsistent.
- * \retval RIG_ENAVAIL amp_caps#set_ext_level() capability is not available.
- *
- * \sa amp_set_level()
- */
-int HAMLIB_API amp_set_ext_level(AMP *amp, token_t level, value_t val)
-{
-    amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
-
-    if (CHECK_AMP_ARG(amp))
-    {
-        return -RIG_EINVAL;
-    }
-
-    if (amp->caps->set_ext_level == NULL)
-    {
-        return -RIG_ENAVAIL;
-    }
-
-    return amp->caps->set_ext_level(amp, level, val);
-}
-
-/**
- * \brief Query the value of a requested extension levels token.
- *
- * \param amp The #AMP handle.
- * \param level The requested extension levels token.
- * \param val The variable to store the extension \a level token value.
- *
- * Query the \a val corresponding to the extension \a level token.
- *
- * \return RIG_OK if the operation was successful, otherwise a **negative
- * value** if an error occurred (in which case, cause is set appropriately).
- *
- * \retval RIG_OK The query was successful.
- * \retval RIG_EINVAL \a amp is NULL or inconsistent.
- * \retval RIG_ENAVAIL amp_caps#get_ext_level() capability is not available.
- *
- * \sa amp_get_level()
- */
-int HAMLIB_API amp_get_ext_level(AMP *amp, token_t level, value_t *val)
-{
-    amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
-
-    if (CHECK_AMP_ARG(amp))
-    {
-        return -RIG_EINVAL;
-    }
-
-    if (amp->caps->get_ext_level == NULL)
-    {
-        return -RIG_ENAVAIL;
-    }
-
-    return amp->caps->get_ext_level(amp, level, val);
-}
-
-
-/**
  * \brief Turn the amplifier On or Off or toggle the Standby or Operate
  * status.
  *
@@ -949,5 +806,169 @@ int HAMLIB_API amp_get_powerstat(AMP *amp, powerstat_t *status)
     return amp->caps->get_powerstat(amp, status);
 }
 
+
+/**
+ * \brief Query status flags of the amplifiter.
+ *
+ * \param amp The #AMP handle.
+ * \param status The variable where the status flags will be stored.
+ *
+ * Query the active status flags from the amplifier.
+ *
+ * \return RIG_OK if the operation has been successful, otherwise a **negative
+ * value** if an error occurred (in which case, cause is set appropriately).
+ *
+ * \retval RIG_OK The query was successful.
+ * \retval RIG_EINVAL \a amp is NULL or inconsistent.
+ * \retval RIG_ENAVAIL amp_caps#get_status() capability is not available.
+ */
+int HAMLIB_API amp_get_status(AMP *amp, amp_status_t *status)
+{
+    amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (CHECK_AMP_ARG(amp))
+    {
+        return -RIG_EINVAL;
+    }
+
+    if (amp->caps->get_status == NULL)
+    {
+        return -RIG_ENAVAIL;
+    }
+
+    return amp->caps->get_status(amp, status);
+}
+
+/**
+ * \brief set the input
+ * \param amp   The amp handle
+ * \param input   The input to select
+ *
+ *  Select the input connector for RF signal.
+ *
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
+ * set appropriately).
+ *
+ * \sa amp_get_input()
+ */
+int HAMLIB_API amp_set_input(AMP *amp, ant_t input)
+{
+    const struct amp_caps *caps;
+
+    if (CHECK_AMP_ARG(amp))
+    {
+        return -RIG_EINVAL;
+    }
+
+    caps = amp->caps;
+
+    if (caps->set_input == NULL)
+    {
+        return -RIG_ENAVAIL;
+    }
+
+    return amp->caps->set_input(amp, input);
+}
+
+/**
+ * \brief get the current input
+ * \param amp   The amp handle
+ * \param ant   The variable to store the current input to.
+ *
+ *  Retrieves the current input for RF signal.
+ *
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
+ * set appropriately).
+ *
+ * \sa amp_set_input()
+ */
+int HAMLIB_API amp_get_input(AMP *amp, ant_t *input)
+{
+    const struct amp_caps *caps;
+
+    if (CHECK_AMP_ARG(amp))
+    {
+        return -RIG_EINVAL;
+    }
+
+    caps = amp->caps;
+
+    if (caps->get_input == NULL)
+    {
+        return -RIG_ENAVAIL;
+    }
+
+    return caps->get_input(amp, input);
+}
+
+/**
+ * \brief set the antenna
+ * \param amp   The amp handle
+ * \param ant   The antenna to select
+ * \param option An option that the ant command for the amp recognizes
+ *
+ *  Select the antenna connector.
+ *
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
+ * set appropriately).
+ *
+ * \sa amp_get_ant()
+ */
+int HAMLIB_API amp_set_ant(AMP *amp, ant_t ant, value_t option)
+{
+    const struct amp_caps *caps;
+
+    if (CHECK_AMP_ARG(amp))
+    {
+        return -RIG_EINVAL;
+    }
+
+    caps = amp->caps;
+
+    if (caps->set_ant == NULL)
+    {
+        return -RIG_ENAVAIL;
+    }
+
+    return amp->caps->set_ant(amp, ant, option);
+}
+
+/**
+ * \brief get the current antenna
+ * \param amp   The amp handle
+ * \param ant   The antenna to query option for
+ * \param option  The option value for the antenna, amp specific.
+ *
+ *  Retrieves the current antenna.
+ *
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
+ * set appropriately).
+ *
+ * \sa amp_set_ant()
+ */
+int HAMLIB_API amp_get_ant(AMP *amp, ant_t *ant, value_t *option)
+{
+    const struct amp_caps *caps;
+
+    if (CHECK_AMP_ARG(amp))
+    {
+        return -RIG_EINVAL;
+    }
+
+    caps = amp->caps;
+
+    if (caps->get_ant == NULL)
+    {
+        return -RIG_ENAVAIL;
+    }
+
+    option->i = 0;
+
+    return caps->get_ant(amp, ant, option);
+}
 
 /*! @} */

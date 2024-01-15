@@ -1,7 +1,8 @@
 /*
  * Hamlib backend library for the Expert amplifier set.
  *
- * expert.h - (C) Michael Black W9MDB 2023
+ *  Copyright (c) 2023 by Michael Black W9MDB
+ *  Copyright (c) 2024 by Mikael Nousiainen OH3BHX
  *
  * This shared library provides an API for communicating
  * via serial interface to Expert amplifiers.
@@ -30,8 +31,7 @@
 #include <iofunc.h>
 #include <serial.h>
 
-// Is this big enough?
-#define KPABUFSZ 100
+#define EXPERTBUFSZ 128
 
 extern const struct amp_caps expert_amp_caps;
 

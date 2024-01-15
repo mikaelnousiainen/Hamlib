@@ -156,7 +156,7 @@ int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
     }
     else   // if no response expected try to get one
     {
-        char responsebuf[KPABUFSZ];
+        char responsebuf[EXPERTBUFSZ];
         responsebuf[0] = 0;
         loop = 3;
 
@@ -168,7 +168,7 @@ int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
 
             if (err != RIG_OK) { return err; }
 
-            len = read_string(&rs->ampport, (unsigned char *) responsebuf, KPABUFSZ, ";", 1,
+            len = read_string(&rs->ampport, (unsigned char *) responsebuf, EXPERTBUFSZ, ";", 1,
                               0, 1);
 
             if (len < 0) { return len; }
@@ -199,7 +199,7 @@ const char *kpa_get_info(AMP *amp)
 
 int kpa_get_freq(AMP *amp, freq_t *freq)
 {
-    char responsebuf[KPABUFSZ];
+    char responsebuf[EXPERTBUFSZ];
     int retval;
     unsigned long tfreq;
     int nargs;
@@ -227,11 +227,11 @@ int kpa_get_freq(AMP *amp, freq_t *freq)
 
 int kpa_set_freq(AMP *amp, freq_t freq)
 {
-    char responsebuf[KPABUFSZ] = "\0";
+    char responsebuf[EXPERTBUFSZ] = "\0";
     int retval;
     unsigned long tfreq;
     int nargs;
-    char cmd[KPABUFSZ];
+    char cmd[EXPERTBUFSZ];
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called, freq=%"PRIfreq"\n", __func__, freq);
 
@@ -264,7 +264,7 @@ int kpa_set_freq(AMP *amp, freq_t freq)
 
 int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 {
-    char responsebuf[KPABUFSZ];
+    char responsebuf[EXPERTBUFSZ];
     char *cmd;
     int retval;
     int fault;
@@ -370,7 +370,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
         rig_debug(RIG_DEBUG_VERBOSE, "%s freq range=%dKHz,%dKHz\n", __func__,
                   int_value, int_value2);
 
-        //
         do
         {
             retval = read_string(&rs->ampport, (unsigned char *) responsebuf,
@@ -402,7 +401,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
         }
         while (strstr(responsebuf, "BYPASS"));
 
-
         break;
 
 
@@ -420,8 +418,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
         val->i = pwrinput;
         return RIG_OK;
 
-        break;
-
     case AMP_LEVEL_PWR_FWD:
         cmd = "^PWF;";
         nargs = sscanf(responsebuf, "^SW%d", &pwrfwd);
@@ -435,8 +431,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 
         val->i = pwrfwd;
         return RIG_OK;
-
-        break;
 
     case AMP_LEVEL_PWR_REFLECTED:
         cmd = "^PWR;";
@@ -452,8 +446,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
         val->i = pwrref;
         return RIG_OK;
 
-        break;
-
     case AMP_LEVEL_PWR_PEAK:
         cmd = "^PWK;";
         nargs = sscanf(responsebuf, "^SW%d", &pwrpeak);
@@ -467,8 +459,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 
         val->i = pwrpeak;
         return RIG_OK;
-
-        break;
 
     case AMP_LEVEL_FAULT:
         cmd = "^SF;";
@@ -496,8 +486,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
         val->s = priv->tmpbuf;
         return RIG_OK;
 
-        break;
-
     default:
         rig_debug(RIG_DEBUG_ERR, "%s unknown level=%s\n", __func__,
                   rig_strlevel(level));
@@ -509,7 +497,7 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 
 int kpa_get_powerstat(AMP *amp, powerstat_t *status)
 {
-    char responsebuf[KPABUFSZ];
+    char responsebuf[EXPERTBUFSZ];
     int retval;
     int operate;
     int ampon;

@@ -2,6 +2,7 @@
  * ampctl_parse.c - (C) Stephane Fillod 2000-2010
  *                  (C) Nate Bargmann 2003,2007,2010,2011,2012,2013
  *                  (C) The Hamlib Group 2002,2006,2011
+ *                  (C) Mikael Nousiainen OH3BHX 2024
  * Derived from rotctl_parse.c by Michael Black 2019
  *
  * This program test/control an amplifier using Hamlib.
@@ -24,6 +25,12 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+
+// TODO: implement new commands in ampctl_parse
+// TODO: add new parse/str functions for parms, funcs and ops
+// TODO: add new ext func/parm support functions
+// TODO: add new features in dumpcaps_amp()
+// TODO: implement Expert backend and test
 
 #include <hamlib/config.h>
 

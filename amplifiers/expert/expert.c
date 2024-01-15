@@ -1,7 +1,7 @@
 /*
  *  Hamlib Expert amplifier backend - low level communication routines
  *  Copyright (c) 2023 by Michael Black W9MDB
- *
+ *  Copyright (c) 2024 by Mikael Nousiainen OH3BHX
  *
  *   This library is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU Lesser General Public
@@ -25,35 +25,64 @@
 #include "register.h"
 #include "misc.h"
 
+#define EXPERT_AMP_COMMAND_INPUT 0x01
+#define EXPERT_AMP_COMMAND_BAND_DOWN 0x02
+#define EXPERT_AMP_COMMAND_BAND_UP 0x03
+#define EXPERT_AMP_COMMAND_ANTENNA 0x04
+#define EXPERT_AMP_COMMAND_L_MINUS 0x05
+#define EXPERT_AMP_COMMAND_L_PLUS 0x06
+#define EXPERT_AMP_COMMAND_C_MINUS 0x07
+#define EXPERT_AMP_COMMAND_C_PLUS 0x08
+#define EXPERT_AMP_COMMAND_TUNE 0x09
+#define EXPERT_AMP_COMMAND_SWITCH_OFF 0x0A
+#define EXPERT_AMP_COMMAND_POWER 0x0B
+#define EXPERT_AMP_COMMAND_DISPLAY 0x0C
+#define EXPERT_AMP_COMMAND_OPERATE 0x0D
+#define EXPERT_AMP_COMMAND_CAT 0x0E
+#define EXPERT_AMP_COMMAND_LEFT_ARROW 0x0F
+#define EXPERT_AMP_COMMAND_RIGHT_ARROW 0x10
+#define EXPERT_AMP_COMMAND_SET 0x11
+#define EXPERT_AMP_COMMAND_BACKLIGHT_ON 0x82
+#define EXPERT_AMP_COMMAND_BACKLIGHT_OFF 0x83
+#define EXPERT_AMP_COMMAND_STATUS 0x90
+
+// The following command is undocumented, but used by the Expert amplifier control application
+// It outputs the LCD screen contents using an ASCII-like character set (needs conversion to ASCII)
+#define EXPERT_AMP_COMMAND_SCREEN 0x80
+
 struct fault_list
 {
-    int code;
+    char code;
     char *errmsg;
 };
-const struct fault_list expert_fault_list [] =
+
+const struct fault_list expert_warning_list [] =
 {
-    {0, "No fault condition"},
-    {0x10, "Watchdog Timer was reset"},
-    {0x20, "PA Current is too high"},
-    {0x40, "Temperature is too high"},
-    {0x60, "Input power is too high"},
-    {0x61, "Gain is too low"},
-    {0x70, "Invalid frequency"},
-    {0x80, "50V supply voltage too low or too high"},
-    {0x81, "5V supply voltage too low or too high"},
-    {0x82, "10V supply voltage too low or too high"},
-    {0x83, "12V supply voltage too low or too high"},
-    {0x84, "-12V supply voltage too low or too high"},
-    {0x85, "5V or 400V LPF board supply voltages not detected"},
-    {0x90, "Reflected power is too high"},
-    {0x91, "SWR very high"},
-    {0x92, "ATU no match"},
-    {0xB0, "Dissipated power too high"},
-    {0xC0, "Forward power too high"},
-    {0xE0, "Forward power too high for current setting"},
-    {0xF0, "Gain is too high"},
+    {'N', "No warnings"},
+    {'M', "Amplifier alarm"},
+    {'S', "Antenna SWR high"},
+    {'B', "No valid band"},
+    {'P', "Power limit exceeded"},
+    {'O', "Overheating"},
+    {'Y', "ATU not available"},
+    {'W', "Tuning with no input power"},
+    {'K', "ATU bypassed"},
+    {'R', "Power switch held by remote"},
+    {'T', "Combiner overheating"},
+    {'C', "Combiner fault"},
     {0, NULL}
 };
+
+const struct fault_list expert_alarm_list [] =
+{
+    {'N', "No alarms"},
+    {'S', "SWR exceeding limits"},
+    {'D', "Input overdriving"},
+    {'H', "Excess overheating"},
+    {'C', "Combiner fault"},
+    {0, NULL}
+};
+
 
 /*
  * Initialize data structures
@@ -83,8 +112,8 @@ int expert_init(AMP *amp)
 
 int expert_open(AMP *amp)
 {
-    unsigned char cmd = 0x80;
-    unsigned char response[256];
+    unsigned char cmd = EXPERT_AMP_COMMAND_SCREEN;
+    unsigned char response[EXPERTBUFSZ];
 
     rig_debug(RIG_DEBUG_TRACE, "%s: entered\n", __func__);
 
@@ -95,7 +124,7 @@ int expert_open(AMP *amp)
 
 int expert_close(AMP *amp)
 {
-
+    // TODO: what does command 0x81 do?
     unsigned char cmd = 0x81;
     unsigned char response[256];
 
@@ -126,10 +155,13 @@ int expert_transaction(AMP *amp, const unsigned char *cmd, int cmd_len,
     struct amp_state *rs;
     int err;
     int len = 0;
-    char cmdbuf[64];
+    char cmdbuf[EXPERTBUFSZ];
     int checksum = 0;
 
-    if (cmd) { rig_debug(RIG_DEBUG_VERBOSE, "%s called, cmd=%80s\n", __func__, cmd); }
+    if (cmd)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s called, cmd=%80s\n", __func__, cmd);
+    }
     else
     {
         rig_debug(RIG_DEBUG_ERR, "%s: cmd empty\n", __func__);
@@ -172,27 +204,37 @@ int expert_transaction(AMP *amp, const unsigned char *cmd, int cmd_len,
             return len;
         }
 
-        if (len == 4) { bytes = response[3]; }
+        if (len == 4)
+        {
+            bytes = response[3];
+        }
 
-        rig_debug(RIG_DEBUG_ERR, "%s: bytes=%d\n", __func__, bytes);
-        len = read_block_direct(&rs->ampport, (unsigned  char *) response, bytes - 3);
+        if (bytes > response_len)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: response does not fit in buffer: response=%d buffer=%d\n",
+                    __func__, bytes, response_len);
+            bytes = response_len;
+        }
+
+        len = read_block_direct(&rs->ampport, (unsigned  char *) response, bytes);
         dump_hex(response, len);
     }
     else   // if no response expected try to get one
     {
-        char responsebuf[KPABUFSZ];
+        char responsebuf[EXPERTBUFSZ];
         responsebuf[0] = 0;
         int loop = 3;
 
         do
         {
+            // TODO: does this work at all???
             char c = ';';
             rig_debug(RIG_DEBUG_VERBOSE, "%s waiting for ;\n", __func__);
             err = write_block(&rs->ampport, (unsigned char *) &c, 1);
 
             if (err != RIG_OK) { return err; }
 
-            len = read_string(&rs->ampport, (unsigned char *) responsebuf, KPABUFSZ, ";", 1,
+            len = read_string(&rs->ampport, (unsigned char *) responsebuf, EXPERTBUFSZ, ";", 1,
                               0, 1);
 
             if (len < 0) { return len; }
@@ -223,7 +265,7 @@ const char *expert_get_info(AMP *amp)
 
 int expert_get_freq(AMP *amp, freq_t *freq)
 {
-    char responsebuf[KPABUFSZ] = "\0";
+    char responsebuf[EXPERTBUFSZ] = "\0";
     int retval;
     unsigned long tfreq;
     int nargs;
@@ -236,6 +278,7 @@ int expert_get_freq(AMP *amp, freq_t *freq)
 
     if (retval != RIG_OK) { return retval; }
 
+    // TODO: This is totally incorrect, could get band info from status
     nargs = sscanf(responsebuf, "^FR%lu", &tfreq);
 
     if (nargs != 1)
@@ -251,11 +294,11 @@ int expert_get_freq(AMP *amp, freq_t *freq)
 
 int expert_set_freq(AMP *amp, freq_t freq)
 {
-    char responsebuf[KPABUFSZ] = "\0";
+    char responsebuf[EXPERTBUFSZ] = "\0";
     int retval;
     unsigned long tfreq;
     int nargs;
-    unsigned char cmd[KPABUFSZ];
+    unsigned char cmd[EXPERTBUFSZ];
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called, freq=%"PRIfreq"\n", __func__, freq);
 
@@ -289,7 +332,7 @@ int expert_set_freq(AMP *amp, freq_t freq)
 
 int expert_get_level(AMP *amp, setting_t level, value_t *val)
 {
-    char responsebuf[KPABUFSZ] = "\0";
+    char responsebuf[EXPERTBUFSZ] = "\0";
     unsigned char cmd[8];
     int retval;
     int fault;
@@ -536,7 +579,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
 
 int expert_get_powerstat(AMP *amp, powerstat_t *status)
 {
-    unsigned char responsebuf[KPABUFSZ] = "\0";
+    unsigned char responsebuf[EXPERTBUFSZ] = "\0";
     int retval;
     int operate = 0;
     int ampon = 0;
@@ -674,7 +717,7 @@ const struct amp_caps expert_amp_caps =
     AMP_MODEL(AMP_MODEL_EXPERT_FA),
     .model_name =   "1.3K-FA/1.5K-FA/2K-FA",
     .mfg_name =     "Expert",
-    .version =      "20230328.0",
+    .version =      "20240104.0",
     .copyright =    "LGPL",
     .status =     RIG_STATUS_ALPHA,
     .amp_type =     AMP_TYPE_OTHER,
@@ -689,6 +732,7 @@ const struct amp_caps expert_amp_caps =
     .post_write_delay = 0,
     .timeout =      2000,
     .retry =      2,
+    // TODO: fix levels
     .has_get_level = AMP_LEVEL_SWR | AMP_LEVEL_NH | AMP_LEVEL_PF | AMP_LEVEL_PWR_INPUT | AMP_LEVEL_PWR_FWD | AMP_LEVEL_PWR_REFLECTED | AMP_LEVEL_FAULT,
     .has_set_level = 0,
 
