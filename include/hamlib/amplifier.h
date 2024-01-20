@@ -19,6 +19,7 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #ifndef _AMPLIFIER_H
 #define _AMPLIFIER_H 1
@@ -147,6 +148,7 @@ typedef enum
  * \sa amp_parse_func(), amp_strfunc()
  */
 #define AMP_FUNC_NONE       0                          /*!< '' -- No Function */
+#define AMP_FUNC_TUNER      CONSTANT_64BIT_FLAG (1)   /*!< \c TUNER -- Enable automatic tuner */
 #ifndef SWIGLUAHIDE
 /* Hide the top 32 bits from the old Lua binding as they can't be represented */
 #define AMP_FUNC_BIT63      CONSTANT_64BIT_FLAG (63)   /*!< **Future use**, AMP_FUNC items. */
@@ -175,19 +177,18 @@ enum amp_level_e
   AMP_LEVEL_PWR_REFLECTED = CONSTANT_64BIT_FLAG(5), /*!< \c Output power reflected in watts (W), type int */
   AMP_LEVEL_PWR_PEAK      = CONSTANT_64BIT_FLAG(6), /*!< \c Peak power reading in watts (W), type int */
   AMP_LEVEL_FAULT         = CONSTANT_64BIT_FLAG(7), /*!< \c Fault code as a string message (device-dependent), type string */
-  AMP_LEVEL_PWR           = CONSTANT_64BIT_FLAG(8), /*!< \c Output power setting, type float [0.0 ... 1.0] - round up to nearest step where 1.0 = max power */
-  AMP_LEVEL_WARNING       = CONSTANT_64BIT_FLAG(9), /*!< \c Warning code as a string message (device-dependent), type string */
+  AMP_LEVEL_WARNING       = CONSTANT_64BIT_FLAG(8), /*!< \c Warning code as a string message (device-dependent), type string */
+  AMP_LEVEL_RFPOWER       = CONSTANT_64BIT_FLAG(9), /*!< \c Output power setting, type float [0.0 ... 1.0] - round up to nearest step where 1.0 = max power */
   AMP_LEVEL_SWR_TUNER     = CONSTANT_64BIT_FLAG(10), /*!< \c Standing Wave Ratio (SWR) reported by tuner, 1.0 or greater, type float */
   AMP_LEVEL_VD_METER      = CONSTANT_64BIT_FLAG(11), /*!< \c Supply voltage in volts (V), type float */
   AMP_LEVEL_ID_METER      = CONSTANT_64BIT_FLAG(12), /*!< \c Current draw in amperes (A), type float */
   AMP_LEVEL_TEMP_METER    = CONSTANT_64BIT_FLAG(13), /*!< \c Temperature in degrees Celsius (C), type float */
-  AMP_LEVEL_BAND          = CONSTANT_64BIT_FLAG(14), /*!< \c Selected band, lower bound (MHz), type float */
   AMP_LEVEL_63            = CONSTANT_64BIT_FLAG(63), /*!< **Future use**, last level. */
 };
 //! @endcond
 
 //! @cond Doxygen_Suppress
-#define AMP_LEVEL_FLOAT_LIST  (AMP_LEVEL_SWR|AMP_LEVEL_PWR|AMP_LEVEL_SWR_TUNER|AMP_LEVEL_VD_METER|AMP_LEVEL_ID_METER|AMP_LEVEL_TEMP_METER|AMP_LEVEL_BAND)
+#define AMP_LEVEL_FLOAT_LIST  (AMP_LEVEL_SWR|AMP_LEVEL_RFPOWER|AMP_LEVEL_SWR_TUNER|AMP_LEVEL_VD_METER|AMP_LEVEL_ID_METER|AMP_LEVEL_TEMP_METER)
 #define AMP_LEVEL_STRING_LIST  (AMP_LEVEL_FAULT|AMP_LEVEL_WARNING)
 #define AMP_LEVEL_IS_FLOAT(l) ((l)&AMP_LEVEL_FLOAT_LIST)
 #define AMP_LEVEL_IS_STRING(l) ((l)&AMP_LEVEL_STRING_LIST)
@@ -270,7 +271,7 @@ typedef enum {
     AMP_STATUS_WARNING_POWER_LIMIT =        (1 << 11), /*!< Power limit exceeded. */
     AMP_STATUS_WARNING_TEMPERATURE =        (1 << 12), /*!< Temperature high. */
     AMP_STATUS_WARNING_FREQUENCY =          (1 << 13), /*!< Frequency/band not supported by the amplifier. */
-    AMP_STATUS_WARNING_TUNE_NO_INPUT =      (1 << 14), /*!< Tuning with no input power. */
+    AMP_STATUS_WARNING_TUNER_NO_INPUT =     (1 << 14), /*!< Tuning with no input power. */
     AMP_STATUS_WARNING_OTHER  =             (1 << 15), /*!< Other warning. Get model-specific warning with \c AMP_LEVEL_WARNING */
 } amp_status_t;
 
@@ -364,8 +365,8 @@ struct amp_caps
   setting_t levels;
   unsigned ext_levels;
 //! @endcond
-  const struct confparams *extlevels;         /*!< Extension levels list.  \sa extamp.c */
-  const struct confparams *extparms;          /*!< Extension parameters list.  \sa extamp.c */
+  const struct confparams *extlevels;         /*!< Extension levels list.  \sa amp_ext.c */
+  const struct confparams *extparms;          /*!< Extension parameters list.  \sa amp_ext.c */
 
   const char *macro_name;                     /*!< Amplifier model macro name. */
 
@@ -376,7 +377,7 @@ struct amp_caps
   setting_t has_get_parm;                     /*!< List of get parameters. */
   setting_t has_set_parm;                     /*!< List of set parameters. */
 
-  const struct confparams *extfuncs;          /*!< Extension func list.  \sa extamp.c */
+  const struct confparams *extfuncs;          /*!< Extension func list.  \sa amp_ext.c */
   int *ext_tokens;                            /*!< Extension token list. */
 
   int (*get_status)(AMP *amp, amp_status_t *status);        /*!< Pointer to backend implementation of ::amp_get_status(). */
@@ -626,6 +627,14 @@ extern HAMLIB_EXPORT(const struct confparams *)
 amp_ext_lookup HAMLIB_PARAMS((AMP *amp,
                               const char *name));
 
+extern HAMLIB_EXPORT(const struct confparams *)
+amp_ext_lookup_tok HAMLIB_PARAMS((AMP *amp,
+                                  token_t token));
+
+extern HAMLIB_EXPORT(token_t)
+amp_ext_token_lookup HAMLIB_PARAMS((AMP *amp,
+                                    const char *name));
+
 extern HAMLIB_EXPORT(int)
 amp_get_ext_level HAMLIB_PARAMS((AMP *amp,
                                  token_t token,
@@ -661,14 +670,19 @@ extern HAMLIB_EXPORT(amp_op_t)
 amp_has_op HAMLIB_PARAMS((AMP *amp,
                           amp_op_t op));
 
-extern HAMLIB_EXPORT(const char *) amp_strlevel(setting_t);
+extern HAMLIB_EXPORT(amp_op_t) amp_parse_amp_op(const char *s);
+extern HAMLIB_EXPORT(const char *) amp_strampop(amp_op_t op);
 
-extern HAMLIB_EXPORT(const struct confparams *)
-amp_ext_lookup HAMLIB_PARAMS((AMP *amp,
-                              const char *name));
+extern HAMLIB_EXPORT(const char *) amp_strstatus(amp_status_t);
 
+extern HAMLIB_EXPORT(setting_t) amp_parse_func(const char *s);
 extern HAMLIB_EXPORT(setting_t) amp_parse_level(const char *s);
+extern HAMLIB_EXPORT(setting_t) amp_parse_parm(const char *s);
+extern HAMLIB_EXPORT(const char *) amp_strfunc(setting_t);
 extern HAMLIB_EXPORT(const char *) amp_strlevel(setting_t);
+extern HAMLIB_EXPORT(const char *) amp_strparm(setting_t);
+
+extern HAMLIB_EXPORT(void *) amp_data_pointer(AMP *amp, rig_ptrx_t idx);
 
 //! @endcond
 

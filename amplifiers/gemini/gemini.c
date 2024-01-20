@@ -25,7 +25,7 @@
 #include "gemini.h"
 
 #if 0
-struct fault_list
+struct expert_fault_message
 {
     int code;
     char *errmsg;

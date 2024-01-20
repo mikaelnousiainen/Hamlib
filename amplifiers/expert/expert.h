@@ -35,21 +35,10 @@
 
 extern const struct amp_caps expert_amp_caps;
 
-/*
- * Private data structure
- */
-struct expert_priv_data
-{
-    char tmpbuf[256];  // for unknown error msg
-};
-
-
 int expert_init(AMP *amp);
 int expert_close(AMP *amp);
 int expert_reset(AMP *amp, amp_reset_t reset);
 int expert_flush_buffer(AMP *amp);
-int expert_transaction(AMP *amp, const unsigned  char *cmd, int cmd_len, unsigned char *response,
-                    int response_len);
 const char *expert_get_info(AMP *amp);
 int expert_get_freq(AMP *amp, freq_t *freq);
 int expert_set_freq(AMP *amp, freq_t freq);

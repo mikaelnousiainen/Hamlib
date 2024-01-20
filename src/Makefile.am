@@ -9,7 +9,7 @@ RIGSRC = hamlibdatetime.h rig.c serial.c serial.h misc.c misc.h register.c regis
    	mem.c settings.c parallel.c parallel.h usb_port.c usb_port.h debug.c \
    	network.c network.h cm108.c cm108.h gpio.c gpio.h idx_builtin.h token.h \
    	par_nt.h microham.c microham.h amplifier.c amp_reg.c amp_conf.c \
-   	amp_conf.h amp_settings.c extamp.c sleep.c sleep.h sprintflst.c \
+   	amp_conf.h amp_settings.c amp_ext.c sleep.c sleep.h sprintflst.c \
    	sprintflst.h cache.c cache.h snapshot_data.c snapshot_data.h fifo.c fifo.h \
     serial_cfg_params.h
 
@@ -27,7 +27,7 @@ libhamlib_la_LIBADD = $(top_builddir)/lib/libmisc.la $(top_builddir)/security/li
 
 libhamlib_la_DEPENDENCIES = $(top_builddir)/lib/libmisc.la $(top_builddir)/security/libsecurity.la $(BACKENDEPS) $(RIG_BACKENDEPS) $(ROT_BACKENDEPS) $(AMP_BACKENDEPS) 
 
-EXTRA_DIST = Android.mk hamlibdatetime.h.in
+EXTRA_DIST = Android.mk hamlibdatetime.h.in band_changed.c
 
 
 # If we have  a .git directory then we will  generate the hamlibdate.h

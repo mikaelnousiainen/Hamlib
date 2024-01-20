@@ -23,12 +23,12 @@
 #include <string.h>
 #include "kpa.h"
 
-struct fault_list
+struct expert_fault_message
 {
     int code;
     char *errmsg;
 };
-const struct fault_list kpa_fault_list [] =
+const struct expert_fault_message kpa_fault_list [] =
 {
     {0, "No fault condition"},
     {0x10, "Watchdog Timer was reset"},

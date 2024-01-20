@@ -790,6 +790,17 @@ static const struct
 };
 
 
+static const struct
+{
+    setting_t func;
+    const char *str;
+} amp_func_str[] =
+{
+    { AMP_FUNC_TUNER, "TUNER" },
+    { AMP_FUNC_NONE, "" },
+};
+
+
 /**
  * utility function to convert index to bit value
  *
@@ -837,7 +848,7 @@ setting_t HAMLIB_API rig_parse_band(const char *s)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    for (i = 0 ; rig_bandselect_str[i].str[0] != '\0'; i++)
+    for (i = 0 ; rig_bandselect_str[i].str != NULL; i++)
     {
         if (!strcmp(s, rig_bandselect_str[i].str))
         {
@@ -872,6 +883,31 @@ setting_t HAMLIB_API rot_parse_func(const char *s)
     }
 
     return ROT_FUNC_NONE;
+}
+
+
+/**
+ * \brief Convert alpha string to enum AMP_FUNC_...
+ * \param s input alpha string
+ * \return AMP_FUNC_...
+ *
+ * \sa amp_func_e()
+ */
+setting_t HAMLIB_API amp_parse_func(const char *s)
+{
+    int i;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    for (i = 0 ; amp_func_str[i].str[0] != '\0'; i++)
+    {
+        if (!strcmp(s, amp_func_str[i].str))
+        {
+            return amp_func_str[i].func;
+        }
+    }
+
+    return AMP_FUNC_NONE;
 }
 
 
@@ -930,6 +966,37 @@ const char *HAMLIB_API rot_strfunc(setting_t func)
         if (func == rot_func_str[i].func)
         {
             return rot_func_str[i].str;
+        }
+    }
+
+    return "";
+}
+
+
+/**
+ * \brief Convert enum AMP_FUNC_... to alpha string
+ * \param func AMP_FUNC_...
+ * \return alpha string
+ *
+ * \sa amp_func_e()
+ */
+const char *HAMLIB_API amp_strfunc(setting_t func)
+{
+    int i;
+
+    // too verbose to keep on unless debugging this in particular
+    //rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (func == AMP_FUNC_NONE)
+    {
+        return "";
+    }
+
+    for (i = 0; amp_func_str[i].str[0] != '\0'; i++)
+    {
+        if (func == amp_func_str[i].func)
+        {
+            return amp_func_str[i].str;
         }
     }
 
@@ -1023,6 +1090,12 @@ static const struct
     { AMP_LEVEL_PWR_REFLECTED, "PWRREFLECTED" },
     { AMP_LEVEL_PWR_PEAK, "PWRPEAK" },
     { AMP_LEVEL_FAULT, "FAULT" },
+    { AMP_LEVEL_WARNING, "WARNING" },
+    { AMP_LEVEL_RFPOWER, "RFPOWER" },
+    { AMP_LEVEL_SWR_TUNER, "SWR_TUNER" },
+    { AMP_LEVEL_VD_METER, "VD_METER" },
+    { AMP_LEVEL_ID_METER, "ID_METER" },
+    { AMP_LEVEL_TEMP_METER, "TEMP_METER" },
     { AMP_LEVEL_NONE, "" },
 };
 
@@ -1288,6 +1361,18 @@ static const struct
 };
 
 
+static const struct
+{
+    setting_t parm;
+    const char *str;
+} amp_parm_str[] =
+{
+    { AMP_PARM_BACKLIGHT, "BACKLIGHT" },
+    { AMP_PARM_BEEP, "BEEP" },
+    { AMP_PARM_NONE, "" },
+};
+
+
 /**
  * \brief Convert alpha string to RIG_PARM_...
  * \param s input alpha string
@@ -1335,6 +1420,31 @@ setting_t HAMLIB_API rot_parse_parm(const char *s)
     }
 
     return ROT_PARM_NONE;
+}
+
+
+/**
+ * \brief Convert alpha string to AMP_PARM_...
+ * \param s input alpha string
+ * \return AMP_PARM_...
+ *
+ * \sa amp_parm_e()
+ */
+setting_t HAMLIB_API amp_parse_parm(const char *s)
+{
+    int i;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    for (i = 0 ; amp_parm_str[i].str[0] != '\0'; i++)
+    {
+        if (!strcmp(s, amp_parm_str[i].str))
+        {
+            return amp_parm_str[i].parm;
+        }
+    }
+
+    return AMP_PARM_NONE;
 }
 
 
@@ -1396,6 +1506,37 @@ const char *HAMLIB_API rot_strparm(setting_t parm)
 
     return "";
 }
+
+
+/**
+ * \brief Convert enum AMP_PARM_... to alpha string
+ * \param parm AMP_PARM_...
+ * \return alpha string
+ *
+ * \sa amp_parm_e()
+ */
+const char *HAMLIB_API amp_strparm(setting_t parm)
+{
+    int i;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (parm == AMP_PARM_NONE)
+    {
+        return "";
+    }
+
+    for (i = 0; amp_parm_str[i].str[0] != '\0'; i++)
+    {
+        if (parm == amp_parm_str[i].parm)
+        {
+            return amp_parm_str[i].str;
+        }
+    }
+
+    return "";
+}
+
 
 static const struct
 {
@@ -2004,9 +2145,10 @@ vfo_t HAMLIB_API vfo_fixup2a(RIG *rig, vfo_t vfo, split_t split,
 // We need to add some exceptions to this like the ID-5100
 vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 {
+    vfo_t currvfo = rig->state.current_vfo;
     rig_debug(RIG_DEBUG_TRACE, "%s:(from %s:%d) vfo=%s, vfo_curr=%s, split=%d\n",
               __func__, funcname, linenum,
-              rig_strvfo(vfo), rig_strvfo(rig->state.current_vfo), split);
+              rig_strvfo(vfo), rig_strvfo(currvfo), split);
 
     if (rig->caps->rig_model == RIG_MODEL_ID5100
             || rig->caps->rig_model == RIG_MODEL_IC9700)
@@ -2022,6 +2164,28 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
         }
 
         return vfo; // no change to requested vfo
+    }
+    else if (RIG_IS_IC9700)
+    {
+        if (vfo == RIG_VFO_A && (currvfo == RIG_VFO_MAIN || currvfo == RIG_VFO_MAIN_A))
+        {
+            vfo = RIG_VFO_MAIN_A;
+        }
+        else if (vfo == RIG_VFO_B && (currvfo == RIG_VFO_MAIN
+                                      || currvfo == RIG_VFO_MAIN_A))
+        {
+            vfo = RIG_VFO_MAIN_B;
+        }
+        else if (vfo == RIG_VFO_A && (currvfo == RIG_VFO_SUB
+                                      || currvfo == RIG_VFO_SUB_A || currvfo == RIG_VFO_SUB_B))
+        {
+            vfo = RIG_VFO_SUB_A;
+        }
+        else if (vfo == RIG_VFO_B && (currvfo == RIG_VFO_SUB
+                                      || currvfo == RIG_VFO_SUB_A || currvfo == RIG_VFO_SUB_B))
+        {
+            vfo = RIG_VFO_SUB_B;
+        }
     }
 
     if (vfo == RIG_VFO_NONE) { vfo = RIG_VFO_A; }
@@ -2321,6 +2485,119 @@ const char *HAMLIB_API rot_strstatus(rot_status_t status)
 
     return "";
 }
+
+
+static const struct
+{
+    amp_status_t status;
+    const char *str;
+} amp_status_str[] =
+{
+    { AMP_STATUS_PTT, "PTT" },
+    { AMP_STATUS_FAULT_SWR, "FAULT_SWR" },
+    { AMP_STATUS_FAULT_INPUT_POWER, "FAULT_INPUT_POWER" },
+    { AMP_STATUS_FAULT_TEMPERATURE, "FAULT_TEMPERATURE" },
+    { AMP_STATUS_FAULT_PWR_FWD,          "FAULT_PWR_FWD" },
+    { AMP_STATUS_FAULT_PWR_REFLECTED,    "FAULT_PWR_REFLECTED" },
+    { AMP_STATUS_FAULT_VOLTAGE,          "FAULT_VOLTAGE" },
+    { AMP_STATUS_FAULT_FREQUENCY,        "FAULT_FREQUENCY" },
+    { AMP_STATUS_FAULT_TUNER_NO_MATCH,   "FAULT_TUNER_NO_MATCH" },
+    { AMP_STATUS_FAULT_OTHER,            "FAULT_OTHER" },
+    { AMP_STATUS_WARNING_SWR_HIGH,       "WARNING_SWR_HIGH" },
+    { AMP_STATUS_WARNING_POWER_LIMIT,    "WARNING_POWER_LIMIT" },
+    { AMP_STATUS_WARNING_TEMPERATURE,    "WARNING_TEMPERATURE" },
+    { AMP_STATUS_WARNING_FREQUENCY,      "WARNING_FREQUENCY" },
+    { AMP_STATUS_WARNING_TUNER_NO_INPUT, "WARNING_TUNER_NO_INPUT" },
+    { AMP_STATUS_WARNING_OTHER,          "WARNING_OTHER" },
+    { 0xffffff,                          "" },
+};
+
+
+/**
+ * \brief Convert enum AMP_STATUS_... to a string
+ * \param status AMP_STATUS_...
+ * \return the corresponding string value
+ */
+const char *HAMLIB_API amp_strstatus(amp_status_t status)
+{
+    int i;
+
+    for (i = 0 ; amp_status_str[i].str[0] != '\0'; i++)
+    {
+        if (status == amp_status_str[i].status)
+        {
+            return amp_status_str[i].str;
+        }
+    }
+
+    return "";
+}
+
+
+static const struct
+{
+    amp_op_t amp_op;
+    const char *str;
+} amp_op_str[] =
+{
+    { AMP_OP_TUNE, "TUNE" },
+    { AMP_OP_BAND_UP, "BAND_UP" },
+    { AMP_OP_BAND_DOWN, "BAND_DOWN" },
+    { AMP_OP_L_NH_UP, "L_NH_UP" },
+    { AMP_OP_L_NH_DOWN, "L_NH_DOWN" },
+    { AMP_OP_C_PF_UP, "C_PF_UP" },
+    { AMP_OP_C_PF_DOWN, "C_PF_DOWN" },
+    { AMP_OP_NONE, "" },
+};
+
+
+/**
+ * \brief Convert alpha string to enum AMP_OP_...
+ * \param s alpha string
+ * \return AMP_OP_...
+ *
+ * \sa amp_op_t()
+ */
+amp_op_t HAMLIB_API amp_parse_amp_op(const char *s)
+{
+    int i;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    for (i = 0 ; vfo_op_str[i].str[0] != '\0'; i++)
+    {
+        if (!strcmp(s, vfo_op_str[i].str))
+        {
+            return amp_op_str[i].amp_op;
+        }
+    }
+
+    return AMP_OP_NONE;
+}
+
+
+/**
+ * \brief Convert enum AMP_OP_... to alpha string
+ * \param op AMP_OP_...
+ * \return alpha string
+ *
+ * \sa amp_op_t()
+ */
+const char *HAMLIB_API amp_strampop(amp_op_t op)
+{
+    int i;
+
+    for (i = 0; amp_op_str[i].str[0] != '\0'; i++)
+    {
+        if (op == amp_op_str[i].amp_op)
+        {
+            return amp_op_str[i].str;
+        }
+    }
+
+    return "";
+}
+
 
 /**
  * \brief Get pointer to rig function instead of using rig->caps
@@ -2827,9 +3104,25 @@ char *rig_date_strget(char *buf, int buflen, int localtime)
     return date_strget(buf, buflen, localtime);
 }
 
-const char *spaces()
+const char *spaces(int len)
 {
-    static char *s = "                     ";
+    static char s[256];
+    memset(s, '*', sizeof(s));
+
+    if (len > 255)
+    {
+        len = 0;
+    }
+
+    if (len > 0)
+    {
+        s[len + 1] = 0;
+    }
+    else
+    {
+        s[1] = 0;
+    }
+
     return s;
 }
 
@@ -2841,7 +3134,7 @@ const char *rig_get_band_str(RIG *rig, hamlib_band_t band, int which)
 
     if (which == 0)
     {
-        for (i = 0; rig_bandselect_str[i].str[0] != '\0'; i++)
+        for (i = 0; rig_bandselect_str[i].str != NULL; i++)
         {
             if (rig_bandselect_str[i].bandselect == band)
             {
@@ -2871,7 +3164,7 @@ const char *rig_get_band_str(RIG *rig, hamlib_band_t band, int which)
         {
             if (n == band)
             {
-                for (i = 0; rig_bandselect_str[i].str[0] != '\0'; i++)
+                for (i = 0; rig_bandselect_str[i].str != NULL; i++)
                 {
                     if (strcmp(rig_bandselect_str[i].str, token) == 0)
                     {
@@ -2927,7 +3220,7 @@ hamlib_band_t rig_get_band(RIG *rig, freq_t freq, int band)
         return RIG_BAND_UNUSED;
     }
 
-    for (i = 0 ; rig_bandselect_str[i].str[0] != '\0'; i++)
+    for (i = 0 ; rig_bandselect_str[i].str != NULL; i++)
     {
         if (freq >= rig_bandselect_str[i].start && freq <= rig_bandselect_str[i].stop)
         {
@@ -2944,12 +3237,26 @@ int rig_get_band_rig(RIG *rig, freq_t freq, const char *band)
     char bandlist[512];
     int i;
 
+    if (freq == 0 && band == NULL)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: bad combo of freq==0 && band==NULL\n", __func__);
+        return RIG_BAND_GEN;
+    }
+
     if (freq == 0)
     {
         rig_sprintf_parm_gran(bandlist, sizeof(bandlist) - 1, RIG_PARM_BANDSELECT,
                               rig->caps->parm_gran);
+        bandlist[0] = 0;
         rig_debug(RIG_DEBUG_VERBOSE, "%s: bandlist=%s\n", __func__, bandlist);
+
         // e.g. BANDSELECT(BAND160M,BAND80M,BANDUNUSED,BAND40M)
+        if (strlen(bandlist) == 0)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: rig does not have bandlist\n", __func__);
+            return RIG_BAND_GEN;
+        }
+
         char *p = strchr(bandlist, '(') + 1;
         char *token;
 
@@ -2973,7 +3280,7 @@ int rig_get_band_rig(RIG *rig, freq_t freq, const char *band)
         return 0;
     }
 
-    for (i = 0 ; rig_bandselect_str[i].str[0] != '\0'; i++)
+    for (i = 0 ; rig_bandselect_str[i].str != NULL; i++)
     {
         if (freq >= rig_bandselect_str[i].start && freq <= rig_bandselect_str[i].stop)
         {
