@@ -26,6 +26,7 @@
 #include "register.h"
 #include "misc.h"
 #include "bandplan.h"
+#include "idx_builtin.h"
 
 #define EXPERT_ANTS (RIG_ANT_1 | RIG_ANT_2 | RIG_ANT_3 | RIG_ANT_4)
 
@@ -33,8 +34,8 @@
 
 #define EXPERT_GET_FUNCS (AMP_FUNC_TUNER)
 #define EXPERT_SET_FUNCS (0)
-#define EXPERT_GET_LEVELS (AMP_LEVEL_SWR | AMP_LEVEL_SWR_TUNER | AMP_LEVEL_RFPOWER | AMP_LEVEL_PWR_FWD | AMP_LEVEL_PWR_PEAK | AMP_LEVEL_FAULT | AMP_LEVEL_WARNING | AMP_LEVEL_VD_METER | AMP_LEVEL_ID_METER)
-#define EXPERT_SET_LEVELS (AMP_LEVEL_RFPOWER)
+#define EXPERT_GET_LEVELS (AMP_LEVEL_SWR | AMP_LEVEL_SWR_TUNER | AMP_LEVEL_PWR | AMP_LEVEL_PWR_FWD | AMP_LEVEL_PWR_PEAK | AMP_LEVEL_FAULT | AMP_LEVEL_WARNING | AMP_LEVEL_VD_METER | AMP_LEVEL_ID_METER)
+#define EXPERT_SET_LEVELS (AMP_LEVEL_PWR)
 #define EXPERT_GET_PARMS (0)
 #define EXPERT_SET_PARMS (AMP_PARM_BACKLIGHT)
 
@@ -591,7 +592,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
         break;
     }
 
-    case AMP_LEVEL_RFPOWER: {
+    case AMP_LEVEL_PWR: {
         char power_level = status_response->power_level;
 
         switch (power_level)
@@ -875,7 +876,7 @@ const struct amp_caps expert_amp_caps =
     AMP_MODEL(AMP_MODEL_EXPERT_FA),
     .model_name = "1.3K-FA/1.5K-FA/2K-FA",
     .mfg_name = "Expert",
-    .version = "20240115.0",
+    .version = "20240122.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_BETA,
     .amp_type = AMP_TYPE_OTHER,
@@ -897,6 +898,17 @@ const struct amp_caps expert_amp_caps =
     .has_set_level = EXPERT_SET_LEVELS,
     .has_get_parm = EXPERT_GET_PARMS,
     .has_set_parm = EXPERT_SET_PARMS,
+
+    .level_gran = {
+        [AMP_LVL_SWR]           = { .min = { .f = 0.0f },   .max = { .f = 20.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_SWR_TUNER]     = { .min = { .f = 0.0f },   .max = { .f = 20.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_PWR]           = { .min = { .f = 1.0f },   .max = { .f = 3.0f },    .step = { .f = 1.0f } },
+        [AMP_LVL_PWR_FWD]       = { .min = { .i = 0 },   .max = { .i = 1500 },    .step = { .i = 1 } },
+        [AMP_LVL_PWR_PEAK]      = { .min = { .i = 0 },   .max = { .i = 1500 },    .step = { .i = 1 } },
+        [AMP_LVL_VD_METER]      = { .min = { .f = 0.0f },   .max = { .f = 60.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_ID_METER]      = { .min = { .f = 0.0f },   .max = { .f = 50.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_TEMP_METER]    = { .min = { .f = 0.0f },   .max = { .f = 100.0f },    .step = { .f = 1.0f } },
+    },
 
     .amp_ops = EXPERT_AMP_OPS,
 

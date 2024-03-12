@@ -177,8 +177,8 @@ enum amp_level_e
   AMP_LEVEL_PWR_REFLECTED = CONSTANT_64BIT_FLAG(5), /*!< \c Output power reflected in watts (W), type int */
   AMP_LEVEL_PWR_PEAK      = CONSTANT_64BIT_FLAG(6), /*!< \c Peak power reading in watts (W), type int */
   AMP_LEVEL_FAULT         = CONSTANT_64BIT_FLAG(7), /*!< \c Fault code as a string message (device-dependent), type string */
-  AMP_LEVEL_WARNING       = CONSTANT_64BIT_FLAG(8), /*!< \c Warning code as a string message (device-dependent), type string */
-  AMP_LEVEL_RFPOWER       = CONSTANT_64BIT_FLAG(9), /*!< \c Output power setting, type float [0.0 ... 1.0] - round up to nearest step where 1.0 = max power */
+  AMP_LEVEL_PWR           = CONSTANT_64BIT_FLAG(8), /*!< \c Output power setting, type float [model-specific range, defaults to 0.0 ... 1.0] - round up to nearest step where 1.0 = max power, if range not specified */
+  AMP_LEVEL_WARNING       = CONSTANT_64BIT_FLAG(9), /*!< \c Warning code as a string message (device-dependent), type string */
   AMP_LEVEL_SWR_TUNER     = CONSTANT_64BIT_FLAG(10), /*!< \c Standing Wave Ratio (SWR) reported by tuner, 1.0 or greater, type float */
   AMP_LEVEL_VD_METER      = CONSTANT_64BIT_FLAG(11), /*!< \c Supply voltage in volts (V), type float */
   AMP_LEVEL_ID_METER      = CONSTANT_64BIT_FLAG(12), /*!< \c Current draw in amperes (A), type float */
@@ -188,7 +188,7 @@ enum amp_level_e
 //! @endcond
 
 //! @cond Doxygen_Suppress
-#define AMP_LEVEL_FLOAT_LIST  (AMP_LEVEL_SWR|AMP_LEVEL_RFPOWER|AMP_LEVEL_SWR_TUNER|AMP_LEVEL_VD_METER|AMP_LEVEL_ID_METER|AMP_LEVEL_TEMP_METER)
+#define AMP_LEVEL_FLOAT_LIST  (AMP_LEVEL_SWR|AMP_LEVEL_PWR|AMP_LEVEL_SWR_TUNER|AMP_LEVEL_VD_METER|AMP_LEVEL_ID_METER|AMP_LEVEL_TEMP_METER)
 #define AMP_LEVEL_STRING_LIST  (AMP_LEVEL_FAULT|AMP_LEVEL_WARNING)
 #define AMP_LEVEL_IS_FLOAT(l) ((l)&AMP_LEVEL_FLOAT_LIST)
 #define AMP_LEVEL_IS_STRING(l) ((l)&AMP_LEVEL_STRING_LIST)

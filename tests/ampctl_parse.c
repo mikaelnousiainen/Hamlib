@@ -27,10 +27,8 @@
  */
 
 // TODO: implement new commands in ampctl_parse
-// TODO: add new parse/str functions for parms, funcs and ops
-// TODO: add new ext func/parm support functions
 // TODO: add new features in dumpcaps_amp()
-// TODO: implement Expert backend and test
+// TODO: finish Expert backend and test
 
 #include <hamlib/config.h>
 
@@ -167,6 +165,11 @@ declare_proto_amp(get_info);
 declare_proto_amp(reset);
 declare_proto_amp(set_level);
 declare_proto_amp(get_level);
+declare_proto_amp(set_func);
+declare_proto_amp(get_func);
+declare_proto_amp(set_parm);
+declare_proto_amp(get_parm);
+declare_proto_amp(amp_op);
 declare_proto_amp(set_powerstat);
 declare_proto_amp(get_powerstat);
 //declare_proto_amp(dump_caps);
@@ -182,7 +185,18 @@ struct test_table test_list[] =
     { 'f', "get_freq",      ACTION(get_freq),       ARG_OUT, "Frequency(Hz)" },
     { 'l', "get_level",     ACTION(get_level),      ARG_IN1 | ARG_OUT2, "Level", "Level Value" },
     { 'L', "set_level",     ACTION(set_level),      ARG_IN, "Level", "Level Value" },
+    { 'U', "set_func",      ACTION(set_func),       ARG_IN, "Func", "Func Status" },
+    { 'u', "get_func",      ACTION(get_func),       ARG_IN1 | ARG_OUT2, "Func", "Func Status" },
+    { 'P', "set_parm",      ACTION(set_parm),       ARG_IN, "Parm", "Parm Value" },
+    { 'p', "get_parm",      ACTION(get_parm),       ARG_IN1 | ARG_OUT2, "Parm", "Parm Value" },
+    { 'G', "amp_op",        ACTION(amp_op),         ARG_IN, "Amplifier Operation" },
+    { 'I', "set_ant",       ACTION(set_input),      ARG_IN, "Input" },
+    { 'i', "get_ant",       ACTION(get_input),      ARG_OUT, "Input" },
+    { 'Y', "set_ant",       ACTION(set_ant),        ARG_IN, "Antenna", "Option" },
+    { 'y', "get_ant",       ACTION(get_ant),        ARG_IN1 | ARG_OUT2, "AntCurr", "Option" },
+    { 's', "get_status",    ACTION(get_status),     ARG_OUT, "Status flags" },
     { 'w', "send_cmd",      ACTION(send_cmd),       ARG_IN1 | ARG_IN_LINE | ARG_OUT2, "Cmd", "Reply" },
+    { 'W', "send_cmd_rx",   ACTION(send_cmd),       ARG_IN | ARG_OUT2, "Cmd", "Reply"},
     { 0x8f, "dump_state",   ACTION(dump_state),     ARG_OUT },
     { '1', "dump_caps",     ACTION(dump_caps), },
     { '_', "get_info",      ACTION(get_info),       ARG_OUT, "Info" },
@@ -191,7 +205,6 @@ struct test_table test_list[] =
     { 0x88, "get_powerstat",    ACTION(get_powerstat),  ARG_OUT, "Power Status" },
     { 0x00, "", NULL },
 };
-
 
 struct test_table *find_cmd_entry(int cmd)
 {
@@ -1878,6 +1891,439 @@ declare_proto_amp(get_level)
 
     return status;
 }
+
+
+/* 'U' */
+declare_proto_amp(set_func)
+{
+    setting_t func;
+    int func_stat;
+
+    ENTERFUNC2;
+
+    if (!strcmp(arg1, "?"))
+    {
+        char s[SPRINTF_MAX_SIZE];
+        amp_sprintf_func(s, sizeof(s), amp->state.has_set_func);
+        fprintf(fout, "%s\n", s);
+        RETURNFUNC2(RIG_OK);
+    }
+
+    func = amp_parse_func(arg1);
+
+    if (!amp_has_set_func(amp, func))
+    {
+        const struct confparams *cfp;
+
+        cfp = amp_ext_lookup(amp, arg1);
+
+        if (!cfp)
+        {
+            RETURNFUNC2(-RIG_ENAVAIL);    /* no such parameter */
+        }
+
+        CHKSCN1ARG(sscanf(arg2, "%d", &func_stat));
+
+        RETURNFUNC2(amp_set_ext_func(amp, cfp->token, func_stat));
+    }
+
+    CHKSCN1ARG(sscanf(arg2, "%d", &func_stat));
+    RETURNFUNC2(amp_set_func(amp, func, func_stat));
+}
+
+
+/* 'u' */
+declare_proto_amp(get_func)
+{
+    int status;
+    setting_t func;
+    int func_stat;
+
+    ENTERFUNC2;
+
+    if (!strcmp(arg1, "?"))
+    {
+        char s[SPRINTF_MAX_SIZE];
+        amp_sprintf_func(s, sizeof(s), amp->state.has_get_func);
+        fprintf(fout, "%s\n", s);
+        RETURNFUNC2(RIG_OK);
+    }
+
+    func = amp_parse_func(arg1);
+
+    if (!amp_has_get_func(amp, func))
+    {
+        const struct confparams *cfp;
+
+        cfp = amp_ext_lookup(amp, arg1);
+
+        if (!cfp)
+        {
+            RETURNFUNC2(-RIG_EINVAL);    /* no such parameter */
+        }
+
+        status = amp_get_ext_func(amp, cfp->token, &func_stat);
+
+        if (status != RIG_OK)
+        {
+            RETURNFUNC2(status);
+        }
+
+        if (interactive && prompt)
+        {
+            fprintf(fout, "%s: ", cmd->arg2);
+        }
+
+        fprintf(fout, "%d%c", func_stat, resp_sep);
+
+        RETURNFUNC2(status);
+    }
+
+    status = amp_get_func(amp, func, &func_stat);
+
+    if (status != RIG_OK)
+    {
+        RETURNFUNC2(status);
+    }
+
+    if (interactive && prompt)
+    {
+        fprintf(fout, "%s: ", cmd->arg1);
+    }
+
+    fprintf(fout, "%d%c", func_stat, resp_sep);
+
+    RETURNFUNC2(status);
+}
+
+
+/* 'P' */
+declare_proto_amp(set_parm)
+{
+    setting_t parm;
+    value_t val;
+
+    ENTERFUNC2;
+
+    if (!strcmp(arg1, "?"))
+    {
+        char s[SPRINTF_MAX_SIZE];
+        amp_sprintf_parm(s, sizeof(s), amp->state.has_set_parm);
+        fprintf(fout, "%s\n", s);
+        RETURNFUNC2(RIG_OK);
+    }
+
+    parm = amp_parse_parm(arg1);
+
+    if (!amp_has_set_parm(amp, parm))
+    {
+        const struct confparams *cfp;
+
+        cfp = amp_ext_lookup(amp, arg1);
+
+        if (!cfp)
+        {
+            RETURNFUNC2(-RIG_EINVAL);    /* no such parameter */
+        }
+
+        switch (cfp->type)
+        {
+        case RIG_CONF_BUTTON:
+            /* arg is ignored */
+            val.i = 0; // avoid passing uninitialized data
+            break;
+
+        case RIG_CONF_CHECKBUTTON:
+        case RIG_CONF_COMBO:
+            CHKSCN1ARG(sscanf(arg2, "%d", &val.i));
+            break;
+
+        case RIG_CONF_INT:
+            CHKSCN1ARG(sscanf(arg2, "%f", &val.f));
+            break;
+
+        case RIG_CONF_NUMERIC:
+            CHKSCN1ARG(sscanf(arg2, "%g", &val.f));
+            break;
+
+        case RIG_CONF_STRING:
+            val.cs = arg2;
+
+            break;
+
+        case RIG_CONF_BINARY:
+            val.b.d = (unsigned char *)arg2;
+            break;
+
+        default:
+            RETURNFUNC2(-RIG_ECONF);
+        }
+
+        RETURNFUNC2(amp_set_ext_parm(amp, cfp->token, val));
+    }
+
+    if (RIG_PARM_IS_FLOAT(parm))
+    {
+        CHKSCN1ARG(sscanf(arg2, "%f", &val.f));
+    }
+    else if (RIG_PARM_IS_STRING(parm))
+    {
+        if (parm == RIG_PARM_KEYERTYPE)
+        {
+            val.i = atoi(arg2);
+        }
+        else
+        {
+            val.cs = arg2;
+        }
+    }
+    else
+    {
+        CHKSCN1ARG(sscanf(arg2, "%d", &val.i));
+    }
+
+    RETURNFUNC2(amp_set_parm(amp, parm, val));
+}
+
+
+/* 'p' */
+declare_proto_amp(get_parm)
+{
+    int status;
+    setting_t parm;
+    value_t val;
+    char buffer[RIG_BIN_MAX];
+
+    ENTERFUNC2;
+
+    if (!strcmp(arg1, "?"))
+    {
+        char s[SPRINTF_MAX_SIZE];
+        amp_sprintf_parm(s, sizeof(s), amp->state.has_get_parm);
+        fprintf(fout, "%s\n", s);
+        RETURNFUNC2(RIG_OK);
+    }
+
+    parm = amp_parse_parm(arg1);
+
+    if (!amp_has_get_parm(amp, parm))
+    {
+        const struct confparams *cfp;
+
+        cfp = amp_ext_lookup(amp, arg1);
+
+        if (!cfp)
+        {
+            RETURNFUNC2(-RIG_EINVAL);    /* no such parameter */
+        }
+
+        switch (cfp->type)
+        {
+        case RIG_CONF_STRING:
+            memset(buffer, '0', sizeof(buffer));
+            buffer[sizeof(buffer) - 1] = 0;
+            val.s = buffer;
+            break;
+
+        case RIG_CONF_BINARY:
+            memset(buffer, 0, sizeof(buffer));
+            val.b.d = (unsigned char *)buffer;
+            val.b.l = RIG_BIN_MAX;
+            break;
+
+        default:
+            break;
+        }
+
+        status = amp_get_ext_parm(amp, cfp->token, &val);
+
+        if (status != RIG_OK)
+        {
+            RETURNFUNC2(status);
+        }
+
+        if (interactive && prompt)
+        {
+            fprintf(fout, "%s: ", cmd->arg2);
+        }
+
+        switch (cfp->type)
+        {
+        case RIG_CONF_BUTTON:
+            /* there's not sense in retrieving value of stateless button */
+            RETURNFUNC2(-RIG_EINVAL);
+
+        case RIG_CONF_CHECKBUTTON:
+        case RIG_CONF_COMBO:
+            fprintf(fout, "%d%c", val.i, resp_sep);
+            break;
+
+        case RIG_CONF_INT:
+            fprintf(fout, "%.0f%c", val.f, resp_sep);
+            break;
+
+        case RIG_CONF_NUMERIC:
+            fprintf(fout, "%g%c", val.f, resp_sep);
+            break;
+
+        case RIG_CONF_STRING:
+            fprintf(fout, "%s%c", val.s, resp_sep);
+            break;
+
+        case RIG_CONF_BINARY:
+            dump_hex((unsigned char *)buffer, val.b.l);
+            fprintf(fout, "%c", resp_sep);
+            break;
+
+        default:
+            RETURNFUNC2(-RIG_ECONF);
+        }
+
+        RETURNFUNC2(status);
+    }
+
+    status = amp_get_parm(amp, parm, &val);
+
+    if (status != RIG_OK)
+    {
+        RETURNFUNC2(status);
+    }
+
+    if (interactive && prompt)
+    {
+        fprintf(fout, "%s: ", cmd->arg2);
+    }
+
+    if (RIG_PARM_IS_FLOAT(parm))
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: float\n", __func__);
+        fprintf(fout, "%f%c", val.f, resp_sep);
+    }
+    else if (RIG_PARM_IS_STRING(parm))
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: string\n", __func__);
+        fprintf(fout, "%s%c", val.s, resp_sep);
+    }
+    else
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: int\n", __func__);
+        fprintf(fout, "%d%c", val.i, resp_sep);
+    }
+
+    RETURNFUNC2(status);
+}
+
+
+/* 'G' */
+declare_proto_amp(amp_op)
+{
+    amp_op_t op;
+
+    ENTERFUNC2;
+
+    if (!strcmp(arg1, "?"))
+    {
+        char s[SPRINTF_MAX_SIZE];
+        amp_sprintf_amp_op(s, sizeof(s), amp->caps->amp_ops);
+        fprintf(fout, "%s\n", s);
+        RETURNFUNC2(RIG_OK);
+    }
+
+    op = amp_parse_amp_op(arg1);
+
+    if (RIG_OP_NONE == op)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: amp_parse_amp_op failed with '%s'\n", __func__,
+                  arg1);
+        RETURNFUNC2(-RIG_EINVAL);
+    }
+
+    RETURNFUNC2(amp_op(amp, op));
+}
+
+// TODO: add a separate command to switch antenna "mode", e.g. for RX only antennas
+// TODO: then there is no need to have the "option" for set/get ant
+
+/* 'Y' */
+declare_proto_amp(set_ant)
+{
+    ant_t ant;
+    value_t option; // some rigs have a another option for the antenna
+
+    ENTERFUNC2;
+
+    CHKSCN1ARG(sscanf(arg1, "%d", &ant));
+    CHKSCN1ARG(sscanf(arg2, "%d", &option.i)); // assuming they are integer values
+
+    RETURNFUNC2(amp_set_ant(amp, rig_idx2setting(ant - 1), option));
+}
+
+
+/* 'y' */
+declare_proto_amp(get_ant)
+{
+    int status;
+    ant_t ant;
+    value_t option;
+    char antbuf[64];
+
+    ENTERFUNC2;
+
+    CHKSCN1ARG(sscanf(arg1, "%d", &ant));
+
+    if (ant == 0) // then we want the current antenna info
+    {
+        status = amp_get_ant(rig, vfo, RIG_ANT_CURR, &option, &ant_curr, &ant_tx,
+                             &ant_rx);
+    }
+    else
+    {
+        status = rig_get_ant(rig, vfo, rig_idx2setting(ant - 1), &option, &ant_curr,
+                             &ant_tx, &ant_rx);
+    }
+
+    if (status != RIG_OK)
+    {
+        RETURNFUNC2(status);
+    }
+
+    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
+    {
+        fprintf(fout, "%s: ", cmd->arg1);
+    }
+
+    rig_sprintf_ant(antbuf, sizeof(antbuf), ant_curr);
+    fprintf(fout, "%s%c", antbuf, resp_sep);
+    //fprintf(fout, "%d%c", rig_setting2idx(ant_curr)+1, resp_sep);
+
+    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
+    {
+        fprintf(fout, "%s: ", cmd->arg2);
+    }
+
+    fprintf(fout, "%d%c", option.i, resp_sep);
+
+    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
+    {
+        fprintf(fout, "%s: ", cmd->arg3);
+    }
+
+    rig_sprintf_ant(antbuf, sizeof(antbuf), ant_tx);
+    fprintf(fout, "%s%c", antbuf, resp_sep);
+    //fprintf(fout, "%d%c", rig_setting2idx(ant_tx)+1, resp_sep);
+
+    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
+    {
+        fprintf(fout, "%s: ", cmd->arg4);
+    }
+
+    rig_sprintf_ant(antbuf, sizeof(antbuf), ant_rx);
+    fprintf(fout, "%s%c", antbuf, resp_sep);
+    //fprintf(fout, "%d%c", rig_setting2idx(ant_rx)+1, resp_sep);
+
+    RETURNFUNC2(status);
+}
+
 
 /* 'R' */
 declare_proto_amp(reset)

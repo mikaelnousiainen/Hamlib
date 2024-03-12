@@ -24,14 +24,6 @@
 #include "misc.h"
 #include "gemini.h"
 
-#if 0
-struct expert_fault_message
-{
-    int code;
-    char *errmsg;
-};
-#endif
-
 /*
  * Initialize data structures
  */

@@ -221,6 +221,37 @@ int rot_sprintf_func(char *str, int nlen, setting_t func)
 }
 
 
+int amp_sprintf_func(char *str, int nlen, setting_t func)
+{
+    unsigned int i, len = 0;
+
+    *str = '\0';
+
+    if (func == AMP_FUNC_NONE)
+    {
+        return 0;
+    }
+
+    for (i = 0; i < RIG_SETTING_MAX; i++)
+    {
+        const char *ms = amp_strfunc(func & rig_idx2setting(i));
+
+        if (!ms || !ms[0])
+        {
+            rig_debug(RIG_EINTERNAL, "%s: unknown RIG_FUNC=%x\n", __func__, i);
+            continue;    /* unknown, FIXME! */
+        }
+
+        strcat(str, ms);
+        strcat(str, " ");
+        len += strlen(ms) + 1;
+        check_buffer_overflow(str, len, nlen);
+    }
+
+    return len;
+}
+
+
 int rig_sprintf_level(char *str, int nlen, setting_t level)
 {
     int i, len = 0;
@@ -532,6 +563,36 @@ int rot_sprintf_parm(char *str, int nlen, setting_t parm)
 }
 
 
+int amp_sprintf_parm(char *str, int nlen, setting_t parm)
+{
+    int i, len = 0;
+
+    *str = '\0';
+
+    if (parm == AMP_PARM_NONE)
+    {
+        return 0;
+    }
+
+    for (i = 0; i < RIG_SETTING_MAX; i++)
+    {
+        const char *ms = amp_strparm(parm & rig_idx2setting(i));
+
+        if (!ms || !ms[0])
+        {
+            continue;    /* unknown, FIXME! */
+        }
+
+        strcat(str, ms);
+        strcat(str, " ");
+        len += strlen(ms) + 1;
+        check_buffer_overflow(str, len, nlen);
+    }
+
+    return len;
+}
+
+
 int rig_sprintf_parm_gran(char *str, int nlen, setting_t parm,
                           const gran_t *gran)
 {
@@ -674,6 +735,36 @@ int rig_sprintf_vfop(char *str, int nlen, vfo_op_t op)
     for (i = 0; i < HAMLIB_MAX_VFO_OPS; i++)
     {
         const char *ms = rig_strvfop(op & (1UL << i));
+
+        if (!ms || !ms[0])
+        {
+            continue;    /* unknown, FIXME! */
+        }
+
+        strcat(str, ms);
+        strcat(str, " ");
+        len += strlen(ms) + 1;
+        check_buffer_overflow(str, len, nlen);
+    }
+
+    return len;
+}
+
+
+int amp_sprintf_amp_op(char *str, int nlen, amp_op_t op)
+{
+    int i, len = 0;
+
+    *str = '\0';
+
+    if (op == AMP_OP_NONE)
+    {
+        return 0;
+    }
+
+    for (i = 0; i < HAMLIB_MAX_AMP_OPS; i++)
+    {
+        const char *ms = amp_strampop(op & (1UL << i));
 
         if (!ms || !ms[0])
         {
