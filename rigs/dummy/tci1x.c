@@ -85,8 +85,8 @@ static int tci1x_get_split_freq_mode(RIG *rig, vfo_t vfo, freq_t *freq,
 static int tci1x_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val);
 static int tci1x_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
 
-static int tci1x_set_ext_parm(RIG *rig, token_t token, value_t val);
-static int tci1x_get_ext_parm(RIG *rig, token_t token, value_t *val);
+static int tci1x_set_ext_parm(RIG *rig, hamlib_token_t token, value_t val);
+static int tci1x_get_ext_parm(RIG *rig, hamlib_token_t token, value_t *val);
 #endif
 
 static const char *tci1x_get_info(RIG *rig);
@@ -139,7 +139,7 @@ struct rig_caps tci1x_caps =
     .mfg_name = "Expert Elec",
     .version = "20211125.0",
     .copyright = "LGPL",
-    .status = RIG_STATUS_ALPHA,
+    .status = RIG_STATUS_BETA,
     .rig_type = RIG_TYPE_TRANSCEIVER,
     .targetable_vfo =  RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE,
     .ptt_type = RIG_PTT_RIG,
@@ -273,7 +273,6 @@ static int check_vfo(vfo_t vfo)
 static int read_transaction(RIG *rig, unsigned char *buf, int buf_len)
 {
     int retry;
-    struct rig_state *rs = &rig->state;
     char *delims = ";";
 
     ENTERFUNC;
@@ -287,7 +286,7 @@ static int read_transaction(RIG *rig, unsigned char *buf, int buf_len)
             rig_debug(RIG_DEBUG_WARN, "%s: retry needed? retry=%d\n", __func__, retry);
         }
 
-        int len = read_string(&rs->rigport, buf, buf_len, delims,
+        int len = read_string(RIGPORT(rig), buf, buf_len, delims,
                               strlen(delims), 0, 1);
         rig_debug(RIG_DEBUG_TRACE, "%s: string='%s'\n", __func__, buf);
 
@@ -320,7 +319,7 @@ static int write_transaction(RIG *rig, const unsigned char *buf, int buf_len)
 
     int retval = -RIG_EPROTO;
 
-    struct rig_state *rs = &rig->state;
+    hamlib_port_t *rp = RIGPORT(rig);
 
     ENTERFUNC;
 
@@ -334,11 +333,11 @@ static int write_transaction(RIG *rig, const unsigned char *buf, int buf_len)
 
     // appears we can lose sync if we don't clear things out
     // shouldn't be anything for us now anyways
-    rig_flush(&rig->state.rigport);
+    rig_flush(rp);
 
     while (try-- >= 0 && retval != RIG_OK)
         {
-            retval = write_block(&rs->rigport, buf, buf_len);
+            retval = write_block(rp, buf, buf_len);
 
             if (retval  < 0)
             {
@@ -420,6 +419,7 @@ static int tci1x_transaction(RIG *rig, char *cmd, char *cmd_arg, char *value,
 static int tci1x_init(RIG *rig)
 {
     struct tci1x_priv_data *priv;
+    hamlib_port_t *rp = RIGPORT(rig);
 
     ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s version %s\n", __func__, rig->caps->version);
@@ -453,8 +453,7 @@ static int tci1x_init(RIG *rig)
         RETURNFUNC(-RIG_EINVAL);
     }
 
-    strncpy(rig->state.rigport.pathname, DEFAULTPATH,
-            sizeof(rig->state.rigport.pathname));
+    strncpy(rp->pathname, DEFAULTPATH, sizeof(rp->pathname));
 
     priv->ext_parms = alloc_init_ext(tci1x_ext_parms);
 
@@ -1944,7 +1943,7 @@ static int tci1x_mW2power(RIG *rig, float *power, unsigned int mwpower,
 }
 
 #ifdef XXNOTIMPLEMENTED
-static int tci1x_set_ext_parm(RIG *rig, token_t token, value_t val)
+static int tci1x_set_ext_parm(RIG *rig, hamlib_token_t token, value_t val)
 {
     struct tci1x_priv_data *priv = (struct tci1x_priv_data *)rig->state.priv;
     char lstr[64];
@@ -2021,7 +2020,7 @@ static int tci1x_set_ext_parm(RIG *rig, token_t token, value_t val)
     RETURNFUNC(RIG_OK);
 }
 
-static int tci1x_get_ext_parm(RIG *rig, token_t token, value_t *val)
+static int tci1x_get_ext_parm(RIG *rig, hamlib_token_t token, value_t *val)
 {
     struct tci1x_priv_data *priv = (struct tci1x_priv_data *)rig->state.priv;
     const struct confparams *cfp;

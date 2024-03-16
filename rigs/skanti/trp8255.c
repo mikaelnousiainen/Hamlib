@@ -86,7 +86,7 @@ struct rig_caps trp8255_caps =
     .mfg_name =  "Skanti",
     .version =  "20200323.0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_ALPHA,
+    .status =  RIG_STATUS_BETA,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_NONE,
@@ -180,18 +180,19 @@ static int cu_transaction(RIG *rig, const char *cmd, int cmd_len)
 {
     int i;
     char retchar;
+    hamlib_port_t *rp = RIGPORT(rig);
 
     for (i = 0; i < cmd_len; i++)
     {
 
-        int ret = write_block(&rig->state.rigport, (unsigned char *) &cmd[i], 1);
+        int ret = write_block(rp, (unsigned char *) &cmd[i], 1);
 
         if (ret != RIG_OK)
         {
             return ret;
         }
 
-        ret = read_block(&rig->state.rigport, (unsigned char *) &retchar, 1);
+        ret = read_block(rp, (unsigned char *) &retchar, 1);
 
         switch (retchar)
         {

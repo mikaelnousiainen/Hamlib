@@ -35,7 +35,7 @@
 #include <sys/time.h>
 #endif
 
-#define BACKEND_VER "20231209"
+#define BACKEND_VER "20240303"
 
 #define ICOM_IS_ID31 rig_is_model(rig, RIG_MODEL_ID31)
 #define ICOM_IS_ID51 rig_is_model(rig, RIG_MODEL_ID51)
@@ -139,7 +139,7 @@ struct cmdparams
     union
     {
         setting_t s;    /*!< Level or parm */
-        token_t t;      /*!< TOKEN_BACKEND */
+        hamlib_token_t t;      /*!< TOKEN_BACKEND */
     } id;
     cmd_param_t cmdparamtype;  /*!< CMD_PARAM_TYPE_LEVEL or CMD_PARAM_TYPE_PARM */
     int command;        /*!< CI-V command */
@@ -292,6 +292,10 @@ struct icom_priv_data
     freq_t other_freq_deprecated; /*!< @deprecated Use rig_cache.freqOther - Our other freq depending on which vfo is selected */
     int vfo_flag; // used to skip vfo check when frequencies are equal
     int dual_watch_main_sub; // 0=main, 1=sub
+    int tone_enable;         /*!< Re-enable tone after freq change -- IC-705 bug with gpredict */
+    int filter_usbd;         /*!< Filter number to use for USBD/LSBD when setting mode */
+    int filter_usb;          /*!< Filter number to use for USB/LSB when setting mode */
+    int filter_cw;           /*!< Filter number to use for CW/CWR when setting mode */
 };
 
 extern const struct ts_sc_list r8500_ts_sc_list[];
@@ -368,20 +372,20 @@ int icom_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op);
 int icom_scan(RIG *rig, vfo_t vfo, scan_t scan, int ch);
 int icom_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val);
 int icom_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
-int icom_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val);
-int icom_get_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t *val);
+int icom_set_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t val);
+int icom_get_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t *val);
 int icom_set_func(RIG *rig, vfo_t vfo, setting_t func, int status);
 int icom_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status);
-int icom_set_ext_func(RIG *rig, vfo_t vfo, token_t token, int status);
-int icom_get_ext_func(RIG *rig, vfo_t vfo, token_t token, int *status);
+int icom_set_ext_func(RIG *rig, vfo_t vfo, hamlib_token_t token, int status);
+int icom_get_ext_func(RIG *rig, vfo_t vfo, hamlib_token_t token, int *status);
 int icom_set_parm(RIG *rig, setting_t parm, value_t val);
 int icom_get_parm(RIG *rig, setting_t parm, value_t *val);
-int icom_set_ext_parm(RIG *rig, token_t token, value_t val);
-int icom_get_ext_parm(RIG *rig, token_t token, value_t *val);
-int icom_set_ext_cmd(RIG *rig, vfo_t vfo, token_t token, value_t val);
-int icom_get_ext_cmd(RIG *rig, vfo_t vfo, token_t token, value_t *val);
-int icom_set_conf(RIG *rig, token_t token, const char *val);
-int icom_get_conf(RIG *rig, token_t token, char *val);
+int icom_set_ext_parm(RIG *rig, hamlib_token_t token, value_t val);
+int icom_get_ext_parm(RIG *rig, hamlib_token_t token, value_t *val);
+int icom_set_ext_cmd(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t val);
+int icom_get_ext_cmd(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t *val);
+int icom_set_conf(RIG *rig, hamlib_token_t token, const char *val);
+int icom_get_conf(RIG *rig, hamlib_token_t token, char *val);
 int icom_set_powerstat(RIG *rig, powerstat_t status);
 int icom_get_powerstat(RIG *rig, powerstat_t *status);
 int icom_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option);

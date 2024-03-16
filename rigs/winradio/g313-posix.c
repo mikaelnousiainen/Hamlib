@@ -178,9 +178,9 @@ int g313_open(RIG *rig)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: found %d rigs 0 is %s\n", __func__, Count,
               List[0].Path);
 
-    if (rig->state.rigport.pathname[0])
+    if (RIGPORT(rig)->pathname[0])
     {
-        priv->hRadio = OpenDevice(rig->state.rigport.pathname);
+        priv->hRadio = OpenDevice(RIGPORT(rig)->pathname);
     }
     else
     {
@@ -542,7 +542,7 @@ static const char *g313_get_info(RIG *rig)
     return info.SerNum;
 }
 
-int g313_set_conf(RIG *rig, token_t token, const char *val)
+int g313_set_conf(RIG *rig, hamlib_token_t token, const char *val)
 {
     struct g313_priv_data *priv = (struct g313_priv_data *)rig->state.priv;
 
@@ -593,7 +593,7 @@ int g313_set_conf(RIG *rig, token_t token, const char *val)
     return RIG_OK;
 }
 
-int g313_get_conf(RIG *rig, token_t token, char *val)
+int g313_get_conf(RIG *rig, hamlib_token_t token, char *val)
 {
     struct g313_priv_data *priv = (struct g313_priv_data *)rig->state.priv;
 
@@ -650,7 +650,7 @@ struct rig_caps g313_caps =
     .mfg_name =       "Winradio",
     .version =        "20191224.0",
     .copyright =        "LGPL", /* This wrapper, not the G313 shared library or driver */
-    .status =         RIG_STATUS_BETA,
+    .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_PCRECEIVER,
     .port_type =      RIG_PORT_NONE,
     .targetable_vfo =    0,

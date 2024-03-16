@@ -231,7 +231,7 @@ static int dummy_init(RIG *rig)
     rig->state.priv = (void *)priv;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
-    rig->state.rigport.type.rig = RIG_PORT_NONE;
+    RIGPORT(rig)->type.rig = RIG_PORT_NONE;
 
     priv->split = RIG_SPLIT_OFF;
     priv->ptt = RIG_PTT_OFF;
@@ -375,7 +375,7 @@ static int dummy_close(RIG *rig)
     RETURNFUNC(RIG_OK);
 }
 
-static int dummy_set_conf(RIG *rig, token_t token, const char *val)
+static int dummy_set_conf(RIG *rig, hamlib_token_t token, const char *val)
 {
     struct dummy_priv_data *priv;
 
@@ -404,7 +404,7 @@ static int dummy_set_conf(RIG *rig, token_t token, const char *val)
     RETURNFUNC(RIG_OK);
 }
 
-static int dummy_get_conf(RIG *rig, token_t token, char *val)
+static int dummy_get_conf(RIG *rig, hamlib_token_t token, char *val)
 {
     struct dummy_priv_data *priv;
 
@@ -446,7 +446,7 @@ static int dummy_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     if (vfo == RIG_VFO_CURR) { vfo = priv->curr_vfo; }
 
-    if (vfo == RIG_VFO_CURR || vfo == RIG_VFO_TX) { vfo = vfo_fixup(rig, vfo, rig->state.cache.split); }
+    if (vfo == RIG_VFO_CURR || vfo == RIG_VFO_TX) { vfo = vfo_fixup(rig, vfo, CACHE(rig)->split); }
 
 // if needed for testing enable this to emulate a rig with 100hz resolution
 #if 0
@@ -534,6 +534,7 @@ static int dummy_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
     struct dummy_priv_data *priv = (struct dummy_priv_data *)rig->state.priv;
     channel_t *curr = priv->curr;
+    struct rig_cache *cachep = CACHE(rig);
     char buf[16];
 
     ENTERFUNC;
@@ -542,7 +543,7 @@ static int dummy_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s %s %s\n", __func__,
               rig_strvfo(vfo), rig_strrmode(mode), buf);
 
-    vfo = vfo_fixup(rig, vfo, rig->state.cache.split);
+    vfo = vfo_fixup(rig, vfo, cachep->split);
 
     if (vfo == RIG_VFO_CURR) { vfo = priv->curr_vfo; }
 
@@ -587,7 +588,7 @@ static int dummy_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         RETURNFUNC(-RIG_EINVAL);
     }
 
-    vfo = vfo_fixup(rig, vfo, rig->state.cache.split);
+    vfo = vfo_fixup(rig, vfo, cachep->split);
 
     if (RIG_PASSBAND_NOCHANGE == width) { RETURNFUNC(RIG_OK); }
 
@@ -743,6 +744,7 @@ static int dummy_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 static int dummy_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
 {
     const struct dummy_priv_data *priv = (struct dummy_priv_data *)rig->state.priv;
+    hamlib_port_t *pttp = PTTPORT(rig);
     int rc;
     int status = 0;
 
@@ -751,12 +753,12 @@ static int dummy_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
 
     // sneak a look at the hardware PTT and OR that in with our result
     // as if it had keyed us
-    switch (rig->state.pttport.type.ptt)
+    switch (pttp->type.ptt)
     {
     case RIG_PTT_SERIAL_DTR:
-        if (rig->state.pttport.fd >= 0)
+        if (pttp->fd >= 0)
         {
-            if (RIG_OK != (rc = ser_get_dtr(&rig->state.pttport, &status))) { RETURNFUNC(rc); }
+            if (RIG_OK != (rc = ser_get_dtr(pttp, &status))) { RETURNFUNC(rc); }
 
             *ptt = status ? RIG_PTT_ON : RIG_PTT_OFF;
         }
@@ -768,9 +770,9 @@ static int dummy_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
         break;
 
     case RIG_PTT_SERIAL_RTS:
-        if (rig->state.pttport.fd >= 0)
+        if (pttp->fd >= 0)
         {
-            if (RIG_OK != (rc = ser_get_rts(&rig->state.pttport, &status))) { RETURNFUNC(rc); }
+            if (RIG_OK != (rc = ser_get_rts(pttp, &status))) { RETURNFUNC(rc); }
 
             *ptt = status ? RIG_PTT_ON : RIG_PTT_OFF;
         }
@@ -782,26 +784,26 @@ static int dummy_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
         break;
 
     case RIG_PTT_PARALLEL:
-        if (rig->state.pttport.fd >= 0)
+        if (pttp->fd >= 0)
         {
-            if (RIG_OK != (rc = par_ptt_get(&rig->state.pttport, ptt))) { RETURNFUNC(rc); }
+            if (RIG_OK != (rc = par_ptt_get(pttp, ptt))) { RETURNFUNC(rc); }
         }
 
         break;
 
     case RIG_PTT_CM108:
-        if (rig->state.pttport.fd >= 0)
+        if (pttp->fd >= 0)
         {
-            if (RIG_OK != (rc = cm108_ptt_get(&rig->state.pttport, ptt))) { RETURNFUNC(rc); }
+            if (RIG_OK != (rc = cm108_ptt_get(pttp, ptt))) { RETURNFUNC(rc); }
         }
 
         break;
 
     case RIG_PTT_GPIO:
     case RIG_PTT_GPION:
-        if (rig->state.pttport.fd >= 0)
+        if (pttp->fd >= 0)
         {
-            if (RIG_OK != (rc = gpio_ptt_get(&rig->state.pttport, ptt))) { RETURNFUNC(rc); }
+            if (RIG_OK != (rc = gpio_ptt_get(pttp, ptt))) { RETURNFUNC(rc); }
         }
 
         break;
@@ -1084,7 +1086,7 @@ static int dummy_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
 
     if (tx_vfo == RIG_VFO_NONE || tx_vfo == RIG_VFO_CURR) { tx_vfo = priv->curr_vfo; }
 
-    if (tx_vfo == RIG_VFO_CURR || tx_vfo == RIG_VFO_TX) { tx_vfo = vfo_fixup(rig, vfo, rig->state.cache.split); }
+    if (tx_vfo == RIG_VFO_CURR || tx_vfo == RIG_VFO_TX) { tx_vfo = vfo_fixup(rig, vfo, CACHE(rig)->split); }
 
     priv->split = split;
     priv->tx_vfo = tx_vfo;
@@ -1374,7 +1376,7 @@ static int dummy_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     RETURNFUNC(RIG_OK);
 }
 
-static int dummy_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
+static int dummy_set_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t val)
 {
     struct dummy_priv_data *priv = (struct dummy_priv_data *)rig->state.priv;
     channel_t *curr = priv->curr;
@@ -1444,7 +1446,7 @@ static int dummy_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
     RETURNFUNC(RIG_OK);
 }
 
-static int dummy_get_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t *val)
+static int dummy_get_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t *val)
 {
     struct dummy_priv_data *priv = (struct dummy_priv_data *)rig->state.priv;
     channel_t *curr = priv->curr;
@@ -1488,7 +1490,7 @@ static int dummy_get_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t *val)
 }
 
 
-static int dummy_set_ext_func(RIG *rig, vfo_t vfo, token_t token, int status)
+static int dummy_set_ext_func(RIG *rig, vfo_t vfo, hamlib_token_t token, int status)
 {
     struct dummy_priv_data *priv = (struct dummy_priv_data *)rig->state.priv;
     const struct confparams *cfp;
@@ -1540,7 +1542,7 @@ static int dummy_set_ext_func(RIG *rig, vfo_t vfo, token_t token, int status)
 }
 
 
-static int dummy_get_ext_func(RIG *rig, vfo_t vfo, token_t token, int *status)
+static int dummy_get_ext_func(RIG *rig, vfo_t vfo, hamlib_token_t token, int *status)
 {
     struct dummy_priv_data *priv = (struct dummy_priv_data *)rig->state.priv;
     const struct confparams *cfp;
@@ -1658,7 +1660,7 @@ static int dummy_get_parm(RIG *rig, setting_t parm, value_t *val)
     RETURNFUNC(RIG_OK);
 }
 
-static int dummy_set_ext_parm(RIG *rig, token_t token, value_t val)
+static int dummy_set_ext_parm(RIG *rig, hamlib_token_t token, value_t val)
 {
     struct dummy_priv_data *priv = (struct dummy_priv_data *)rig->state.priv;
     char lstr[64];
@@ -1725,7 +1727,7 @@ static int dummy_set_ext_parm(RIG *rig, token_t token, value_t val)
     RETURNFUNC(RIG_OK);
 }
 
-static int dummy_get_ext_parm(RIG *rig, token_t token, value_t *val)
+static int dummy_get_ext_parm(RIG *rig, hamlib_token_t token, value_t *val)
 {
     struct dummy_priv_data *priv = (struct dummy_priv_data *)rig->state.priv;
     const struct confparams *cfp;

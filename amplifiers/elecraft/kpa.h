@@ -31,7 +31,7 @@
 #include <serial.h>
 
 // Is this big enough?
-#define EXPERTBUFSZ 100
+#define KPABUFSZ 100
 
 extern const struct amp_caps kpa1500_amp_caps;
 

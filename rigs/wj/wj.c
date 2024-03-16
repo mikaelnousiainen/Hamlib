@@ -67,6 +67,7 @@ const struct confparams wj_cfg_params[] =
 static int wj_transaction(RIG *rig, int monitor)
 {
     struct wj_priv_data *priv = (struct wj_priv_data *)rig->state.priv;
+    hamlib_port_t *rp = RIGPORT(rig);
 
     unsigned char buf[CMDSZ] = { 0x8, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     unsigned char rxbuf[CMDSZ];
@@ -169,9 +170,9 @@ static int wj_transaction(RIG *rig, int monitor)
 
     /* buf[9]: not used if command byte, but must be transmitted */
 
-    rig_flush(&rig->state.rigport);
+    rig_flush(rp);
 
-    retval = write_block(&rig->state.rigport, buf, CMDSZ);
+    retval = write_block(rp, buf, CMDSZ);
 
     if (retval != RIG_OK)
     {
@@ -183,7 +184,7 @@ static int wj_transaction(RIG *rig, int monitor)
         /*
         * Transceiver sends back ">"
         */
-        retval = read_block(&rig->state.rigport, rxbuf, CMDSZ);
+        retval = read_block(rp, rxbuf, CMDSZ);
 
         if (retval < 0 || retval > CMDSZ)
         {
@@ -253,7 +254,7 @@ int wj_cleanup(RIG *rig)
 /*
  * Assumes rig!=NULL, rig->state.priv!=NULL
  */
-int wj_set_conf(RIG *rig, token_t token, const char *val)
+int wj_set_conf(RIG *rig, hamlib_token_t token, const char *val)
 {
     struct wj_priv_data *priv = (struct wj_priv_data *)rig->state.priv;
 
@@ -275,7 +276,7 @@ int wj_set_conf(RIG *rig, token_t token, const char *val)
  * Assumes rig!=NULL, rig->state.priv!=NULL
  *  and val points to a buffer big enough to hold the conf value.
  */
-int wj_get_conf2(RIG *rig, token_t token, char *val, int val_len)
+int wj_get_conf2(RIG *rig, hamlib_token_t token, char *val, int val_len)
 {
     const struct wj_priv_data *priv = (struct wj_priv_data *)rig->state.priv;
 
@@ -292,7 +293,7 @@ int wj_get_conf2(RIG *rig, token_t token, char *val, int val_len)
     return RIG_OK;
 }
 
-int wj_get_conf(RIG *rig, token_t token, char *val)
+int wj_get_conf(RIG *rig, hamlib_token_t token, char *val)
 {
     return wj_get_conf2(rig, token, val, 128);
 }

@@ -581,7 +581,7 @@ kenwood_ts480_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         return RIG_OK;
 
     case RIG_LEVEL_STRENGTH:
-        if (rig->state.cache.ptt != RIG_PTT_OFF)
+        if (CACHE(rig)->ptt != RIG_PTT_OFF)
         {
             val->i = -9 * 6;
             break;
@@ -708,7 +708,7 @@ kenwood_ts480_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     {
         int raw_value;
 
-        if (rig->state.cache.ptt == RIG_PTT_OFF)
+        if (CACHE(rig)->ptt == RIG_PTT_OFF)
         {
             val->f = 0;
             break;
@@ -847,7 +847,7 @@ static int ts480_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
     RETURNFUNC(RIG_OK);
 }
 
-static int ts480_set_ext_func(RIG *rig, vfo_t vfo, token_t token, int status)
+static int ts480_set_ext_func(RIG *rig, vfo_t vfo, hamlib_token_t token, int status)
 {
     char cmdbuf[20];
     int retval;
@@ -900,7 +900,7 @@ static int ts480_set_ext_func(RIG *rig, vfo_t vfo, token_t token, int status)
     RETURNFUNC(retval);
 }
 
-static int ts480_get_ext_func(RIG *rig, vfo_t vfo, token_t token, int *status)
+static int ts480_get_ext_func(RIG *rig, vfo_t vfo, hamlib_token_t token, int *status)
 {
     int retval;
 
@@ -945,7 +945,7 @@ static int ts480_get_ext_func(RIG *rig, vfo_t vfo, token_t token, int *status)
     RETURNFUNC(retval);
 }
 
-static int ts480_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
+static int ts480_set_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t val)
 {
     int retval;
     char cmdbuf[20];
@@ -1035,7 +1035,7 @@ static int ts480_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
     RETURNFUNC(retval);
 }
 
-static int ts480_get_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t *val)
+static int ts480_get_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t *val)
 {
     int retval;
     int value;
@@ -1449,7 +1449,7 @@ struct rig_caps trudx_caps =
     .mfg_name = "DL2MAN",
     .version = BACKEND_VER ".1",
     .copyright = "LGPL",
-    .status = RIG_STATUS_BETA,
+    .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
     .ptt_type = RIG_PTT_RIG_MICDATA,
     .dcd_type = RIG_DCD_RIG,
@@ -2006,12 +2006,11 @@ struct rig_caps sdruno_caps =
     RIG_MODEL(RIG_MODEL_SDRUNO),
     .model_name = "SDRUno",
     .mfg_name = "SDRPlay",
-    .version = BACKEND_VER ".2",
+    .version = BACKEND_VER ".3",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
-    .rig_type = RIG_TYPE_TRANSCEIVER,
-    .ptt_type = RIG_PTT_RIG_MICDATA,
-    .dcd_type = RIG_DCD_RIG,
+    .rig_type = RIG_TYPE_RECEIVER,
+    .ptt_type = RIG_PTT_NONE,
     .port_type = RIG_PORT_SERIAL,
     .serial_rate_min = 4800,
     .serial_rate_max = 115200,
@@ -2036,26 +2035,6 @@ struct rig_caps sdruno_caps =
         RIG_FRNG_END,
     }, /*!< Receive frequency range list for ITU region 1 */
     .tx_range_list1 = {
-        {kHz(1810),  kHz(1850),  TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},   /* 100W class */
-        {kHz(1810),  kHz(1850),  TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},       /* 25W class */
-        {kHz(3500),  kHz(3800),  TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {kHz(3500),  kHz(3800),  TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {MHz(7),     kHz(7200),  TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {MHz(7),     kHz(7200),  TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {kHz(10100), kHz(10150), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {kHz(10100), kHz(10150), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {MHz(14),    kHz(14350), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {MHz(14),    kHz(14350), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {kHz(18068), kHz(18168), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {kHz(18068), kHz(18168), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {MHz(21),    kHz(21450), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {MHz(21),    kHz(21450), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {kHz(24890), kHz(24990), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {kHz(24890), kHz(24990), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {MHz(28),    kHz(29700), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {MHz(28),    kHz(29700), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {MHz(50),    kHz(52000), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {MHz(50),    kHz(52000), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
         RIG_FRNG_END,
     },  /*!< Transmit frequency range list for ITU region 1 */
     .rx_range_list2 = {
@@ -2063,28 +2042,6 @@ struct rig_caps sdruno_caps =
         RIG_FRNG_END,
     },  /*!< Receive frequency range list for ITU region 2 */
     .tx_range_list2 = {
-        {kHz(1800),  MHz(2) - 1, TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},  /* 100W class */
-        {kHz(1800),  MHz(2) - 1, TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},      /* 25W class */
-        {kHz(3500),  MHz(4) - 1, TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {kHz(3500),  MHz(4) - 1, TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {kHz(5250),  kHz(5450),  TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {kHz(5250),  kHz(5450),  TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {MHz(7),     kHz(7300),  TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {MHz(7),     kHz(7300),  TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {kHz(10100), kHz(10150), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {kHz(10100), kHz(10150), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {MHz(14),    kHz(14350), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {MHz(14),    kHz(14350), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {kHz(18068), kHz(18168), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {kHz(18068), kHz(18168), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {MHz(21),    kHz(21450), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {MHz(21),    kHz(21450), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {kHz(24890), kHz(24990), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {kHz(24890), kHz(24990), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {MHz(28),    kHz(29700), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {MHz(28),    kHz(29700), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
-        {MHz(50),    kHz(52000), TS480_OTHER_TX_MODES, 5000, 100000, TS480_VFO},
-        {MHz(50),    kHz(52000), TS480_AM_TX_MODES, 5000, 25000, TS480_VFO},
         RIG_FRNG_END,
     }, /*!< Transmit frequency range list for ITU region 2 */
     .tuning_steps =  {
@@ -2241,15 +2198,16 @@ int malachite_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 int malachite_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
     int retval;
+    struct rig_cache *cachep = CACHE(rig);
 
     ENTERFUNC;
 
     rig_debug(RIG_DEBUG_TRACE, "%s: freqMainA=%g, freq=%g\n", __func__,
-              rig->state.cache.freqMainA, freq);
+              cachep->freqMainA, freq);
 
-    if ((rig->state.cache.freqMainA < 400000000 && freq >= 400000000)
-            || (rig->state.cache.freqMainA >= 400000000 && freq < 400000000)
-            || rig->state.cache.freqMainA == 0)
+    if ((cachep->freqMainA < 400000000 && freq >= 400000000)
+            || (cachep->freqMainA >= 400000000 && freq < 400000000)
+            || cachep->freqMainA == 0)
     {
         // Malachite has a bug where it takes two freq set to make it work
         // under band changes -- so we just do this all the time

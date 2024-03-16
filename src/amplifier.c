@@ -849,6 +849,77 @@ int HAMLIB_API amp_get_status(AMP *amp, amp_status_t *status)
 
 
 /**
+ * \brief check retrieval ability of amp operations
+ * \param rig   The #AMP handle
+ * \param op    The amp op
+ *
+ *  Checks if an amplifier is capable of executing an operation.
+ *  Since the \a op is an OR'ed bitmap argument, more than
+ *  one op can be checked at the same time.
+ *
+ *  EXAMPLE: if (amp_has_op(my_rig, AMP_OP_TUNE)) disp_tune_btn();
+ *
+ * \return a bit map mask of supported op settings that can be retrieved,
+ * otherwise 0 if none supported.
+ *
+ * \sa amp_op()
+ */
+amp_op_t HAMLIB_API amp_has_op(AMP *amp, amp_op_t op)
+{
+    int retcode;
+
+    amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (CHECK_AMP_ARG(amp))
+    {
+        return -RIG_EINVAL;
+    }
+
+    retcode = amp->state.amp_ops & op;
+
+    return retcode;
+}
+
+
+/**
+ * \brief perform amplifier operations
+ * \param rig   The #AMP handle
+ * \param op    The amplifier operation to perform
+ *
+ *  Performs amplifier operation.
+ *  See #amp_op_t for more information.
+ *
+ * \return RIG_OK if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
+ * set appropriately).
+ *
+ * \sa amp_has_op()
+ */
+int HAMLIB_API amp_op(AMP *amp, amp_op_t op)
+{
+    const struct amp_caps *caps;
+
+    amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (CHECK_AMP_ARG(amp))
+    {
+        return -RIG_EINVAL;
+    }
+
+    caps = amp->caps;
+
+    if (caps->amp_op == NULL || amp_has_op(amp, op) == 0)
+    {
+        rig_debug(RIG_DEBUG_WARN, "%s: amp_op=%p, has_amp_op=%d\n", __func__,
+                  caps->amp_op, amp_has_op(amp, op));
+        return -RIG_ENAVAIL;
+    }
+
+    return caps->amp_op(amp, op);
+}
+
+
+/**
  * \brief set the input
  * \param amp   The amp handle
  * \param input   The input to select
@@ -927,7 +998,7 @@ int HAMLIB_API amp_get_input(AMP *amp, ant_t *input)
  *
  * \sa amp_get_ant()
  */
-int HAMLIB_API amp_set_ant(AMP *amp, ant_t ant, value_t option)
+int HAMLIB_API amp_set_ant(AMP *amp, ant_t ant)
 {
     const struct amp_caps *caps;
 
@@ -943,7 +1014,7 @@ int HAMLIB_API amp_set_ant(AMP *amp, ant_t ant, value_t option)
         return -RIG_ENAVAIL;
     }
 
-    return amp->caps->set_ant(amp, ant, option);
+    return amp->caps->set_ant(amp, ant);
 }
 
 
@@ -951,7 +1022,6 @@ int HAMLIB_API amp_set_ant(AMP *amp, ant_t ant, value_t option)
  * \brief get the current antenna
  * \param amp   The amp handle
  * \param ant   The antenna to query option for
- * \param option  The option value for the antenna, amp specific.
  *
  *  Retrieves the current antenna.
  *
@@ -961,7 +1031,7 @@ int HAMLIB_API amp_set_ant(AMP *amp, ant_t ant, value_t option)
  *
  * \sa amp_set_ant()
  */
-int HAMLIB_API amp_get_ant(AMP *amp, ant_t *ant, value_t *option)
+int HAMLIB_API amp_get_ant(AMP *amp, ant_t *ant)
 {
     const struct amp_caps *caps;
 
@@ -977,9 +1047,7 @@ int HAMLIB_API amp_get_ant(AMP *amp, ant_t *ant, value_t *option)
         return -RIG_ENAVAIL;
     }
 
-    option->i = 0;
-
-    return caps->get_ant(amp, ant, option);
+    return caps->get_ant(amp, ant);
 }
 
 

@@ -80,8 +80,8 @@ static int dds60_init(RIG *rig);
 static int dds60_cleanup(RIG *rig);
 static int dds60_open(RIG *rig);
 static int dds60_set_freq(RIG *rig, vfo_t vfo, freq_t freq);
-static int dds60_set_conf(RIG *rig, token_t token, const char *val);
-static int dds60_get_conf(RIG *rig, token_t token, char *val);
+static int dds60_set_conf(RIG *rig, hamlib_token_t token, const char *val);
+static int dds60_get_conf(RIG *rig, hamlib_token_t token, char *val);
 
 /*
  * The DDS-60 kit exists with a AD9851 chip (60 MHz),
@@ -100,7 +100,7 @@ struct rig_caps dds60_caps =
     .mfg_name =  "AmQRP",
     .version =  "20200112.0",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_BETA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TUNER,
     .ptt_type =  RIG_PTT_NONE,
     .dcd_type =  RIG_DCD_NONE,
@@ -208,7 +208,7 @@ int dds60_cleanup(RIG *rig)
 /*
  * Assumes rig!=NULL, rig->state.priv!=NULL
  */
-int dds60_set_conf(RIG *rig, token_t token, const char *val)
+int dds60_set_conf(RIG *rig, hamlib_token_t token, const char *val)
 {
     struct dds60_priv_data *priv;
     float phase;
@@ -246,7 +246,7 @@ int dds60_set_conf(RIG *rig, token_t token, const char *val)
  * Assumes rig!=NULL, rig->state.priv!=NULL
  *  and val points to a buffer big enough to hold the conf value.
  */
-int dds60_get_conf2(RIG *rig, token_t token, char *val, int val_len)
+int dds60_get_conf2(RIG *rig, hamlib_token_t token, char *val, int val_len)
 {
     struct dds60_priv_data *priv;
 
@@ -277,7 +277,7 @@ int dds60_get_conf2(RIG *rig, token_t token, char *val, int val_len)
     return RIG_OK;
 }
 
-int dds60_get_conf(RIG *rig, token_t token, char *val)
+int dds60_get_conf(RIG *rig, hamlib_token_t token, char *val)
 {
     return dds60_get_conf2(rig, token, val, 128);
 }
@@ -348,7 +348,7 @@ int dds60_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     unsigned long frg;
     unsigned char control;
     struct dds60_priv_data *priv;
-    hamlib_port_t *port = &rig->state.rigport;
+    hamlib_port_t *port = RIGPORT(rig);
     freq_t osc_ref;
 
     priv = (struct dds60_priv_data *)rig->state.priv;
@@ -379,7 +379,7 @@ int dds60_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
 int dds60_open(RIG *rig)
 {
-    hamlib_port_t *port = &rig->state.rigport;
+    hamlib_port_t *port = RIGPORT(rig);
 
     /* lock the parallel port */
     par_lock(port);

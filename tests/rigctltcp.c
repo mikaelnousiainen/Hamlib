@@ -22,6 +22,7 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <hamlib/config.h>
 
@@ -685,7 +686,7 @@ int main(int argc, char *argv[])
 
     if (rig_file)
     {
-        strncpy(my_rig->state.rigport.pathname, rig_file, HAMLIB_FILPATHLEN - 1);
+        strncpy(RIGPORT(my_rig)->pathname, rig_file, HAMLIB_FILPATHLEN - 1);
     }
 
     my_rig->state.twiddle_timeout = twiddle_timeout;
@@ -700,7 +701,7 @@ int main(int argc, char *argv[])
      */
     if (ptt_type != RIG_PTT_NONE)
     {
-        my_rig->state.pttport.type.ptt = ptt_type;
+        PTTPORT(my_rig)->type.ptt = ptt_type;
         my_rig->state.pttport_deprecated.type.ptt = ptt_type;
         // This causes segfault since backend rig_caps are const
         // rigctld will use the rig->state version of this for clients
@@ -709,20 +710,20 @@ int main(int argc, char *argv[])
 
     if (dcd_type != RIG_DCD_NONE)
     {
-        my_rig->state.dcdport.type.dcd = dcd_type;
+        DCDPORT(my_rig)->type.dcd = dcd_type;
         my_rig->state.dcdport_deprecated.type.dcd = dcd_type;
     }
 
     if (ptt_file)
     {
-        strncpy(my_rig->state.pttport.pathname, ptt_file, HAMLIB_FILPATHLEN - 1);
+        strncpy(PTTPORT(my_rig)->pathname, ptt_file, HAMLIB_FILPATHLEN - 1);
         strncpy(my_rig->state.pttport_deprecated.pathname, ptt_file,
                 HAMLIB_FILPATHLEN - 1);
     }
 
     if (dcd_file)
     {
-        strncpy(my_rig->state.dcdport.pathname, dcd_file, HAMLIB_FILPATHLEN - 1);
+        strncpy(DCDPORT(my_rig)->pathname, dcd_file, HAMLIB_FILPATHLEN - 1);
         strncpy(my_rig->state.dcdport_deprecated.pathname, dcd_file,
                 HAMLIB_FILPATHLEN - 1);
     }
@@ -730,7 +731,7 @@ int main(int argc, char *argv[])
     /* FIXME: bound checking and port type == serial */
     if (serial_rate != 0)
     {
-        my_rig->state.rigport.parm.serial.rate = serial_rate;
+        RIGPORT(my_rig)->parm.serial.rate = serial_rate;
         my_rig->state.rigport_deprecated.parm.serial.rate = serial_rate;
     }
 
@@ -1308,7 +1309,7 @@ void *handle_socket(void *arg)
             if (cmd[0] != 0)
             {
                 memset(reply, 0, sizeof(reply));
-                rig_flush(&my_rig->state.rigport);
+                rig_flush(RIGPORT(my_rig));
                 retcode = rig_send_raw(my_rig, cmd, nbytes, reply, sizeof(reply),
                                        term);
 

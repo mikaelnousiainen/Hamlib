@@ -328,7 +328,7 @@ int main(int argc, char *argv[])
     while (token)
     {
         char mytoken[100], myvalue[100];
-        token_t lookup;
+        hamlib_token_t lookup;
         sscanf(token, "%99[^=]=%99s", mytoken, myvalue);
         //printf("mytoken=%s,myvalue=%s\n",mytoken, myvalue);
         lookup = amp_token_lookup(my_amp, mytoken);
@@ -353,13 +353,13 @@ int main(int argc, char *argv[])
 
     if (amp_file)
     {
-        strncpy(my_amp->state.ampport.pathname, amp_file, HAMLIB_FILPATHLEN - 1);
+        strncpy(AMPPORT(my_amp)->pathname, amp_file, HAMLIB_FILPATHLEN - 1);
     }
 
     /* FIXME: bound checking and port type == serial */
     if (serial_rate != 0)
     {
-        my_amp->state.ampport.parm.serial.rate = serial_rate;
+        AMPPORT(my_amp)->parm.serial.rate = serial_rate;
     }
 
     /*

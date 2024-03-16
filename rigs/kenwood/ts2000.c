@@ -18,6 +18,7 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -232,6 +233,7 @@ static struct kenwood_priv_caps  ts2000_priv_caps  =
     .filter_width = ts2000_filter_width,
     .slope_filter_high = ts2000_slope_filter_high,
     .slope_filter_low = ts2000_slope_filter_low,
+    .tone_table_base = 1,
 };
 
 /* memory capabilities */
@@ -690,7 +692,7 @@ static int ts2000_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         return RIG_OK;
 
     case RIG_LEVEL_STRENGTH:
-        if (rig->state.cache.ptt != RIG_PTT_OFF)
+        if (CACHE(rig)->ptt != RIG_PTT_OFF)
         {
             val->i = -9 * 6;
             break;
@@ -877,7 +879,7 @@ static int ts2000_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         int raw_value;
         char read_vfo_num;
 
-        if (rig->state.cache.ptt == RIG_PTT_OFF)
+        if (CACHE(rig)->ptt == RIG_PTT_OFF)
         {
             val->f = 0;
             break;
@@ -1026,7 +1028,7 @@ static int ts2000_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
     RETURNFUNC(RIG_OK);
 }
 
-static int ts2000_set_ext_func(RIG *rig, vfo_t vfo, token_t token, int status)
+static int ts2000_set_ext_func(RIG *rig, vfo_t vfo, hamlib_token_t token, int status)
 {
     char cmdbuf[20];
     int retval;
@@ -1052,7 +1054,7 @@ static int ts2000_set_ext_func(RIG *rig, vfo_t vfo, token_t token, int status)
     RETURNFUNC(retval);
 }
 
-static int ts2000_get_ext_func(RIG *rig, vfo_t vfo, token_t token, int *status)
+static int ts2000_get_ext_func(RIG *rig, vfo_t vfo, hamlib_token_t token, int *status)
 {
     int retval;
 
@@ -1085,7 +1087,7 @@ static int ts2000_get_ext_func(RIG *rig, vfo_t vfo, token_t token, int *status)
     RETURNFUNC(retval);
 }
 
-static int ts2000_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
+static int ts2000_set_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t val)
 {
     int retval;
 
@@ -1145,7 +1147,7 @@ static int ts2000_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
     RETURNFUNC(retval);
 }
 
-static int ts2000_get_ext_level(RIG *rig, vfo_t vfo, token_t token,
+static int ts2000_get_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token,
                                 value_t *val)
 {
     int retval;

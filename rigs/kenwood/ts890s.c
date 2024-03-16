@@ -36,8 +36,8 @@
 #define TS890_AM_TX_MODES RIG_MODE_AM
 
 #define TS890_LEVEL_SET (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC|RIG_LEVEL_KEYSPD|RIG_LEVEL_CWPITCH|RIG_LEVEL_ATT|RIG_LEVEL_USB_AF|RIG_LEVEL_USB_AF_INPUT)
-#define TS890_LEVEL_GET (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC|RIG_LEVEL_KEYSPD|RIG_LEVEL_ALC|RIG_LEVEL_SWR|RIG_LEVEL_COMP_METER|RIG_LEVEL_ID_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_TEMP_METER|RIG_LEVEL_CWPITCH|RIG_LEVEL_RAWSTR|RIG_LEVEL_STRENGTH|RIG_LEVEL_ATT|RIG_LEVEL_USB_AF|RIG_LEVEL_USB_AF_INPUT)
-#define TS890_FUNC_ALL (RIG_FUNC_NB|RIG_FUNC_NB2|RIG_FUNC_COMP|RIG_FUNC_VOX|RIG_FUNC_NR|RIG_FUNC_BC|RIG_FUNC_BC2|RIG_FUNC_RIT|RIG_FUNC_XIT|RIG_FUNC_TUNER|RIG_FUNC_SEND_MORSE)
+#define TS890_LEVEL_GET (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC|RIG_LEVEL_KEYSPD|RIG_LEVEL_ALC|RIG_LEVEL_SWR|RIG_LEVEL_COMP_METER|RIG_LEVEL_ID_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_TEMP_METER|RIG_LEVEL_CWPITCH|RIG_LEVEL_RAWSTR|RIG_LEVEL_STRENGTH|RIG_LEVEL_ATT|RIG_LEVEL_USB_AF|RIG_LEVEL_USB_AF_INPUT|RIG_LEVEL_RFPOWER_METER_WATTS)
+#define TS890_FUNC_ALL (RIG_FUNC_NB|RIG_FUNC_NB2|RIG_FUNC_COMP|RIG_FUNC_VOX|RIG_FUNC_NR|RIG_FUNC_BC|RIG_FUNC_BC2|RIG_FUNC_RIT|RIG_FUNC_XIT|RIG_FUNC_TUNER|RIG_FUNC_SEND_MORSE|RIG_FUNC_TONE|RIG_FUNC_TSQL)
 
 #define TS890_VFO_OPS (RIG_OP_UP|RIG_OP_DOWN|RIG_OP_BAND_UP|RIG_OP_BAND_DOWN|RIG_OP_CPY|RIG_OP_TUNE)
 
@@ -194,16 +194,13 @@ int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         levelint = ackbuf[2] - '0';  /* atoi */
 
-        if (levelint >= 0 && levelint < rig->caps->agc_level_count)
-        {
-            val->i = rig->caps->agc_levels[levelint];
-        }
-        else
+        if (levelint < 0 || levelint >= rig->caps->agc_level_count)
         {
             rig_debug(RIG_DEBUG_ERR, "%s: unknown agc value: %s\n", __func__, ackbuf);
             return -RIG_EPROTO;
         }
 
+        val->i = rig->caps->agc_levels[levelint];
         return RIG_OK;
 
     case RIG_LEVEL_ALC:
@@ -289,8 +286,10 @@ int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         return -RIG_ENIMPL;
 
     case RIG_LEVEL_STRENGTH:
+    case RIG_LEVEL_RFPOWER_METER_WATTS:
     {
         cal_table_float_t *table;
+        ptt_t ptt = RIG_PTT_OFF;
         /* Values taken from the TS-890S In-Depth Manual (IDM), p. 8
          * 0.03 - 21.5 MHz, Preamp 1
          */
@@ -310,6 +309,22 @@ int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
                 {48, 20}, {59, 40}, {70, 60}
             }
         };
+        static cal_table_t power_meter =
+        {
+            7, { { 0, 0}, { 5, 5}, { 10, 10}, {19, 25},
+                { 35, 50}, { 59, 100}, { 70, 150}
+            }
+        };
+
+        /* Make sure we're asking the right question */
+        kenwood_get_ptt(rig, vfo, &ptt);
+
+        if ((ptt == RIG_PTT_OFF) != (level == RIG_LEVEL_STRENGTH))
+        {
+            /* We're sorry, the number you have dialed is not in service */
+            return -RIG_ENAVAIL;
+        }
+
         /* Find out which meter type is in use */
         retval = kenwood_safe_transaction(rig, "EX00011", ackbuf, sizeof(ackbuf), 11);
 
@@ -341,8 +356,17 @@ int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
 
         sscanf(ackbuf + 2, "%d", &val->i);
-        /* Convert reading back to dB (rounded) */
-        val->i = (int)floorf(rig_raw2val_float(val->i, table) + 0.5f);
+
+        if (level == RIG_LEVEL_RFPOWER_METER_WATTS)
+        {
+            val->f = roundf(rig_raw2val(val->i, &power_meter));
+        }
+        else
+        {
+            /* Convert reading back to dB (rounded) */
+            val->i = (int)floorf(rig_raw2val_float(val->i, table) + 0.5f);
+        }
+
         return RIG_OK;
     }
 
@@ -370,9 +394,72 @@ int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     return -RIG_EINTERNAL;
 }
 
+int ts890_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
+{
+    int mask, retval;
+    char current[4];
+
+    switch (func)
+    {
+    case RIG_FUNC_TONE:
+        mask = 1;
+        break;
+
+    case RIG_FUNC_TSQL:
+        mask = 2;
+        break;
+
+    default:
+        return (kenwood_set_func(rig, vfo, func, status));
+    }
+
+    retval = kenwood_safe_transaction(rig, "TO", current, sizeof(current), 3);
+
+    if (retval != RIG_OK)
+    {
+        return (retval);
+    }
+
+    current[2] &= ~mask;
+    current[2] |= status == 0 ? 0 : mask;
+    return kenwood_transaction(rig, current, NULL, 0);
+}
+
+int ts890_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
+{
+    int mask, retval;
+    char current[4];
+
+    switch (func)
+    {
+    case RIG_FUNC_TONE:
+        mask = 1;
+        break;
+
+    case RIG_FUNC_TSQL:
+        mask = 2;
+        break;
+
+    default:
+        return (kenwood_get_func(rig, vfo, func, status));
+    }
+
+    retval = kenwood_safe_transaction(rig, "TO", current, sizeof(current), 3);
+
+    if (retval != RIG_OK)
+    {
+        return retval;
+    }
+
+    *status = current[2] & mask ? 1 : 0;
+    return RIG_OK;
+}
+
+
 static struct kenwood_priv_caps ts890s_priv_caps =
 {
     .cmdtrm = EOM_KEN,
+    .tone_table_base = 0,
 };
 
 /* SWR meter calibration table */
@@ -388,7 +475,6 @@ static struct kenwood_priv_caps ts890s_priv_caps =
 
 /*
  * TS-890S rig capabilities
- * Copied from ts480_caps, many of the values have not been verified.
  * Notice that some rigs share the same functions.
  */
 struct rig_caps ts890s_caps =
@@ -396,7 +482,7 @@ struct rig_caps ts890s_caps =
     RIG_MODEL(RIG_MODEL_TS890S),
     .model_name = "TS-890S",
     .mfg_name = "Kenwood",
-    .version = BACKEND_VER ".12",
+    .version = BACKEND_VER ".14",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -422,7 +508,7 @@ struct rig_caps ts890s_caps =
     .transceive = RIG_TRN_RIG,
     .agc_level_count = 5,
     .agc_levels = { RIG_AGC_OFF, RIG_AGC_SLOW, RIG_AGC_MEDIUM, RIG_AGC_FAST, RIG_AGC_ON },
-	.chan_list =  {
+    .chan_list =  {
         { 1,   6, RIG_MTYPE_VOICE },
         { 1,   8, RIG_MTYPE_MORSE },
         RIG_CHAN_END,
@@ -510,6 +596,7 @@ struct rig_caps ts890s_caps =
         RIG_FLT_END,
     },
     .vfo_ops = TS890_VFO_OPS,
+    .ctcss_list = kenwood51_ctcss_list,
 
     .swr_cal = TS890_SWR_CAL,
 
@@ -529,6 +616,10 @@ struct rig_caps ts890s_caps =
     .get_vfo = kenwood_get_vfo_if,
     .set_split_vfo = kenwood_set_split_vfo,
     .get_split_vfo = kenwood_get_split_vfo_if,
+    .set_ctcss_tone = kenwood_set_ctcss_tone_tn,
+    .get_ctcss_tone = kenwood_get_ctcss_tone,
+    .set_ctcss_sql = kenwood_set_ctcss_sql,
+    .get_ctcss_sql = kenwood_get_ctcss_sql,
     .get_ptt = kenwood_get_ptt,
     .set_ptt = kenwood_set_ptt,
     .get_dcd = kenwood_get_dcd,
@@ -559,7 +650,7 @@ struct rig_caps ts890s_caps =
     },
     .has_get_func = TS890_FUNC_ALL,
     .has_set_func = TS890_FUNC_ALL,
-    .set_func = kenwood_set_func,
-    .get_func = kenwood_get_func,
+    .set_func = ts890_set_func,
+    .get_func = ts890_get_func,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

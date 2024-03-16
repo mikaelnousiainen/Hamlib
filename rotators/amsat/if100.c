@@ -33,7 +33,7 @@
 static int
 if100_set_position(ROT *rot, azimuth_t az, elevation_t el)
 {
-    hamlib_port_t *port = &rot->state.rotport;
+    hamlib_port_t *port = ROTPORT(rot);
     int retval;
     int az_i;
     int el_i;
@@ -100,7 +100,7 @@ const struct rot_caps if100_rot_caps =
     .mfg_name =         "AMSAT",
     .version =          "20110531.0",
     .copyright =        "LGPL",
-    .status =           RIG_STATUS_BETA,
+    .status =           RIG_STATUS_STABLE,
     .rot_type =         ROT_TYPE_OTHER,
     .port_type =        RIG_PORT_PARALLEL,
     .write_delay =      0,

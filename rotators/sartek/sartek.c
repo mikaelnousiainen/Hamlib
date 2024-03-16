@@ -53,7 +53,7 @@ const struct rot_caps sartek_rot_caps =
     .mfg_name =           "SARtek",
     .version =            "20061007.0",
     .copyright =          "LGPL",
-    .status =             RIG_STATUS_BETA,
+    .status =             RIG_STATUS_STABLE,
     .rot_type =           ROT_TYPE_OTHER,
     .port_type =          RIG_PORT_SERIAL,
     .serial_rate_min =    1200,
@@ -124,7 +124,7 @@ static int sartek_rot_set_position(ROT *rot, azimuth_t azimuth,
 
     SNPRINTF(cmdstr, sizeof(cmdstr), "P%c", (int)((azimuth * 255) / 360));
 
-    err = write_block(&rot->state.rotport, (unsigned char *) cmdstr,
+    err = write_block(ROTPORT(rot), (unsigned char *) cmdstr,
                       strlen(cmdstr));
 
     if (err != RIG_OK)
@@ -147,7 +147,7 @@ static int sartek_rot_stop(ROT *rot)
 
     rig_debug(RIG_DEBUG_TRACE, "%s called\n", __func__);
 
-    err = write_block(&rot->state.rotport, (unsigned char *) "P\0", 2);
+    err = write_block(ROTPORT(rot), (unsigned char *) "P\0", 2);
 
     if (err != RIG_OK)
     {

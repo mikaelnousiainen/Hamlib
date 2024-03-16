@@ -28,7 +28,7 @@
 #include "token.h"
 #include "idx_builtin.h"
 
-#define BACKEND_VER "20231226"
+#define BACKEND_VER "20240224"
 
 #define EOM_KEN ';'
 #define EOM_TH '\r'
@@ -137,6 +137,7 @@ struct kenwood_priv_caps
     struct kenwood_slope_filter *slope_filter_high; /* Last entry should have value == -1 and frequency_hz == -1 */
     struct kenwood_slope_filter *slope_filter_low; /* Last entry should have value == -1 and frequency_hz == -1 */
     double swr;
+    int tone_table_base; /* Offset of first value in rigs tone tables, default=0 */
 };
 
 struct kenwood_priv_data
@@ -191,6 +192,7 @@ extern rmode_t kenwood_mode_table[KENWOOD_MODE_TABLE_MAX];
 
 extern tone_t kenwood38_ctcss_list[];
 extern tone_t kenwood42_ctcss_list[];
+extern tone_t kenwood51_ctcss_list[];
 
 int kenwood_transaction(RIG *rig, const char *cmdstr, char *data, size_t datasize);
 int kenwood_safe_transaction(RIG *rig, const char *cmd, char *buf,
@@ -227,8 +229,8 @@ int kenwood_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val);
 int kenwood_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
 int kenwood_set_func(RIG *rig, vfo_t vfo, setting_t func, int status);
 int kenwood_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status);
-int kenwood_set_ext_parm(RIG *rig, token_t token, value_t val);
-int kenwood_get_ext_parm(RIG *rig, token_t token, value_t *val);
+int kenwood_set_ext_parm(RIG *rig, hamlib_token_t token, value_t val);
+int kenwood_get_ext_parm(RIG *rig, hamlib_token_t token, value_t *val);
 int kenwood_set_ctcss_tone(RIG *rig, vfo_t vfo, tone_t tone);
 int kenwood_set_ctcss_tone_tn(RIG *rig, vfo_t vfo, tone_t tone);
 int kenwood_get_ctcss_tone(RIG *rig, vfo_t vfo, tone_t *tone);

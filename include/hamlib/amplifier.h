@@ -275,6 +275,11 @@ typedef enum {
     AMP_STATUS_WARNING_OTHER  =             (1 << 15), /*!< Other warning. Get model-specific warning with \c AMP_LEVEL_WARNING */
 } amp_status_t;
 
+//! @cond Doxygen_Suppress
+/* So far only used in tests/sprintflst.c. */
+#define AMP_STATUS_N(n)        (1u<<(n))
+//! @endcond
+
 
 /**
  * \brief Amplifier capabilities.
@@ -341,9 +346,9 @@ struct amp_caps
   int (*set_freq)(AMP *amp, freq_t val);  /*!< Pointer to backend implementation of ::amp_set_freq(). */
   int (*get_freq)(AMP *amp, freq_t *val); /*!< Pointer to backend implementation of ::amp_get_freq(). */
 
-  int (*set_conf)(AMP *amp, token_t token, const char *val); /*!< Pointer to backend implementation of ::amp_set_conf(). */
-  int (*get_conf2)(AMP *amp, token_t token, char *val, int val_len);       /*!< Pointer to backend implementation of ::amp_get_conf(). */
-  int (*get_conf)(AMP *amp, token_t token, char *val);       /*!< Pointer to backend implementation of ::amp_get_conf(). */
+  int (*set_conf)(AMP *amp, hamlib_token_t token, const char *val); /*!< Pointer to backend implementation of ::amp_set_conf(). */
+  int (*get_conf2)(AMP *amp, hamlib_token_t token, char *val, int val_len);       /*!< Pointer to backend implementation of ::amp_get_conf(). */
+  int (*get_conf)(AMP *amp, hamlib_token_t token, char *val);       /*!< Pointer to backend implementation of ::amp_get_conf(). */
 
   /*
    *  General API commands, from most primitive to least.. :()
@@ -353,8 +358,8 @@ struct amp_caps
   int (*reset)(AMP *amp, amp_reset_t reset);                   /*!< Pointer to backend implementation of ::amp_reset(). */
   int (*get_level)(AMP *amp, setting_t level, value_t *val);   /*!< Pointer to backend implementation of ::amp_get_level(). */
   int (*set_level)(AMP *amp, setting_t level, value_t val);    /*!< Pointer to backend implementation of ::amp_get_level(). */
-  int (*get_ext_level)(AMP *amp, token_t level, value_t *val); /*!< Pointer to backend implementation of ::amp_get_ext_level(). */
-  int (*set_ext_level)(AMP *amp, token_t level, value_t val);  /*!< Pointer to backend implementation of ::amp_set_ext_level(). */
+  int (*get_ext_level)(AMP *amp, hamlib_token_t level, value_t *val); /*!< Pointer to backend implementation of ::amp_get_ext_level(). */
+  int (*set_ext_level)(AMP *amp, hamlib_token_t level, value_t val);  /*!< Pointer to backend implementation of ::amp_set_ext_level(). */
   int (*set_powerstat)(AMP *amp, powerstat_t status);          /*!< Pointer to backend implementation of ::amp_set_powerstat(). */
   int (*get_powerstat)(AMP *amp, powerstat_t *status);         /*!< Pointer to backend implementation of ::amp_get_powerstat(). */
 
@@ -387,8 +392,8 @@ struct amp_caps
   int (*set_input)(AMP *amp, ant_t input);                  /*!< Pointer to backend implementation of ::amp_set_input(). */
   int (*get_input)(AMP *amp, ant_t *input);                 /*!< Pointer to backend implementation of ::amp_get_input(). */
 
-  int (*set_ant)(AMP *amp, ant_t ant, value_t option);      /*!< Pointer to backend implementation of ::amp_set_ant(). */
-  int (*get_ant)(AMP *amp, ant_t *ant, value_t *option);    /*!< Pointer to backend implementation of ::amp_get_ant(). */
+  int (*set_ant)(AMP *amp, ant_t ant);                      /*!< Pointer to backend implementation of ::amp_set_ant(). */
+  int (*get_ant)(AMP *amp, ant_t *ant);                     /*!< Pointer to backend implementation of ::amp_get_ant(). */
 
   int (*set_func)(AMP *amp, setting_t func, int status);     /*!< Pointer to backend implementation of ::amp_set_func(). */
   int (*get_func)(AMP *amp, setting_t func, int *status);    /*!< Pointer to backend implementation of ::amp_get_func(). */
@@ -396,11 +401,11 @@ struct amp_caps
   int (*set_parm)(AMP *amp, setting_t parm, value_t val);    /*!< Pointer to backend implementation of ::amp_set_parm(). */
   int (*get_parm)(AMP *amp, setting_t parm, value_t *val);   /*!< Pointer to backend implementation of ::amp_get_parm(). */
 
-  int (*set_ext_func)(AMP *amp, token_t token, int status);  /*!< Pointer to backend implementation of ::amp_set_ext_func(). */
-  int (*get_ext_func)(AMP *amp, token_t token, int *status); /*!< Pointer to backend implementation of ::amp_get_ext_func(). */
+  int (*set_ext_func)(AMP *amp, hamlib_token_t token, int status);  /*!< Pointer to backend implementation of ::amp_set_ext_func(). */
+  int (*get_ext_func)(AMP *amp, hamlib_token_t token, int *status); /*!< Pointer to backend implementation of ::amp_get_ext_func(). */
 
-  int (*set_ext_parm)(AMP *amp, token_t token, value_t val);     /*!< Pointer to backend implementation of ::amp_set_ext_parm(). */
-  int (*get_ext_parm)(AMP *amp, token_t token, value_t *val);    /*!< Pointer to backend implementation of ::amp_get_ext_parm(). */
+  int (*set_ext_parm)(AMP *amp, hamlib_token_t token, value_t val);     /*!< Pointer to backend implementation of ::amp_set_ext_parm(). */
+  int (*get_ext_parm)(AMP *amp, hamlib_token_t token, value_t *val);    /*!< Pointer to backend implementation of ::amp_get_ext_parm(). */
 
   freq_range_t range_list1[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #1 */
   freq_range_t range_list2[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #2 */
@@ -488,11 +493,11 @@ amp_cleanup HAMLIB_PARAMS((AMP *amp));
 
 extern HAMLIB_EXPORT(int)
 amp_set_conf HAMLIB_PARAMS((AMP *amp,
-                            token_t token,
+                            hamlib_token_t token,
                             const char *val));
 extern HAMLIB_EXPORT(int)
 amp_get_conf HAMLIB_PARAMS((AMP *amp,
-                            token_t token,
+                            hamlib_token_t token,
                             char *val));
 extern HAMLIB_EXPORT(int)
 amp_set_powerstat HAMLIB_PARAMS((AMP *amp,
@@ -533,12 +538,10 @@ amp_get_input HAMLIB_PARAMS((AMP *amp,
 
 extern HAMLIB_EXPORT(int)
 amp_set_ant HAMLIB_PARAMS((AMP *amp,
-                           ant_t ant,  /* antenna */
-                           value_t option));  /* optional ant info */
+                           ant_t ant));
 extern HAMLIB_EXPORT(int)
 amp_get_ant HAMLIB_PARAMS((AMP *amp,
-                           ant_t *ant,
-                           value_t *option));
+                           ant_t *ant));
 
 extern HAMLIB_EXPORT(int)
 amp_set_func HAMLIB_PARAMS((AMP *amp,
@@ -594,7 +597,7 @@ extern HAMLIB_EXPORT(const struct confparams *)
 amp_confparam_lookup HAMLIB_PARAMS((AMP *amp,
                                     const char *name));
 
-extern HAMLIB_EXPORT(token_t)
+extern HAMLIB_EXPORT(hamlib_token_t)
 amp_token_lookup HAMLIB_PARAMS((AMP *amp,
                                 const char *name));
 
@@ -629,38 +632,38 @@ amp_ext_lookup HAMLIB_PARAMS((AMP *amp,
 
 extern HAMLIB_EXPORT(const struct confparams *)
 amp_ext_lookup_tok HAMLIB_PARAMS((AMP *amp,
-                                  token_t token));
+                                  hamlib_token_t token));
 
-extern HAMLIB_EXPORT(token_t)
+extern HAMLIB_EXPORT(hamlib_token_t)
 amp_ext_token_lookup HAMLIB_PARAMS((AMP *amp,
                                     const char *name));
 
 extern HAMLIB_EXPORT(int)
 amp_get_ext_level HAMLIB_PARAMS((AMP *amp,
-                                 token_t token,
+                                 hamlib_token_t token,
                                  value_t *val));
 
 extern HAMLIB_EXPORT(int)
 amp_set_ext_level HAMLIB_PARAMS((AMP *amp,
-                                 token_t token,
+                                 hamlib_token_t token,
                                  value_t val));
 
 extern HAMLIB_EXPORT(int)
 amp_set_ext_func HAMLIB_PARAMS((AMP *amp,
-                                 token_t token,
+                                 hamlib_token_t token,
                                  int status));
 extern HAMLIB_EXPORT(int)
 amp_get_ext_func HAMLIB_PARAMS((AMP *amp,
-                                 token_t token,
+                                 hamlib_token_t token,
                                  int *status));
 
 extern HAMLIB_EXPORT(int)
 amp_set_ext_parm HAMLIB_PARAMS((AMP *amp,
-                                token_t token,
+                                hamlib_token_t token,
                                 value_t val));
 extern HAMLIB_EXPORT(int)
 amp_get_ext_parm HAMLIB_PARAMS((AMP *amp,
-                                token_t token,
+                                hamlib_token_t token,
                                 value_t *val));
 
 extern HAMLIB_EXPORT(int)

@@ -177,25 +177,25 @@ void errmsg(int err, char *s, const char *func, const char *file, int line);
                        } while(0);}
 
 #define CACHE_RESET {\
-    elapsed_ms(&rig->state.cache.time_freqMainA, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_freqMainB, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_freqSubA, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_freqSubB, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_vfo, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_modeMainA, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_modeMainB, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_modeMainC, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_modeSubA, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_modeSubB, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_modeSubC, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_widthMainA, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_widthMainB, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_widthMainC, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_widthSubA, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_widthSubB, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_widthSubC, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_ptt, HAMLIB_ELAPSED_INVALIDATE);\
-    elapsed_ms(&rig->state.cache.time_split, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_freqMainA, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_freqMainB, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_freqSubA, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_freqSubB, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_vfo, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_modeMainA, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_modeMainB, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_modeMainC, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_modeSubA, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_modeSubB, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_modeSubC, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_widthMainA, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_widthMainB, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_widthMainC, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_widthSubA, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_widthSubB, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_widthSubC, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_ptt, HAMLIB_ELAPSED_INVALIDATE);\
+    elapsed_ms(&CACHE(rig)->time_split, HAMLIB_ELAPSED_INVALIDATE);\
      }
 
 
@@ -215,6 +215,8 @@ extern int check_level_param(RIG *rig, setting_t level, value_t val, gran_t **gr
 extern HAMLIB_EXPORT(hamlib_band_t) rig_get_band(RIG *rig, freq_t freq, int band);
 extern HAMLIB_EXPORT(const char*) rig_get_band_str(RIG *rig, hamlib_band_t band, int which);
 extern HAMLIB_EXPORT(int) rig_get_band_rig(RIG *rig, freq_t freq, const char *band);
+
+extern HAMLIB_EXPORT(int) rig_test_2038(RIG *rig);
 
 __END_DECLS
 

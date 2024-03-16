@@ -24,6 +24,7 @@
 
 #include <hamlib/rig.h>
 #include <hamlib/rotator.h>
+#include <hamlib/amplifier.h>
 
 #define SPRINTF_MAX_SIZE 2048
 
@@ -51,6 +52,7 @@ extern HAMLIB_EXPORT( int ) rig_sprintf_vfop(char *str, int len, vfo_op_t op);
 extern HAMLIB_EXPORT( int ) amp_sprintf_amp_op(char *str, int len, amp_op_t op);
 extern HAMLIB_EXPORT( int ) rig_sprintf_scan(char *str, int len, scan_t rscan);
 extern HAMLIB_EXPORT( int ) rot_sprintf_status(char *str, int len, rot_status_t status);
+extern HAMLIB_EXPORT( int ) amp_sprintf_status(char *str, int len, amp_status_t status);
 extern HAMLIB_EXPORT( int ) rig_sprintf_spectrum_modes(char *str, int nlen, const enum rig_spectrum_mode_e *modes);
 extern HAMLIB_EXPORT( int ) rig_sprintf_spectrum_spans(char *str, int nlen, const freq_t *spans);
 extern HAMLIB_EXPORT( int )  rig_sprintf_spectrum_avg_modes(char *str, int nlen, const struct rig_spectrum_avg_mode *avg_modes);

@@ -380,7 +380,7 @@ int expert_init(AMP *amp)
         return -RIG_ENOMEM;
     }
 
-    amp->state.ampport.type.rig = RIG_PORT_SERIAL;
+    AMPPORT(amp)->type.rig = RIG_PORT_SERIAL;
 
     return RIG_OK;
 }
@@ -426,10 +426,6 @@ int expert_close(AMP *amp)
     return RIG_OK;
 }
 
-/*
- * Get Info
- * returns the model name string
- */
 // cppcheck-suppress constParameterCallback
 const char *expert_get_info(AMP *amp)
 {
@@ -598,13 +594,13 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
         switch (power_level)
         {
             case EXPERT_POWER_LEVEL_LOW:
-                val->f = 33.3f;
+                val->f = (1.0f / 3.0f);
                 break;
             case EXPERT_POWER_LEVEL_MID:
-                val->f = 66.6f;
+                val->f = (2.0f / 3.0f);
                 break;
             case EXPERT_POWER_LEVEL_HIGH:
-                val->f = 100.0f;
+                val->f = 1.0f;
                 break;
             default:
                 rig_debug(RIG_DEBUG_ERR, "%s: error parsing power level: '%c'\n",
@@ -698,10 +694,88 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
 
     default:
         rig_debug(RIG_DEBUG_ERR, "%s: unknown level=%s\n", __func__,
-                rig_strlevel(level));
+                amp_strlevel(level));
+        return -RIG_EINVAL;
     }
 
-    return -RIG_EINVAL;
+    return RIG_OK;
+}
+
+int expert_set_level(AMP *amp, setting_t level, value_t val)
+{
+    struct expert_priv_data *priv = amp->state.priv;
+    expert_status_response *status_response = &priv->status_response;
+    int result;
+    int change_count = 4;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (!amp)
+    {
+        return -RIG_EINVAL;
+    }
+
+
+
+change_again:
+    result = expert_read_status(amp, status_response);
+    if (result != RIG_OK)
+    {
+        return result;
+    }
+
+    switch (level)
+    {
+    case AMP_LEVEL_PWR: {
+        char current_power_level = status_response->power_level;
+        char new_power_level;
+
+        if (val.f < (1.0f / 3.0f))
+        {
+            new_power_level = EXPERT_POWER_LEVEL_LOW;
+        }
+        else if (val.f < (2.0f / 3.0f))
+        {
+            new_power_level = EXPERT_POWER_LEVEL_MID;
+        }
+        else
+        {
+            new_power_level = EXPERT_POWER_LEVEL_HIGH;
+        }
+
+        if (new_power_level != current_power_level)
+        {
+            unsigned char cmd = EXPERT_AMP_COMMAND_POWER;
+
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: changing power level\n", __func__);
+
+            result = expert_transaction(amp, &cmd, 1, NULL, 0);
+            if (result != RIG_OK)
+            {
+                return result;
+            }
+
+            change_count--;
+            if (change_count > 0)
+            {
+                goto change_again;
+            }
+            else
+            {
+                rig_debug(RIG_DEBUG_ERR, "%s: power level change failed\n", __func__);
+                return -RIG_ERJCTED;
+            }
+        }
+        break;
+    }
+
+    default:
+        rig_debug(RIG_DEBUG_ERR, "%s: unknown level=%s\n", __func__,
+                amp_strlevel(level));
+        return -RIG_EINVAL;
+    }
+
+    return RIG_OK;
 }
 
 int expert_get_powerstat(AMP *amp, powerstat_t *status)
@@ -750,7 +824,9 @@ int expert_set_powerstat(AMP *amp, powerstat_t status)
     int powered_on = 0;
     int operate = 0;
     int toggle_power = 0;
+    int toggle_power_count = 2;
     int toggle_operate = 0;
+    int toggle_operate_count = 2;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -759,6 +835,7 @@ int expert_set_powerstat(AMP *amp, powerstat_t status)
         return -RIG_EINVAL;
     }
 
+toggle_again:
     result = expert_read_status(amp, status_response);
 
     if (result == RIG_OK)
@@ -806,8 +883,25 @@ int expert_set_powerstat(AMP *amp, powerstat_t status)
 
     if (toggle_power)
     {
-        // TODO: toggle RTS pin for 2 seconds and wait for 2 seconds
-        // TODO: read operate status again, retry 2 times if not successful
+        // The Expert amplifier control application uses RTS to power on and off the amplifier
+        // The RTS pin must be high for about 2 seconds to power on the amplifier
+
+        ser_set_rts(AMPPORT(amp), 0);
+        hl_usleep(100000);
+        ser_set_rts(AMPPORT(amp), 1);
+        hl_usleep(2000000);
+        ser_set_rts(AMPPORT(amp), 0);
+
+        toggle_power_count--;
+        if (toggle_power_count > 0)
+        {
+            goto toggle_again;
+        }
+        else
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: power toggle failed\n", __func__);
+            return -RIG_ERJCTED;
+        }
     }
 
     switch (status)
@@ -843,7 +937,262 @@ int expert_set_powerstat(AMP *amp, powerstat_t status)
             return result;
         }
 
-        // TODO: read operate status again, retry 2 times if not successful
+        toggle_operate_count--;
+        if (toggle_operate_count > 0)
+        {
+            goto toggle_again;
+        }
+        else
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: toggle operate failed\n", __func__);
+            return -RIG_ERJCTED;
+        }
+    }
+
+    return RIG_OK;
+}
+
+int expert_get_input(AMP *amp, ant_t *input)
+{
+    struct expert_priv_data *priv = amp->state.priv;
+    expert_status_response *status_response = &priv->status_response;
+    int result;
+
+    result = expert_read_status(amp, status_response);
+    if (result != RIG_OK)
+    {
+        return result;
+    }
+
+    int input_value = status_response->input - '0';
+
+    if (input_value == 0)
+    {
+        *input = RIG_ANT_NONE;
+        return RIG_OK;
+    }
+
+    *input = RIG_ANT_N(input_value - 1);
+
+    return RIG_OK;
+}
+
+int expert_set_input(AMP *amp, ant_t input)
+{
+    struct expert_priv_data *priv = amp->state.priv;
+    expert_status_response *status_response = &priv->status_response;
+    int result;
+    int change_count = 2;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (!amp)
+    {
+        return -RIG_EINVAL;
+    }
+
+change_again:
+    result = expert_read_status(amp, status_response);
+    if (result != RIG_OK)
+    {
+        return result;
+    }
+
+    ant_t current_input_value = RIG_ANT_N(status_response->input - 1);
+
+    if (input != current_input_value)
+    {
+        unsigned char cmd = EXPERT_AMP_COMMAND_INPUT;
+
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: changing input\n", __func__);
+
+        result = expert_transaction(amp, &cmd, 1, NULL, 0);
+        if (result != RIG_OK)
+        {
+            return result;
+        }
+
+        change_count--;
+        if (change_count > 0)
+        {
+            goto change_again;
+        }
+        else
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: input change failed\n", __func__);
+            return -RIG_ERJCTED;
+        }
+    }
+
+    return RIG_OK;
+}
+
+int expert_get_ant(AMP *amp, ant_t *ant)
+{
+    struct expert_priv_data *priv = amp->state.priv;
+    expert_status_response *status_response = &priv->status_response;
+    int result;
+
+    result = expert_read_status(amp, status_response);
+    if (result != RIG_OK)
+    {
+        return result;
+    }
+
+    int tx_antenna_value = status_response->tx_antenna - '0';
+
+    if (tx_antenna_value == 0)
+    {
+        *ant = RIG_ANT_NONE;
+        return RIG_OK;
+    }
+
+    *ant = RIG_ANT_N(tx_antenna_value - 1);
+
+    return RIG_OK;
+}
+
+int expert_set_ant(AMP *amp, ant_t ant)
+{
+    struct expert_priv_data *priv = amp->state.priv;
+    expert_status_response *status_response = &priv->status_response;
+    int result;
+    int change_count = 4;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (!amp)
+    {
+        return -RIG_EINVAL;
+    }
+
+change_again:
+    result = expert_read_status(amp, status_response);
+    if (result != RIG_OK)
+    {
+        return result;
+    }
+
+    int tx_antenna_value = status_response->tx_antenna - '0';
+    ant_t current_ant_value;
+
+    if (tx_antenna_value == 0)
+    {
+        current_ant_value = RIG_ANT_NONE;
+    }
+    else
+    {
+        current_ant_value = RIG_ANT_N(tx_antenna_value - 1);
+    }
+
+    if (ant != current_ant_value)
+    {
+        unsigned char cmd = EXPERT_AMP_COMMAND_ANTENNA;
+
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: changing antenna\n", __func__);
+
+        result = expert_transaction(amp, &cmd, 1, NULL, 0);
+        if (result != RIG_OK)
+        {
+            return result;
+        }
+
+        change_count--;
+        if (change_count > 0)
+        {
+            goto change_again;
+        }
+        else
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: antenna change failed\n", __func__);
+            return -RIG_ERJCTED;
+        }
+    }
+
+    return RIG_OK;
+}
+
+int expert_amp_op(AMP *amp, amp_op_t op)
+{
+    unsigned char cmd;
+    unsigned char response[EXPERTBUFSZ];
+    int result;
+
+    switch (op)
+    {
+        case AMP_OP_TUNE:
+            cmd = EXPERT_AMP_COMMAND_TUNE;
+            break;
+        case AMP_OP_BAND_UP:
+            cmd = EXPERT_AMP_COMMAND_BAND_UP;
+            break;
+        case AMP_OP_BAND_DOWN:
+            cmd = EXPERT_AMP_COMMAND_BAND_DOWN;
+            break;
+        case AMP_OP_L_NH_UP:
+            cmd = EXPERT_AMP_COMMAND_L_PLUS;
+            break;
+        case AMP_OP_L_NH_DOWN:
+            cmd = EXPERT_AMP_COMMAND_L_MINUS;
+            break;
+        case AMP_OP_C_PF_UP:
+            cmd = EXPERT_AMP_COMMAND_C_PLUS;
+            break;
+        case AMP_OP_C_PF_DOWN:
+            cmd = EXPERT_AMP_COMMAND_C_MINUS;
+            break;
+        default:
+            return -RIG_EINVAL;
+    }
+
+    result = expert_transaction(amp, &cmd, 1, response, sizeof(response));
+    if (result != RIG_OK)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: error executing amplifier operation %s, result=%d (%s)",
+                __func__, amp_strampop(op), result, rigerror(result));
+        return result;
+    }
+
+    return result;
+}
+
+int expert_set_parm(AMP *amp, setting_t parm, value_t val)
+{
+    int result;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (!amp)
+    {
+        return -RIG_EINVAL;
+    }
+
+    switch (parm)
+    {
+    case AMP_PARM_BACKLIGHT: {
+        unsigned char cmd;
+
+        if (val.f < 0.5f)
+        {
+            cmd = EXPERT_AMP_COMMAND_BACKLIGHT_OFF;
+        }
+        else
+        {
+            cmd = EXPERT_AMP_COMMAND_BACKLIGHT_ON;
+        }
+
+        result = expert_transaction(amp, &cmd, 1, NULL, 0);
+        if (result != RIG_OK)
+        {
+            return result;
+        }
+        break;
+    }
+
+    default:
+        rig_debug(RIG_DEBUG_ERR, "%s: unknown parm=%s\n", __func__,
+                amp_strparm(parm));
+        return -RIG_EINVAL;
     }
 
     return RIG_OK;
@@ -867,16 +1216,12 @@ int expert_reset(AMP *amp, amp_reset_t reset)
     return RIG_OK;
 }
 
-
-/*
- * Expert 1.3K-FA, 1.5K-FA, and 2K-FA
- */
 const struct amp_caps expert_amp_caps =
 {
     AMP_MODEL(AMP_MODEL_EXPERT_FA),
     .model_name = "1.3K-FA/1.5K-FA/2K-FA",
     .mfg_name = "Expert",
-    .version = "20240122.0",
+    .version = "20240315.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_BETA,
     .amp_type = AMP_TYPE_OTHER,
@@ -920,16 +1265,17 @@ const struct amp_caps expert_amp_caps =
     .get_powerstat = expert_get_powerstat,
     .set_powerstat = expert_set_powerstat,
     .get_freq = expert_get_freq,
-    //.get_input = expert_get_input,
-    //.set_input = expert_set_input,
-    //.get_ant = expert_get_ant,
-    //.set_ant = expert_set_ant,
+    .get_input = expert_get_input,
+    .set_input = expert_set_input,
+    .get_ant = expert_get_ant,
+    .set_ant = expert_set_ant,
     //.get_func = expert_get_func,
     .get_level = expert_get_level,
-    //.set_level = expert_set_level,
-    //.set_parm = expert_set_parm,
-    //.amp_op = expert_amp_op,
+    .set_level = expert_set_level,
+    .set_parm = expert_set_parm,
+    .amp_op = expert_amp_op,
 
+    // TODO: how to express amp input count -> add them to ranges?
     // TODO: create Hamlib model for each amplifier model
     .range_list1 = {
         FRQ_RNG_HF(1, RIG_MODE_ALL, W(1), W(1500), RIG_VFO_ALL, EXPERT_ANTS),
@@ -944,19 +1290,6 @@ const struct amp_caps expert_amp_caps =
         RIG_FRNG_END,
     },
 };
-
-
-/* ************************************
- *
- * API functions
- *
- * ************************************
- */
-
-
-/*
- * Initialize backend
- */
 
 DECLARE_INITAMP_BACKEND(expert)
 {

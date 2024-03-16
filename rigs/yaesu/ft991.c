@@ -206,7 +206,7 @@ struct rig_caps ft991_caps =
         [LVL_RFPOWER] = { .min = { .f = .05 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 100.0f } },
     },
     .parm_gran =  {
-        [PARM_BANDSELECT] = {.min = {.f = 0.0f}, .max = {.f = 1.0f}, .step = {.s = "BAND160M,BAND80M,BANDUNUSED,BAND40M,BAND30M,BAND20M,BAND17M,BAND15M,BAND12M,BAND10M,BAND6M,BANDGEN,BANDMW,BANDUNUSED,BANDAIR,BAND70CM,BAND33CM"}}
+        [PARM_BANDSELECT] = {.step = {.s = "BAND160M,BAND80M,BANDUNUSED,BAND40M,BAND30M,BAND20M,BAND17M,BAND15M,BAND12M,BAND10M,BAND6M,BANDGEN,BANDMW,BANDUNUSED,BANDAIR,BAND70CM,BAND33CM"}}
     },
 
     .ctcss_list =         common_ctcss_list,
@@ -458,7 +458,7 @@ ft991_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
         return (rval);
     }
 
-    if (rig->state.cache.freqMainB == tx_freq)
+    if (CACHE(rig)->freqMainB == tx_freq)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: freq %.0f already set on VFOB\n", __func__,
                   tx_freq);
@@ -635,7 +635,7 @@ static int ft991_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode,
         return -RIG_EINVAL;
     }
 
-    if (rig->state.cache.modeMainB == tx_mode)
+    if (CACHE(rig)->modeMainB == tx_mode)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: mode %s already set on VFOB\n", __func__,
                   rig_strrmode(tx_mode));

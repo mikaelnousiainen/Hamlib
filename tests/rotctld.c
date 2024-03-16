@@ -350,7 +350,7 @@ int main(int argc, char *argv[])
     while (token)
     {
         char mytoken[100], myvalue[100];
-        token_t lookup;
+        hamlib_token_t lookup;
         sscanf(token, "%99[^=]=%99s", mytoken, myvalue);
         //printf("mytoken=%s,myvalue=%s\n",mytoken, myvalue);
         lookup = rot_token_lookup(my_rot, mytoken);
@@ -376,18 +376,18 @@ int main(int argc, char *argv[])
 
     if (rot_file)
     {
-        strncpy(my_rot->state.rotport.pathname, rot_file, HAMLIB_FILPATHLEN - 1);
+        strncpy(ROTPORT(my_rot)->pathname, rot_file, HAMLIB_FILPATHLEN - 1);
     }
 
     if (rot_file2)
     {
-        strncpy(my_rot->state.rotport2.pathname, rot_file2, HAMLIB_FILPATHLEN - 1);
+        strncpy(ROTPORT2(my_rot)->pathname, rot_file2, HAMLIB_FILPATHLEN - 1);
     }
 
     /* FIXME: bound checking and port type == serial */
     if (serial_rate != 0)
     {
-        my_rot->state.rotport.parm.serial.rate = serial_rate;
+        ROTPORT(my_rot)->parm.serial.rate = serial_rate;
     }
 
     /*

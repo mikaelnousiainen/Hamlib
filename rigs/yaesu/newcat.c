@@ -387,7 +387,8 @@ const struct confparams newcat_cfg_params[] =
 /* NewCAT Internal Functions */
 static ncboolean newcat_is_rig(RIG *rig, rig_model_t model);
 
-static int newcat_set_split(RIG *rig, split_t split, vfo_t *rx_vfo, vfo_t *tx_vfo);
+static int newcat_set_split(RIG *rig, split_t split, vfo_t *rx_vfo,
+                            vfo_t *tx_vfo);
 static int newcat_get_split(RIG *rig, split_t *split, vfo_t *tx_vfo);
 static int newcat_set_vfo_from_alias(RIG *rig, vfo_t *vfo);
 static int newcat_get_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode,
@@ -555,6 +556,7 @@ int newcat_open(RIG *rig)
 {
     struct newcat_priv_data *priv = rig->state.priv;
     struct rig_state *rig_s = &rig->state;
+    hamlib_port_t *rp = RIGPORT(rig);
     const char *handshake[3] = {"None", "Xon/Xoff", "Hardware"};
     int err;
     int set_only = 0;
@@ -564,10 +566,10 @@ int newcat_open(RIG *rig)
     rig_debug(RIG_DEBUG_TRACE, "%s: Rig=%s, version=%s\n", __func__,
               rig->caps->model_name, rig->caps->version);
     rig_debug(RIG_DEBUG_TRACE, "%s: write_delay = %i msec\n",
-              __func__, rig_s->rigport.write_delay);
+              __func__, rp->write_delay);
 
     rig_debug(RIG_DEBUG_TRACE, "%s: post_write_delay = %i msec\n",
-              __func__, rig_s->rigport.post_write_delay);
+              __func__, rp->post_write_delay);
 
     rig_debug(RIG_DEBUG_TRACE, "%s: serial_handshake = %s \n",
               __func__, handshake[rig->caps->serial_handshake]);
@@ -585,8 +587,8 @@ int newcat_open(RIG *rig)
     priv->trn_state = -1;
 
     // for this sequence we will shorten the timeout so we can detect rig is powered off faster
-    int timeout = rig->state.rigport.timeout;
-    rig->state.rigport.timeout = 100;
+    int timeout = rp->timeout;
+    rp->timeout = 100;
     newcat_get_trn(rig, &priv->trn_state);  /* ignore errors */
 
     /* Currently we cannot cope with AI mode so turn it off in case
@@ -599,7 +601,7 @@ int newcat_open(RIG *rig)
     /* Initialize rig_id in case any subsequent commands need it */
     (void)newcat_get_rigid(rig);
     rig_debug(RIG_DEBUG_VERBOSE, "%s: rig_id=%d\n", __func__, priv->rig_id);
-    rig->state.rigport.timeout = timeout;
+    rp->timeout = timeout;
 
     // some rigs have a CAT TOT timeout that defaults to 10ms
     // so we'll increase CAT timeout to 100ms
@@ -635,8 +637,8 @@ int newcat_open(RIG *rig)
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s", cmd);
 
-        retry_save = rig->state.rigport.retry;
-        rig->state.rigport.retry = 0;
+        retry_save = rp->retry;
+        rp->retry = 0;
 
         if (set_only)
         {
@@ -647,7 +649,7 @@ int newcat_open(RIG *rig)
             err = newcat_get_cmd(rig);
         }
 
-        rig->state.rigport.retry = retry_save;
+        rp->retry = retry_save;
 
         if (err != RIG_OK)
         {
@@ -687,6 +689,7 @@ int newcat_open(RIG *rig)
     }
 
 #endif
+    priv->band_index = -1;
 
     RETURNFUNC(RIG_OK);
 }
@@ -743,7 +746,7 @@ int newcat_close(RIG *rig)
  * Set Configuration Token for Yaesu Radios
  */
 
-int newcat_set_conf(RIG *rig, token_t token, const char *val)
+int newcat_set_conf(RIG *rig, hamlib_token_t token, const char *val)
 {
     int ret = RIG_OK;
     struct newcat_priv_data *priv;
@@ -796,7 +799,7 @@ int newcat_set_conf(RIG *rig, token_t token, const char *val)
  * Get Configuration Token for Yaesu Radios
  */
 
-int newcat_get_conf2(RIG *rig, token_t token, char *val, int val_len)
+int newcat_get_conf2(RIG *rig, hamlib_token_t token, char *val, int val_len)
 {
     int ret = RIG_OK;
     struct newcat_priv_data *priv;
@@ -933,17 +936,18 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     char target_vfo;
     int err;
     struct rig_caps *caps;
+    struct rig_cache *cachep = CACHE(rig);
     struct newcat_priv_data *priv;
     int special_60m = 0;
     vfo_t vfo_mode;
 
     ENTERFUNC;
 
-    if (newcat_60m_exception(rig, freq, rig->state.cache.modeMainA))
+    if (newcat_60m_exception(rig, freq, cachep->modeMainA))
     {
         // we don't try to set freq on 60m for some rigs since we must be in memory mode
         // and we can't run split mode on 60M memory mode either
-        if (rig->state.cache.split == RIG_SPLIT_ON)
+        if (cachep->split == RIG_SPLIT_ON)
         {
             rig_set_split_vfo(rig, RIG_VFO_A, RIG_VFO_A, RIG_SPLIT_OFF);
         }
@@ -1026,16 +1030,16 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     // some rigs like FTDX101D cannot change non-TX vfo freq
     // but they can change the TX vfo
-    if ((is_ftdx101d || is_ftdx101mp) && rig->state.cache.ptt == RIG_PTT_ON)
+    if ((is_ftdx101d || is_ftdx101mp) && cachep->ptt == RIG_PTT_ON)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: ftdx101 check vfo OK, vfo=%s, tx_vfo=%s\n",
                   __func__, rig_strvfo(vfo), rig_strvfo(rig->state.tx_vfo));
 
         // when in split we can change VFOB but not VFOA
-        if (rig->state.cache.split == RIG_SPLIT_ON && target_vfo == '0') { return -RIG_ENTARGET; }
+        if (cachep->split == RIG_SPLIT_ON && target_vfo == '0') { return -RIG_ENTARGET; }
 
         // when not in split we can't change VFOA at all
-        if (rig->state.cache.split == RIG_SPLIT_OFF && target_vfo == '0') { return -RIG_ENTARGET; }
+        if (cachep->split == RIG_SPLIT_OFF && target_vfo == '0') { return -RIG_ENTARGET; }
 
         if (vfo != rig->state.tx_vfo) { return -RIG_ENTARGET; }
     }
@@ -1074,7 +1078,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
            and select the correct VFO before setting the frequency
         */
         // Plus we can't do the VFO swap if transmitting
-        if (target_vfo == '1' && rig->state.cache.ptt == RIG_PTT_ON) { RETURNFUNC(-RIG_ENTARGET); }
+        if (target_vfo == '1' && cachep->ptt == RIG_PTT_ON) { RETURNFUNC(-RIG_ENTARGET); }
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "VS%c", cat_term);
 
@@ -1144,7 +1148,7 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     if (newcat_valid_command(rig, "BS") && changing
             && !rig->state.disable_yaesu_bandselect
             // remove the split check here -- hopefully works OK
-            //&& !rig->state.cache.split
+            //&& !cachep->split
             // seems some rigs are problematic
             // && !(is_ftdx3000 || is_ftdx3000dm)
             // some rigs can't do BS command on 60M
@@ -1328,7 +1332,32 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         // just drop through
     }
 
-    if (RIG_MODEL_FT450 == caps->rig_model)
+    rig_debug(RIG_DEBUG_ERR, "%s: is_ft991=%d, CACHE(rig)->split=%d, vfo=%s\n",
+              __func__, is_ft991, cachep->split, rig_strvfo(vfo));
+
+    if (priv->band_index < 0) { priv->band_index = newcat_band_index(freq); }
+
+    // only use bandstack method when actually changing bands
+    // there are multiple bandstacks so we just use the 1st one
+    if (is_ft991 && vfo == RIG_VFO_A && priv->band_index != newcat_band_index(freq))
+    {
+        if (cachep->split)
+        {
+            // FT991/991A bandstack does not work in split mode
+            // so for a VFOA change we stop split, change bands, change freq, enable split
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "FT2;BS%02d;FA%09.0f;FT3;",
+                     newcat_band_index(freq), freq);
+        }
+        else  // in non-split us BS to get bandstack info
+        {
+            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "BS%02d;FA%09.0f;",
+                     newcat_band_index(freq), freq);
+        }
+
+        priv->band_index = newcat_band_index(freq);
+    }
+
+    else if (RIG_MODEL_FT450 == caps->rig_model)
     {
         if (c == 'B')
         {
@@ -1465,16 +1494,17 @@ int newcat_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 int newcat_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
     struct newcat_priv_data *priv;
+    struct rig_cache *cachep = CACHE(rig);
     int err;
     rmode_t tmode;
     pbwidth_t twidth;
-    split_t split_save = rig->state.cache.split;
+    split_t split_save = cachep->split;
 
     priv = (struct newcat_priv_data *)rig->state.priv;
 
     ENTERFUNC;
 
-    if (newcat_60m_exception(rig, rig->state.cache.freqMainA, mode)) { RETURNFUNC(RIG_OK); } // we don't set mode in this case
+    if (newcat_60m_exception(rig, cachep->freqMainA, mode)) { RETURNFUNC(RIG_OK); } // we don't set mode in this case
 
     if (!newcat_valid_command(rig, "MD"))
     {
@@ -1543,11 +1573,11 @@ int newcat_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
     {
-        rig->state.cache.modeMainA = mode;
+        cachep->modeMainA = mode;
     }
     else
     {
-        rig->state.cache.modeMainB = mode;
+        cachep->modeMainB = mode;
     }
 
     if (RIG_PASSBAND_NOCHANGE == width) { RETURNFUNC(err); }
@@ -1677,7 +1707,7 @@ int newcat_set_vfo(RIG *rig, vfo_t vfo)
               rig_strvfo(vfo));
 
     // we can't change VFO while transmitting
-    if (rig->state.cache.ptt == RIG_PTT_ON) { RETURNFUNC(RIG_OK); }
+    if (CACHE(rig)->ptt == RIG_PTT_ON) { RETURNFUNC(RIG_OK); }
 
     if (!newcat_valid_command(rig, command))
     {
@@ -2684,11 +2714,11 @@ int newcat_set_split_mode(RIG *rig, vfo_t vfo, rmode_t tx_mode,
 
     if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
     {
-        rig->state.cache.modeMainA = tx_mode;
+        CACHE(rig)->modeMainA = tx_mode;
     }
     else
     {
-        rig->state.cache.modeMainB = tx_mode;
+        CACHE(rig)->modeMainB = tx_mode;
     }
 
 
@@ -2729,9 +2759,12 @@ int newcat_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
     {
         RETURNFUNC(err);
     }
-    if (newcat_60m_exception(rig, rig->state.cache.freqMainA, rig->state.cache.modeMainA))
+
+    if (newcat_60m_exception(rig, CACHE(rig)->freqMainA,
+                             CACHE(rig)->modeMainA))
     {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: force set_split off since we're on 60M exception\n", __func__);
+        rig_debug(RIG_DEBUG_VERBOSE,
+                  "%s: force set_split off since we're on 60M exception\n", __func__);
         split = RIG_SPLIT_OFF;
         //return RIG_OK; // fake the return code to make things happy
     }
@@ -2848,6 +2881,7 @@ int newcat_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
     }
 
     err = -RIG_ENAVAIL;
+
     if (newcat_valid_command(rig, "ST"))
     {
         err = newcat_get_split(rig, split, tx_vfo);
@@ -2863,7 +2897,7 @@ int newcat_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
         }
 
         rig_debug(RIG_DEBUG_TRACE, "%s: tx_vfo=%s, curr_vfo=%s\n", __func__,
-                rig_strvfo(*tx_vfo), rig_strvfo(rig->state.current_vfo));
+                  rig_strvfo(*tx_vfo), rig_strvfo(rig->state.current_vfo));
 
         if (*tx_vfo != rig->state.current_vfo)
         {
@@ -3640,7 +3674,7 @@ int newcat_mW2power(RIG *rig, float *power, unsigned int mwpower, freq_t freq,
 
 int newcat_set_powerstat(RIG *rig, powerstat_t status)
 {
-    struct rig_state *state = &rig->state;
+    hamlib_port_t *rp = RIGPORT(rig);
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     int retval;
     int i = 0;
@@ -3663,22 +3697,22 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
         // When powering on a Yaesu rig needs dummy bytes to wake it up,
         // then wait from 1 to 2 seconds and issue the power-on command again
         HAMLIB_TRACE;
-        write_block(&state->rigport, (unsigned char *) "PS1;", 4);
+        write_block(rp, (unsigned char *) "PS1;", 4);
         hl_usleep(1200000);
-        write_block(&state->rigport, (unsigned char *) "PS1;", 4);
+        write_block(rp, (unsigned char *) "PS1;", 4);
         // some rigs reset the serial port during power up
         // so we reopen the com port  again
         HAMLIB_TRACE;
-        //oser_close(&state->rigport);
+        //oser_close(rp);
         rig_close(rig);
         hl_usleep(3000000);
-        //state->pttport.fd = ser_open(&state->rigport);
+        //PTTPORT(rig)->fd = ser_open(rp);
         rig_open(rig);
         break;
 
     case RIG_POWER_OFF:
     case RIG_POWER_STANDBY:
-        retval = write_block(&state->rigport, (unsigned char *) "PS0;", 4);
+        retval = write_block(rp, (unsigned char *) "PS0;", 4);
         priv->poweron = 0;
         RETURNFUNC(retval);
 
@@ -3688,8 +3722,8 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
 
     HAMLIB_TRACE;
 
-    retry_save = rig->state.rigport.retry;
-    rig->state.rigport.retry = 0;
+    retry_save = rp->retry;
+    rp->retry = 0;
 
     if (status == RIG_POWER_ON) // wait for wakeup only
     {
@@ -3697,25 +3731,25 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
         {
             freq_t freq;
             hl_usleep(1000000);
-            rig_flush(&state->rigport);
+            rig_flush(rp);
             retval = rig_get_freq(rig, RIG_VFO_A, &freq);
 
             if (retval == RIG_OK)
             {
-                rig->state.rigport.retry = retry_save;
+                rp->retry = retry_save;
                 priv->poweron = 1;
                 RETURNFUNC(retval);
             }
 
             rig_debug(RIG_DEBUG_TRACE, "%s: Wait #%d for power up\n", __func__, i + 1);
-            retval = write_block(&state->rigport, (unsigned char *) priv->cmd_str,
+            retval = write_block(rp, (unsigned char *) priv->cmd_str,
                                  strlen(priv->cmd_str));
 
             if (retval != RIG_OK) { RETURNFUNC(retval); }
         }
     }
 
-    rig->state.rigport.retry = retry_save;
+    rp->retry = retry_save;
 
     if (i == 9)
     {
@@ -3734,8 +3768,8 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
  */
 int newcat_get_powerstat(RIG *rig, powerstat_t *status)
 {
-    struct rig_state *state = (struct rig_state *) &rig->state;
     struct newcat_priv_data *priv = (struct newcat_priv_data *) rig->state.priv;
+    hamlib_port_t *rp = RIGPORT(rig);
     int result;
     char ps;
     char command[] = "PS";
@@ -3760,19 +3794,19 @@ int newcat_get_powerstat(RIG *rig, powerstat_t *status)
     short timeout_retry_save;
     int timeout_save;
 
-    retry_save = state->rigport.retry;
-    timeout_retry_save = state->rigport.timeout_retry;
-    timeout_save = state->rigport.timeout;
+    retry_save = rp->retry;
+    timeout_retry_save = rp->timeout_retry;
+    timeout_save = rp->timeout;
 
-    state->rigport.retry = 0;
-    state->rigport.timeout_retry = 0;
-    state->rigport.timeout = 500;
+    rp->retry = 0;
+    rp->timeout_retry = 0;
+    rp->timeout = 500;
 
     result = newcat_get_cmd(rig);
 
-    state->rigport.retry = retry_save;
-    state->rigport.timeout_retry = timeout_retry_save;
-    state->rigport.timeout = timeout_save;
+    rp->retry = retry_save;
+    rp->timeout_retry = timeout_retry_save;
+    rp->timeout = timeout_save;
 
     // Rig may respond here already
     if (result == RIG_OK)
@@ -3800,7 +3834,7 @@ int newcat_get_powerstat(RIG *rig, powerstat_t *status)
     // Yeasu rigs in powered-off state require the PS command to be sent between 1 and 2 seconds after dummy data
     hl_usleep(1100000);
     // Discard any unsolicited data
-    rig_flush(&rig->state.rigport);
+    rig_flush(rp);
 
     result = newcat_get_cmd(rig);
 
@@ -4056,7 +4090,8 @@ static int band2rig(hamlib_band_t band)
 
 int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 {
-    struct rig_state *state = &rig->state;
+    struct rig_state *state = STATE(rig);
+    struct rig_cache *cachep = CACHE(rig);
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     int err;
     int i;
@@ -4268,9 +4303,9 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
         rmode_t exclude = RIG_MODE_CW | RIG_MODE_CWR | RIG_MODE_RTTY | RIG_MODE_RTTYR;
 
-        if ((rig->state.tx_vfo == RIG_VFO_A && (rig->state.cache.modeMainA & exclude))
-                || (rig->state.tx_vfo == RIG_VFO_B && (rig->state.cache.modeMainB & exclude))
-                || (rig->state.tx_vfo == RIG_VFO_C && (rig->state.cache.modeMainC & exclude)))
+        if ((rig->state.tx_vfo == RIG_VFO_A && (cachep->modeMainA & exclude))
+                || (rig->state.tx_vfo == RIG_VFO_B && (cachep->modeMainB & exclude))
+                || (rig->state.tx_vfo == RIG_VFO_C && (cachep->modeMainC & exclude)))
         {
             rig_debug(RIG_DEBUG_VERBOSE, "%s: rig cannot set MG in CW/RTTY modes\n",
                       __func__);
@@ -4836,6 +4871,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             }
 
             SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "BS%02d%c", band, cat_term);
+            priv->band_index = band;
         }
 
         break;
@@ -4873,7 +4909,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         if (is_ftdx101d || is_ftdx101mp)
         {
             rmode_t curmode = rig->state.current_vfo == RIG_VFO_A ?
-                              rig->state.cache.modeMainA : rig->state.cache.modeMainB;
+                              cachep->modeMainA : cachep->modeMainB;
             float valf = val.f / level_info->step.f;
 
             switch (curmode)
@@ -4927,7 +4963,8 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
 int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 {
-    struct rig_state *state = &rig->state;
+    struct rig_state *state = STATE(rig);
+    struct rig_cache *cachep = CACHE(rig);
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     int err;
     int ret_data_len;
@@ -5084,9 +5121,9 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         rmode_t exclude = RIG_MODE_CW | RIG_MODE_CWR | RIG_MODE_RTTY | RIG_MODE_RTTYR;
 
-        if ((rig->state.tx_vfo == RIG_VFO_A && (rig->state.cache.modeMainA & exclude))
-                || (rig->state.tx_vfo == RIG_VFO_B && (rig->state.cache.modeMainB & exclude))
-                || (rig->state.tx_vfo == RIG_VFO_C && (rig->state.cache.modeMainC & exclude)))
+        if ((rig->state.tx_vfo == RIG_VFO_A && (cachep->modeMainA & exclude))
+                || (rig->state.tx_vfo == RIG_VFO_B && (cachep->modeMainB & exclude))
+                || (rig->state.tx_vfo == RIG_VFO_C && (cachep->modeMainC & exclude)))
         {
             rig_debug(RIG_DEBUG_VERBOSE, "%s: rig cannot read MG in CW/RTTY modes\n",
                       __func__);
@@ -5469,7 +5506,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         if (is_ftdx101d || is_ftdx101mp)
         {
             rmode_t curmode = rig->state.current_vfo == RIG_VFO_A ?
-                              rig->state.cache.modeMainA : rig->state.cache.modeMainB;
+                              cachep->modeMainA : cachep->modeMainB;
 
             switch (curmode)
             {
@@ -5511,7 +5548,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         if (is_ftdx101d || is_ftdx101mp)
         {
             rmode_t curmode = rig->state.current_vfo == RIG_VFO_A ?
-                              rig->state.cache.modeMainA : rig->state.cache.modeMainB;
+                              cachep->modeMainA : cachep->modeMainB;
 
             switch (curmode)
             {
@@ -6877,6 +6914,7 @@ int newcat_set_parm(RIG *rig, setting_t parm, value_t val)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     int retval;
+    int rigband = 0;
     int band = 0;
     ENTERFUNC;
 
@@ -6889,7 +6927,40 @@ int newcat_set_parm(RIG *rig, setting_t parm, value_t val)
         }
 
         // we should have a string for the desired band
-        band = rig_get_band_rig(rig, 0.0, val.s);
+        rigband = rig_get_band_rig(rig, 0.0, val.s);
+
+        //rigband = band2rig(rigband);
+
+        switch (rigband)
+        {
+        case RIG_BAND_160M: band = 0; break;
+
+        case RIG_BAND_80M: band = 1; break;
+
+        case RIG_BAND_40M: band = 3; break;
+
+        case RIG_BAND_30M: band = 4; break;
+
+        case RIG_BAND_20M: band = 5; break;
+
+        case RIG_BAND_17M: band = 6; break;
+
+        case RIG_BAND_15M: band = 7; break;
+
+        case RIG_BAND_12M: band = 8; break;
+
+        case RIG_BAND_10M: band = 9; break;
+
+        case RIG_BAND_6M: band = 10; break;
+
+        case RIG_BAND_144MHZ: band = 15; break;
+
+        case RIG_BAND_430MHZ: band = 16; break;
+
+        default:
+            rig_debug(RIG_DEBUG_ERR, "%s: Unknown band %s=%d\n", __func__, val.s, rigband);
+            return -RIG_EINVAL;
+        }
 
         SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "BS%02d%c", band, cat_term);
 
@@ -6900,6 +6971,8 @@ int newcat_set_parm(RIG *rig, setting_t parm, value_t val)
             RETURNFUNC(retval);
         }
 
+        priv->band_index = band;
+
         RETURNFUNC(RIG_OK);
     }
 
@@ -6909,6 +6982,7 @@ int newcat_set_parm(RIG *rig, setting_t parm, value_t val)
 
 int newcat_get_parm(RIG *rig, setting_t parm, value_t *val)
 {
+    struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     int retval;
     ENTERFUNC;
 
@@ -6930,6 +7004,7 @@ int newcat_get_parm(RIG *rig, setting_t parm, value_t *val)
 
         hamlib_band_t band = rig_get_band(rig, freq, 0);
         val->cs = rig_get_band_str(rig, band, 0);
+        priv->band_index = band;
 
         RETURNFUNC(RIG_OK);
 
@@ -6940,12 +7015,14 @@ int newcat_get_parm(RIG *rig, setting_t parm, value_t *val)
     RETURNFUNC(-RIG_ENAVAIL);
 }
 
-static int newcat_set_maxpower(RIG *rig, vfo_t vfo, token_t token, float val)
+static int newcat_set_maxpower(RIG *rig, vfo_t vfo, hamlib_token_t token,
+                               float val)
 {
     return -RIG_ENIMPL;
 }
 
-static int newcat_get_maxpower(RIG *rig, vfo_t vfo, token_t token, value_t *val)
+static int newcat_get_maxpower(RIG *rig, vfo_t vfo, hamlib_token_t token,
+                               value_t *val)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     int retval;
@@ -7007,7 +7084,7 @@ static int newcat_get_maxpower(RIG *rig, vfo_t vfo, token_t token, value_t *val)
 }
 
 
-int newcat_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
+int newcat_set_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t val)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
 
@@ -7060,7 +7137,8 @@ int newcat_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
     }
 }
 
-int newcat_get_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t *val)
+int newcat_get_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token,
+                         value_t *val)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     char *result;
@@ -7189,7 +7267,7 @@ int newcat_get_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t *val)
     RETURNFUNC(RIG_OK);
 }
 
-int newcat_set_ext_parm(RIG *rig, token_t token, value_t val)
+int newcat_set_ext_parm(RIG *rig, hamlib_token_t token, value_t val)
 {
     ENTERFUNC;
 
@@ -7197,7 +7275,7 @@ int newcat_set_ext_parm(RIG *rig, token_t token, value_t val)
 }
 
 
-int newcat_get_ext_parm(RIG *rig, token_t token, value_t *val)
+int newcat_get_ext_parm(RIG *rig, hamlib_token_t token, value_t *val)
 {
     ENTERFUNC;
 
@@ -8242,8 +8320,9 @@ int newcat_set_tx_vfo(RIG *rig, vfo_t tx_vfo)
     }
 
     // NOTE: FT-450 only has toggle command so not sure how to definitively set the TX VFO (VS; doesn't seem to help either)
-    if (is_ft950 || is_ft2000 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000 || is_ftdx1200 || is_ft991 ||
-             is_ftdx10 || is_ftdx101d || is_ftdx101mp)
+    if (is_ft950 || is_ft2000 || is_ftdx3000 || is_ftdx3000dm || is_ftdx5000
+            || is_ftdx1200 || is_ft991 ||
+            is_ftdx10 || is_ftdx101d || is_ftdx101mp)
     {
         // These rigs use numbers 2 and 3 to denote A/B or Main/Sub VFOs - 0 and 1 are for toggling TX function
         p1 = p1 + 2;
@@ -8302,6 +8381,7 @@ int newcat_get_tx_vfo(RIG *rig, vfo_t *tx_vfo)
         {
             *tx_vfo = RIG_VFO_A;
         }
+
         break;
 
     case '1' :
@@ -8313,6 +8393,7 @@ int newcat_get_tx_vfo(RIG *rig, vfo_t *tx_vfo)
         {
             *tx_vfo = RIG_VFO_B;
         }
+
         break;
 
     default:
@@ -8340,7 +8421,8 @@ int newcat_get_tx_vfo(RIG *rig, vfo_t *tx_vfo)
 }
 
 
-static int newcat_set_split(RIG *rig, split_t split, vfo_t *rx_vfo, vfo_t *tx_vfo)
+static int newcat_set_split(RIG *rig, split_t split, vfo_t *rx_vfo,
+                            vfo_t *tx_vfo)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *) rig->state.priv;
     char *command = "ST";
@@ -8349,7 +8431,8 @@ static int newcat_set_split(RIG *rig, split_t split, vfo_t *rx_vfo, vfo_t *tx_vf
 
     ENTERFUNC;
 
-    if (!newcat_valid_command(rig, "ST") || is_ft450 || priv->split_st_command_missing)
+    if (!newcat_valid_command(rig, "ST") || is_ft450
+            || priv->split_st_command_missing)
     {
         RETURNFUNC(-RIG_ENAVAIL);
     }
@@ -8366,9 +8449,11 @@ static int newcat_set_split(RIG *rig, split_t split, vfo_t *rx_vfo, vfo_t *tx_vf
     case RIG_SPLIT_OFF:
         p1 = '0';
         break;
+
     case RIG_SPLIT_ON:
         p1 = '1';
         break;
+
     default:
         RETURNFUNC(-RIG_EINVAL);
     }
@@ -8392,7 +8477,9 @@ static int newcat_set_split(RIG *rig, split_t split, vfo_t *rx_vfo, vfo_t *tx_vf
         *rx_vfo = rig->state.current_vfo;
         *tx_vfo = rig->state.current_vfo;
         break;
+
     case RIG_SPLIT_ON:
+
         // These rigs have fixed RX and TX VFOs when using the ST split command
         if (is_ftdx101d || is_ftdx101mp)
         {
@@ -8409,12 +8496,15 @@ static int newcat_set_split(RIG *rig, split_t split, vfo_t *rx_vfo, vfo_t *tx_vf
             *rx_vfo = rig->state.current_vfo;
 
             result = newcat_get_tx_vfo(rig, tx_vfo);
+
             if (result != RIG_OK)
             {
                 RETURNFUNC(result);
             }
         }
+
         break;
+
     default:
         RETURNFUNC(-RIG_EINVAL);
     }
@@ -8432,7 +8522,8 @@ static int newcat_get_split(RIG *rig, split_t *split, vfo_t *tx_vfo)
 
     ENTERFUNC;
 
-    if (!newcat_valid_command(rig, "ST") || is_ft450 || priv->split_st_command_missing)
+    if (!newcat_valid_command(rig, "ST") || is_ft450
+            || priv->split_st_command_missing)
     {
         RETURNFUNC(-RIG_ENAVAIL);
     }
@@ -8440,6 +8531,7 @@ static int newcat_get_split(RIG *rig, split_t *split, vfo_t *tx_vfo)
     SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%c", command, cat_term);
 
     result = newcat_get_cmd(rig);
+
     if (result != RIG_OK)
     {
         priv->split_st_command_missing = 1;
@@ -8454,10 +8546,12 @@ static int newcat_get_split(RIG *rig, split_t *split, vfo_t *tx_vfo)
         *split = RIG_SPLIT_OFF;
 
         result = newcat_get_tx_vfo(rig, tx_vfo);
+
         if (result != RIG_OK)
         {
             RETURNFUNC(result);
         }
+
         break;
 
     case '1' :
@@ -8475,11 +8569,13 @@ static int newcat_get_split(RIG *rig, split_t *split, vfo_t *tx_vfo)
         else
         {
             result = newcat_get_tx_vfo(rig, tx_vfo);
+
             if (result != RIG_OK)
             {
                 RETURNFUNC(result);
             }
         }
+
         break;
 
     default:
@@ -11068,6 +11164,7 @@ int newcat_vfomem_toggle(RIG *rig)
 int newcat_get_cmd(RIG *rig)
 {
     struct rig_state *state = &rig->state;
+    hamlib_port_t *rp = RIGPORT(rig);
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     int retry_count = 0;
     int rc = -RIG_EPROTO;
@@ -11162,16 +11259,16 @@ int newcat_get_cmd(RIG *rig)
         priv->cache_start.tv_sec = 0;
     }
 
-    while (rc != RIG_OK && retry_count++ <= state->rigport.retry)
+    while (rc != RIG_OK && retry_count++ <= rp->retry)
     {
-        rig_flush(&state->rigport);  /* discard any unsolicited data */
+        rig_flush(rp);  /* discard any unsolicited data */
 
         if (rc != -RIG_BUSBUSY)
         {
             /* send the command */
             rig_debug(RIG_DEBUG_TRACE, "cmd_str = %s\n", priv->cmd_str);
 
-            rc = write_block(&state->rigport, (unsigned char *) priv->cmd_str,
+            rc = write_block(rp, (unsigned char *) priv->cmd_str,
                              strlen(priv->cmd_str));
 
             if (rc != RIG_OK)
@@ -11181,7 +11278,7 @@ int newcat_get_cmd(RIG *rig)
         }
 
         /* read the reply */
-        if ((rc = read_string(&state->rigport, (unsigned char *) priv->ret_data,
+        if ((rc = read_string(rp, (unsigned char *) priv->ret_data,
                               sizeof(priv->ret_data),
                               &cat_term, sizeof(cat_term), 0, 1)) <= 0)
         {
@@ -11271,7 +11368,7 @@ int newcat_get_cmd(RIG *rig)
                 }
 
                 rig_debug(RIG_DEBUG_WARN, "%s: Rig busy - retrying %d of %d: '%s'\n", __func__,
-                          retry_count, state->rigport.retry, priv->cmd_str);
+                          retry_count, rp->retry, priv->cmd_str);
                 // DX3000 was taking 1.6 seconds in certain command sequences
                 hl_usleep(600 * 1000); // 600ms wait should cover most cases hopefully
 
@@ -11316,7 +11413,6 @@ int newcat_get_cmd(RIG *rig)
  */
 int newcat_set_cmd_validate(RIG *rig)
 {
-    struct rig_state *state = &rig->state;
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     char valcmd[16];
     int retries = 8;
@@ -11470,11 +11566,12 @@ int newcat_set_cmd_validate(RIG *rig)
     while (rc != RIG_OK && retry++ < retries)
     {
         int bytes;
+        hamlib_port_t *rp = RIGPORT(rig);
         char cmd[256]; // big enough
 repeat:
-        rig_flush(&state->rigport);  /* discard any unsolicited data */
+        rig_flush(rp);  /* discard any unsolicited data */
         SNPRINTF(cmd, sizeof(cmd), "%s", priv->cmd_str);
-        rc = write_block(&state->rigport, (unsigned char *) cmd, strlen(cmd));
+        rc = write_block(rp, (unsigned char *) cmd, strlen(cmd));
 
         if (rc != RIG_OK) { RETURNFUNC(-RIG_EIO); }
 
@@ -11485,11 +11582,11 @@ repeat:
         // some rigs like FT-450/Signalink need a little time before we can ask for TX status again
         if (strncmp(valcmd, "TX", 2) == 0) { hl_usleep(50 * 1000); }
 
-        rc = write_block(&state->rigport, (unsigned char *) cmd, strlen(cmd));
+        rc = write_block(rp, (unsigned char *) cmd, strlen(cmd));
 
         if (rc != RIG_OK) { RETURNFUNC(-RIG_EIO); }
 
-        bytes = read_string(&state->rigport, (unsigned char *) priv->ret_data,
+        bytes = read_string(rp, (unsigned char *) priv->ret_data,
                             sizeof(priv->ret_data),
                             &cat_term, sizeof(cat_term), 0, 1);
 
@@ -11561,7 +11658,7 @@ repeat:
  */
 int newcat_set_cmd(RIG *rig)
 {
-    struct rig_state *state = &rig->state;
+    hamlib_port_t *rp = RIGPORT(rig);
     struct newcat_priv_data *priv = (struct newcat_priv_data *)rig->state.priv;
     int retry_count = 0;
     int rc = -RIG_EPROTO;
@@ -11571,9 +11668,9 @@ int newcat_set_cmd(RIG *rig)
     char const *const verify_cmd = RIG_MODEL_FT9000 == rig->caps->rig_model ?
                                    "AI;" : "ID;";
 
-    while (rc != RIG_OK && retry_count++ <= state->rigport.retry)
+    while (rc != RIG_OK && retry_count++ <= rp->retry)
     {
-        rig_flush(&state->rigport);  /* discard any unsolicited data */
+        rig_flush(rp);  /* discard any unsolicited data */
         /* send the command */
         rig_debug(RIG_DEBUG_TRACE, "cmd_str = %s\n", priv->cmd_str);
 
@@ -11594,8 +11691,7 @@ int newcat_set_cmd(RIG *rig)
         rig_debug(RIG_DEBUG_TRACE,
                   "%s: newcat_set_cmd_validate not implemented...continuing\n", __func__);
 
-        if (RIG_OK != (rc = write_block(&state->rigport,
-                                        (unsigned char *) priv->cmd_str,
+        if (RIG_OK != (rc = write_block(rp, (unsigned char *) priv->cmd_str,
                                         strlen(priv->cmd_str))))
         {
             RETURNFUNC(rc);
@@ -11630,14 +11726,14 @@ int newcat_set_cmd(RIG *rig)
         /* send the verification command */
         rig_debug(RIG_DEBUG_TRACE, "cmd_str = %s\n", verify_cmd);
 
-        if (RIG_OK != (rc = write_block(&state->rigport, (unsigned char *) verify_cmd,
+        if (RIG_OK != (rc = write_block(rp, (unsigned char *) verify_cmd,
                                         strlen(verify_cmd))))
         {
             RETURNFUNC(rc);
         }
 
         /* read the reply */
-        if ((rc = read_string(&state->rigport, (unsigned char *) priv->ret_data,
+        if ((rc = read_string(rp, (unsigned char *) priv->ret_data,
                               sizeof(priv->ret_data),
                               &cat_term, sizeof(cat_term), 0, 1)) <= 0)
         {
@@ -11708,7 +11804,7 @@ int newcat_set_cmd(RIG *rig)
                           priv->cmd_str);
 
                 /* read/flush the verify command reply which should still be there */
-                if ((rc = read_string(&state->rigport, (unsigned char *) priv->ret_data,
+                if ((rc = read_string(rp, (unsigned char *) priv->ret_data,
                                       sizeof(priv->ret_data),
                                       &cat_term, sizeof(cat_term), 0, 1)) > 0)
                 {

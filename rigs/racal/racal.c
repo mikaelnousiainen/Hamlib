@@ -69,15 +69,15 @@ static int racal_transaction(RIG *rig, const char *cmd, char *data,
                              int *data_len)
 {
     const struct racal_priv_data *priv = (struct racal_priv_data *)rig->state.priv;
-    struct rig_state *rs = &rig->state;
+    hamlib_port_t *rp = RIGPORT(rig);
     char cmdbuf[BUFSZ + 1];
     int retval;
 
     SNPRINTF(cmdbuf, sizeof(cmdbuf), SOM "%u%s" EOM, priv->receiver_id, cmd);
 
-    rig_flush(&rs->rigport);
+    rig_flush(rp);
 
-    retval = write_block(&rs->rigport, (unsigned char *) cmdbuf, strlen(cmdbuf));
+    retval = write_block(rp, (unsigned char *) cmdbuf, strlen(cmdbuf));
 
     if (retval != RIG_OK)
     {
@@ -91,7 +91,7 @@ static int racal_transaction(RIG *rig, const char *cmd, char *data,
         return retval;
     }
 
-    retval = read_string(&rs->rigport, (unsigned char *) data, BUFSZ, EOM,
+    retval = read_string(rp, (unsigned char *) data, BUFSZ, EOM,
                          strlen(EOM), 0, 1);
 
     if (retval <= 0)
@@ -162,7 +162,7 @@ int racal_cleanup(RIG *rig)
 /*
  * Assumes rig!=NULL, rig->state.priv!=NULL
  */
-int racal_set_conf(RIG *rig, token_t token, const char *val)
+int racal_set_conf(RIG *rig, hamlib_token_t token, const char *val)
 {
     struct racal_priv_data *priv = (struct racal_priv_data *)rig->state.priv;
 
@@ -184,7 +184,7 @@ int racal_set_conf(RIG *rig, token_t token, const char *val)
  * Assumes rig!=NULL, rig->state.priv!=NULL
  *  and val points to a buffer big enough to hold the conf value.
  */
-int racal_get_conf2(RIG *rig, token_t token, char *val, int val_len)
+int racal_get_conf2(RIG *rig, hamlib_token_t token, char *val, int val_len)
 {
     const struct racal_priv_data *priv = (struct racal_priv_data *)rig->state.priv;
 
@@ -201,7 +201,7 @@ int racal_get_conf2(RIG *rig, token_t token, char *val, int val_len)
     return RIG_OK;
 }
 
-int racal_get_conf(RIG *rig, token_t token, char *val)
+int racal_get_conf(RIG *rig, hamlib_token_t token, char *val)
 {
     return racal_get_conf2(rig, token, val, 128);
 }

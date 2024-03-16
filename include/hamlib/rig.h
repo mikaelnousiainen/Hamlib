@@ -51,6 +51,14 @@
 #include <arpa/inet.h>
 #endif
 
+// mingw64 still shows __TIMESIZE != 64
+// need to do more testing
+#if 0
+#if __TIMESIZE != 64
+#warning TIMESIZE != 64 -- Please report your OS system to hamlib-developer@lists.sourceforge.net
+#endif
+#endif
+
 // For MSVC install the NUGet pthread package
 #if defined(_MSC_VER)
 #define HAVE_STRUCT_TIMESPEC
@@ -271,6 +279,7 @@ typedef struct s_rig RIG;
 #define HAMLIB_MAX_ROTORS 63
 #define HAMLIB_MAX_VFO_OPS 31
 #define HAMLIB_MAX_AMP_OPS 31
+#define HAMLIB_MAX_AMP_STATUS 31
 #define HAMLIB_MAX_RSCANS 31
 #define HAMLIB_MAX_SNAPSHOT_PACKET_SIZE 16384 /* maximum number of bytes in a UDP snapshot packet */
 //! @endcond
@@ -774,7 +783,7 @@ typedef enum { // numbers here reflect the Yaesu values
     RIG_BAND_430MHZ = 16,   /*!< \c 430MHz */
 } hamlib_band_t;
 
-typedef enum { // numbers here reflect the Yaesu values
+typedef enum { // numbers here reflect generic values -- need to map to rig values
     RIG_BANDSELECT_UNUSED = CONSTANT_64BIT_FLAG(0),      /*!< \c Unused */
     RIG_BANDSELECT_2200M  = CONSTANT_64BIT_FLAG(1),      /*!< \c 160M */
     RIG_BANDSELECT_600M   = CONSTANT_64BIT_FLAG(2),      /*!< \c 160M */
@@ -839,7 +848,8 @@ typedef enum {
 /**
  * \brief configuration token
  */
-typedef long token_t;
+typedef long hamlib_token_t;
+#define token_t hamlib_token_t
 
 
 //! @cond Doxygen_Suppress
@@ -880,7 +890,7 @@ enum rig_conf_e {
  * \brief Configuration parameter structure.
  */
 struct confparams {
-    token_t token;          /*!< Conf param token ID */
+    hamlib_token_t token;          /*!< Conf param token ID */
     const char *name;       /*!< Param name, no spaces allowed */
     const char *label;      /*!< Human readable label */
     const char *tooltip;    /*!< Hint on the parameter */
@@ -1378,12 +1388,12 @@ typedef uint64_t rmode_t;
 #define    RIG_MODE_IQ        CONSTANT_64BIT_FLAG (37)  /*!< \c IQ mode for a couple of kit rigs */
 #define    RIG_MODE_ISBUSB    CONSTANT_64BIT_FLAG (38)  /*!< \c ISB mode monitoring USB */
 #define    RIG_MODE_ISBLSB    CONSTANT_64BIT_FLAG (39)  /*!< \c ISB mode monitoring LSB */
-#define    RIG_MODE_BIT40     CONSTANT_64BIT_FLAG (40)  /*!< \c reserved for future expansion */
-#define    RIG_MODE_BIT41     CONSTANT_64BIT_FLAG (41)  /*!< \c reserved for future expansion */
-#define    RIG_MODE_BIT42     CONSTANT_64BIT_FLAG (42)  /*!< \c reserved for future expansion */
-#define    RIG_MODE_BIT43     CONSTANT_64BIT_FLAG (43)  /*!< \c reserved for future expansion */
-#define    RIG_MODE_BIT44     CONSTANT_64BIT_FLAG (44)  /*!< \c reserved for future expansion */
-#define    RIG_MODE_BIT45     CONSTANT_64BIT_FLAG (45)  /*!< \c reserved for future expansion */
+#define    RIG_MODE_USBD1     CONSTANT_64BIT_FLAG (40)  /*!< \c USB-D1 for some rigs */
+#define    RIG_MODE_USBD2     CONSTANT_64BIT_FLAG (41)  /*!< \c USB-D2 for some rigs */
+#define    RIG_MODE_USBD3     CONSTANT_64BIT_FLAG (42)  /*!< \c USB-D3 for some rigs */
+#define    RIG_MODE_LSBD1     CONSTANT_64BIT_FLAG (43)  /*!< \c LSB-D1 for some rigs */
+#define    RIG_MODE_LSBD2     CONSTANT_64BIT_FLAG (44)  /*!< \c LSB-D1 for some rigs */
+#define    RIG_MODE_LSBD3     CONSTANT_64BIT_FLAG (45)  /*!< \c LSB-D1 for some rigs */
 #define    RIG_MODE_BIT46     CONSTANT_64BIT_FLAG (46)  /*!< \c reserved for future expansion */
 #define    RIG_MODE_BIT47     CONSTANT_64BIT_FLAG (47)  /*!< \c reserved for future expansion */
 #define    RIG_MODE_BIT48     CONSTANT_64BIT_FLAG (48)  /*!< \c reserved for future expansion */
@@ -1533,7 +1543,7 @@ struct filter_list {
  *
  */
 struct ext_list {
-    token_t token;      /*!< Token ID */
+    hamlib_token_t token;      /*!< Token ID */
     value_t val;        /*!< Value */
 };
 
@@ -2078,17 +2088,17 @@ struct rig_caps {
     int (*set_parm)(RIG *rig, setting_t parm, value_t val);
     int (*get_parm)(RIG *rig, setting_t parm, value_t *val);
 
-    int (*set_ext_level)(RIG *rig, vfo_t vfo, token_t token, value_t val);
-    int (*get_ext_level)(RIG *rig, vfo_t vfo, token_t token, value_t *val);
+    int (*set_ext_level)(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t val);
+    int (*get_ext_level)(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t *val);
 
-    int (*set_ext_func)(RIG *rig, vfo_t vfo, token_t token, int status);
-    int (*get_ext_func)(RIG *rig, vfo_t vfo, token_t token, int *status);
+    int (*set_ext_func)(RIG *rig, vfo_t vfo, hamlib_token_t token, int status);
+    int (*get_ext_func)(RIG *rig, vfo_t vfo, hamlib_token_t token, int *status);
 
-    int (*set_ext_parm)(RIG *rig, token_t token, value_t val);
-    int (*get_ext_parm)(RIG *rig, token_t token, value_t *val);
+    int (*set_ext_parm)(RIG *rig, hamlib_token_t token, value_t val);
+    int (*get_ext_parm)(RIG *rig, hamlib_token_t token, value_t *val);
 
-    int (*set_conf)(RIG *rig, token_t token, const char *val);
-    int (*get_conf)(RIG *rig, token_t token, char *val);
+    int (*set_conf)(RIG *rig, hamlib_token_t token, const char *val);
+    int (*get_conf)(RIG *rig, hamlib_token_t token, char *val);
 
     int (*send_dtmf)(RIG *rig, vfo_t vfo, const char *digits);
     int (*recv_dtmf)(RIG *rig, vfo_t vfo, char *digits, int *length);
@@ -2159,7 +2169,7 @@ struct rig_caps {
                                const unsigned char *frame);
 // this will be used to check rigcaps structure is compatible with client
     char *hamlib_check_rig_caps;   // a constant value we can check for hamlib integrity
-    int (*get_conf2)(RIG *rig, token_t token, char *val, int val_len);
+    int (*get_conf2)(RIG *rig, hamlib_token_t token, char *val, int val_len);
     int (*password)(RIG *rig, const char *key1); /*< Send encrypted password if rigctld is secured with -A/--password */
     int (*set_lock_mode)(RIG *rig, int mode);
     int (*get_lock_mode)(RIG *rig, int *mode);
@@ -2482,6 +2492,7 @@ typedef hamlib_port_t port_t;
 #define AMPPORT(a) (&a->state.ampport)
 #define ROTPORT(r) (&r->state.rotport)
 #define ROTPORT2(r) (&r->state.rotport2)
+#define STATE(r) (&r->state)
 /* Then when the rigport address is stored as a pointer somewhere else(say,
  *  in the rig structure itself), the definition could be changed to
  *  #define RIGPORT(r) r->somewhereelse
@@ -2496,6 +2507,7 @@ typedef hamlib_port_t port_t;
 #define HAMLIB_AMPPORT(a) ((hamlib_port_t *)amp_data_pointer(a, RIG_PTRX_AMPPORT))
 #define HAMLIB_ROTPORT(r) ((hamlib_port_t *)rot_data_pointer(r, RIG_PTRX_ROTPORT))
 #define HAMLIB_ROTPORT2(r) ((hamlib_port_t *)rot_data_pointer(r, RIG_PTRX_ROTPORT2))
+#define HAMLIB_STATE(r) ((struct rig_state *)rig_data_pointer(r, RIG_PTRX_STATE))
 #endif
 
 typedef enum {
@@ -2507,6 +2519,7 @@ typedef enum {
     RIG_PTRX_AMPPORT,
     RIG_PTRX_ROTPORT,
     RIG_PTRX_ROTPORT2,
+    RIG_PTRX_STATE,
 // New entries go directly above this line====================
     RIG_PTRX_MAXIMUM
 } rig_ptrx_t;
@@ -2652,7 +2665,7 @@ typedef unsigned int rig_comm_status_t;
  * that may be updated (ie. customized)
  *
  * It is NOT fine to move fields around as it can break share library offset
- * As of 2021-03-03  vfo_list is the last known item being reference externally
+ * As of 2024-03-03  freq_event_elapsed is the last known item being reference externally
  * So any additions or changes to this structure must be at the end of the structure
  */
 struct rig_state {
@@ -2838,6 +2851,8 @@ struct rig_state {
     char device_id[HAMLIB_RIGNAMSIZ];
     int dual_watch; /*!< Boolean DUAL_WATCH status */
     int post_ptt_delay;         /*!< delay after PTT to allow for relays and such */
+    struct timespec freq_event_elapsed;
+    int freq_skip; /*!< allow frequency skip for gpredict RX/TX freq set */
 // New rig_state items go before this line ============================================
 };
 
@@ -3318,16 +3333,16 @@ rig_get_parm HAMLIB_PARAMS((RIG *rig,
 
 extern HAMLIB_EXPORT(int)
 rig_set_conf HAMLIB_PARAMS((RIG *rig,
-                            token_t token,
+                            hamlib_token_t token,
                             const char *val));
 // deprecating rig_get_conf
 extern HAMLIB_EXPORT(int)
 rig_get_conf HAMLIB_PARAMS((RIG *rig,
-                            token_t token,
+                            hamlib_token_t token,
                             char *val));
 extern HAMLIB_EXPORT(int)
 rig_get_conf2 HAMLIB_PARAMS((RIG *rig,
-                            token_t token,
+                            hamlib_token_t token,
                             char *val,
                             int val_len));
 
@@ -3345,32 +3360,32 @@ rig_reset HAMLIB_PARAMS((RIG *rig,
 extern HAMLIB_EXPORT(int)
 rig_set_ext_level HAMLIB_PARAMS((RIG *rig,
                                  vfo_t vfo,
-                                 token_t token,
+                                 hamlib_token_t token,
                                  value_t val));
 extern HAMLIB_EXPORT(int)
 rig_get_ext_level HAMLIB_PARAMS((RIG *rig,
                                  vfo_t vfo,
-                                 token_t token,
+                                 hamlib_token_t token,
                                  value_t *val));
 
 extern HAMLIB_EXPORT(int)
 rig_set_ext_func HAMLIB_PARAMS((RIG *rig,
                                  vfo_t vfo,
-                                 token_t token,
+                                 hamlib_token_t token,
                                  int status));
 extern HAMLIB_EXPORT(int)
 rig_get_ext_func HAMLIB_PARAMS((RIG *rig,
                                  vfo_t vfo,
-                                 token_t token,
+                                 hamlib_token_t token,
                                  int *status));
 
 extern HAMLIB_EXPORT(int)
 rig_set_ext_parm HAMLIB_PARAMS((RIG *rig,
-                                token_t token,
+                                hamlib_token_t token,
                                 value_t val));
 extern HAMLIB_EXPORT(int)
 rig_get_ext_parm HAMLIB_PARAMS((RIG *rig,
-                                token_t token,
+                                hamlib_token_t token,
                                 value_t *val));
 
 extern HAMLIB_EXPORT(int)
@@ -3398,8 +3413,8 @@ rig_ext_lookup HAMLIB_PARAMS((RIG *rig,
 
 extern HAMLIB_EXPORT(const struct confparams *)
 rig_ext_lookup_tok HAMLIB_PARAMS((RIG *rig,
-                                  token_t token));
-extern HAMLIB_EXPORT(token_t)
+                                  hamlib_token_t token));
+extern HAMLIB_EXPORT(hamlib_token_t)
 rig_ext_token_lookup HAMLIB_PARAMS((RIG *rig,
                                     const char *name));
 
@@ -3413,7 +3428,7 @@ rig_token_foreach HAMLIB_PARAMS((RIG *rig,
 extern HAMLIB_EXPORT(const struct confparams *)
 rig_confparam_lookup HAMLIB_PARAMS((RIG *rig,
                                     const char *name));
-extern HAMLIB_EXPORT(token_t)
+extern HAMLIB_EXPORT(hamlib_token_t)
 rig_token_lookup HAMLIB_PARAMS((RIG *rig,
                                 const char *name));
 

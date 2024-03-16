@@ -439,6 +439,156 @@ struct rig_caps ft817_caps =
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
+struct rig_caps q900_caps =
+{
+    RIG_MODEL(RIG_MODEL_Q900),
+    .model_name =          "Q900",
+    .mfg_name =            "Guohe",
+    .version =             "20240122.0",
+    .copyright =           "LGPL",
+    .status =              RIG_STATUS_STABLE,
+    .rig_type =            RIG_TYPE_TRANSCEIVER,
+    .ptt_type =            RIG_PTT_RIG,
+    .dcd_type =            RIG_DCD_RIG,
+    .port_type =           RIG_PORT_SERIAL,
+    .serial_rate_min =     4800,
+    .serial_rate_max =     38400,
+    .serial_data_bits =    8,
+    .serial_stop_bits =    2,
+    .serial_parity =       RIG_PARITY_NONE,
+    .serial_handshake =    RIG_HANDSHAKE_NONE,
+    .write_delay =         FT817_WRITE_DELAY,
+    .post_write_delay =    FT817_POST_WRITE_DELAY,
+    .timeout =             FT817_TIMEOUT,
+    .retry =               5,
+    .has_get_func =        RIG_FUNC_NONE,
+    .has_set_func =        RIG_FUNC_LOCK | RIG_FUNC_TONE | RIG_FUNC_TSQL | RIG_FUNC_CSQL | RIG_FUNC_RIT,
+    .has_get_level =
+    RIG_LEVEL_STRENGTH | RIG_LEVEL_RAWSTR | RIG_LEVEL_RFPOWER |
+    RIG_LEVEL_ALC | RIG_LEVEL_SWR,
+    .has_set_level =       RIG_LEVEL_BAND_SELECT,
+    .has_get_parm =        RIG_PARM_NONE,
+    .has_set_parm =        RIG_PARM_NONE,
+    .level_gran =
+    {
+#include "level_gran_yaesu.h"
+    },
+    .parm_gran =           {},
+    .ctcss_list =          common_ctcss_list,
+    .dcs_list =            common_dcs_list,   /* only 104 out of 106 supported */
+    .preamp =              { RIG_DBLST_END, },
+    .attenuator =          { RIG_DBLST_END, },
+    .max_rit =             Hz(9990),
+    .max_xit =             Hz(0),
+    .max_ifshift =         Hz(0),
+    .vfo_ops =             RIG_OP_TOGGLE,
+    .targetable_vfo =      0,
+    .transceive =          RIG_TRN_OFF,
+    .bank_qty =            0,
+    .chan_desc_sz =        0,
+    .chan_list =           { RIG_CHAN_END, },
+
+    .rx_range_list1 =  {
+        {kHz(100), MHz(56), FT817_ALL_RX_MODES,  -1, -1, FT817_VFO_ALL, FT817_ANTS},
+        {MHz(76), MHz(108), RIG_MODE_WFM,        -1, -1, FT817_VFO_ALL, FT817_ANTS},
+        {MHz(118), MHz(164), FT817_ALL_RX_MODES, -1, -1, FT817_VFO_ALL, FT817_ANTS},
+        {MHz(420), MHz(470), FT817_ALL_RX_MODES, -1, -1, FT817_VFO_ALL, FT817_ANTS},
+        RIG_FRNG_END,
+    },
+    .tx_range_list1 =  {
+        FRQ_RNG_HF(1, FT817_OTHER_TX_MODES, W(0.5), W(5), FT817_VFO_ALL, FT817_ANTS),
+        FRQ_RNG_HF(1, FT817_AM_TX_MODES, W(0.5), W(1.5), FT817_VFO_ALL, FT817_ANTS),
+
+        FRQ_RNG_6m(1, FT817_OTHER_TX_MODES, W(0.5), W(5), FT817_VFO_ALL, FT817_ANTS),
+        FRQ_RNG_6m(1, FT817_AM_TX_MODES, W(0.5), W(1.5), FT817_VFO_ALL, FT817_ANTS),
+
+        FRQ_RNG_2m(1, FT817_OTHER_TX_MODES, W(0.5), W(5), FT817_VFO_ALL, FT817_ANTS),
+        FRQ_RNG_2m(1, FT817_AM_TX_MODES, W(0.5), W(1.5), FT817_VFO_ALL, FT817_ANTS),
+
+        FRQ_RNG_70cm(1, FT817_OTHER_TX_MODES, W(0.5), W(5), FT817_VFO_ALL, FT817_ANTS),
+        FRQ_RNG_70cm(1, FT817_AM_TX_MODES, W(0.5), W(1.5), FT817_VFO_ALL, FT817_ANTS),
+
+        RIG_FRNG_END,
+    },
+
+
+    .rx_range_list2 =  {
+        {kHz(100), MHz(56), FT817_ALL_RX_MODES,  -1, -1, FT817_VFO_ALL, FT817_ANTS},
+        {MHz(76), MHz(108), RIG_MODE_WFM,        -1, -1, FT817_VFO_ALL, FT817_ANTS},
+        {MHz(118), MHz(164), FT817_ALL_RX_MODES, -1, -1, FT817_VFO_ALL, FT817_ANTS},
+        {MHz(420), MHz(470), FT817_ALL_RX_MODES, -1, -1, FT817_VFO_ALL, FT817_ANTS},
+        RIG_FRNG_END,
+    },
+
+    .tx_range_list2 =  {
+        FRQ_RNG_HF(2, FT817_OTHER_TX_MODES, W(0.5), W(5), FT817_VFO_ALL, FT817_ANTS),
+        FRQ_RNG_HF(2, FT817_AM_TX_MODES, W(0.5), W(1.5), FT817_VFO_ALL, FT817_ANTS),
+        /* FIXME: 60 meters in US version */
+
+        FRQ_RNG_6m(2, FT817_OTHER_TX_MODES, W(0.5), W(5), FT817_VFO_ALL, FT817_ANTS),
+        FRQ_RNG_6m(2, FT817_AM_TX_MODES, W(0.5), W(1.5), FT817_VFO_ALL, FT817_ANTS),
+
+        FRQ_RNG_2m(2, FT817_OTHER_TX_MODES, W(0.5), W(5), FT817_VFO_ALL, FT817_ANTS),
+        FRQ_RNG_2m(2, FT817_AM_TX_MODES, W(0.5), W(1.5), FT817_VFO_ALL, FT817_ANTS),
+
+        FRQ_RNG_70cm(2, FT817_OTHER_TX_MODES, W(0.5), W(5), FT817_VFO_ALL, FT817_ANTS),
+        FRQ_RNG_70cm(2, FT817_AM_TX_MODES, W(0.5), W(1.5), FT817_VFO_ALL, FT817_ANTS),
+
+        RIG_FRNG_END,
+    },
+
+    .tuning_steps =  {
+        {FT817_SSB_CW_RX_MODES, Hz(10)},
+        {FT817_AM_FM_RX_MODES | RIG_MODE_WFM, Hz(100)},
+        RIG_TS_END,
+    },
+
+    .filters = {
+        {FT817_SSB_CW_RX_MODES, kHz(2.2)},  /* normal passband */
+        {FT817_CWN_RX_MODES, 500},          /* CW and RTTY narrow */
+        {RIG_MODE_AM, kHz(6)},              /* AM normal */
+        {RIG_MODE_FM | RIG_MODE_PKTFM, kHz(9)},
+        {RIG_MODE_WFM, kHz(15)},
+        RIG_FLT_END,
+    },
+
+    .str_cal =          FT817_STR_CAL,
+    .swr_cal =          FT817_SWR_CAL,
+    .alc_cal =          FT817_ALC_CAL,
+    .rfpower_meter_cal = FT817_PWR_CAL,
+
+    .rig_init =         ft817_init,
+    .rig_cleanup =      ft817_cleanup,
+    .rig_open =         ft817_open,
+    .rig_close =        ft817_close,
+    .get_vfo =          ft817_get_vfo,
+    .set_vfo =          ft817_set_vfo,
+    .set_freq =         ft817_set_freq,
+    .get_freq =         ft817_get_freq,
+    .set_mode =         ft817_set_mode,
+    .get_mode =         ft817_get_mode,
+    .set_ptt =          ft817_set_ptt,
+    .get_ptt =          ft817_get_ptt,
+    .get_dcd =          ft817_get_dcd,
+    .set_rptr_shift =   ft817_set_rptr_shift,
+    .set_rptr_offs =    ft817_set_rptr_offs,
+    .set_split_vfo =    ft817_set_split_vfo,
+    .get_split_vfo =    ft817_get_split_vfo,
+    .set_rit =          ft817_set_rit,
+    .set_dcs_code =     ft817_set_dcs_code,
+    .set_ctcss_tone =   ft817_set_ctcss_tone,
+    .set_dcs_sql =      ft817_set_dcs_sql,
+    .set_ctcss_sql =    ft817_set_ctcss_sql,
+    .power2mW =         ft817_power2mW,
+    .mW2power =         ft817_mW2power,
+    .set_powerstat =    ft817_set_powerstat,
+    .get_ant =          ft817_get_ant,
+    .get_level =        ft817_get_level,
+    .set_func =         ft817_set_func,
+    .vfo_op =           ft817_vfo_op,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
+};
+
 struct rig_caps ft818_caps =
 {
     RIG_MODEL(RIG_MODEL_FT818),
@@ -679,6 +829,7 @@ static int check_cache_timeout(struct timeval *tv)
 static int ft817_read_eeprom(RIG *rig, unsigned short addr, unsigned char *out)
 {
     unsigned char data[YAESU_CMD_LENGTH];
+    hamlib_port_t *rp = RIGPORT(rig);
     int n;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
@@ -688,9 +839,9 @@ static int ft817_read_eeprom(RIG *rig, unsigned short addr, unsigned char *out)
     data[0] = addr >> 8;
     data[1] = addr & 0xff;
 
-    write_block(&rig->state.rigport, data, YAESU_CMD_LENGTH);
+    write_block(rp, data, YAESU_CMD_LENGTH);
 
-    if ((n = read_block(&rig->state.rigport, data, 2)) < 0)
+    if ((n = read_block(rp, data, 2)) < 0)
     {
         return n;
     }
@@ -719,11 +870,12 @@ static int ft817_read_eeprom(RIG *rig, unsigned short addr, unsigned char *out)
 static int ft817_get_status(RIG *rig, int status)
 {
     struct ft817_priv_data *p = (struct ft817_priv_data *) rig->state.priv;
+    hamlib_port_t *rp = RIGPORT(rig);
     struct timeval *tv;
     unsigned char *data;
     int len;
     int n;
-    int retries = rig->state.rigport.retry;
+    int retries = rp->retry;
     unsigned char result[2];
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
@@ -763,10 +915,9 @@ static int ft817_get_status(RIG *rig, int status)
 
     do
     {
-        rig_flush(&rig->state.rigport);
-        write_block(&rig->state.rigport, ncmd[status].nseq,
-                    YAESU_CMD_LENGTH);
-        n = read_block(&rig->state.rigport, data, len);
+        rig_flush(rp);
+        write_block(rp, ncmd[status].nseq, YAESU_CMD_LENGTH);
+        n = read_block(rp, data, len);
     }
     while (retries-- && n < 0);
 
@@ -837,16 +988,17 @@ static int ft817_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 {
     struct ft817_priv_data *p = (struct ft817_priv_data *) rig->state.priv;
     freq_t f1 = 0, f2 = 0;
-    int retries = rig->state.rigport.retry +
+    struct rig_cache *cachep = CACHE(rig);
+    int retries = RIGPORT(rig)->retry +
                   1; // +1 because, because 2 steps are needed even in best scenario
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called, vfo=%s, ptt=%d, split=%d\n", __func__,
-              rig_strvfo(vfo), rig->state.cache.ptt, rig->state.cache.split);
+              rig_strvfo(vfo), cachep->ptt, cachep->split);
 
     // we can't query VFOB while in transmit and split mode
-    if (rig->state.cache.ptt && vfo == RIG_VFO_B && rig->state.cache.split)
+    if (cachep->ptt && vfo == RIG_VFO_B && cachep->split)
     {
-        *freq = rig->state.cache.freqMainB;
+        *freq = cachep->freqMainB;
         return RIG_OK;
     }
 
@@ -1338,16 +1490,17 @@ static int ft818_get_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t *option,
 int ft817_read_ack(RIG *rig)
 {
     unsigned char dummy;
+    hamlib_port_t *rp = RIGPORT(rig);
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
-    if (rig->state.rigport.post_write_delay == 0)
+    if (rp->post_write_delay == 0)
     {
-        if (read_block(&rig->state.rigport, &dummy, 1) < 0)
+        if (read_block(rp, &dummy, 1) < 0)
         {
             rig_debug(RIG_DEBUG_ERR, "%s: error reading ack\n", __func__);
             rig_debug(RIG_DEBUG_ERR, "%s: adjusting post_write_delay to avoid ack\n",
                       __func__);
-            rig->state.rigport.post_write_delay =
+            rp->post_write_delay =
                 10; // arbitrary choice right now of max 100 cmds/sec
             return RIG_OK; // let it continue without checking for ack now
         }
@@ -1369,6 +1522,7 @@ int ft817_read_ack(RIG *rig)
  */
 static int ft817_send_cmd(RIG *rig, int index)
 {
+    hamlib_port_t *rp = RIGPORT(rig);
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
     if (ncmd[index].ncomp == 0)
@@ -1377,8 +1531,8 @@ static int ft817_send_cmd(RIG *rig, int index)
         return -RIG_EINTERNAL;
     }
 
-    rig_flush(&rig->state.rigport);
-    write_block(&rig->state.rigport, ncmd[index].nseq, YAESU_CMD_LENGTH);
+    rig_flush(rp);
+    write_block(rp, ncmd[index].nseq, YAESU_CMD_LENGTH);
     return ft817_read_ack(rig);
 }
 
@@ -1400,7 +1554,7 @@ static int ft817_send_icmd(RIG *rig, int index, const unsigned char *data)
     cmd[YAESU_CMD_LENGTH - 1] = ncmd[index].nseq[YAESU_CMD_LENGTH - 1];
     memcpy(cmd, data, YAESU_CMD_LENGTH - 1);
 
-    write_block(&rig->state.rigport, cmd, YAESU_CMD_LENGTH);
+    write_block(RIGPORT(rig), cmd, YAESU_CMD_LENGTH);
     return ft817_read_ack(rig);
 }
 
@@ -1596,7 +1750,7 @@ static int ft817_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 {
     int index;
     ptt_t ptt_response = -1;
-    int retries = rig->state.rigport.retry;
+    int retries = RIGPORT(rig)->retry;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
@@ -1909,10 +2063,10 @@ int ft817_set_powerstat(RIG *rig, powerstat_t status)
 
     case RIG_POWER_ON:
         // send 5 bytes first, snooze a bit, then PWR_ON
-        write_block(&rig->state.rigport,
+        write_block(RIGPORT(rig),
                     ncmd[FT817_NATIVE_CAT_PWR_WAKE].nseq, YAESU_CMD_LENGTH);
         hl_usleep(200 * 1000);
-        write_block(&rig->state.rigport, ncmd[FT817_NATIVE_CAT_PWR_ON].nseq,
+        write_block(RIGPORT(rig), ncmd[FT817_NATIVE_CAT_PWR_ON].nseq,
                     YAESU_CMD_LENGTH);
         return RIG_OK;
 
@@ -1974,7 +2128,7 @@ static int ft817_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
         return n;
     }
 
-    rig->state.cache.split = split;
+    CACHE(rig)->split = split;
 
     return RIG_OK;
 

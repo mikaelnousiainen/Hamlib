@@ -92,7 +92,7 @@ static int fifisdr_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode,
 static int fifisdr_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val);
 static int fifisdr_get_level(RIG *rig, vfo_t vfo, setting_t level,
                              value_t *val);
-static int fifisdr_get_ext_level(RIG *rig, vfo_t vfo, token_t token,
+static int fifisdr_get_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token,
                                  value_t *val);
 
 
@@ -276,12 +276,12 @@ static int fifisdr_usb_write(RIG *rig,
                              unsigned char *bytes, int size)
 {
     int ret;
-    libusb_device_handle *udh = rig->state.rigport.handle;
+    libusb_device_handle *udh = RIGPORT(rig)->handle;
 
     ret = libusb_control_transfer(udh,
                                   LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_OUT,
                                   request, value, index,
-                                  bytes, size, rig->state.rigport.timeout);
+                                  bytes, size, RIGPORT(rig)->timeout);
 
     if (ret != size)
     {
@@ -303,12 +303,12 @@ static int fifisdr_usb_read(RIG *rig,
                             unsigned char *bytes, int size)
 {
     int ret;
-    libusb_device_handle *udh = rig->state.rigport.handle;
+    libusb_device_handle *udh = RIGPORT(rig)->handle;
 
     ret = libusb_control_transfer(udh,
                                   LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_IN,
                                   request, value, index,
-                                  bytes, size, rig->state.rigport.timeout);
+                                  bytes, size, RIGPORT(rig)->timeout);
 
     if (ret != size)
     {
@@ -326,7 +326,7 @@ static int fifisdr_usb_read(RIG *rig,
 
 int fifisdr_init(RIG *rig)
 {
-    hamlib_port_t *rp = &rig->state.rigport;
+    hamlib_port_t *rp = RIGPORT(rig);
     struct fifisdr_priv_instance_data *priv;
 
     rig->state.priv = (struct fifisdr_priv_instance_data *)calloc(sizeof(
@@ -807,7 +807,7 @@ static int fifisdr_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
 
 
-static int fifisdr_get_ext_level(RIG *rig, vfo_t vfo, token_t token,
+static int fifisdr_get_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token,
                                  value_t *val)
 {
     int ret = RIG_OK;

@@ -26,9 +26,9 @@
  *
  */
 
-// TODO: implement new commands in ampctl_parse
-// TODO: add new features in dumpcaps_amp()
-// TODO: finish Expert backend and test
+// TODO: Add new features in dumpcaps_amp()
+// TODO: Finish Expert backend and test
+// TODO: Future features: add a separate command to switch antenna "mode", e.g. for RX only antennas, then there is no need to have the "option" for set/get ant
 
 #include <hamlib/config.h>
 
@@ -170,6 +170,11 @@ declare_proto_amp(get_func);
 declare_proto_amp(set_parm);
 declare_proto_amp(get_parm);
 declare_proto_amp(amp_op);
+declare_proto_amp(set_input);
+declare_proto_amp(get_input);
+declare_proto_amp(set_ant);
+declare_proto_amp(get_ant);
+declare_proto_amp(get_status);
 declare_proto_amp(set_powerstat);
 declare_proto_amp(get_powerstat);
 //declare_proto_amp(dump_caps);
@@ -190,10 +195,10 @@ struct test_table test_list[] =
     { 'P', "set_parm",      ACTION(set_parm),       ARG_IN, "Parm", "Parm Value" },
     { 'p', "get_parm",      ACTION(get_parm),       ARG_IN1 | ARG_OUT2, "Parm", "Parm Value" },
     { 'G', "amp_op",        ACTION(amp_op),         ARG_IN, "Amplifier Operation" },
-    { 'I', "set_ant",       ACTION(set_input),      ARG_IN, "Input" },
-    { 'i', "get_ant",       ACTION(get_input),      ARG_OUT, "Input" },
-    { 'Y', "set_ant",       ACTION(set_ant),        ARG_IN, "Antenna", "Option" },
-    { 'y', "get_ant",       ACTION(get_ant),        ARG_IN1 | ARG_OUT2, "AntCurr", "Option" },
+    { 'I', "set_input",     ACTION(set_input),      ARG_IN, "Input" },
+    { 'i', "get_input",     ACTION(get_input),      ARG_OUT, "Input" },
+    { 'Y', "set_ant",       ACTION(set_ant),        ARG_IN, "Antenna" },
+    { 'y', "get_ant",       ACTION(get_ant),        ARG_OUT, "Antenna" },
     { 's', "get_status",    ACTION(get_status),     ARG_OUT, "Status flags" },
     { 'w', "send_cmd",      ACTION(send_cmd),       ARG_IN1 | ARG_IN_LINE | ARG_OUT2, "Cmd", "Reply" },
     { 'W', "send_cmd_rx",   ACTION(send_cmd),       ARG_IN | ARG_OUT2, "Cmd", "Reply"},
@@ -2231,7 +2236,7 @@ declare_proto_amp(amp_op)
 
     op = amp_parse_amp_op(arg1);
 
-    if (RIG_OP_NONE == op)
+    if (AMP_OP_NONE == op)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: amp_parse_amp_op failed with '%s'\n", __func__,
                   arg1);
@@ -2241,46 +2246,32 @@ declare_proto_amp(amp_op)
     RETURNFUNC2(amp_op(amp, op));
 }
 
-// TODO: add a separate command to switch antenna "mode", e.g. for RX only antennas
-// TODO: then there is no need to have the "option" for set/get ant
 
-/* 'Y' */
-declare_proto_amp(set_ant)
+/* 'I' */
+declare_proto_amp(set_input)
 {
-    ant_t ant;
-    value_t option; // some rigs have a another option for the antenna
+    ant_t input;
 
     ENTERFUNC2;
 
-    CHKSCN1ARG(sscanf(arg1, "%d", &ant));
-    CHKSCN1ARG(sscanf(arg2, "%d", &option.i)); // assuming they are integer values
+    CHKSCN1ARG(sscanf(arg1, "%d", &input));
 
-    RETURNFUNC2(amp_set_ant(amp, rig_idx2setting(ant - 1), option));
+    RETURNFUNC2(amp_set_input(amp, rig_idx2setting(input - 1)));
 }
 
 
-/* 'y' */
-declare_proto_amp(get_ant)
+/* 'i' */
+declare_proto_amp(get_input)
 {
     int status;
-    ant_t ant;
-    value_t option;
-    char antbuf[64];
+    ant_t input;
+    char inputbuf[64];
 
     ENTERFUNC2;
 
-    CHKSCN1ARG(sscanf(arg1, "%d", &ant));
+    CHKSCN1ARG(sscanf(arg1, "%d", &input));
 
-    if (ant == 0) // then we want the current antenna info
-    {
-        status = amp_get_ant(rig, vfo, RIG_ANT_CURR, &option, &ant_curr, &ant_tx,
-                             &ant_rx);
-    }
-    else
-    {
-        status = rig_get_ant(rig, vfo, rig_idx2setting(ant - 1), &option, &ant_curr,
-                             &ant_tx, &ant_rx);
-    }
+    status = amp_get_input(amp, &input);
 
     if (status != RIG_OK)
     {
@@ -2292,36 +2283,81 @@ declare_proto_amp(get_ant)
         fprintf(fout, "%s: ", cmd->arg1);
     }
 
-    rig_sprintf_ant(antbuf, sizeof(antbuf), ant_curr);
+    rig_sprintf_ant(inputbuf, sizeof(inputbuf), input);
+    fprintf(fout, "%s%c", inputbuf, resp_sep);
+    //fprintf(fout, "%d%c", rig_setting2idx(ant_curr)+1, resp_sep);
+
+    RETURNFUNC2(status);
+}
+
+
+/* 'Y' */
+declare_proto_amp(set_ant)
+{
+    ant_t ant;
+
+    ENTERFUNC2;
+
+    CHKSCN1ARG(sscanf(arg1, "%d", &ant));
+
+    RETURNFUNC2(amp_set_ant(amp, rig_idx2setting(ant - 1)));
+}
+
+
+/* 'y' */
+declare_proto_amp(get_ant)
+{
+    int status;
+    ant_t ant;
+    char antbuf[64];
+
+    ENTERFUNC2;
+
+    CHKSCN1ARG(sscanf(arg1, "%d", &ant));
+
+    status = amp_get_ant(amp, &ant);
+
+    if (status != RIG_OK)
+    {
+        RETURNFUNC2(status);
+    }
+
+    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
+    {
+        fprintf(fout, "%s: ", cmd->arg1);
+    }
+
+    rig_sprintf_ant(antbuf, sizeof(antbuf), ant);
     fprintf(fout, "%s%c", antbuf, resp_sep);
     //fprintf(fout, "%d%c", rig_setting2idx(ant_curr)+1, resp_sep);
 
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg2);
-    }
-
-    fprintf(fout, "%d%c", option.i, resp_sep);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg3);
-    }
-
-    rig_sprintf_ant(antbuf, sizeof(antbuf), ant_tx);
-    fprintf(fout, "%s%c", antbuf, resp_sep);
-    //fprintf(fout, "%d%c", rig_setting2idx(ant_tx)+1, resp_sep);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg4);
-    }
-
-    rig_sprintf_ant(antbuf, sizeof(antbuf), ant_rx);
-    fprintf(fout, "%s%c", antbuf, resp_sep);
-    //fprintf(fout, "%d%c", rig_setting2idx(ant_rx)+1, resp_sep);
-
     RETURNFUNC2(status);
+}
+
+
+/* 's' */
+declare_proto_amp(get_status)
+{
+    int result;
+    amp_status_t status;
+    char s[SPRINTF_MAX_SIZE];
+
+    result = amp_get_status(amp, &status);
+
+    if (result != RIG_OK)
+    {
+        return result;
+    }
+
+    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
+    {
+        fprintf(fout, "%s: ", cmd->arg1);
+    }
+
+    amp_sprintf_status(s, sizeof(s), status);
+    fprintf(fout, "%s%c", s, resp_sep);
+
+    return RIG_OK;
 }
 
 
@@ -2443,7 +2479,7 @@ declare_proto_amp(get_powerstat)
 declare_proto_amp(send_cmd)
 {
     int retval;
-    struct amp_state *rs;
+    hamlib_port_t *ampp = AMPPORT(amp);
     int backend_num, cmd_len;
 #define BUFSZ 128
     unsigned char bufcmd[BUFSZ];
@@ -2491,11 +2527,9 @@ declare_proto_amp(send_cmd)
         eom_buf[2] = send_cmd_term;
     }
 
-    rs = &amp->state;
+    rig_flush(ampp);
 
-    rig_flush(&rs->ampport);
-
-    retval = write_block(&rs->ampport, bufcmd, cmd_len);
+    retval = write_block(ampp, bufcmd, cmd_len);
 
     if (retval != RIG_OK)
     {
@@ -2513,7 +2547,7 @@ declare_proto_amp(send_cmd)
          * assumes CR or LF is end of line char
          * for all ascii protocols
          */
-        retval = read_string(&rs->ampport, buf, BUFSZ, eom_buf, strlen(eom_buf), 0, 1);
+        retval = read_string(ampp, buf, BUFSZ, eom_buf, strlen(eom_buf), 0, 1);
 
         if (retval < 0)
         {

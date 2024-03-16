@@ -117,7 +117,7 @@ struct rig_caps sdr1k_rig_caps =
     .mfg_name =       "Flex-radio",
     .version =        "20200323.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_BETA,
     .rig_type =       RIG_TYPE_TUNER,
     .targetable_vfo =      0,
     .ptt_type =       RIG_PTT_RIG,
@@ -216,7 +216,7 @@ int sdr1k_init(RIG *rig)
 static void pdelay(RIG *rig)
 {
     unsigned char r;
-    par_read_data(&rig->state.rigport, &r); /* ~1us */
+    par_read_data(RIGPORT(rig), &r); /* ~1us */
 }
 
 int sdr1k_open(RIG *rig)
@@ -453,7 +453,7 @@ int
 write_latch(RIG *rig, latch_t which, unsigned value, unsigned mask)
 {
     struct sdr1k_priv_data *priv = (struct sdr1k_priv_data *)rig->state.priv;
-    hamlib_port_t *pport = &rig->state.rigport;
+    hamlib_port_t *pport = RIGPORT(rig);
 
     if (!(L_EXT <= which && which <= L_DDS1))
     {

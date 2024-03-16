@@ -60,8 +60,8 @@ static int hiqsdr_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width);
 static int hiqsdr_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt);
 static int hiqsdr_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option);
 
-static int hiqsdr_set_conf(RIG *rig, token_t token, const char *val);
-static int hiqsdr_get_conf(RIG *rig, token_t token, char *val);
+static int hiqsdr_set_conf(RIG *rig, hamlib_token_t token, const char *val);
+static int hiqsdr_get_conf(RIG *rig, hamlib_token_t token, char *val);
 static int hiqsdr_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val);
 static int hiqsdr_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
 
@@ -105,7 +105,7 @@ struct rig_caps hiqsdr_caps =
     .mfg_name =       "N2ADR",
     .version =        "20200323.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_BETA,
     .rig_type =       RIG_TYPE_TUNER,
     .targetable_vfo =  RIG_TARGETABLE_NONE,
     .ptt_type =       RIG_PTT_RIG,
@@ -192,10 +192,10 @@ static int send_command(RIG *rig)
                                           rig->state.priv;
     int ret;
 
-    ret = write_block(&rig->state.rigport, (unsigned char *) priv->control_frame,
+    ret = write_block(RIGPORT(rig), (unsigned char *) priv->control_frame,
                       CTRL_FRAME_LEN);
 #if 0
-    ret = read_block(&rig->state.rigport, (unsigned char *) priv->control_frame,
+    ret = read_block(RIGPORT(rig), (unsigned char *) priv->control_frame,
                      CTRL_FRAME_LEN);
 
     if (ret != CTRL_FRAME_LEN)
@@ -225,7 +225,7 @@ static unsigned compute_sample_rate(const struct hiqsdr_priv_data *priv)
 /*
  * Assumes rig!=NULL, rig->state.priv!=NULL
  */
-int hiqsdr_set_conf(RIG *rig, token_t token, const char *val)
+int hiqsdr_set_conf(RIG *rig, hamlib_token_t token, const char *val)
 {
     struct hiqsdr_priv_data *priv;
     struct rig_state *rs;
@@ -257,7 +257,7 @@ int hiqsdr_set_conf(RIG *rig, token_t token, const char *val)
  * Assumes rig!=NULL, rig->state.priv!=NULL
  *  and val points to a buffer big enough to hold the conf value.
  */
-int hiqsdr_get_conf2(RIG *rig, token_t token, char *val, int val_len)
+int hiqsdr_get_conf2(RIG *rig, hamlib_token_t token, char *val, int val_len)
 {
     struct hiqsdr_priv_data *priv;
     struct rig_state *rs;
@@ -282,7 +282,7 @@ int hiqsdr_get_conf2(RIG *rig, token_t token, char *val, int val_len)
     return RIG_OK;
 }
 
-int hiqsdr_get_conf(RIG *rig, token_t token, char *val)
+int hiqsdr_get_conf(RIG *rig, hamlib_token_t token, char *val)
 {
     return hiqsdr_get_conf2(rig, token, val, 128);
 }
@@ -306,7 +306,7 @@ int hiqsdr_init(RIG *rig)
     priv->split = RIG_SPLIT_OFF;
     priv->ref_clock = REFCLOCK;
     priv->sample_rate = DEFAULT_SAMPLE_RATE;
-    strncpy(rig->state.rigport.pathname, "192.168.2.196:48248",
+    strncpy(RIGPORT(rig)->pathname, "192.168.2.196:48248",
             HAMLIB_FILPATHLEN - 1);
 
     return RIG_OK;
@@ -347,7 +347,7 @@ int hiqsdr_open(RIG *rig)
 
 #if 0
     /* Send the samples to me. FIXME: send to port 48247 */
-    ret = write_block(&rig->state.rigport, buf_send_to_me, sizeof(buf_send_to_me));
+    ret = write_block(RIGPORT(rig), buf_send_to_me, sizeof(buf_send_to_me));
 
     if (ret != RIG_OK)
     {

@@ -52,8 +52,8 @@ static int elektor507_get_level(RIG *rig, vfo_t vfo, setting_t level,
 static int elektor507_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option);
 static int elektor507_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
                               ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx);
-static int elektor507_set_conf(RIG *rig, token_t token, const char *val);
-static int elektor507_get_conf(RIG *rig, token_t token, char *val);
+static int elektor507_set_conf(RIG *rig, hamlib_token_t token, const char *val);
+static int elektor507_get_conf(RIG *rig, hamlib_token_t token, char *val);
 
 
 static const char *elektor507_get_info(RIG *rig);
@@ -373,7 +373,7 @@ const char *elektor507_get_info(RIG *rig)
  */
 int elektor507_init(RIG *rig)
 {
-    hamlib_port_t *rp = &rig->state.rigport;
+    hamlib_port_t *rp = RIGPORT(rig);
     struct elektor507_priv_data *priv;
 
     rig->state.priv = (struct elektor507_priv_data *)calloc(sizeof(struct
@@ -426,7 +426,7 @@ int elektor507_cleanup(RIG *rig)
 const char *elektor507_get_info(RIG *rig)
 {
     static char buf[64];
-    libusb_device_handle *udh = rig->state.rigport.handle;
+    libusb_device_handle *udh = RIGPORT(rig)->handle;
     struct libusb_device_descriptor desc;
 
     /* always succeeds since libusb-1.0.16 */
@@ -439,7 +439,7 @@ const char *elektor507_get_info(RIG *rig)
 
 int elektor507_libusb_setup(RIG *rig)
 {
-    libusb_device_handle *udh = rig->state.rigport.handle;
+    libusb_device_handle *udh = RIGPORT(rig)->handle;
     int ret;
     unsigned short index = 0, usb_val;
 
@@ -500,7 +500,7 @@ int elektor507_libusb_setup(RIG *rig)
 int elektor507_ftdi_write_data(RIG *rig, void *FTOutBuf,
                                unsigned long BufferSize)
 {
-    libusb_device_handle *udh = rig->state.rigport.handle;
+    libusb_device_handle *udh = RIGPORT(rig)->handle;
     int ret, actual_length;
 
     rig_debug(RIG_DEBUG_TRACE, "%s called, %lu bytes\n", __func__, BufferSize);
@@ -641,7 +641,7 @@ struct rig_caps elektor507_caps =
 };
 
 
-int elektor507_set_conf(RIG *rig, token_t token, const char *val)
+int elektor507_set_conf(RIG *rig, hamlib_token_t token, const char *val)
 {
     struct elektor507_priv_data *priv;
     freq_t freq;
@@ -666,7 +666,7 @@ int elektor507_set_conf(RIG *rig, token_t token, const char *val)
     return RIG_OK;
 }
 
-int elektor507_get_conf2(RIG *rig, token_t token, char *val, int val_len)
+int elektor507_get_conf2(RIG *rig, hamlib_token_t token, char *val, int val_len)
 {
     struct elektor507_priv_data *priv;
 
@@ -689,7 +689,7 @@ int elektor507_get_conf2(RIG *rig, token_t token, char *val, int val_len)
     return RIG_OK;
 }
 
-int elektor507_get_conf(RIG *rig, token_t token, char *val)
+int elektor507_get_conf(RIG *rig, hamlib_token_t token, char *val)
 {
     return elektor507_get_conf2(rig, token, val, 128);
 }

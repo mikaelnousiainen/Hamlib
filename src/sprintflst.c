@@ -840,6 +840,37 @@ int rot_sprintf_status(char *str, int nlen, rot_status_t status)
     return len;
 }
 
+
+int amp_sprintf_status(char *str, int nlen, amp_status_t status)
+{
+    int len = 0;
+    unsigned long i;
+
+    rig_debug(RIG_DEBUG_TRACE, "%s: status=%08x\n", __func__, status);
+    *str = '\0';
+
+    if (status == AMP_STATUS_NONE)
+    {
+        return 0;
+    }
+
+    for (i = 0; i < HAMLIB_MAX_AMP_STATUS; i++)
+    {
+        const char *sv;
+        sv = rot_strstatus(status & AMP_STATUS_N(i));
+
+        if (sv && sv[0] && (strstr(sv, "None") == 0))
+        {
+            len += snprintf(str + len, nlen - len, "%s ", sv);
+        }
+
+        check_buffer_overflow(str, len, nlen);
+    }
+
+    return len;
+}
+
+
 int rig_sprintf_spectrum_modes(char *str, int nlen,
                                const enum rig_spectrum_mode_e *modes)
 {

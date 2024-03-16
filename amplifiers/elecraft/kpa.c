@@ -23,12 +23,12 @@
 #include <string.h>
 #include "kpa.h"
 
-struct expert_fault_message
+struct kpa_fault_message
 {
     int code;
     char *errmsg;
 };
-const struct expert_fault_message kpa_fault_list [] =
+const struct kpa_fault_message kpa_fault_list [] =
 {
     {0, "No fault condition"},
     {0x10, "Watchdog Timer was reset"},
@@ -74,7 +74,7 @@ int kpa_init(AMP *amp)
         return -RIG_ENOMEM;
     }
 
-    amp->state.ampport.type.rig = RIG_PORT_SERIAL;
+    AMPPORT(amp)->type.rig = RIG_PORT_SERIAL;
 
     return RIG_OK;
 }
@@ -92,18 +92,14 @@ int kpa_close(AMP *amp)
 
 int kpa_flushbuffer(AMP *amp)
 {
-    struct amp_state *rs;
-
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    rs = &amp->state;
-
-    return rig_flush(&rs->ampport);
+    return rig_flush(AMPPORT(amp));
 }
 
 int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
 {
-    struct amp_state *rs;
+    hamlib_port_t *ampp = AMPPORT(amp);
     int err;
     int len = 0;
     int loop;
@@ -114,19 +110,17 @@ int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
 
     kpa_flushbuffer(amp);
 
-    rs = &amp->state;
-
     loop = 3;
 
     do   // wake up the amp by sending ; until we receive ;
     {
         char c = ';';
         rig_debug(RIG_DEBUG_VERBOSE, "%s waiting for ;\n", __func__);
-        err = write_block(&rs->ampport, (unsigned char *) &c, 1);
+        err = write_block(ampp, (unsigned char *) &c, 1);
 
         if (err != RIG_OK) { return err; }
 
-        len = read_string(&rs->ampport, (unsigned char *) response, response_len, ";",
+        len = read_string(ampp, (unsigned char *) response, response_len, ";",
                           1, 0, 1);
 
         if (len < 0) { return len; }
@@ -134,14 +128,14 @@ int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
     while (--loop > 0 && (len != 1 || response[0] != ';'));
 
     // Now send our command
-    err = write_block(&rs->ampport, (unsigned char *) cmd, strlen(cmd));
+    err = write_block(ampp, (unsigned char *) cmd, strlen(cmd));
 
     if (err != RIG_OK) { return err; }
 
     if (response) // if response expected get it
     {
         response[0] = 0;
-        len = read_string(&rs->ampport, (unsigned char *) response, response_len, ";",
+        len = read_string(ampp, (unsigned char *) response, response_len, ";",
                           1, 0, 1);
 
         if (len < 0)
@@ -156,7 +150,7 @@ int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
     }
     else   // if no response expected try to get one
     {
-        char responsebuf[EXPERTBUFSZ];
+        char responsebuf[KPABUFSZ];
         responsebuf[0] = 0;
         loop = 3;
 
@@ -164,11 +158,11 @@ int kpa_transaction(AMP *amp, const char *cmd, char *response, int response_len)
         {
             char c = ';';
             rig_debug(RIG_DEBUG_VERBOSE, "%s waiting for ;\n", __func__);
-            err = write_block(&rs->ampport, (unsigned char *) &c, 1);
+            err = write_block(ampp, (unsigned char *) &c, 1);
 
             if (err != RIG_OK) { return err; }
 
-            len = read_string(&rs->ampport, (unsigned char *) responsebuf, EXPERTBUFSZ, ";", 1,
+            len = read_string(ampp, (unsigned char *) responsebuf, KPABUFSZ, ";", 1,
                               0, 1);
 
             if (len < 0) { return len; }
@@ -199,7 +193,7 @@ const char *kpa_get_info(AMP *amp)
 
 int kpa_get_freq(AMP *amp, freq_t *freq)
 {
-    char responsebuf[EXPERTBUFSZ];
+    char responsebuf[KPABUFSZ];
     int retval;
     unsigned long tfreq;
     int nargs;
@@ -227,11 +221,11 @@ int kpa_get_freq(AMP *amp, freq_t *freq)
 
 int kpa_set_freq(AMP *amp, freq_t freq)
 {
-    char responsebuf[EXPERTBUFSZ] = "\0";
+    char responsebuf[KPABUFSZ] = "\0";
     int retval;
     unsigned long tfreq;
     int nargs;
-    char cmd[EXPERTBUFSZ];
+    char cmd[KPABUFSZ];
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called, freq=%"PRIfreq"\n", __func__, freq);
 
@@ -264,7 +258,7 @@ int kpa_set_freq(AMP *amp, freq_t freq)
 
 int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 {
-    char responsebuf[EXPERTBUFSZ];
+    char responsebuf[KPABUFSZ];
     char *cmd;
     int retval;
     int fault;
@@ -277,7 +271,6 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
     int pwrinput;
     float float_value = 0;
     int int_value = 0, int_value2 = 0;
-    struct amp_state *rs = &amp->state;
     struct kpa_priv_data *priv = amp->state.priv;
 
 
@@ -372,7 +365,7 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 
         do
         {
-            retval = read_string(&rs->ampport, (unsigned char *) responsebuf,
+            retval = read_string(AMPPORT(amp), (unsigned char *) responsebuf,
                                  sizeof(responsebuf), ";", 1, 0,
                                  1);
 
@@ -497,7 +490,7 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 
 int kpa_get_powerstat(AMP *amp, powerstat_t *status)
 {
-    char responsebuf[EXPERTBUFSZ];
+    char responsebuf[KPABUFSZ];
     int retval;
     int operate;
     int ampon;

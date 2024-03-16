@@ -498,7 +498,7 @@ static const struct
     { RIG_MODE_IQ, "IQ"},
     { RIG_MODE_ISBUSB, "ISBUSB"},
     { RIG_MODE_ISBLSB, "ISBLSB"},
-    { RIG_MODE_NONE, "None" }, // so we can reutnr None when NONE is requested
+    { RIG_MODE_NONE, "None" }, // so we can return None when NONE is requested
     { -1, "" }, // need to end list
 };
 
@@ -761,7 +761,7 @@ static const struct
     { RIG_BANDSELECT_20M,   "BAND20M", 13900000, 14499999},
     { RIG_BANDSELECT_17M,   "BAND17M", 17900000, 18499999},
     { RIG_BANDSELECT_15M,   "BAND15M", 20900000, 21499999},
-    { RIG_BANDSELECT_12M,   "BAND10M", 24400000, 25099999},
+    { RIG_BANDSELECT_12M,   "BAND12M", 24400000, 25099999},
     { RIG_BANDSELECT_10M,   "BAND10M", 28000000, 29999999},
     { RIG_BANDSELECT_6M,    "BAND6M", 50000000, 53999999},
     { RIG_BANDSELECT_WFM,   "BANDWFM", 74800000, 107999999},
@@ -1460,7 +1460,7 @@ const char *HAMLIB_API rig_strparm(setting_t parm)
 {
     int i;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+//    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (parm == RIG_PARM_NONE)
     {
@@ -2116,7 +2116,7 @@ double HAMLIB_API elapsed_ms(struct timespec *start, int option)
 int HAMLIB_API rig_get_cache_timeout_ms(RIG *rig, hamlib_cache_t selection)
 {
     rig_debug(RIG_DEBUG_TRACE, "%s: called selection=%d\n", __func__, selection);
-    return rig->state.cache.timeout_ms;
+    return CACHE(rig)->timeout_ms;
 }
 
 int HAMLIB_API rig_set_cache_timeout_ms(RIG *rig, hamlib_cache_t selection,
@@ -2124,7 +2124,7 @@ int HAMLIB_API rig_set_cache_timeout_ms(RIG *rig, hamlib_cache_t selection,
 {
     rig_debug(RIG_DEBUG_TRACE, "%s: called selection=%d, ms=%d\n", __func__,
               selection, ms);
-    rig->state.cache.timeout_ms = ms;
+    CACHE(rig)->timeout_ms = ms;
     return RIG_OK;
 }
 
@@ -2146,7 +2146,9 @@ vfo_t HAMLIB_API vfo_fixup2a(RIG *rig, vfo_t vfo, split_t split,
 // We need to add some exceptions to this like the ID-5100
 vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 {
-    vfo_t currvfo = rig->state.current_vfo;
+    struct rig_state *rs = STATE(rig);
+    vfo_t currvfo = rs->current_vfo;
+
     rig_debug(RIG_DEBUG_TRACE, "%s:(from %s:%d) vfo=%s, vfo_curr=%s, split=%d\n",
               __func__, funcname, linenum,
               rig_strvfo(vfo), rig_strvfo(currvfo), split);
@@ -2154,8 +2156,6 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
     if (rig->caps->rig_model == RIG_MODEL_ID5100
             || rig->caps->rig_model == RIG_MODEL_IC9700)
     {
-        struct rig_state *rs = &rig->state;
-
         // dualwatch on ID5100 is TX=Main, RX=Sub
         if (rig->caps->rig_model == RIG_MODEL_ID5100 && rs->dual_watch)
         {
@@ -2171,6 +2171,9 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
         if (vfo == RIG_VFO_A && (currvfo == RIG_VFO_MAIN || currvfo == RIG_VFO_MAIN_A))
         {
             vfo = RIG_VFO_MAIN_A;
+
+            // only have Main/Sub when in satmode
+            if (CACHE(rig)->satmode) { vfo = RIG_VFO_MAIN; }
         }
         else if (vfo == RIG_VFO_B && (currvfo == RIG_VFO_MAIN
                                       || currvfo == RIG_VFO_MAIN_A))
@@ -2199,7 +2202,7 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 
     if (vfo == RIG_VFO_OTHER)
     {
-        switch (rig->state.current_vfo)
+        switch (rs->current_vfo)
         {
         case RIG_VFO_A:
             return RIG_VFO_B;
@@ -2223,7 +2226,7 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
 
     if (vfo == RIG_VFO_RX)
     {
-        vfo = rig->state.rx_vfo;
+        vfo = rs->rx_vfo;
     }
     else if (vfo == RIG_VFO_A || vfo == RIG_VFO_MAIN)
     {
@@ -2233,10 +2236,10 @@ vfo_t HAMLIB_API vfo_fixup(RIG *rig, vfo_t vfo, split_t split)
     }
     else if (vfo == RIG_VFO_TX)
     {
-        int satmode = rig->state.cache.satmode;
+        int satmode = CACHE(rig)->satmode;
 
         rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): split=%d, vfo==%s tx_vfo=%s\n", __func__,
-                  __LINE__, split, rig_strvfo(vfo), rig_strvfo(rig->state.tx_vfo));
+                  __LINE__, split, rig_strvfo(vfo), rig_strvfo(rs->tx_vfo));
 
         if (VFO_HAS_MAIN_SUB_ONLY && !split && !satmode && vfo != RIG_VFO_B) { vfo = RIG_VFO_MAIN; }
 
@@ -2933,8 +2936,6 @@ uint64_t HAMLIB_API rig_get_caps_int(rig_model_t rig_model,
         return caps->port_type;
 
     case RIG_CAPS_HAS_GET_LEVEL:
-        rig_debug(RIG_DEBUG_TRACE, "%s(%d): return %08"PRIll"\n", __func__, __LINE__,
-                  caps->has_get_level);
         return caps->has_get_level;
 
     default:
@@ -3077,6 +3078,7 @@ char *date_strget(char *buf, int buflen, int localtime)
     struct tm result = { 0, 0, 0, 0, 0, 0, 0, 0, 0};
     int mytimezone;
 
+    // 2038 failure here for 32-bit time_t
     t = time(NULL);
 
     if (localtime)
@@ -3246,9 +3248,9 @@ int rig_get_band_rig(RIG *rig, freq_t freq, const char *band)
 
     if (freq == 0)
     {
+        bandlist[0] = 0;
         rig_sprintf_parm_gran(bandlist, sizeof(bandlist) - 1, RIG_PARM_BANDSELECT,
                               rig->caps->parm_gran);
-        bandlist[0] = 0;
         rig_debug(RIG_DEBUG_VERBOSE, "%s: bandlist=%s\n", __func__, bandlist);
 
         // e.g. BANDSELECT(BAND160M,BAND80M,BANDUNUSED,BAND40M)
@@ -3295,6 +3297,86 @@ int rig_get_band_rig(RIG *rig, freq_t freq, const char *band)
               band, freq);
     return 0; // just give a value for now of the 1st band -- this should be an error
 }
+
+// Returns RIG_OK if 2038 time routines pass tests
+int rig_test_2038(RIG *rig)
+{
+
+#if defined(_TIME_BITS)
+#if defined(__GLIBC_MINOR__)
+    rig_debug(RIG_DEBUG_TRACE,
+              "%s: enter _TIME_BITS=%d, __TIMESIZE=%d testing enabled for GLIBC %d.%d\n",
+              __func__, _TIME_BITS, __TIMESIZE, __GLIBC__, __GLIBC_MINOR__);
+#else
+    rig_debug(RIG_DEBUG_TRACE,
+              "%s: enter _TIME_BITS=64 testing enabled for unknown libc\n", __func__);
+#endif
+#else
+    rig_debug(RIG_DEBUG_TRACE, "%s: enter _TIME_BITS=64 testing not enabled\n",
+              __func__);
+#endif
+#if defined(__MSVCRT_VERSION__)
+    rig_debug(RIG_DEBUG_TRACE, "%s: __MSVCRT_VERSION__=0x%04x\n", __func__,
+              __MSVCRT_VERSION__);
+#endif
+
+    int failed = 0;
+#if defined(__MSVCRT_VERSION__)
+    __time64_t const x = (__time64_t)0xF0000000;
+    char s[64];
+    struct tm mytm;
+    int timeerr = _localtime64_s(&mytm, &x);
+
+    if (timeerr)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: _localtime64_s: %s\n", __func__, strerror(errno));
+    }
+
+    strftime(s, sizeof(s), "%a %b %d %H:%M:%S %Y\n", &mytm);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: MSVCRT 2038 test = 0x%08llx:%s", __func__, x,
+              s);
+
+    if (strlen(s) == 0) { failed = 1; }
+    else if (strstr(s, "2097")) { return RIG_OK; }
+
+#else
+
+    if (sizeof(time_t) == 4)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: time_t is 4 bytes, 2038 test failed\n",
+                  __func__);
+        return 1;
+    }
+
+    time_t x = (time_t)0xF0000000;
+    char *s = ctime(&x);
+
+    if (s == NULL) { failed = 1; }
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: time_t 2038 test = 0x%08lx:%s", __func__, x,
+              s);
+
+#endif
+
+    if (failed)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s: ctime is null, 2038 test failed\n", __func__);
+        return 1;
+    }
+
+    if (strstr(s, "2097")) { return RIG_OK; }
+
+#if defined(__MSVCRT_VERSION__)
+    _ctime64_s(s, sizeof(s), &x);
+#else
+    s = ctime(&x);
+#endif
+
+    if (strstr(s, "2097")) { return RIG_OK; }
+
+    return 1;
+}
+
 
 //! @endcond
 

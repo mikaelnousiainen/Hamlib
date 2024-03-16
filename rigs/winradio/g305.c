@@ -128,7 +128,7 @@ struct rig_caps g305_caps =
     .mfg_name =       "Winradio",
     .version =        "0.2.1",
     .copyright =      "LGPL", /* This wrapper, not the G3 DLL */
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_BETA,
     .rig_type =       RIG_TYPE_PCRECEIVER,
     .port_type =      RIG_PORT_NONE,
     .targetable_vfo =      0,
@@ -244,7 +244,7 @@ int g3_open(RIG *rig)
     struct g3_priv_data *priv = (struct g3_priv_data *)rig->state.priv;
     int device_num;
 
-    device_num = atoi(rig->state.rigport.pathname);
+    device_num = atoi(RIGPORT(rig)->pathname);
 
     /* Open Winradio receiver handle */
     priv->hRadio = priv->OpenRadioDevice(device_num);

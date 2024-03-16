@@ -228,7 +228,7 @@ static struct ext_list *alloc_init_ext(const struct confparams *cfp)
 }
 
 #if 0 /* unused; re-enabled as needed. */
-static struct ext_list *find_ext(struct ext_list *elp, token_t token)
+static struct ext_list *find_ext(struct ext_list *elp, hamlib_token_t token)
 {
     int i;
 
@@ -266,7 +266,7 @@ static int ar7030p_init(RIG *rig)
 
         rig->state.priv = (void *) priv;
 
-        rig->state.rigport.type.rig = RIG_PORT_SERIAL;
+        RIGPORT(rig)->type.rig = RIG_PORT_SERIAL;
 
         priv->powerstat = RIG_POWER_ON;
         priv->bank = 0;

@@ -284,9 +284,9 @@ int id5100_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     else if ((vfo == RIG_VFOvfo == RIG_VFO_SUB
               && rs->dual_watch_main_sub == MAIN_ON_RIGHT)
 {
-    rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): Sub/A vfo=%s\n", __func__, __LINE__,
-              rig_strvfo(vfo));
-        *freq = rig->state.cache.freqSubA;
+        rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): Sub/A vfo=%s\n", __func__, __LINE__,
+                  rig_strvfo(vfo));
+        *freq = CACHE(rig)->freqSubA;
         int cache_ms_freq, cache_ms_mode, cache_ms_width;
         pbwidth_t width;
         freq_t tfreq;
@@ -530,7 +530,7 @@ struct rig_caps id5100_caps =
     .mfg_name =  "Icom",
     .version =  BACKEND_VER ".9",
     .copyright =  "LGPL",
-    .status =  RIG_STATUS_BETA,
+    .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_MOBILE,
     .ptt_type =  RIG_PTT_RIG,
     .dcd_type =  RIG_DCD_RIG,

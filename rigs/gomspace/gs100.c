@@ -71,7 +71,7 @@ struct gs100_priv_data
 /* Imported Functions --------------------------------------------------------*/
 
 struct ext_list *alloc_init_ext(const struct confparams *cfp);
-struct ext_list *find_ext(struct ext_list *elp, token_t token);
+struct ext_list *find_ext(struct ext_list *elp, hamlib_token_t token);
 
 /* Private function prototypes -----------------------------------------------*/
 
@@ -110,7 +110,7 @@ static int gs100_init(RIG *rig)
     rig->state.priv = (void *)priv;
 
 #ifdef _LOCAL_SIMULATION_
-    rig->state.rigport.type.rig = RIG_PORT_NONE;  // just simulation
+    RIGPORT(rig)->type.rig = RIG_PORT_NONE;  // just simulation
     priv->freq_rx = rig->caps->rx_range_list1->startf;
     priv->freq_tx = rig->caps->tx_range_list1->startf;
 #endif
@@ -166,7 +166,7 @@ static int gs100_close(RIG *rig)
 
 
 /* GS100 transceiver set configuration */
-static int gs100_set_conf(RIG *rig, token_t token, const char *val)
+static int gs100_set_conf(RIG *rig, hamlib_token_t token, const char *val)
 {
     __attribute__((unused)) struct gs100_priv_data *priv = (struct gs100_priv_data
             *)rig->state.priv;
@@ -192,7 +192,7 @@ static int gs100_set_conf(RIG *rig, token_t token, const char *val)
 
 
 /* GS100 transceiver get configuration */
-static int gs100_get_conf(RIG *rig, token_t token, char *val)
+static int gs100_get_conf(RIG *rig, hamlib_token_t token, char *val)
 {
     __attribute__((unused)) struct gs100_priv_data *priv = (struct gs100_priv_data
             *)rig->state.priv;
@@ -380,7 +380,7 @@ struct rig_caps GS100_caps =
     .mfg_name = "GOMSPACE",
     .version = "20211117.0",
     .copyright = "LGPL",
-    .status = RIG_STATUS_BETA,
+    .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
     .targetable_vfo = 0,
     .ptt_type = RIG_PTT_NONE,
@@ -520,7 +520,7 @@ static int gomx_get(RIG *rig, int table, char *varname, const char *varvalue,
 /* Sends a message to the GS100 and parses response lines */
 static int gomx_transaction(RIG *rig, char *message, char *response)
 {
-    struct rig_state *rs;
+    hamlib_port_t *rp;
     int retval, n = 0;
     char buf[BUFSZ];
 
@@ -531,18 +531,18 @@ static int gomx_transaction(RIG *rig, char *message, char *response)
     rig_debug(RIG_DEBUG_TRACE, "%s: msg='%s'\n", __func__,
               message == NULL ? "NULL" : message);
 
-    rs = &rig->state;
+    rp = RIGPORT(rig);
 
     // send message to the transceiver
-    rig_flush(&rs->rigport);
-    retval = write_block(&rs->rigport, (uint8_t *)message, strlen(message));
+    rig_flush(rp);
+    retval = write_block(rp, (uint8_t *)message, strlen(message));
 
     if (retval != RIG_OK) { return (retval); }
 
     while (1)
     {
         // read the response line
-        retval = read_string(&rs->rigport, (unsigned char *)buf, BUFSZ,
+        retval = read_string(rp, (unsigned char *)buf, BUFSZ,
                              (const char *)GOM_STOPSET, 0, strlen(GOM_STOPSET), 0);
 
         if (retval < 0) { return (retval); }

@@ -71,14 +71,15 @@ static int flir_request(ROT *rot, char *request, char *response,
                         int resp_size)
 {
     int return_value = -RIG_EINVAL;
+    hamlib_port_t *rotp = ROTPORT(rot);
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    rig_flush(&rot->state.rotport);
+    rig_flush(rotp);
 
     if (request)
     {
-        return_value = write_block(&rot->state.rotport, (unsigned char *)request,
+        return_value = write_block(rotp, (unsigned char *)request,
                                    strlen(request));
 
         if (return_value != RIG_OK)
@@ -94,10 +95,10 @@ static int flir_request(ROT *rot, char *request, char *response,
         int retry_read = 0;
         int read_char;
 
-        while (retry_read < rot->state.rotport.retry)
+        while (retry_read < rotp->retry)
         {
             memset(response, 0, (size_t)resp_size);
-            read_char = read_string(&rot->state.rotport, (unsigned char *)response,
+            read_char = read_string(rotp, (unsigned char *)response,
                                     resp_size,
                                     "\r\n", sizeof("\r\n"), 0, 1);
 
@@ -238,12 +239,12 @@ static int flir_close(ROT *rot)
     return RIG_OK;
 }
 
-static int flir_set_conf(ROT *rot, token_t token, const char *val)
+static int flir_set_conf(ROT *rot, hamlib_token_t token, const char *val)
 {
     return -RIG_ENIMPL;
 }
 
-static int flir_get_conf(ROT *rot, token_t token, char *val)
+static int flir_get_conf(ROT *rot, hamlib_token_t token, char *val)
 {
     return -RIG_ENIMPL;
 }
@@ -459,22 +460,22 @@ static int flir_get_level(ROT *rot, setting_t level, value_t *val)
     return -RIG_ENIMPL;
 }
 
-static int flir_set_ext_level(ROT *rot, token_t token, value_t val)
+static int flir_set_ext_level(ROT *rot, hamlib_token_t token, value_t val)
 {
     return -RIG_ENIMPL;
 }
 
-static int flir_get_ext_level(ROT *rot, token_t token, value_t *val)
+static int flir_get_ext_level(ROT *rot, hamlib_token_t token, value_t *val)
 {
     return -RIG_ENIMPL;
 }
 
-static int flir_set_ext_func(ROT *rot, token_t token, int status)
+static int flir_set_ext_func(ROT *rot, hamlib_token_t token, int status)
 {
     return -RIG_ENIMPL;
 }
 
-static int flir_get_ext_func(ROT *rot, token_t token, int *status)
+static int flir_get_ext_func(ROT *rot, hamlib_token_t token, int *status)
 {
     return -RIG_ENIMPL;
 }
@@ -489,12 +490,12 @@ static int flir_get_parm(ROT *rot, setting_t parm, value_t *val)
     return -RIG_ENIMPL;
 }
 
-static int flir_set_ext_parm(ROT *rot, token_t token, value_t val)
+static int flir_set_ext_parm(ROT *rot, hamlib_token_t token, value_t val)
 {
     return -RIG_ENIMPL;
 }
 
-static int flir_get_ext_parm(ROT *rot, token_t token, value_t *val)
+static int flir_get_ext_parm(ROT *rot, hamlib_token_t token, value_t *val)
 {
     return -RIG_ENIMPL;
 }
@@ -518,7 +519,7 @@ struct rot_caps flir_caps =
     .mfg_name =       "FLIR",
     .version =        "20221126.0",
     .copyright =      "LGPL",
-    .status =         RIG_STATUS_ALPHA,
+    .status =         RIG_STATUS_BETA,
     .rot_type =       ROT_TYPE_AZEL,
     .port_type =      RIG_PORT_SERIAL,
     .serial_rate_min =   9600,

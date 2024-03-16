@@ -41,11 +41,11 @@
 
 #define TS590_LEVEL_GET (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC|RIG_LEVEL_MICGAIN|RIG_LEVEL_STRENGTH|RIG_LEVEL_KEYSPD|RIG_LEVEL_CWPITCH| \
     RIG_LEVEL_MONITOR_GAIN|RIG_LEVEL_NB|RIG_LEVEL_NR|RIG_LEVEL_PREAMP|RIG_LEVEL_COMP|RIG_LEVEL_ATT|RIG_LEVEL_VOXDELAY|RIG_LEVEL_VOXGAIN|RIG_LEVEL_BKIN_DLYMS| \
-    RIG_LEVEL_SWR|RIG_LEVEL_COMP_METER|RIG_LEVEL_ALC|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_SLOPE_HIGH|RIG_LEVEL_SLOPE_LOW|RIG_LEVEL_USB_AF|RIG_LEVEL_USB_AF_INPUT)
+    RIG_LEVEL_SWR|RIG_LEVEL_COMP_METER|RIG_LEVEL_ALC|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_RFPOWER_METER_WATTS|RIG_LEVEL_SLOPE_HIGH|RIG_LEVEL_SLOPE_LOW|RIG_LEVEL_USB_AF|RIG_LEVEL_USB_AF_INPUT)
 
 #define TS590_LEVEL_SET (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC|RIG_LEVEL_MICGAIN|RIG_LEVEL_KEYSPD|RIG_LEVEL_CWPITCH| \
     RIG_LEVEL_MONITOR_GAIN|RIG_LEVEL_NB|RIG_LEVEL_NR|RIG_LEVEL_PREAMP|RIG_LEVEL_COMP|RIG_LEVEL_ATT|RIG_LEVEL_VOXDELAY|RIG_LEVEL_VOXGAIN|RIG_LEVEL_BKIN_DLYMS| \
-    RIG_LEVEL_METER|RIG_LEVEL_RFPOWER_METER_WATTS|RIG_LEVEL_SLOPE_HIGH|RIG_LEVEL_SLOPE_LOW|RIG_LEVEL_USB_AF|RIG_LEVEL_USB_AF_INPUT)
+    RIG_LEVEL_METER|RIG_LEVEL_SLOPE_HIGH|RIG_LEVEL_SLOPE_LOW|RIG_LEVEL_USB_AF|RIG_LEVEL_USB_AF_INPUT)
 
 #define TS590_FUNC_ALL (RIG_FUNC_NB|RIG_FUNC_COMP|RIG_FUNC_VOX|RIG_FUNC_NR|RIG_FUNC_NR|RIG_FUNC_BC|RIG_FUNC_BC2|RIG_FUNC_RIT|RIG_FUNC_XIT| \
     RIG_FUNC_TUNER|RIG_FUNC_MON|RIG_FUNC_FBKIN|RIG_FUNC_LOCK)
@@ -240,7 +240,7 @@ static int ts590_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     if (!sf_fails)
     {
         SNPRINTF(cmd, sizeof(cmd), "SF%d%011.0f%c", vfo == RIG_VFO_A ? 0 : 1,
-                 vfo == RIG_VFO_A ? rig->state.cache.freqMainA : rig->state.cache.freqMainB,
+                 vfo == RIG_VFO_A ? CACHE(rig)->freqMainA : CACHE(rig)->freqMainB,
                  c);
         retval = kenwood_transaction(rig, cmd, NULL, 0);
     }
@@ -250,69 +250,72 @@ static int ts590_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         return kenwood_set_mode(rig, vfo, mode, width);
     }
 
-    if (mode == RIG_MODE_CW || mode == RIG_MODE_CWR)
+    if (width != RIG_PASSBAND_NOCHANGE)
     {
-        const int cw_table[] = { 50, 80, 100, 150, 200, 250, 300, 400, 500, 600, 1000, 1500, 2000, 2500 };
-        int twidth = 2500;  // maximum
-
-        for (int i = 0; i < sizeof(cw_table) / sizeof(int); ++i)
+        if (mode == RIG_MODE_CW || mode == RIG_MODE_CWR)
         {
-            if (cw_table[i] >= width) { twidth = cw_table[i]; break; }
+            const int cw_table[] = { 50, 80, 100, 150, 200, 250, 300, 400, 500, 600, 1000, 1500, 2000, 2500 };
+            int twidth = 2500;  // maximum
+
+            for (int i = 0; i < sizeof(cw_table) / sizeof(int); ++i)
+            {
+                if (cw_table[i] >= width) { twidth = cw_table[i]; break; }
+            }
+
+            SNPRINTF(cmd, sizeof(cmd), "FW%04d;", twidth);
+            retval = kenwood_transaction(rig, cmd, NULL, 0);
+            return retval;
+        }
+        else if (mode == RIG_MODE_RTTY || mode == RIG_MODE_RTTYR)
+        {
+            const int cw_table[] = { 250, 500, 1000, 1500 };
+            int twidth = 1500;  // maximum
+
+            for (int i = 0; i < sizeof(cw_table) / sizeof(int); ++i)
+            {
+                if (cw_table[i] >= width) { twidth = cw_table[i]; break; }
+            }
+
+            SNPRINTF(cmd, sizeof(cmd), "FW%04d;", twidth);
+            retval = kenwood_transaction(rig, cmd, NULL, 0);
+            return retval;
+        }
+        else if (mode == RIG_MODE_PKTUSB || mode == RIG_MODE_PKTLSB)
+        {
+            const int pkt_htable[] = { 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3400, 4000, 5000 };
+
+            // not setting SL since no API for it yet
+            // we will just set SH based on requested bandwidth not taking SL into account
+            //const int ssb_ltable[] = { 0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000 };
+            for (int i = 0; i < sizeof(pkt_htable) / sizeof(int); ++i)
+            {
+                if (pkt_htable[i] >= width) { hwidth = i; break; }
+            }
+        }
+        else if (mode == RIG_MODE_AM || mode == RIG_MODE_PKTAM)
+        {
+            const int am_htable[] = { 2500, 3000, 4000, 5000 };
+
+            //const int am_ltable[] = { 0, 100, 200, 300 };
+            for (int i = 0; i < sizeof(am_htable) / sizeof(int); ++i)
+            {
+                if (am_htable[i] >= width) { hwidth = i; break; }
+            }
+        }
+        else if (mode == RIG_MODE_SSB || mode == RIG_MODE_LSB || mode == RIG_MODE_USB)
+        {
+            const int ssb_htable[] = { 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3400, 4000, 5000 };
+
+            //const int ssb_ltable[] = { 0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000 };
+            for (int i = 0; i < sizeof(ssb_htable) / sizeof(int); ++i)
+            {
+                if (ssb_htable[i] >= width) { hwidth = i; break; }
+            }
         }
 
-        SNPRINTF(cmd, sizeof(cmd), "FW%04d;", twidth);
+        SNPRINTF(cmd, sizeof(cmd), "SH%02d;", hwidth);
         retval = kenwood_transaction(rig, cmd, NULL, 0);
-        return retval;
     }
-    else if (mode == RIG_MODE_RTTY || mode == RIG_MODE_RTTYR)
-    {
-        const int cw_table[] = { 250, 500, 1000, 1500 };
-        int twidth = 1500;  // maximum
-
-        for (int i = 0; i < sizeof(cw_table) / sizeof(int); ++i)
-        {
-            if (cw_table[i] >= width) { twidth = cw_table[i]; break; }
-        }
-
-        SNPRINTF(cmd, sizeof(cmd), "FW%04d;", twidth);
-        retval = kenwood_transaction(rig, cmd, NULL, 0);
-        return retval;
-    }
-    else if (mode == RIG_MODE_PKTUSB || mode == RIG_MODE_PKTLSB)
-    {
-        const int pkt_htable[] = { 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3400, 4000, 5000 };
-
-        // not setting SL since no API for it yet
-        // we will just set SH based on requested bandwidth not taking SL into account
-        //const int ssb_ltable[] = { 0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000 };
-        for (int i = 0; i < sizeof(pkt_htable) / sizeof(int); ++i)
-        {
-            if (pkt_htable[i] >= width) { hwidth = i; break; }
-        }
-    }
-    else if (mode == RIG_MODE_AM || mode == RIG_MODE_PKTAM)
-    {
-        const int am_htable[] = { 2500, 3000, 4000, 5000 };
-
-        //const int am_ltable[] = { 0, 100, 200, 300 };
-        for (int i = 0; i < sizeof(am_htable) / sizeof(int); ++i)
-        {
-            if (am_htable[i] >= width) { hwidth = i; break; }
-        }
-    }
-    else if (mode == RIG_MODE_SSB || mode == RIG_MODE_LSB || mode == RIG_MODE_USB)
-    {
-        const int ssb_htable[] = { 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3400, 4000, 5000 };
-
-        //const int ssb_ltable[] = { 0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000 };
-        for (int i = 0; i < sizeof(ssb_htable) / sizeof(int); ++i)
-        {
-            if (ssb_htable[i] >= width) { hwidth = i; break; }
-        }
-    }
-
-    SNPRINTF(cmd, sizeof(cmd), "SH%02d;", hwidth);
-    retval = kenwood_transaction(rig, cmd, NULL, 0);
 
     return retval;
 }
@@ -325,7 +328,7 @@ static int ts590_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 
     if (vfo == RIG_VFO_CURR) { vfo = rig->state.current_vfo; }
 
-    if (vfo == RIG_VFO_TX || vfo == RIG_VFO_RX) { vfo = vfo_fixup(rig, vfo, rig->state.cache.split); }
+    if (vfo == RIG_VFO_TX || vfo == RIG_VFO_RX) { vfo = vfo_fixup(rig, vfo, CACHE(rig)->split); }
 
     retval = RIG_OK;
 
@@ -872,7 +875,7 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         return RIG_OK;
 
     case RIG_LEVEL_STRENGTH:
-        if (rig->state.cache.ptt != RIG_PTT_OFF)
+        if (CACHE(rig)->ptt != RIG_PTT_OFF)
         {
             val->i = -9 * 6;
             break;
@@ -1010,9 +1013,16 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     case RIG_LEVEL_RFPOWER_METER:
     case RIG_LEVEL_RFPOWER_METER_WATTS:
     {
+        static cal_table_t power_meter =
+        {
+            7, { { 0, 0}, { 3, 5}, { 6, 10}, { 8, 15}, {12, 25},
+                { 17, 50}, { 30, 100}
+            }
+        };
+
         int raw_value;
 
-        if (rig->state.cache.ptt == RIG_PTT_OFF)
+        if (CACHE(rig)->ptt == RIG_PTT_OFF)
         {
             val->f = 0;
             break;
@@ -1027,11 +1037,16 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         sscanf(ackbuf, "SM0%d", &raw_value);
 
-        val->f = (float) raw_value / 30.0f;
+//        val->f = (float) raw_value / 30.0f;
 
         if (level == RIG_LEVEL_RFPOWER_METER_WATTS)
         {
-            val->f *= 100;
+            val->f = roundf(rig_raw2val(raw_value, &power_meter));
+            if (val->f < 10)
+            {
+                val->f = roundf(rig_raw2val(raw_value, &power_meter) * 10.0) / 10.0;
+            }
+
         }
 
         break;
@@ -1157,7 +1172,8 @@ static int ts590_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
     RETURNFUNC(RIG_OK);
 }
 
-static int ts590_set_ext_func(RIG *rig, vfo_t vfo, token_t token, int status)
+static int ts590_set_ext_func(RIG *rig, vfo_t vfo, hamlib_token_t token,
+                              int status)
 {
     char cmdbuf[20];
     int retval;
@@ -1183,7 +1199,8 @@ static int ts590_set_ext_func(RIG *rig, vfo_t vfo, token_t token, int status)
     RETURNFUNC(retval);
 }
 
-static int ts590_get_ext_func(RIG *rig, vfo_t vfo, token_t token, int *status)
+static int ts590_get_ext_func(RIG *rig, vfo_t vfo, hamlib_token_t token,
+                              int *status)
 {
     int retval;
 
@@ -1216,7 +1233,8 @@ static int ts590_get_ext_func(RIG *rig, vfo_t vfo, token_t token, int *status)
     RETURNFUNC(retval);
 }
 
-static int ts590_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
+static int ts590_set_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token,
+                               value_t val)
 {
     int retval;
 
@@ -1435,7 +1453,8 @@ static int ts590_set_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t val)
     RETURNFUNC(retval);
 }
 
-static int ts590_get_ext_level(RIG *rig, vfo_t vfo, token_t token, value_t *val)
+static int ts590_get_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token,
+                               value_t *val)
 {
     int retval;
     int value;
@@ -1683,6 +1702,7 @@ static struct kenwood_priv_caps ts590_priv_caps =
     .filter_width = ts590_filter_width,
     .slope_filter_high = ts590_slope_filter_high,
     .slope_filter_low = ts590_slope_filter_low,
+    .tone_table_base = 0,
 };
 
 /**
@@ -1693,7 +1713,7 @@ struct rig_caps ts590_caps =
     RIG_MODEL(RIG_MODEL_TS590S),
     .model_name = "TS-590S",
     .mfg_name = "Kenwood",
-    .version = BACKEND_VER ".13",
+    .version = BACKEND_VER ".16",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -2087,7 +2107,7 @@ struct rig_caps ts590sg_caps =
     RIG_MODEL(RIG_MODEL_TS590SG),
     .model_name = "TS-590SG",
     .mfg_name = "Kenwood",
-    .version = BACKEND_VER ".9",
+    .version = BACKEND_VER ".10",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
