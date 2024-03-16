@@ -1,5 +1,8 @@
 /*
- *  Hamlib Interface - amplifier ext parameter interface
+ *  Hamlib Interface - extra parameter interface for amplifiers
+ *  Copyright (c) 2000-2008 by Stephane Fillod
+ *  Derived from ext.c and rot_ext.c
+ *  Copyright (c) 2019 by Michael Black W9MDB
  *  Copyright (c) 2024 by Mikael Nousiainen OH3BHX
  *
  *
@@ -32,10 +35,10 @@
  * \date 2024
  *
  * An open-ended set of extension parameters, functions and levels are
- * available for each rotator, as provided in the amp_caps::extparms,
+ * available for each amplifier, as provided in the amp_caps::extparms,
  * amp_caps::extfuncs and amp_caps::extlevels lists.  These provide a way to
- * work with rotator-specific functions that don't fit into the basic "virtual
- * rotator" of Hamlib.
+ * work with amplifier-specific functions that don't fit into the basic "virtual
+ * amplifier" of Hamlib.
  */
 
 #include <hamlib/config.h>
@@ -76,7 +79,7 @@ static int amp_has_ext_token(AMP *amp, token_t token)
  * \brief Executes \a cfunc on all the elements stored in the
  * amp_caps::extfuncs table.
  *
- * \param rot The #ROT handle.
+ * \param amp The #AMP handle.
  * \param cfunc Callback function of each amp_caps::extfunc.
  * \param data Cookie to be passed to the callback function \a cfunc.
  *
@@ -87,7 +90,7 @@ static int amp_has_ext_token(AMP *amp, token_t token)
  * value** which means an abnormal end.
  *
  * \retval RIG_OK All extension functions elements successfully processed.
- * \retval RIG_EINVAL \a rot or \a cfunc is NULL or inconsistent.
+ * \retval RIG_EINVAL \a amp or \a cfunc is NULL or inconsistent.
  */
 int HAMLIB_API amp_ext_func_foreach(AMP *amp,
                                     int (*cfunc)(AMP *,
@@ -132,7 +135,7 @@ int HAMLIB_API amp_ext_func_foreach(AMP *amp,
  * \brief Executes \a cfunc on all the elements stored in the
  * amp_caps::extlevels extension levels table.
  *
- * \param rot The #ROT handle.
+ * \param amp The #AMP handle.
  * \param cfunc Callback function of each amp_caps::extlevels.
  * \param data Cookie to be passed to the callback function \a cfunc.
  *
@@ -143,7 +146,7 @@ int HAMLIB_API amp_ext_func_foreach(AMP *amp,
  * **negative value** which means an abnormal end.
  *
  * \retval RIG_OK All extension levels elements successfully processed.
- * \retval RIG_EINVAL \a rot or \a cfunc is NULL or inconsistent.
+ * \retval RIG_EINVAL \a amp or \a cfunc is NULL or inconsistent.
  */
 int HAMLIB_API amp_ext_level_foreach(AMP *amp,
                                      int (*cfunc)(AMP *,
@@ -188,7 +191,7 @@ int HAMLIB_API amp_ext_level_foreach(AMP *amp,
  * \brief Executes \a cfunc on all the elements stored in the
  * amp_caps::extparms extension parameters table.
  *
- * \param rot The #ROT handle.
+ * \param amp The #AMP handle.
  * \param cfunc callback function of each amp_caps::extparms.
  * \param data Cookie to be passed to the callback function \a cfunc.
  *
@@ -199,7 +202,7 @@ int HAMLIB_API amp_ext_level_foreach(AMP *amp,
  * **negative value** which means an abnormal end.
  *
  * \retval RIG_OK All extension parameters elements successfully processed.
- * \retval RIG_EINVAL \a rot or \a cfunc is NULL or inconsistent.
+ * \retval RIG_EINVAL \a amp or \a cfunc is NULL or inconsistent.
  */
 int HAMLIB_API amp_ext_parm_foreach(AMP *amp,
                                     int (*cfunc)(AMP *,
@@ -244,7 +247,7 @@ int HAMLIB_API amp_ext_parm_foreach(AMP *amp,
  * \brief Lookup an extension functions, levels, or parameters token by its
  * name and return a pointer to the containing #confparams structure member.
  *
- * \param rot The #ROT handle.
+ * \param amp The #AMP handle.
  * \param name The extension functions, levels, or parameters token name.
  *
  * Searches the amp_caps::extlevels, amp_caps::extfuncs and the
@@ -254,7 +257,7 @@ int HAMLIB_API amp_ext_parm_foreach(AMP *amp,
  * considered a lower level API.
  *
  * \return A pointer to the containing #confparams structure member or NULL if
- * nothing found or if \a rot is NULL or inconsistent.
+ * nothing found or if \a amp is NULL or inconsistent.
  *
  * \sa amp_ext_token_lookup()
  *
@@ -303,14 +306,14 @@ const struct confparams *HAMLIB_API amp_ext_lookup(AMP *amp, const char *name)
  * its constant value and return a pointer to the #confparams structure
  * member.
  *
- * \param rot The #ROT handle.
+ * \param amp The #AMP handle.
  * \param token The token value (constant).
  *
  * Searches the amp_caps::extlevels, amp_caps::extfuncs, and the
  * amp_caps::extparms tables in order for the token by its constant value.
  *
  * \return A pointer to the containing #confparams structure member or NULL if
- * nothing found or if \a rot is NULL or inconsistent.
+ * nothing found or if \a amp is NULL or inconsistent.
  */
 const struct confparams *HAMLIB_API amp_ext_lookup_tok(AMP *amp, hamlib_token_t token)
 {
@@ -355,7 +358,7 @@ const struct confparams *HAMLIB_API amp_ext_lookup_tok(AMP *amp, hamlib_token_t 
  * \brief Simple search returning the extension token ID associated with
  * \a name.
  *
- * \param rot The #ROT handle.
+ * \param amp The #AMP handle.
  * \param name The token name string to search.
  *
  * \note As this function calls amp_ext_lookup(), it can be considered a
