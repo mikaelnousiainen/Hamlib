@@ -29,7 +29,12 @@
 #include "idx_builtin.h"
 
 #define EXPERT_INPUTS (RIG_ANT_1 | RIG_ANT_2)
-#define EXPERT_ANTS (RIG_ANT_1 | RIG_ANT_2 | RIG_ANT_3 | RIG_ANT_4)
+#define EXPERT_ANTS_4 (RIG_ANT_1 | RIG_ANT_2 | RIG_ANT_3 | RIG_ANT_4)
+#define EXPERT_ANTS_6 (RIG_ANT_1 | RIG_ANT_2 | RIG_ANT_3 | RIG_ANT_4 | RIG_ANT_5 | RIG_ANT_6)
+
+#define EXPERT_13K_FA_MAX_POWER 1300
+#define EXPERT_15K_FA_MAX_POWER 1500
+#define EXPERT_2K_FA_MAX_POWER 2000
 
 #define EXPERT_AMP_OPS (AMP_OP_TUNE | AMP_OP_BAND_UP | AMP_OP_BAND_DOWN | AMP_OP_L_NH_UP | AMP_OP_L_NH_DOWN | AMP_OP_C_PF_UP | AMP_OP_C_PF_DOWN)
 
@@ -211,6 +216,30 @@ typedef struct expert_status_response_s
     char checksum;
     char sep20;
 } expert_status_response;
+
+struct expert_priv_caps
+{
+    int input_count;
+    int antenna_count;
+};
+
+const struct expert_priv_caps expert_13k_fa_priv_caps =
+{
+    .input_count = 2,
+    .antenna_count = 4,
+};
+
+const struct expert_priv_caps expert_15k_fa_priv_caps =
+{
+    .input_count = 2,
+    .antenna_count = 4,
+};
+
+const struct expert_priv_caps expert_2k_fa_priv_caps =
+{
+    .input_count = 2,
+    .antenna_count = 6,
+};
 
 struct expert_priv_data
 {
@@ -415,7 +444,7 @@ int expert_close(AMP *amp)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    expert_transaction(amp, &cmd, 1, response, 4);
+    // TODO: expert_transaction(amp, &cmd, 1, response, 4);
 
     if (amp->state.priv)
     {
@@ -1011,17 +1040,36 @@ int expert_get_input(AMP *amp, ant_t *input)
     return RIG_OK;
 }
 
+static int expert_ant_to_idx(ant_t ant)
+{
+    int index = rig_bit2idx(ant);
+    if (index < 0)
+    {
+        return -1;
+    }
+
+    return index + 1;
+}
+
 int expert_set_input(AMP *amp, ant_t input)
 {
+    const struct expert_priv_caps *priv_caps = amp->caps->priv;
     struct expert_priv_data *priv = amp->state.priv;
     expert_status_response *status_response = &priv->status_response;
     int result;
-    int change_count = 2;
+    int change_count = priv_caps->input_count;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (!amp)
     {
+        return -RIG_EINVAL;
+    }
+
+    int input_index = expert_ant_to_idx(input);
+    if (input_index < 1 || input_index > priv_caps->input_count)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: invalid input: %d\n", __func__, input_index);
         return -RIG_EINVAL;
     }
 
@@ -1088,15 +1136,23 @@ int expert_get_ant(AMP *amp, ant_t *ant)
 
 int expert_set_ant(AMP *amp, ant_t ant)
 {
+    const struct expert_priv_caps *priv_caps = amp->caps->priv;
     struct expert_priv_data *priv = amp->state.priv;
     expert_status_response *status_response = &priv->status_response;
     int result;
-    int change_count = 4;
+    int change_count = priv_caps->antenna_count;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (!amp)
     {
+        return -RIG_EINVAL;
+    }
+
+    int antenna_index = expert_ant_to_idx(ant);
+    if (antenna_index < 1 || antenna_index > priv_caps->antenna_count)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: invalid antenna: %d\n", __func__, antenna_index);
         return -RIG_EINVAL;
     }
 
@@ -1250,12 +1306,12 @@ int expert_reset(AMP *amp, amp_reset_t reset)
     return RIG_OK;
 }
 
-const struct amp_caps expert_amp_caps =
+const struct amp_caps expert_13k_fa_amp_caps =
 {
-    AMP_MODEL(AMP_MODEL_EXPERT_FA),
-    .model_name = "1.3K-FA/1.5K-FA/2K-FA",
+    AMP_MODEL(AMP_MODEL_EXPERT_13K_FA),
+    .model_name = "1.3K-FA",
     .mfg_name = "Expert",
-    .version = "20240315.0",
+    .version = "20240317.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_BETA,
     .amp_type = AMP_TYPE_OTHER,
@@ -1271,6 +1327,8 @@ const struct amp_caps expert_amp_caps =
     .timeout = 2000,
     .retry = 2,
 
+    .priv = &expert_13k_fa_priv_caps,
+
     .has_get_func = EXPERT_GET_FUNCS,
     .has_set_func = EXPERT_SET_FUNCS,
     .has_get_level = EXPERT_GET_LEVELS,
@@ -1282,8 +1340,8 @@ const struct amp_caps expert_amp_caps =
         [AMP_LVL_SWR]           = { .min = { .f = 0.0f },   .max = { .f = 20.0f },    .step = { .f = 0.1f } },
         [AMP_LVL_SWR_TUNER]     = { .min = { .f = 0.0f },   .max = { .f = 20.0f },    .step = { .f = 0.1f } },
         [AMP_LVL_PWR]           = { .min = { .f = 1.0f },   .max = { .f = 3.0f },    .step = { .f = 1.0f } },
-        [AMP_LVL_PWR_FWD]       = { .min = { .i = 0 },   .max = { .i = 1500 },    .step = { .i = 1 } },
-        [AMP_LVL_PWR_PEAK]      = { .min = { .i = 0 },   .max = { .i = 1500 },    .step = { .i = 1 } },
+        [AMP_LVL_PWR_FWD]       = { .min = { .i = 0 },   .max = { .i = EXPERT_13K_FA_MAX_POWER },    .step = { .i = 1 } },
+        [AMP_LVL_PWR_PEAK]      = { .min = { .i = 0 },   .max = { .i = EXPERT_13K_FA_MAX_POWER },    .step = { .i = 1 } },
         [AMP_LVL_VD_METER]      = { .min = { .f = 0.0f },   .max = { .f = 60.0f },    .step = { .f = 0.1f } },
         [AMP_LVL_ID_METER]      = { .min = { .f = 0.0f },   .max = { .f = 50.0f },    .step = { .f = 0.1f } },
         [AMP_LVL_TEMP_METER]    = { .min = { .f = 0.0f },   .max = { .f = 100.0f },    .step = { .f = 1.0f } },
@@ -1309,26 +1367,178 @@ const struct amp_caps expert_amp_caps =
     .set_parm = expert_set_parm,
     .amp_op = expert_amp_op,
 
-    // TODO: create Hamlib model for each amplifier model
     .range_list1 = {
-        FRQ_RNG_HF(1, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
-        FRQ_RNG_6m(1, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
-        FRQ_RNG_60m(1, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
+        FRQ_RNG_HF(1, RIG_MODE_ALL, W(1), W(EXPERT_13K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
+        FRQ_RNG_6m(1, RIG_MODE_ALL, W(1), W(EXPERT_13K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
+        FRQ_RNG_60m(1, RIG_MODE_ALL, W(1), W(EXPERT_13K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
         RIG_FRNG_END,
     },
     .range_list2 = {
-        FRQ_RNG_HF(2, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
-        FRQ_RNG_6m(2, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
-        FRQ_RNG_60m(2, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
+        FRQ_RNG_HF(2, RIG_MODE_ALL, W(1), W(EXPERT_13K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
+        FRQ_RNG_6m(2, RIG_MODE_ALL, W(1), W(EXPERT_13K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
+        FRQ_RNG_60m(2, RIG_MODE_ALL, W(1), W(EXPERT_13K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
         RIG_FRNG_END,
     },
 };
+
+const struct amp_caps expert_15k_fa_amp_caps =
+{
+    AMP_MODEL(AMP_MODEL_EXPERT_15K_FA),
+    .model_name = "1.5K-FA",
+    .mfg_name = "Expert",
+    .version = "20240317.0",
+    .copyright = "LGPL",
+    .status = RIG_STATUS_BETA,
+    .amp_type = AMP_TYPE_OTHER,
+    .port_type = RIG_PORT_SERIAL,
+    .serial_rate_min = 9600,
+    .serial_rate_max = 115200,
+    .serial_data_bits = 8,
+    .serial_stop_bits = 1,
+    .serial_parity = RIG_PARITY_NONE,
+    .serial_handshake = RIG_HANDSHAKE_NONE,
+    .write_delay = 0,
+    .post_write_delay = 0,
+    .timeout = 2000,
+    .retry = 2,
+
+    .priv = &expert_15k_fa_priv_caps,
+
+    .has_get_func = EXPERT_GET_FUNCS,
+    .has_set_func = EXPERT_SET_FUNCS,
+    .has_get_level = EXPERT_GET_LEVELS,
+    .has_set_level = EXPERT_SET_LEVELS,
+    .has_get_parm = EXPERT_GET_PARMS,
+    .has_set_parm = EXPERT_SET_PARMS,
+
+    .level_gran = {
+        [AMP_LVL_SWR]           = { .min = { .f = 0.0f },   .max = { .f = 20.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_SWR_TUNER]     = { .min = { .f = 0.0f },   .max = { .f = 20.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_PWR]           = { .min = { .f = 1.0f },   .max = { .f = 3.0f },    .step = { .f = 1.0f } },
+        [AMP_LVL_PWR_FWD]       = { .min = { .i = 0 },   .max = { .i = EXPERT_15K_FA_MAX_POWER },    .step = { .i = 1 } },
+        [AMP_LVL_PWR_PEAK]      = { .min = { .i = 0 },   .max = { .i = EXPERT_15K_FA_MAX_POWER },    .step = { .i = 1 } },
+        [AMP_LVL_VD_METER]      = { .min = { .f = 0.0f },   .max = { .f = 60.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_ID_METER]      = { .min = { .f = 0.0f },   .max = { .f = 50.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_TEMP_METER]    = { .min = { .f = 0.0f },   .max = { .f = 100.0f },    .step = { .f = 1.0f } },
+    },
+
+    .amp_ops = EXPERT_AMP_OPS,
+
+    .amp_open = expert_open,
+    .amp_init = expert_init,
+    .amp_close = expert_close,
+    .reset = expert_reset,
+    .get_info = expert_get_info,
+    .get_powerstat = expert_get_powerstat,
+    .set_powerstat = expert_set_powerstat,
+    .get_freq = expert_get_freq,
+    .get_input = expert_get_input,
+    .set_input = expert_set_input,
+    .get_ant = expert_get_ant,
+    .set_ant = expert_set_ant,
+    .get_func = expert_get_func,
+    .get_level = expert_get_level,
+    .set_level = expert_set_level,
+    .set_parm = expert_set_parm,
+    .amp_op = expert_amp_op,
+
+    .range_list1 = {
+        FRQ_RNG_HF(1, RIG_MODE_ALL, W(1), W(EXPERT_15K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
+        FRQ_RNG_6m(1, RIG_MODE_ALL, W(1), W(EXPERT_15K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
+        FRQ_RNG_60m(1, RIG_MODE_ALL, W(1), W(EXPERT_15K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
+        RIG_FRNG_END,
+    },
+    .range_list2 = {
+        FRQ_RNG_HF(2, RIG_MODE_ALL, W(1), W(EXPERT_15K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
+        FRQ_RNG_6m(2, RIG_MODE_ALL, W(1), W(EXPERT_15K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
+        FRQ_RNG_60m(2, RIG_MODE_ALL, W(1), W(EXPERT_15K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_4),
+        RIG_FRNG_END,
+    },
+};
+
+const struct amp_caps expert_2k_fa_amp_caps =
+{
+    AMP_MODEL(AMP_MODEL_EXPERT_2K_FA),
+    .model_name = "2K-FA",
+    .mfg_name = "Expert",
+    .version = "20240317.0",
+    .copyright = "LGPL",
+    .status = RIG_STATUS_BETA,
+    .amp_type = AMP_TYPE_OTHER,
+    .port_type = RIG_PORT_SERIAL,
+    .serial_rate_min = 9600,
+    .serial_rate_max = 115200,
+    .serial_data_bits = 8,
+    .serial_stop_bits = 1,
+    .serial_parity = RIG_PARITY_NONE,
+    .serial_handshake = RIG_HANDSHAKE_NONE,
+    .write_delay = 0,
+    .post_write_delay = 0,
+    .timeout = 2000,
+    .retry = 2,
+
+    .priv = &expert_2k_fa_priv_caps,
+
+    .has_get_func = EXPERT_GET_FUNCS,
+    .has_set_func = EXPERT_SET_FUNCS,
+    .has_get_level = EXPERT_GET_LEVELS,
+    .has_set_level = EXPERT_SET_LEVELS,
+    .has_get_parm = EXPERT_GET_PARMS,
+    .has_set_parm = EXPERT_SET_PARMS,
+
+    .level_gran = {
+        [AMP_LVL_SWR]           = { .min = { .f = 0.0f },   .max = { .f = 20.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_SWR_TUNER]     = { .min = { .f = 0.0f },   .max = { .f = 20.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_PWR]           = { .min = { .f = 1.0f },   .max = { .f = 3.0f },    .step = { .f = 1.0f } },
+        [AMP_LVL_PWR_FWD]       = { .min = { .i = 0 },   .max = { .i = EXPERT_2K_FA_MAX_POWER },    .step = { .i = 1 } },
+        [AMP_LVL_PWR_PEAK]      = { .min = { .i = 0 },   .max = { .i = EXPERT_2K_FA_MAX_POWER },    .step = { .i = 1 } },
+        [AMP_LVL_VD_METER]      = { .min = { .f = 0.0f },   .max = { .f = 60.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_ID_METER]      = { .min = { .f = 0.0f },   .max = { .f = 50.0f },    .step = { .f = 0.1f } },
+        [AMP_LVL_TEMP_METER]    = { .min = { .f = 0.0f },   .max = { .f = 100.0f },    .step = { .f = 1.0f } },
+    },
+
+    .amp_ops = EXPERT_AMP_OPS,
+
+    .amp_open = expert_open,
+    .amp_init = expert_init,
+    .amp_close = expert_close,
+    .reset = expert_reset,
+    .get_info = expert_get_info,
+    .get_powerstat = expert_get_powerstat,
+    .set_powerstat = expert_set_powerstat,
+    .get_freq = expert_get_freq,
+    .get_input = expert_get_input,
+    .set_input = expert_set_input,
+    .get_ant = expert_get_ant,
+    .set_ant = expert_set_ant,
+    .get_func = expert_get_func,
+    .get_level = expert_get_level,
+    .set_level = expert_set_level,
+    .set_parm = expert_set_parm,
+    .amp_op = expert_amp_op,
+
+    .range_list1 = {
+        FRQ_RNG_HF(1, RIG_MODE_ALL, W(1), W(EXPERT_2K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_6),
+        FRQ_RNG_6m(1, RIG_MODE_ALL, W(1), W(EXPERT_2K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_6),
+        FRQ_RNG_60m(1, RIG_MODE_ALL, W(1), W(EXPERT_2K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_6),
+        RIG_FRNG_END,
+    },
+    .range_list2 = {
+        FRQ_RNG_HF(2, RIG_MODE_ALL, W(1), W(EXPERT_2K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_6),
+        FRQ_RNG_6m(2, RIG_MODE_ALL, W(1), W(EXPERT_2K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_6),
+        FRQ_RNG_60m(2, RIG_MODE_ALL, W(1), W(EXPERT_2K_FA_MAX_POWER), EXPERT_INPUTS, EXPERT_ANTS_6),
+        RIG_FRNG_END,
+    },
+};
+
 
 DECLARE_INITAMP_BACKEND(expert)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    amp_register(&expert_amp_caps);
+    amp_register(&expert_13k_fa_amp_caps);
+    amp_register(&expert_15k_fa_amp_caps);
+    amp_register(&expert_2k_fa_amp_caps);
 
     return RIG_OK;
 }

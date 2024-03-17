@@ -33,7 +33,9 @@
 
 #define EXPERTBUFSZ 128
 
-extern const struct amp_caps expert_amp_caps;
+extern const struct amp_caps expert_13k_fa_amp_caps;
+extern const struct amp_caps expert_15k_fa_amp_caps;
+extern const struct amp_caps expert_2k_fa_amp_caps;
 
 int expert_init(AMP *amp);
 int expert_close(AMP *amp);

@@ -980,6 +980,9 @@ typedef unsigned int ant_t;
 #define RIG_ANT_3       RIG_ANT_N(2)
 #define RIG_ANT_4       RIG_ANT_N(3)
 #define RIG_ANT_5       RIG_ANT_N(4)
+#define RIG_ANT_6       RIG_ANT_N(5)
+#define RIG_ANT_7       RIG_ANT_N(6)
+#define RIG_ANT_8       RIG_ANT_N(7)
 
 #define RIG_ANT_UNKNOWN RIG_ANT_N(30)
 #define RIG_ANT_CURR    RIG_ANT_N(31)

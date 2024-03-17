@@ -812,6 +812,33 @@ uint64_t rig_idx2setting(int i)
 }
 
 /**
+ * \brief convert and integer expressed 2^n to n
+ * \param v The integer to convert to
+ *
+ *  Converts an integer value expressed by 2^n to the value of n.
+ *
+ * \return the index such that 2^n is the value, otherwise -1
+ * if the index was not found.
+ */
+int HAMLIB_API rig_bit2idx(uint64_t v)
+{
+    int i;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    for (i = 0; i < 64; i++)
+    {
+        if (v & rig_idx2setting(i))
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: idx=%d\n", __func__, i);
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+/**
  * \brief Convert alpha string to enum RIG_FUNC_...
  * \param s input alpha string
  * \return RIG_FUNC_...

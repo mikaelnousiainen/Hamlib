@@ -113,8 +113,9 @@
 
 #define AMP_EXPERT 4
 #define AMP_BACKEND_EXPERT "expert"
-#define AMP_MODEL_EXPERT_FA AMP_MAKE_MODEL(AMP_EXPERT, 1)
-
+#define AMP_MODEL_EXPERT_13K_FA AMP_MAKE_MODEL(AMP_EXPERT, 1)
+#define AMP_MODEL_EXPERT_15K_FA AMP_MAKE_MODEL(AMP_EXPERT, 2)
+#define AMP_MODEL_EXPERT_2K_FA AMP_MAKE_MODEL(AMP_EXPERT, 3)
 
 /**
  * \brief Convenience type definition for an amplifier model.

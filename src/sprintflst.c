@@ -141,6 +141,12 @@ int rig_sprintf_ant(char *str, int str_len, ant_t ant)
 
             case 4: ant_name = "ANT5"; break;
 
+            case 5: ant_name = "ANT6"; break;
+
+            case 6: ant_name = "ANT7"; break;
+
+            case 7: ant_name = "ANT8"; break;
+
             case 30: ant_name = "ANT_UNKNOWN"; break;
 
             case 31: ant_name = "ANT_CURR"; break;

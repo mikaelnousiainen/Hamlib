@@ -46,6 +46,8 @@ struct dummy_amp_priv_data
 {
     freq_t freq;
     powerstat_t powerstat;
+    ant_t input;
+    ant_t antenna;
 
     amp_status_t status;
 
@@ -149,6 +151,8 @@ static int dummy_amp_init(AMP *amp)
     AMPPORT(amp)->type.rig = RIG_PORT_NONE;
 
     priv->freq = 0;
+    priv->input = RIG_ANT_1;
+    priv->antenna = RIG_ANT_1;
 
     priv->magic_conf = strdup("AMPLIFIER");
 
@@ -299,6 +303,42 @@ static int dummy_amp_set_freq(AMP *amp, freq_t freq)
                                        amp->state.priv;
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
     priv->freq = freq;
+    return RIG_OK;
+}
+
+static int dummy_amp_get_input(AMP *amp, ant_t *input)
+{
+    const struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
+            amp->state.priv;
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    *input = priv->input;
+    return RIG_OK;
+}
+
+static int dummy_amp_set_input(AMP *amp, ant_t input)
+{
+    struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
+                                       amp->state.priv;
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    priv->input = input;
+    return RIG_OK;
+}
+
+static int dummy_amp_get_ant(AMP *amp, ant_t *ant)
+{
+    const struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
+            amp->state.priv;
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    *ant = priv->antenna;
+    return RIG_OK;
+}
+
+static int dummy_amp_set_ant(AMP *amp, ant_t ant)
+{
+    struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
+                                       amp->state.priv;
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+    priv->antenna = ant;
     return RIG_OK;
 }
 
@@ -920,10 +960,13 @@ const struct amp_caps dummy_amp_caps =
 
     .get_freq =     dummy_amp_get_freq,
     .set_freq =     dummy_amp_set_freq,
+    .get_input =    dummy_amp_get_input,
+    .set_input =    dummy_amp_set_input,
+    .get_ant =      dummy_amp_get_ant,
+    .set_ant =      dummy_amp_set_ant,
 
     .set_func = dummy_set_func,
     .get_func = dummy_get_func,
-
     .set_level = dummy_set_level,
     .get_level = dummy_get_level,
     .set_parm = dummy_set_parm,
