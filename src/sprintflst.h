@@ -43,11 +43,13 @@ extern HAMLIB_EXPORT( int ) amp_sprintf_level(char *str, int len, setting_t leve
 extern HAMLIB_EXPORT( int ) sprintf_level_ext(char *str, int len, const struct confparams *extlevels);
 extern HAMLIB_EXPORT( int ) rig_sprintf_level_gran(char *str, int len, setting_t level, const gran_t *gran);
 extern HAMLIB_EXPORT( int ) rot_sprintf_level_gran(char *str, int len, setting_t level, const gran_t *gran);
+extern HAMLIB_EXPORT( int ) amp_sprintf_level_gran(char *str, int len, setting_t level, const gran_t *gran);
 extern HAMLIB_EXPORT( int ) rig_sprintf_parm(char *str, int len, setting_t parm);
 extern HAMLIB_EXPORT( int ) rot_sprintf_parm(char *str, int len, setting_t parm);
 extern HAMLIB_EXPORT( int ) amp_sprintf_parm(char *str, int len, setting_t parm);
 extern HAMLIB_EXPORT( int ) rig_sprintf_parm_gran(char *str, int len, setting_t parm, const gran_t *gran);
 extern HAMLIB_EXPORT( int ) rot_sprintf_parm_gran(char *str, int len, setting_t parm, const gran_t *gran);
+extern HAMLIB_EXPORT( int ) amp_sprintf_parm_gran(char *str, int len, setting_t parm, const gran_t *gran);
 extern HAMLIB_EXPORT( int ) rig_sprintf_vfop(char *str, int len, vfo_op_t op);
 extern HAMLIB_EXPORT( int ) amp_sprintf_amp_op(char *str, int len, amp_op_t op);
 extern HAMLIB_EXPORT( int ) rig_sprintf_scan(char *str, int len, scan_t rscan);

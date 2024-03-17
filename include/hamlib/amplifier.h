@@ -192,6 +192,11 @@ enum amp_level_e
 #define AMP_LEVEL_STRING_LIST  (AMP_LEVEL_FAULT|AMP_LEVEL_WARNING)
 #define AMP_LEVEL_IS_FLOAT(l) ((l)&AMP_LEVEL_FLOAT_LIST)
 #define AMP_LEVEL_IS_STRING(l) ((l)&AMP_LEVEL_STRING_LIST)
+
+#define AMP_LEVEL_READONLY_LIST (AMP_LEVEL_SWR|AMP_LEVEL_SWR_TUNER|AMP_LEVEL_VD_METER|AMP_LEVEL_ID_METER|AMP_LEVEL_TEMP_METER|AMP_LEVEL_PWR_INPUT|AMP_LEVEL_PWR_FWD|AMP_LEVEL_PWR_REFLECTED|AMP_LEVEL_PWR_PEAK|AMP_LEVEL_FAULT|AMP_LEVEL_WARNING)
+#define AMP_LEVEL_SET(l) ((l)&~RIG_LEVEL_READONLY_LIST)
+//! @endcond
+
 //! @endcond
 
 //! @cond Doxygen_Suppress
@@ -215,6 +220,9 @@ enum amp_parm_e {
 #define AMP_PARM_STRING_LIST  (AMP_PARM_NONE)
 #define AMP_PARM_IS_FLOAT(l) ((l)&AMP_LEVEL_FLOAT_LIST)
 #define AMP_PARM_IS_STRING(l) ((l)&AMP_LEVEL_STRING_LIST)
+
+#define AMP_PARM_READONLY_LIST (0)
+#define AMP_PARM_SET(l) ((l)&~RIG_PARM_READONLY_LIST)
 //! @endcond
 
 /* Basic amp type, can store some useful info about different amplifiers. Each
@@ -279,6 +287,24 @@ typedef enum {
 /* So far only used in tests/sprintflst.c. */
 #define AMP_STATUS_N(n)        (1u<<(n))
 //! @endcond
+
+
+/**
+ * \brief Amplifier frequency range
+ *
+ * Put together a group of this struct in an array to define
+ * what frequencies the amplifier has access to.
+ */
+typedef struct amp_freq_range_list {
+    freq_t startf;      /*!< Start frequency */
+    freq_t endf;        /*!< End frequency */
+    rmode_t modes;      /*!< Bit field of RIG_MODE's supported for this range, 0 means any mode */
+    int low_power;      /*!< Lower RF power in mW, -1 for no power (ie. rx list) */
+    int high_power;     /*!< Higher RF power in mW, -1 for no power (ie. rx list) */
+    ant_t input;        /*!< Input list for this range, 0 means all (or no inputs). If a particular frequency range uses a specific input always, specify it here. */
+    ant_t ant;          /*!< Antenna list equipped with this range, 0 means all, RIG_ANT_CURR means dedicated to certain bands and automatically switches, no set_ant command */
+    char *label;        /*!< Label for this range that explains why.  e.g. Icom rigs USA, EUR, ITR, TPE, KOR */
+} amp_freq_range_t;
 
 
 /**
@@ -375,6 +401,8 @@ struct amp_caps
 
   const char *macro_name;                     /*!< Amplifier model macro name. */
 
+  amp_status_t has_status;                    /*!< Supported status flags. */
+
   amp_op_t amp_ops;                           /*!< AMP op bit field list */
 
   setting_t has_get_func;                     /*!< List of get functions. */
@@ -407,11 +435,11 @@ struct amp_caps
   int (*set_ext_parm)(AMP *amp, hamlib_token_t token, value_t val);     /*!< Pointer to backend implementation of ::amp_set_ext_parm(). */
   int (*get_ext_parm)(AMP *amp, hamlib_token_t token, value_t *val);    /*!< Pointer to backend implementation of ::amp_get_ext_parm(). */
 
-  freq_range_t range_list1[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #1 */
-  freq_range_t range_list2[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #2 */
-  freq_range_t range_list3[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #3 */
-  freq_range_t range_list4[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #4 */
-  freq_range_t range_list5[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #5 */
+  amp_freq_range_t range_list1[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #1 */
+  amp_freq_range_t range_list2[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #2 */
+  amp_freq_range_t range_list3[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #3 */
+  amp_freq_range_t range_list4[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #4 */
+  amp_freq_range_t range_list5[HAMLIB_FRQRANGESIZ];              /*!< Amplifier frequency range list #5 */
 };
 
 
@@ -447,6 +475,8 @@ struct amp_state
   gran_t level_gran[RIG_SETTING_MAX]; /*!< Level granularity. */
   gran_t parm_gran[RIG_SETTING_MAX];  /*!< Parameter granularity. */
   hamlib_port_t ampport;  /*!< Amplifier port (internal use). */
+
+  amp_status_t has_status;                    /*!< Supported status flags. */
 
   amp_op_t amp_ops;                           /*!< AMP op bit field list */
 
@@ -665,6 +695,26 @@ extern HAMLIB_EXPORT(int)
 amp_get_ext_parm HAMLIB_PARAMS((AMP *amp,
                                 hamlib_token_t token,
                                 value_t *val));
+
+extern HAMLIB_EXPORT(int)
+amp_ext_func_foreach HAMLIB_PARAMS((AMP *amp,
+                                     int (*cfunc)(AMP *,
+                                                  const struct confparams *,
+                                                  rig_ptr_t),
+                                     rig_ptr_t data));
+extern HAMLIB_EXPORT(int)
+amp_ext_level_foreach HAMLIB_PARAMS((AMP *amp,
+                                     int (*cfunc)(AMP *,
+                                                  const struct confparams *,
+                                                  rig_ptr_t),
+                                     rig_ptr_t data));
+extern HAMLIB_EXPORT(int)
+amp_ext_parm_foreach HAMLIB_PARAMS((AMP *amp,
+                                    int (*cfunc)(AMP *,
+                                                 const struct confparams *,
+                                                 rig_ptr_t),
+                                    rig_ptr_t data));
+
 
 extern HAMLIB_EXPORT(int)
 amp_op HAMLIB_PARAMS((AMP *rig, amp_op_t op));

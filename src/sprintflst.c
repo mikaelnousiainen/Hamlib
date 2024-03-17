@@ -503,6 +503,75 @@ int rot_sprintf_level_gran(char *str, int nlen, setting_t level,
 }
 
 
+int amp_sprintf_level_gran(char *str, int nlen, setting_t level,
+                           const gran_t *gran)
+{
+    int i, len = 0;
+
+    *str = '\0';
+
+    if (level == AMP_LEVEL_NONE)
+    {
+        return 0;
+    }
+
+    for (i = 0; i < RIG_SETTING_MAX; i++)
+    {
+        const char *ms;
+
+        if (!(level & rig_idx2setting(i)))
+        {
+            continue;
+        }
+
+        ms = amp_strlevel(level & rig_idx2setting(i));
+
+        if (!ms || !ms[0])
+        {
+            if (level != DUMMY_ALL && level != AMP_LEVEL_SET(DUMMY_ALL))
+            {
+                rig_debug(RIG_DEBUG_BUG, "unknown level idx %d\n", i);
+            }
+
+            continue;
+        }
+
+        if (AMP_LEVEL_IS_FLOAT(rig_idx2setting(i)))
+        {
+            len += snprintf(str + len, nlen - len,
+                           "%s(%f..%f/%f) ",
+                           ms,
+                           gran[i].min.f,
+                           gran[i].max.f,
+                           gran[i].step.f);
+        }
+        else if (AMP_LEVEL_IS_STRING(rig_idx2setting(i)))
+        {
+            if (gran[i].step.s)
+            {
+                len += snprintf(str + len, nlen - len,
+                               "%s(%s) ",
+                               ms,
+                               gran[i].step.s);
+            }
+        }
+        else
+        {
+            len += snprintf(str + len, nlen - len,
+                           "%s(%d..%d/%d) ",
+                           ms,
+                           gran[i].min.i,
+                           gran[i].max.i,
+                           gran[i].step.i);
+        }
+
+        check_buffer_overflow(str, len, nlen);
+    }
+
+    return len;
+}
+
+
 int rig_sprintf_parm(char *str, int nlen, setting_t parm)
 {
     int i, len = 0;
@@ -721,6 +790,75 @@ int rot_sprintf_parm_gran(char *str, int nlen, setting_t parm,
 }
 
 
+int amp_sprintf_parm_gran(char *str, int nlen, setting_t parm,
+                          const gran_t *gran)
+{
+    int i, len = 0;
+
+    *str = '\0';
+
+    if (parm == AMP_PARM_NONE)
+    {
+        return 0;
+    }
+
+    for (i = 0; i < RIG_SETTING_MAX; i++)
+    {
+        const char *ms;
+
+        if (!(parm & rig_idx2setting(i)))
+        {
+            continue;
+        }
+
+        ms = amp_strparm(parm & rig_idx2setting(i));
+
+        if (!ms || !ms[0])
+        {
+            if (parm != DUMMY_ALL && parm != AMP_PARM_SET(DUMMY_ALL))
+            {
+                rig_debug(RIG_DEBUG_BUG, "unknown parm idx %d\n", i);
+            }
+
+            continue;
+        }
+
+        if (AMP_PARM_IS_FLOAT(rig_idx2setting(i)))
+        {
+            len += snprintf(str + len, nlen - len,
+                           "%s(%f..%f/%f) ",
+                           ms,
+                           gran[i].min.f,
+                           gran[i].max.f,
+                           gran[i].step.f);
+        }
+        else if (AMP_PARM_IS_STRING(rig_idx2setting(i)))
+        {
+            if (gran[i].step.s)
+            {
+                len += snprintf(str + len, nlen - len,
+                               "%s(%s) ",
+                               ms,
+                               gran[i].step.s);
+            }
+        }
+        else
+        {
+            len += snprintf(str + len, nlen - len,
+                           "%s(%d..%d/%d) ",
+                           ms,
+                           gran[i].min.i,
+                           gran[i].max.i,
+                           gran[i].step.i);
+        }
+
+        check_buffer_overflow(str, len, nlen);
+    }
+
+    return len;
+}
+
+
 int rig_sprintf_vfop(char *str, int nlen, vfo_op_t op)
 {
     int i, len = 0;
@@ -857,7 +995,7 @@ int amp_sprintf_status(char *str, int nlen, amp_status_t status)
     for (i = 0; i < HAMLIB_MAX_AMP_STATUS; i++)
     {
         const char *sv;
-        sv = rot_strstatus(status & AMP_STATUS_N(i));
+        sv = amp_strstatus(status & AMP_STATUS_N(i));
 
         if (sv && sv[0] && (strstr(sv, "None") == 0))
         {

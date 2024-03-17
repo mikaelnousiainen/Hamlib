@@ -2269,8 +2269,6 @@ declare_proto_amp(get_input)
 
     ENTERFUNC2;
 
-    CHKSCN1ARG(sscanf(arg1, "%d", &input));
-
     status = amp_get_input(amp, &input);
 
     if (status != RIG_OK)
@@ -2312,8 +2310,6 @@ declare_proto_amp(get_ant)
     char antbuf[64];
 
     ENTERFUNC2;
-
-    CHKSCN1ARG(sscanf(arg1, "%d", &ant));
 
     status = amp_get_ant(amp, &ant);
 

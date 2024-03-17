@@ -28,6 +28,7 @@
 #include "bandplan.h"
 #include "idx_builtin.h"
 
+#define EXPERT_INPUTS (RIG_ANT_1 | RIG_ANT_2)
 #define EXPERT_ANTS (RIG_ANT_1 | RIG_ANT_2 | RIG_ANT_3 | RIG_ANT_4)
 
 #define EXPERT_AMP_OPS (AMP_OP_TUNE | AMP_OP_BAND_UP | AMP_OP_BAND_DOWN | AMP_OP_L_NH_UP | AMP_OP_L_NH_DOWN | AMP_OP_C_PF_UP | AMP_OP_C_PF_DOWN)
@@ -778,6 +779,39 @@ change_again:
     return RIG_OK;
 }
 
+int expert_get_func(AMP *amp, setting_t func, int *status)
+{
+    struct expert_priv_data *priv = amp->state.priv;
+    expert_status_response *status_response = &priv->status_response;
+    int result;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (!amp)
+    {
+        return -RIG_EINVAL;
+    }
+
+    result = expert_read_status(amp, status_response);
+    if (result != RIG_OK)
+    {
+        return result;
+    }
+
+    switch (func)
+    {
+    case AMP_FUNC_TUNER:
+        *status = (status_response->tx_antenna_atu_status == EXPERT_TX_ANTENNA_STATUS_ATU_ENABLED) ? 1 : 0;
+        break;
+    default:
+        rig_debug(RIG_DEBUG_ERR, "%s: unknown func=%s\n", __func__,
+                amp_strfunc(func));
+        return -RIG_EINVAL;
+    }
+
+    return RIG_OK;
+}
+
 int expert_get_powerstat(AMP *amp, powerstat_t *status)
 {
     struct expert_priv_data *priv = amp->state.priv;
@@ -1269,24 +1303,23 @@ const struct amp_caps expert_amp_caps =
     .set_input = expert_set_input,
     .get_ant = expert_get_ant,
     .set_ant = expert_set_ant,
-    //.get_func = expert_get_func,
+    .get_func = expert_get_func,
     .get_level = expert_get_level,
     .set_level = expert_set_level,
     .set_parm = expert_set_parm,
     .amp_op = expert_amp_op,
 
-    // TODO: how to express amp input count -> add them to ranges?
     // TODO: create Hamlib model for each amplifier model
     .range_list1 = {
-        FRQ_RNG_HF(1, RIG_MODE_ALL, W(1), W(1500), RIG_VFO_ALL, EXPERT_ANTS),
-        FRQ_RNG_6m(1, RIG_MODE_ALL, W(1), W(1500), RIG_VFO_ALL, EXPERT_ANTS),
-        FRQ_RNG_60m(1, RIG_MODE_ALL, W(1), W(1500), RIG_VFO_ALL, EXPERT_ANTS),
+        FRQ_RNG_HF(1, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
+        FRQ_RNG_6m(1, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
+        FRQ_RNG_60m(1, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
         RIG_FRNG_END,
     },
     .range_list2 = {
-        FRQ_RNG_HF(2, RIG_MODE_ALL, W(1), W(1500), RIG_VFO_ALL, EXPERT_ANTS),
-        FRQ_RNG_6m(2, RIG_MODE_ALL, W(1), W(1500), RIG_VFO_ALL, EXPERT_ANTS),
-        FRQ_RNG_60m(2, RIG_MODE_ALL, W(1), W(1500), RIG_VFO_ALL, EXPERT_ANTS),
+        FRQ_RNG_HF(2, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
+        FRQ_RNG_6m(2, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
+        FRQ_RNG_60m(2, RIG_MODE_ALL, W(1), W(1500), EXPERT_INPUTS, EXPERT_ANTS),
         RIG_FRNG_END,
     },
 };
