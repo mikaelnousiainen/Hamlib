@@ -234,6 +234,14 @@ again1:
             goto again1;
         }
 
+        if (!icom_is_potentially_async_frame(rig, frm_len, sendbuf) && icom_is_potentially_async_frame(rig, frm_len, buf))
+        {
+            // Some commands can be both async frames (transceive) and responses to a command
+            // Skip over the async frame if we are not expecting such response
+            rig_debug(RIG_DEBUG_TRACE, "%s: one of 'potentially' async frame types detected, discarding\n", __func__);
+            goto again1;
+        }
+
         // we might have 0xfe string during rig wakeup
         rig_debug(RIG_DEBUG_TRACE, "%s: DEBUG retval=%d, frm_len=%d, cmd=0x%02x\n",
                   __func__, retval, frm_len, cmd);
@@ -361,6 +369,14 @@ again2:
         {
             goto collision_retry;
         }
+    }
+
+    if (!icom_is_potentially_async_frame(rig, frm_len, sendbuf) && icom_is_potentially_async_frame(rig, frm_len, buf))
+    {
+        // Some commands can be both async frames (transceive) and responses to a command
+        // Skip over the async frame if we are not expecting such response
+        rig_debug(RIG_DEBUG_TRACE, "%s: one of 'potentially' async frame types detected, discarding\n", __func__);
+        goto again2;
     }
 
 
