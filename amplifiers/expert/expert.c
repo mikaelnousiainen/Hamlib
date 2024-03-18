@@ -173,6 +173,7 @@ const expert_fault_message expert_alarm_messages [] =
 
 typedef struct expert_status_response_s
 {
+    char sep0;
     char id[3];
     char sep1;
     char state;
@@ -213,8 +214,9 @@ typedef struct expert_status_response_s
     char sep18;
     char alarm;
     char sep19;
-    char checksum;
+    char checksum[2];
     char sep20;
+    char crlf[2];
 } expert_status_response;
 
 struct expert_priv_caps
@@ -342,7 +344,7 @@ static int expert_transaction(AMP *amp, const unsigned char *cmd, unsigned char 
         }
     }
 
-    bytes = response[3];
+    bytes = response[3] + 2 + 1 + 2; // checksum + delimiter + CRLF
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: len=%d, bytes=%02x\n", __func__, len, bytes);
 
@@ -417,20 +419,17 @@ int expert_init(AMP *amp)
 
 int expert_open(AMP *amp)
 {
-    unsigned char cmd = EXPERT_AMP_COMMAND_SCREEN;
-    unsigned char response[EXPERTBUFSZ];
     struct expert_priv_data *priv = amp->state.priv;
     int result;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
-
-    expert_transaction(amp, &cmd, 1, response, sizeof(response));
 
     result = expert_read_status(amp, &priv->status_response);
     if (result == RIG_OK)
     {
         memcpy(priv->id, priv->status_response.id, 3);
         priv->id[3] = 0;
+        rig_debug(RIG_DEBUG_VERBOSE, "Expert amplifier model detected: %s\n", priv->id);
     }
 
     return RIG_OK;
@@ -439,12 +438,18 @@ int expert_open(AMP *amp)
 int expert_close(AMP *amp)
 {
     // TODO: what does command 0x81 do?
-    unsigned char cmd = 0x81;
-    unsigned char response[256];
+    // unsigned char cmd = 0x81;
+    // unsigned char response[256];
+    // TODO: expert_transaction(amp, &cmd, 1, response, 4);
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    // TODO: expert_transaction(amp, &cmd, 1, response, 4);
+    return RIG_OK;
+}
+
+int expert_cleanup(AMP *amp)
+{
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (amp->state.priv)
     {
@@ -472,6 +477,52 @@ const char *expert_get_info(AMP *amp)
 
     return rc->model_name;
 }
+
+int expert_get_status(AMP *amp, amp_status_t *status)
+{
+    struct expert_priv_data *priv = amp->state.priv;
+    expert_status_response *status_response = &priv->status_response;
+    amp_status_t s = AMP_STATUS_NONE;
+    int result;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (!amp)
+    {
+        return -RIG_EINVAL;
+    }
+
+    result = expert_read_status(amp, status_response);
+    if (result != RIG_OK)
+    {
+        return result;
+    }
+
+    s |= (status_response->ptt == EXPERT_PTT_TRANSMIT) ? AMP_STATUS_PTT : 0;
+
+    for (int i = 0; expert_warning_status_codes[i].code != 0; i++)
+    {
+        if (status_response->warning == expert_warning_status_codes[i].code)
+        {
+            s |= expert_warning_status_codes[i].status;
+            break;
+        }
+    }
+
+    for (int i = 0; expert_alarm_status_codes[i].code != 0; i++)
+    {
+        if (status_response->alarm == expert_alarm_status_codes[i].code)
+        {
+            s |= expert_alarm_status_codes[i].status;
+            break;
+        }
+    }
+
+    *status = s;
+
+    return RIG_OK;
+}
+
 
 int expert_get_freq(AMP *amp, freq_t *freq)
 {
@@ -1499,11 +1550,13 @@ const struct amp_caps expert_2k_fa_amp_caps =
 
     .amp_ops = EXPERT_AMP_OPS,
 
-    .amp_open = expert_open,
     .amp_init = expert_init,
+    .amp_open = expert_open,
     .amp_close = expert_close,
+    .amp_cleanup = expert_cleanup,
     .reset = expert_reset,
     .get_info = expert_get_info,
+    .get_status = expert_get_status,
     .get_powerstat = expert_get_powerstat,
     .set_powerstat = expert_set_powerstat,
     .get_freq = expert_get_freq,
