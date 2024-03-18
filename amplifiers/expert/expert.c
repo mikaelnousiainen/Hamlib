@@ -980,7 +980,7 @@ toggle_again:
             }
             else
             {
-                return RIG_OK;
+                toggle_power = 0;
             }
             break;
         case RIG_POWER_ON:
@@ -989,6 +989,10 @@ toggle_again:
             if (!powered_on)
             {
                 toggle_power = 1;
+            }
+            else
+            {
+                toggle_power = 0;
             }
             break;
         default:
@@ -1028,11 +1032,19 @@ toggle_again:
             {
                 toggle_operate = 1;
             }
+            else
+            {
+                toggle_operate = 0;
+            }
             break;
         case RIG_POWER_OPERATE:
             if (!operate)
             {
                 toggle_operate = 1;
+            }
+            else
+            {
+                toggle_operate = 0;
             }
             break;
         default:
