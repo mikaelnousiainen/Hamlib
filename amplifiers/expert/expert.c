@@ -1400,11 +1400,13 @@ const struct amp_caps expert_13k_fa_amp_caps =
 
     .amp_ops = EXPERT_AMP_OPS,
 
-    .amp_open = expert_open,
     .amp_init = expert_init,
+    .amp_open = expert_open,
     .amp_close = expert_close,
+    .amp_cleanup = expert_cleanup,
     .reset = expert_reset,
     .get_info = expert_get_info,
+    .get_status = expert_get_status,
     .get_powerstat = expert_get_powerstat,
     .set_powerstat = expert_set_powerstat,
     .get_freq = expert_get_freq,
@@ -1475,11 +1477,13 @@ const struct amp_caps expert_15k_fa_amp_caps =
 
     .amp_ops = EXPERT_AMP_OPS,
 
-    .amp_open = expert_open,
     .amp_init = expert_init,
+    .amp_open = expert_open,
     .amp_close = expert_close,
+    .amp_cleanup = expert_cleanup,
     .reset = expert_reset,
     .get_info = expert_get_info,
+    .get_status = expert_get_status,
     .get_powerstat = expert_get_powerstat,
     .set_powerstat = expert_set_powerstat,
     .get_freq = expert_get_freq,
