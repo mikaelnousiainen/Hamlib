@@ -258,65 +258,13 @@ static int expert_flushbuffer(AMP *amp)
     return rig_flush(AMPPORT(amp));
 }
 
-static int expert_transaction(AMP *amp, const unsigned char *cmd, unsigned char cmd_len,
-                       unsigned char *response, int *response_len)
+static int expert_read_response_header(AMP *amp)
 {
-    struct amp_state *rs;
-    unsigned char cmdbuf[EXPERTBUFSZ];
-    int err;
-    int len = 0;
-    int checksum = 0;
-
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
-
-    if (!amp)
-    {
-        rig_debug(RIG_DEBUG_ERR, "%s: amp pointer null\n", __func__);
-        return -RIG_EINVAL;
-    }
-
-    if (!cmd)
-    {
-        rig_debug(RIG_DEBUG_ERR, "%s: cmd empty\n", __func__);
-        return -RIG_EINVAL;
-    }
-
-    expert_flushbuffer(amp);
-
-    rs = &amp->state;
-
-    // Synchronization bytes for commands
-    cmdbuf[0] = cmdbuf[1] = cmdbuf[2] = 0x55;
-
-    // Calculate checksum
-    for (int i = 0; i < cmd_len; i++)
-    {
-        checksum += cmd[i];
-        checksum = checksum % 256;
-    }
-
-    cmdbuf[3] = cmd_len;
-    memcpy(&cmdbuf[4], cmd, cmd_len);
-    cmdbuf[4 + cmd_len] = checksum;
-
-    err = write_block(&rs->ampport, (unsigned char *) cmdbuf, 4 + cmd_len + 1);
-
-    if (err != RIG_OK)
-    {
-        return err;
-    }
-
-    if (!response || response_len == NULL || *response_len == 0)
-    {
-        // No response expected
-        return RIG_OK;
-    }
-
-    int bytes = 0;
-    response[0] = 0;
+    unsigned char response[8];
+    int len;
 
     // Read the 4-byte header x55x55x55xXX where XX is the number of bytes in the response
-    len = read_block_direct(&rs->ampport, response, 4);
+    len = read_block_direct(AMPPORT(amp), response, 4);
 
     if (len < 0)
     {
@@ -344,7 +292,106 @@ static int expert_transaction(AMP *amp, const unsigned char *cmd, unsigned char 
         }
     }
 
-    bytes = response[3] + 2 + 1 + 2; // checksum + delimiter + CRLF
+    return response[3];
+}
+
+static int expert_transaction(AMP *amp, const unsigned char *cmd, unsigned char cmd_len,
+                       unsigned char *response, int *response_len)
+{
+    unsigned char cmdbuf[EXPERTBUFSZ];
+    unsigned char ackbuf[EXPERTBUFSZ];
+    int err;
+    int len = 0;
+    int checksum = 0;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+    if (!amp)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: amp pointer null\n", __func__);
+        return -RIG_EINVAL;
+    }
+
+    if (!cmd)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: cmd empty\n", __func__);
+        return -RIG_EINVAL;
+    }
+
+    expert_flushbuffer(amp);
+
+    // Synchronization bytes for commands
+    cmdbuf[0] = cmdbuf[1] = cmdbuf[2] = 0x55;
+
+    // Calculate checksum
+    for (int i = 0; i < cmd_len; i++)
+    {
+        checksum += cmd[i];
+        checksum = checksum % 256;
+    }
+
+    cmdbuf[3] = cmd_len;
+    memcpy(&cmdbuf[4], cmd, cmd_len);
+    cmdbuf[4 + cmd_len] = checksum;
+
+    err = write_block(AMPPORT(amp), (unsigned char *) cmdbuf, 4 + cmd_len + 1);
+
+    if (err != RIG_OK)
+    {
+        return err;
+    }
+
+    if (!response || response_len == NULL || *response_len == 0)
+    {
+        // No response expected, read ack message
+        int data_length = expert_read_response_header(amp);
+        if (data_length < 0)
+        {
+            return data_length;
+        }
+
+        if (data_length != 1)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: expected to get %d bytes of ack message data, but got %d bytes\n",
+                    __func__, 1, data_length);
+            return -RIG_EPROTO;
+        }
+
+        // Read the 1-byte ack message + its checksum
+        len = read_block_direct(AMPPORT(amp), ackbuf, 2);
+        if (len < 0)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: expected to read %d bytes of response data, but reading failed with code %d\n",
+                    __func__, 2, len);
+            return len;
+        }
+
+        if (len != 2)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: expected to read %d bytes of ack message data with checksum, but got %d bytes\n",
+                    __func__, 2, len);
+            return -RIG_EPROTO;
+        }
+
+        if (ackbuf[0] != ackbuf[1])
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: ack message checksum failed, expected 0x%02X, got 0x%02X\n",
+                    __func__, ackbuf[0], ackbuf[1]);
+            return -RIG_EPROTO;
+        }
+
+        return RIG_OK;
+    }
+
+    int bytes = 0;
+
+    int data_length = expert_read_response_header(amp);
+    if (data_length < 0)
+    {
+        return data_length;
+    }
+
+    bytes = data_length + 2 + 1 + 2; // checksum + delimiter + CRLF
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: len=%d, bytes=%02x\n", __func__, len, bytes);
 
@@ -355,7 +402,7 @@ static int expert_transaction(AMP *amp, const unsigned char *cmd, unsigned char 
         bytes = *response_len;
     }
 
-    len = read_block_direct(&rs->ampport, (unsigned  char *) response, bytes);
+    len = read_block_direct(AMPPORT(amp), (unsigned  char *) response, bytes);
     if (len < 0)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: expected to read %d bytes of response data, but reading failed with code %d\n",
@@ -382,6 +429,7 @@ static int expert_read_status(AMP *amp, expert_status_response *status)
     unsigned char response[EXPERTBUFSZ];
     int result;
     int response_length = sizeof(response);
+    int expected_length = 67 + 5;
     uint16_t checksum = 0;
 
     // TODO: cache status for configurable time, e.g. 100ms?
@@ -394,14 +442,14 @@ static int expert_read_status(AMP *amp, expert_status_response *status)
         return result;
     }
 
-    if (response_length != 67)
+    if (response_length != expected_length)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: error reading amplifier status, expected 67 bytes, got %d bytes\n",
-                __func__, response_length);
+        rig_debug(RIG_DEBUG_ERR, "%s: error reading amplifier status, expected %d bytes, got %d bytes\n",
+                __func__, expected_length, response_length);
         return -RIG_EPROTO;
     }
 
-    for (int i = 0; i < response_length; i++)
+    for (int i = 0; i < response_length - 5; i++)
     {
         checksum += response[i];
     }
