@@ -421,6 +421,7 @@ int icom_set_custom_parm_time(RIG *rig, int parmbuflen, unsigned char *parmbuf,
 int icom_get_custom_parm_time(RIG *rig, int parmbuflen, unsigned char *parmbuf,
                               int *seconds);
 int icom_get_freq_range(RIG *rig);
+int icom_is_potentially_async_frame(RIG *rig, size_t frame_length, const unsigned char *frame);
 int icom_is_async_frame(RIG *rig, size_t frame_length, const unsigned char *frame);
 int icom_process_async_frame(RIG *rig, size_t frame_length, const unsigned char *frame);
 int icom_read_frame_direct(RIG *rig, size_t buffer_length, const unsigned char *buffer);

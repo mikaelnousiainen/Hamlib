@@ -8899,6 +8899,22 @@ static int icom_parse_spectrum_frame(RIG *rig, size_t length,
 }
 #endif
 
+int icom_is_potentially_async_frame(RIG *rig, size_t frame_length,
+        const unsigned char *frame)
+{
+    if (frame_length < ACKFRMLEN)
+    {
+        return 0;
+    }
+
+    /* Antenna controller updates are not CI-V transceive data,
+     * but handled the same way as they are pushed by the rig.
+     * They can be used as commands too, however, so Hamlib has to
+     * check whether the frame is an expected response to a command.
+     */
+    return (frame[4] == C_CTL_PTT && (frame[5] == S_PTT || frame[5] == S_RD_TX_FREQ));
+}
+
 int icom_is_async_frame(RIG *rig, size_t frame_length,
                         const unsigned char *frame)
 {
@@ -8983,6 +8999,11 @@ int icom_process_async_frame(RIG *rig, size_t frame_length,
 
         break;
 #endif
+
+    case C_CTL_PTT:
+        // Icom rigs output PTT status (0x1C 0x00) and transmit frequency (0x1C 0x03) when
+        // antenna controller status updates (0x1C 0x04) are enabled. Hamlib can simply ignore this data for now.
+        break;
 
     default:
         rig_debug(RIG_DEBUG_VERBOSE, "%s: transceive cmd unsupported %#2.2x\n",
