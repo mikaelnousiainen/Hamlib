@@ -259,7 +259,7 @@ static int expert_flushbuffer(AMP *amp)
 }
 
 static int expert_transaction(AMP *amp, const unsigned char *cmd, unsigned char cmd_len,
-                       unsigned char *response, int response_len)
+                       unsigned char *response, int *response_len)
 {
     struct amp_state *rs;
     unsigned char cmdbuf[EXPERTBUFSZ];
@@ -306,7 +306,7 @@ static int expert_transaction(AMP *amp, const unsigned char *cmd, unsigned char 
         return err;
     }
 
-    if (!response)
+    if (!response || response_len == NULL || *response_len == 0)
     {
         // No response expected
         return RIG_OK;
@@ -348,11 +348,11 @@ static int expert_transaction(AMP *amp, const unsigned char *cmd, unsigned char 
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: len=%d, bytes=%02x\n", __func__, len, bytes);
 
-    if (bytes > response_len)
+    if (bytes > *response_len)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: response does not fit in buffer: response=%d buffer=%d\n",
-                __func__, bytes, response_len);
-        bytes = response_len;
+                __func__, bytes, *response_len);
+        bytes = *response_len;
     }
 
     len = read_block_direct(&rs->ampport, (unsigned  char *) response, bytes);
@@ -362,6 +362,8 @@ static int expert_transaction(AMP *amp, const unsigned char *cmd, unsigned char 
                 __func__, bytes, len);
         return len;
     }
+
+    *response_len = len;
 
     if (len != bytes)
     {
@@ -379,10 +381,12 @@ static int expert_read_status(AMP *amp, expert_status_response *status)
     unsigned char cmd = EXPERT_AMP_COMMAND_STATUS;
     unsigned char response[EXPERTBUFSZ];
     int result;
+    int response_length = sizeof(response);
+    uint16_t checksum = 0;
 
     // TODO: cache status for configurable time, e.g. 100ms?
 
-    result = expert_transaction(amp, &cmd, 1, response, sizeof(response));
+    result = expert_transaction(amp, &cmd, 1, response, &response_length);
     if (result != RIG_OK)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: error reading amplifier status, result=%d (%s)",
@@ -390,7 +394,26 @@ static int expert_read_status(AMP *amp, expert_status_response *status)
         return result;
     }
 
+    if (response_length != 67)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: error reading amplifier status, expected 67 bytes, got %d bytes\n",
+                __func__, response_length);
+        return -RIG_EPROTO;
+    }
+
+    for (int i = 0; i < response_length; i++)
+    {
+        checksum += response[i];
+    }
+
     memcpy(status, response, sizeof(expert_status_response));
+
+    if (checksum % 256 != status->checksum[0] || checksum / 256 != status->checksum[1])
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: error reading amplifier status, checksum failed\n",
+                __func__);
+        return -RIG_EPROTO;
+    }
 
     return RIG_OK;
 }
@@ -830,7 +853,7 @@ change_again:
 
             rig_debug(RIG_DEBUG_VERBOSE, "%s: changing power level\n", __func__);
 
-            result = expert_transaction(amp, &cmd, 1, NULL, 0);
+            result = expert_transaction(amp, &cmd, 1, NULL, NULL);
             if (result != RIG_OK)
             {
                 return result;
@@ -938,9 +961,9 @@ int expert_set_powerstat(AMP *amp, powerstat_t status)
     int powered_on = 0;
     int operate = 0;
     int toggle_power = 0;
-    int toggle_power_count = 2;
+    int toggle_power_count = 3;
     int toggle_operate = 0;
-    int toggle_operate_count = 2;
+    int toggle_operate_count = 3;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -1057,7 +1080,7 @@ toggle_again:
 
         rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-        result = expert_transaction(amp, &cmd, 1, NULL, 0);
+        result = expert_transaction(amp, &cmd, 1, NULL, NULL);
         if (result != RIG_OK)
         {
             return result;
@@ -1151,7 +1174,7 @@ change_again:
 
         rig_debug(RIG_DEBUG_VERBOSE, "%s: changing input\n", __func__);
 
-        result = expert_transaction(amp, &cmd, 1, NULL, 0);
+        result = expert_transaction(amp, &cmd, 1, NULL, NULL);
         if (result != RIG_OK)
         {
             return result;
@@ -1244,7 +1267,7 @@ change_again:
 
         rig_debug(RIG_DEBUG_VERBOSE, "%s: changing antenna\n", __func__);
 
-        result = expert_transaction(amp, &cmd, 1, NULL, 0);
+        result = expert_transaction(amp, &cmd, 1, NULL, NULL);
         if (result != RIG_OK)
         {
             return result;
@@ -1268,7 +1291,6 @@ change_again:
 int expert_amp_op(AMP *amp, amp_op_t op)
 {
     unsigned char cmd;
-    unsigned char response[EXPERTBUFSZ];
     int result;
 
     switch (op)
@@ -1298,7 +1320,7 @@ int expert_amp_op(AMP *amp, amp_op_t op)
             return -RIG_EINVAL;
     }
 
-    result = expert_transaction(amp, &cmd, 1, response, sizeof(response));
+    result = expert_transaction(amp, &cmd, 1, NULL, NULL);
     if (result != RIG_OK)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: error executing amplifier operation %s, result=%d (%s)",
@@ -1334,7 +1356,7 @@ int expert_set_parm(AMP *amp, setting_t parm, value_t val)
             cmd = EXPERT_AMP_COMMAND_BACKLIGHT_ON;
         }
 
-        result = expert_transaction(amp, &cmd, 1, NULL, 0);
+        result = expert_transaction(amp, &cmd, 1, NULL, NULL);
         if (result != RIG_OK)
         {
             return result;
