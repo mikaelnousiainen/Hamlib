@@ -1735,7 +1735,7 @@ declare_proto_amp(set_level)
         return (RIG_OK);
     }
 
-    level = rig_parse_level(arg1);
+    level = amp_parse_level(arg1);
 
     // some Java apps send comma in international setups so substitute period
     char *p = strchr(arg2, ',');
@@ -2067,20 +2067,13 @@ declare_proto_amp(set_parm)
         RETURNFUNC2(amp_set_ext_parm(amp, cfp->token, val));
     }
 
-    if (RIG_PARM_IS_FLOAT(parm))
+    if (AMP_PARM_IS_FLOAT(parm))
     {
         CHKSCN1ARG(sscanf(arg2, "%f", &val.f));
     }
-    else if (RIG_PARM_IS_STRING(parm))
+    else if (AMP_PARM_IS_STRING(parm))
     {
-        if (parm == RIG_PARM_KEYERTYPE)
-        {
-            val.i = atoi(arg2);
-        }
-        else
-        {
-            val.cs = arg2;
-        }
+        val.cs = arg2;
     }
     else
     {
@@ -2199,12 +2192,12 @@ declare_proto_amp(get_parm)
         fprintf(fout, "%s: ", cmd->arg2);
     }
 
-    if (RIG_PARM_IS_FLOAT(parm))
+    if (AMP_PARM_IS_FLOAT(parm))
     {
         rig_debug(RIG_DEBUG_ERR, "%s: float\n", __func__);
         fprintf(fout, "%f%c", val.f, resp_sep);
     }
-    else if (RIG_PARM_IS_STRING(parm))
+    else if (AMP_PARM_IS_STRING(parm))
     {
         rig_debug(RIG_DEBUG_ERR, "%s: string\n", __func__);
         fprintf(fout, "%s%c", val.s, resp_sep);
