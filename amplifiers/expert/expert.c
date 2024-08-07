@@ -1006,7 +1006,8 @@ int expert_set_powerstat(AMP *amp, powerstat_t status)
     int result;
     int powered_on = 0;
     int operate = 0;
-    int toggle_power = 0;
+    int power_on = 0;
+    int power_off = 0;
     int toggle_power_count = 3;
     int toggle_operate = 0;
     int toggle_operate_count = 3;
@@ -1018,7 +1019,7 @@ int expert_set_powerstat(AMP *amp, powerstat_t status)
         return -RIG_EINVAL;
     }
 
-toggle_again:
+retry:
     result = expert_read_status(amp, status_response);
 
     if (result == RIG_OK)
@@ -1045,11 +1046,11 @@ toggle_again:
         case RIG_POWER_OFF:
             if (powered_on)
             {
-                toggle_power = 1;
+                power_off = 1;
             }
             else
             {
-                toggle_power = 0;
+                power_off = 0;
             }
             break;
         case RIG_POWER_ON:
@@ -1057,18 +1058,18 @@ toggle_again:
         case RIG_POWER_OPERATE:
             if (!powered_on)
             {
-                toggle_power = 1;
+                power_on = 1;
             }
             else
             {
-                toggle_power = 0;
+                power_on = 0;
             }
             break;
         default:
             return -RIG_EINVAL;
     }
 
-    if (toggle_power)
+    if (power_on)
     {
         // The Expert amplifier control application uses RTS to power on and off the amplifier
         // The RTS pin must be high for about 2 seconds to power on the amplifier
@@ -1082,11 +1083,35 @@ toggle_again:
         toggle_power_count--;
         if (toggle_power_count > 0)
         {
-            goto toggle_again;
+            goto retry;
         }
         else
         {
             rig_debug(RIG_DEBUG_ERR, "%s: power toggle failed\n", __func__);
+            return -RIG_ERJCTED;
+        }
+    }
+
+    if (power_off)
+    {
+        unsigned char cmd = EXPERT_AMP_COMMAND_SWITCH_OFF;
+
+        rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
+        result = expert_transaction(amp, &cmd, 1, NULL, NULL);
+        if (result != RIG_OK)
+        {
+            return result;
+        }
+
+        toggle_power_count--;
+        if (toggle_power_count > 0)
+        {
+            goto retry;
+        }
+        else
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: power off failed\n", __func__);
             return -RIG_ERJCTED;
         }
     }
@@ -1135,7 +1160,7 @@ toggle_again:
         toggle_operate_count--;
         if (toggle_operate_count > 0)
         {
-            goto toggle_again;
+            goto retry;
         }
         else
         {
