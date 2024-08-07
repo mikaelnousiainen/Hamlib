@@ -103,6 +103,11 @@ int icom_frame_fix_preamble(int frame_len, unsigned char *frame)
             frame_len++;
         }
     }
+    else if (frame[0] == COL)
+    {
+        // CI-V collision detected, ignore the frame
+        return frame_len;
+    }
     else
     {
         rig_debug(RIG_DEBUG_WARN, "%s: invalid Icom CI-V frame, no preamble found\n",
@@ -136,15 +141,16 @@ int icom_one_transaction(RIG *rig, unsigned char cmd, int subcmd,
     struct timeval start_time, current_time, elapsed_time;
     // this buf needs to be large enough for 0xfe strings for power up
     // at 115,200 this is now at least 150
-    unsigned char buf[200];
+    unsigned char buf[MAXFRAMELEN];
     unsigned char sendbuf[MAXFRAMELEN];
     int frm_len, frm_data_len, retval;
     unsigned char ctrl_id;
     int collision_retry = 0;
+    int collision_previously = 0;
+    int collision_retried = 0;
 
     ENTERFUNC;
-    memset(buf, 0, 200);
-    memset(sendbuf, 0, MAXFRAMELEN);
+    memset(sendbuf, 0, sizeof(sendbuf));
     rs = &rig->state;
     priv = (struct icom_priv_data *)rs->priv;
     priv_caps = (struct icom_priv_caps *)rig->caps->priv;
@@ -164,16 +170,30 @@ collision_retry:
 
     if (data_len) { *data_len = 0; }
 
-    retval = write_block(rp, sendbuf, frm_len);
-
-    if (retval != RIG_OK)
+    if (collision_retried)
     {
-        set_transaction_inactive(rig);
-        RETURNFUNC(retval);
+        rig_debug(RIG_DEBUG_TRACE, "%s: skipping command retry for multiple consecutive CI-V collision bytes\n", __func__);
+    }
+    if (!collision_previously || (collision_previously && !collision_retried))
+    {
+        retval = write_block(rp, sendbuf, frm_len);
+
+        if (retval != RIG_OK)
+        {
+            set_transaction_inactive(rig);
+            RETURNFUNC(retval);
+        }
+
+        if (collision_previously)
+        {
+            collision_retried = 1;
+        }
     }
 
     if (!priv_caps->serial_full_duplex && !priv->serial_USB_echo_off)
     {
+        int echo_offset;
+        int echo_matches = 0;
 
         /*
          * read what we just sent, because TX and RX are looped,
@@ -185,6 +205,7 @@ collision_retry:
          */
 
 again1:
+        memset(buf, 0, sizeof(buf));
         retval = read_icom_frame(rp, buf, sizeof(buf));
 
         if (retval == -RIG_ETIMEOUT || retval == 0)
@@ -205,20 +226,6 @@ again1:
         {
             set_transaction_inactive(rig);
             RETURNFUNC(-RIG_EPROTO);
-        }
-
-        if (icom_is_async_frame(rig, frm_len, buf))
-        {
-            icom_process_async_frame(rig, frm_len, buf);
-            goto again1;
-        }
-
-        if (!icom_is_potentially_async_frame(rig, frm_len, sendbuf) && icom_is_potentially_async_frame(rig, frm_len, buf))
-        {
-            // Some commands can be both async frames (transceive) and responses to a command
-            // Skip over the async frame if we are not expecting such response
-            rig_debug(RIG_DEBUG_TRACE, "%s: one of 'potentially' async frame types detected, discarding\n", __func__);
-            goto again1;
         }
 
         // we might have 0xfe string during rig wakeup
@@ -248,8 +255,22 @@ again1:
             {
                 rig_debug(RIG_DEBUG_VERBOSE, "%s: collision retry#%d\n", __func__,
                           collision_retry);
-                hl_usleep(500 *
-                          1000); // 500ms 20 times for ~15 second max before we back out for a retry if needed
+
+                if (!collision_previously)
+                {
+                    // 500ms 20 times for ~15 second max before we back out for a retry if needed
+                    hl_usleep(500 * 1000);
+                }
+
+                // TODO: collisions end up sending the same command frame again, but we're not reading back the echoed bytes
+                // as the rig usually sends multiple consecutive COL bytes and echoed commands should be read after them.
+
+                collision_previously = 1;
+                if (!priv->retry_collisions)
+                {
+                    // Do not retry commands if configured to do so
+                    collision_retried = 1;
+                }
                 goto collision_retry;
             }
 
@@ -267,20 +288,53 @@ again1:
             RETURNFUNC(-RIG_BUSERROR);
         }
 
-        if (retval != frm_len)
+        collision_previously = 0;
+        collision_retried = 0;
+
+        if (retval >= frm_len)
         {
-            /* Not the same length??? */
-            /* Problem on ci-v bus? */
-            /* Someone else got a packet in? */
-            set_transaction_inactive(rig);
-            RETURNFUNC(-RIG_EPROTO);
+            /* Usually, the echoed back bytes are exactly the same as the command,
+             * but some features, such as the CI-V antenna controller updates sent by the rig,
+             * may push data at any time so there may be extra bytes at the beginning of the data read */
+
+            // Some features, such as the CI-V antenna controller updates sent by the rig,
+            // may push data at any time so there may be extra bytes at the beginning of the data read
+            // and the echoed back data is right at the end of the data read.
+            // This will usually result in a CI-V collision error right after reading the echo,
+            // but it is handled later on with retries.
+            echo_offset = retval - frm_len;
+
+            // First 2 bytes of everyting are 0xfe so we won't test those.
+            // This allows some corruption of the 0xfe bytes which has been seen in the wild.
+            if (memcmp(&buf[echo_offset + 2], &sendbuf[2], frm_len - 2) == 0)
+            {
+                echo_matches = 1;
+
+                if (echo_offset > 0) {
+                    rig_debug(RIG_DEBUG_TRACE, "%s: found %d bytes of extra data at the beginning of the echoed bytes\n",
+                            __func__, echo_offset);
+                    dump_hex(buf, retval);
+                }
+            }
         }
 
-        // first 2 bytes of everyting are 0xfe so we won't test those
-        // this allows some corruptin of the 0xfe bytes which has been seen in the wild
-        if (memcmp(&buf[2], &sendbuf[2], frm_len - 2) != 0)
+        if (!echo_matches)
         {
-            /* Frames are different? */
+            if (icom_is_async_frame(rig, retval, buf))
+            {
+                rig_debug(RIG_DEBUG_TRACE, "%s: processing async CI-V frame\n", __func__);
+                icom_process_async_frame(rig, retval, buf);
+                goto again1;
+            }
+
+            if (!icom_is_potentially_async_frame(rig, frm_len, sendbuf) && icom_is_potentially_async_frame(rig, retval, buf))
+            {
+                // Some commands can be both async frames (transceive) and responses to a command
+                // Skip over the async frame if we are not expecting such response
+                rig_debug(RIG_DEBUG_TRACE, "%s: one of 'potentially' async CI-V frame types detected, discarding\n", __func__);
+                goto again1;
+            }
+
             /* Problem on ci-v bus? */
             /* Someone else got a packet in? */
             set_transaction_inactive(rig);
