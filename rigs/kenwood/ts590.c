@@ -326,7 +326,7 @@ static int ts590_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     char cmd[32], ackbuf[32];
     int retval;
 
-    if (vfo == RIG_VFO_CURR) { vfo = rig->state.current_vfo; }
+    if (vfo == RIG_VFO_CURR) { vfo = STATE(rig)->current_vfo; }
 
     if (vfo == RIG_VFO_TX || vfo == RIG_VFO_RX) { vfo = vfo_fixup(rig, vfo, CACHE(rig)->split); }
 
@@ -463,7 +463,7 @@ static int ts590_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 {
     char buf[20];
 
-    rig_debug(RIG_DEBUG_TRACE, "%s called\n", __func__);
+    ENTERFUNC;
 
     switch (func)
     {
@@ -481,7 +481,7 @@ static int ts590_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         RETURNFUNC(kenwood_transaction(rig, buf, NULL, 0));
 
     default:
-        return kenwood_set_func(rig, vfo, func, status);
+        RETURNFUNC(kenwood_set_func(rig, vfo, func, status));
     }
 }
 
@@ -533,7 +533,7 @@ static int ts590_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         RETURNFUNC(RIG_OK);
 
     default:
-        return kenwood_get_func(rig, vfo, func, status);
+        RETURNFUNC(kenwood_get_func(rig, vfo, func, status));
     }
 
     RETURNFUNC(RIG_OK);
@@ -541,13 +541,13 @@ static int ts590_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
 static int ts590_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 {
-    struct kenwood_priv_data *priv = rig->state.priv;
+    struct kenwood_priv_data *priv = STATE(rig)->priv;
     char levelbuf[16];
     int kenwood_val;
     int result;
     int cmd;
 
-    rig_debug(RIG_DEBUG_TRACE, "%s called\n", __func__);
+    ENTERFUNC;
 
     switch (level)
     {
@@ -575,7 +575,7 @@ static int ts590_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         break;
 
     case RIG_LEVEL_AF:
-        return kenwood_set_level(rig, vfo, level, val);
+        RETURNFUNC(kenwood_set_level(rig, vfo, level, val));
 
     case RIG_LEVEL_SQL:
         kenwood_val = val.f * 255;
@@ -610,7 +610,7 @@ static int ts590_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
         default:
             rig_debug(RIG_DEBUG_ERR, "%s: unsupported agc value", __func__);
-            return -RIG_EINVAL;
+            RETURNFUNC(-RIG_EINVAL);
         }
 
         SNPRINTF(levelbuf, sizeof(levelbuf), "GT%02d", kenwood_val);
@@ -731,7 +731,7 @@ static int ts590_read_meters(RIG *rig, int *swr, int *comp, int *alc)
 
 static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 {
-    struct kenwood_priv_data *priv = rig->state.priv;
+    struct kenwood_priv_data *priv = STATE(rig)->priv;
     char ackbuf[50];
     size_t ack_len, ack_len_expected;
     int levelint = 0;
@@ -758,7 +758,7 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             val->f = roundl(levelint * 10 / 10.0 + .04) / 10.0;
         }
 
-        return retval;
+        RETURNFUNC(retval);
 
     case RIG_LEVEL_USB_AF_INPUT:
         cmd = 64; // TS-590S
@@ -776,33 +776,33 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             val->f = roundl(levelint * 10 / 10.0) / 10.0;
         }
 
-        return retval;
+        RETURNFUNC(retval);
 
     case RIG_LEVEL_AF:
-        return kenwood_get_level(rig, vfo, level, val);
+        RETURNFUNC(kenwood_get_level(rig, vfo, level, val));
 
     case RIG_LEVEL_RF:
         retval = kenwood_transaction(rig, "RG", ackbuf, sizeof(ackbuf));
 
         if (RIG_OK != retval)
         {
-            return retval;
+            RETURNFUNC(retval);
         }
 
         ack_len = strlen(ackbuf);
 
         if (5 != ack_len)
         {
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
         if (1 != sscanf(&ackbuf[2], "%d", &levelint))
         {
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
         val->f = levelint / (float) 255;
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
 
     case RIG_LEVEL_SQL:
         retval = kenwood_transaction(rig, "SQ0", ackbuf, sizeof(ackbuf));
@@ -810,23 +810,23 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         if (RIG_OK != retval)
         {
-            return retval;
+            RETURNFUNC(retval);
         }
 
         ack_len = strlen(ackbuf);
 
         if (ack_len != ack_len_expected)
         {
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
         if (1 != sscanf(&ackbuf[ack_len_expected - 3], "%d", &levelint))
         {
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
         val->f = (float) levelint / 255.;
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
 
     case RIG_LEVEL_AGC:
         priv->question_mark_response_means_rejected = 1;
@@ -836,19 +836,19 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         if (RIG_OK != retval)
         {
-            return retval;
+            RETURNFUNC(retval);
         }
 
         ack_len = strlen(ackbuf);
 
         if (ack_len != ack_len_expected)
         {
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
         if (1 != sscanf(&ackbuf[ack_len_expected - 2], "%d", &levelint))
         {
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
         if (levelint == 0)
@@ -872,7 +872,7 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             val->i = RIG_AGC_SLOW;
         }
 
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
 
     case RIG_LEVEL_STRENGTH:
         if (CACHE(rig)->ptt != RIG_PTT_OFF)
@@ -881,7 +881,7 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             break;
         }
 
-        return kenwood_get_level(rig, vfo, level, val);
+        RETURNFUNC(kenwood_get_level(rig, vfo, level, val));
 
     case RIG_LEVEL_MONITOR_GAIN:
     {
@@ -1004,7 +1004,7 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             break;
 
         default:
-            return -RIG_ENAVAIL;
+            RETURNFUNC(-RIG_ENAVAIL);
         }
 
         break;
@@ -1067,7 +1067,7 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     }
 
     default:
-        return kenwood_get_level(rig, vfo, level, val);
+        RETURNFUNC(kenwood_get_level(rig, vfo, level, val));
     }
 
     RETURNFUNC(RIG_OK);
@@ -1148,7 +1148,7 @@ static int ts590_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
 {
     int retval;
     char buf[7];
-    struct kenwood_priv_data *priv = rig->state.priv;
+    struct kenwood_priv_data *priv = STATE(rig)->priv;
 
     ENTERFUNC;
 
@@ -1713,7 +1713,7 @@ struct rig_caps ts590_caps =
     RIG_MODEL(RIG_MODEL_TS590S),
     .model_name = "TS-590S",
     .mfg_name = "Kenwood",
-    .version = BACKEND_VER ".16",
+    .version = BACKEND_VER ".17",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -2107,7 +2107,7 @@ struct rig_caps ts590sg_caps =
     RIG_MODEL(RIG_MODEL_TS590SG),
     .model_name = "TS-590SG",
     .mfg_name = "Kenwood",
-    .version = BACKEND_VER ".10",
+    .version = BACKEND_VER ".11",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,

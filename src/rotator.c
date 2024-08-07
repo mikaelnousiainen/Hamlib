@@ -89,7 +89,7 @@
 #  define DEFAULT_PARALLEL_PORT "/dev/parport0"
 #endif
 
-#define CHECK_ROT_ARG(r) (!(r) || !(r)->caps || !(r)->state.comm_state)
+#define CHECK_ROT_ARG(r) (!(r) || !(r)->caps || !(ROTSTATE(r)->comm_state))
 
 
 /*
@@ -258,7 +258,7 @@ ROT *HAMLIB_API rot_init(rot_model_t rot_model)
     /**
      * \todo Read the Preferences here!
      */
-    rs = &rot->state;
+    rs = ROTSTATE(rot);
 
     //TODO Allocate new rotport[2]
     // For now, use the embedded ones
@@ -266,12 +266,12 @@ ROT *HAMLIB_API rot_init(rot_model_t rot_model)
     rotp2 = ROTPORT2(rot);
     
     rs->comm_state = 0;
-    rotp->type.rig = caps->port_type; /* default from caps */
+    rotp->type.rig = rotp2->type.rig = caps->port_type; /* default from caps */
 
-    rotp->write_delay = caps->write_delay;
-    rotp->post_write_delay = caps->post_write_delay;
-    rotp->timeout = caps->timeout;
-    rotp->retry = caps->retry;
+    rotp->write_delay = rotp2->write_delay = caps->write_delay;
+    rotp->post_write_delay = rotp2->post_write_delay = caps->post_write_delay;
+    rotp->timeout = rotp2->timeout = caps->timeout;
+    rotp->retry = rotp2->retry = caps->retry;
 
     switch (caps->port_type)
     {
@@ -345,8 +345,8 @@ ROT *HAMLIB_API rot_init(rot_model_t rot_model)
     // Now we have to copy our new rig state hamlib_port structure to the deprecated one
     // Clients built on older 4.X versions will use the old structure
     // Clients built on newer 4.5 versions will use the new structure
-    memcpy(&rot->state.rotport_deprecated, rotp,
-           sizeof(rot->state.rotport_deprecated));
+    memcpy(&rs->rotport_deprecated, rotp,
+           sizeof(rs->rotport_deprecated));
 
     return rot;
 }
@@ -377,6 +377,7 @@ int HAMLIB_API rot_open(ROT *rot)
     hamlib_port_t *rotp2 = ROTPORT2(rot);
     int status;
     int net1, net2, net3, net4, port;
+    deferred_config_item_t *item;
 
     rot_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -386,7 +387,7 @@ int HAMLIB_API rot_open(ROT *rot)
     }
 
     caps = rot->caps;
-    rs = &rot->state;
+    rs = ROTSTATE(rot);
 
     if (rs->comm_state)
     {
@@ -400,9 +401,18 @@ int HAMLIB_API rot_open(ROT *rot)
     if (sscanf(rotp->pathname, "%d.%d.%d.%d:%d", &net1, &net2, &net3, &net4,
                &port) == 5)
     {
-        rig_debug(RIG_DEBUG_TRACE, "%s: using network address %s\n", __func__,
-                  rotp->pathname);
-        rotp->type.rig = RIG_PORT_NETWORK;
+        char *type = "TCP";
+        if (rot->caps->port_type == RIG_PORT_UDP_NETWORK) 
+        {
+            rotp->type.rig = RIG_PORT_UDP_NETWORK;
+            type = "UDP";
+        }
+        else
+        {
+            rotp->type.rig = RIG_PORT_NETWORK;
+        }
+        rig_debug(RIG_DEBUG_TRACE, "%s: using network address %s:%s\n", __func__,
+                  rotp->pathname, type);
     }
 
     if (sscanf(rotp2->pathname, "%d.%d.%d.%d:%d", &net1, &net2, &net3, &net4,
@@ -410,7 +420,10 @@ int HAMLIB_API rot_open(ROT *rot)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: using network address %s\n", __func__,
                   rotp2->pathname);
-        rotp2->type.rig = RIG_PORT_NETWORK;
+        if (rot->caps->port_type == RIG_PORT_UDP_NETWORK) 
+            rotp->type.rig = RIG_PORT_UDP_NETWORK;
+        else
+            rotp->type.rig = RIG_PORT_NETWORK;
     }
 
     switch (rotp->type.rig)
@@ -508,24 +521,8 @@ int HAMLIB_API rot_open(ROT *rot)
 
     add_opened_rot(rot);
 
-    rs->comm_state = 1;
-
-    /*
-     * Maybe the backend has something to initialize
-     * In case of failure, just close down and report error code.
-     */
-    if (caps->rot_open != NULL)
+    if (rotp->type.rig != RIG_PORT_NETWORK && rotp->type.rig != RIG_PORT_UDP_NETWORK)
     {
-        status = caps->rot_open(rot);
-
-        if (status != RIG_OK)
-        {
-            memcpy(&rot->state.rotport_deprecated, rotp,
-                   sizeof(rot->state.rotport_deprecated));
-            return status;
-        }
-    }
-
     if (rotp->parm.serial.dtr_state == RIG_SIGNAL_ON)
     {
         ser_set_dtr(rotp, 1);
@@ -543,9 +540,44 @@ int HAMLIB_API rot_open(ROT *rot)
     {
         ser_set_rts(rotp, 0);
     }
+    }
 
-    memcpy(&rot->state.rotport_deprecated, rotp,
-           sizeof(rot->state.rotport_deprecated));
+    rs->comm_state = 1;
+
+    /*
+     * Now that the rotator port is officially opened, we can
+     *  send the deferred configuration info.
+     */
+    while ((item = rs->config_queue.first))
+      {
+	rs->config_queue.first = item->next;
+	status = rot_set_conf(rot, item->token, item->value);
+	free(item->value);
+	free(item);
+	if (status != RIG_OK)
+	{
+	  return status;
+	}
+      }
+    
+    /*
+     * Maybe the backend has something to initialize
+     * In case of failure, just close down and report error code.
+     */
+    if (caps->rot_open != NULL)
+    {
+        status = caps->rot_open(rot);
+
+        if (status != RIG_OK)
+        {
+            memcpy(&rs->rotport_deprecated, rotp,
+                   sizeof(rs->rotport_deprecated));
+            return status;
+        }
+    }
+
+    memcpy(&rs->rotport_deprecated, rotp,
+           sizeof(rs->rotport_deprecated));
 
     return RIG_OK;
 }
@@ -580,7 +612,7 @@ int HAMLIB_API rot_close(ROT *rot)
     }
 
     caps = rot->caps;
-    rs = &rot->state;
+    rs = ROTSTATE(rot);
 
     if (!rs->comm_state)
     {
@@ -632,8 +664,8 @@ int HAMLIB_API rot_close(ROT *rot)
 
     rs->comm_state = 0;
 
-    memcpy(&rot->state.rotport_deprecated, rotp,
-           sizeof(rot->state.rotport_deprecated));
+    memcpy(&rs->rotport_deprecated, rotp,
+           sizeof(rs->rotport_deprecated));
 
     return RIG_OK;
 }
@@ -667,7 +699,7 @@ int HAMLIB_API rot_cleanup(ROT *rot)
     /*
      * check if they forgot to close the rot
      */
-    if (rot->state.comm_state)
+    if (ROTSTATE(rot)->comm_state)
     {
         rot_close(rot);
     }
@@ -726,11 +758,11 @@ int HAMLIB_API rot_set_position(ROT *rot,
         return -RIG_EINVAL;
     }
 
-    azimuth += rot->state.az_offset;
-    elevation += rot->state.el_offset;
-
     caps = rot->caps;
-    rs = &rot->state;
+    rs = ROTSTATE(rot);
+
+    azimuth += rs->az_offset;
+    elevation += rs->el_offset;
 
     rot_debug(RIG_DEBUG_VERBOSE, "%s: south_zero=%d \n", __func__, rs->south_zero);
 
@@ -748,7 +780,7 @@ int HAMLIB_API rot_set_position(ROT *rot,
         rot_debug(RIG_DEBUG_TRACE,
                   "%s: range problem az=%.02f(min=%.02f,max=%.02f), el=%02f(min=%.02f,max=%02f)\n",
                   __func__, azimuth, rs->min_az, rs->max_az, elevation, rs->min_el, rs->max_el);
-        return -RIG_EINVAL;
+        return -RIG_ELIMIT;
     }
 
     if (caps->set_position == NULL)
@@ -801,7 +833,7 @@ int HAMLIB_API rot_get_position(ROT *rot,
     }
 
     caps = rot->caps;
-    rs = &rot->state;
+    rs = ROTSTATE(rot);
 
     if (caps->get_position == NULL)
     {
@@ -820,8 +852,8 @@ int HAMLIB_API rot_get_position(ROT *rot,
         rot_debug(RIG_DEBUG_VERBOSE, "%s: south adj to az=%.2f\n", __func__, az);
     }
 
-    *azimuth = az - rot->state.az_offset;
-    *elevation = el - rot->state.el_offset;
+    *azimuth = az - rs->az_offset;
+    *elevation = el - rs->el_offset;
 
     return RIG_OK;
 }
@@ -949,8 +981,9 @@ int HAMLIB_API rot_reset(ROT *rot, rot_reset_t reset)
  *
  * Move the rotator in the specified direction.  The \a direction is one of
  * #ROT_MOVE_CCW, #ROT_MOVE_CW, #ROT_MOVE_LEFT, #ROT_MOVE_RIGHT, #ROT_MOVE_UP,
- * or #ROT_MOVE_DOWN.  The \a speed is a value between 1 and 100 or
- * #ROT_SPEED_NOCHANGE.
+ * #ROT_MOVE_DOWN, #ROT_MOVE_UP_LEFT, #ROT_MOVE_CCW, #ROT_MOVE_UP_RIGHT, #ROT_MOVE_UP_CW,
+ * #ROT_MOVE_DOWN_LEFT, #ROT_MOVE_DOWN_CCW, #ROT_MOVE_DOWN_RIGHT, #ROT_MOVE_DOWN_CW.
+ * The \a speed is a value between 1 and 100 or #ROT_SPEED_NOCHANGE.
  *
  * \retval RIG_OK The rotator move was successful.
  * \retval RIG_EINVAL \a rot is NULL or inconsistent.
@@ -1057,6 +1090,8 @@ void * HAMLIB_API rot_data_pointer(ROT *rot, rig_ptrx_t idx)
       return ROTPORT(rot);
     case RIG_PTRX_ROTPORT2:
       return ROTPORT2(rot);
+    case RIG_PTRX_ROTSTATE:
+      return ROTSTATE(rot);
     default:
       rot_debug(RIG_DEBUG_ERR, "%s: Invalid data index=%d\n", __func__, idx);
       return NULL;

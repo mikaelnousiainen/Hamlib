@@ -178,7 +178,7 @@ static int flex6k_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 
     if ((vfo == RIG_VFO_VFO) || (vfo == RIG_VFO_CURR))
     {
-        vfo = rig->state.current_vfo;
+        vfo = STATE(rig)->current_vfo;
         rig_debug(RIG_DEBUG_VERBOSE, "%s: setting VFO to current\n", __func__);
     }
 
@@ -275,7 +275,7 @@ static int powersdr_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode,
 
     if ((vfo == RIG_VFO_VFO) || (vfo == RIG_VFO_CURR))
     {
-        vfo = rig->state.current_vfo;
+        vfo = STATE(rig)->current_vfo;
         rig_debug(RIG_DEBUG_VERBOSE, "%s: setting VFO to current\n", __func__);
     }
 
@@ -451,7 +451,7 @@ static int flex6k_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     if ((vfo == RIG_VFO_VFO) || (vfo == RIG_VFO_CURR))
     {
-        vfo = rig->state.current_vfo;
+        vfo = STATE(rig)->current_vfo;
         rig_debug(RIG_DEBUG_VERBOSE, "%s: setting VFO to current\n", __func__);
     }
 
@@ -523,7 +523,7 @@ static int powersdr_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     if ((vfo == RIG_VFO_VFO) || (vfo == RIG_VFO_CURR))
     {
-        vfo = rig->state.current_vfo;
+        vfo = STATE(rig)->current_vfo;
         rig_debug(RIG_DEBUG_VERBOSE, "%s: setting VFO to current\n", __func__);
     }
 
@@ -1294,7 +1294,7 @@ int powersdr_get_parm(RIG *rig, setting_t parm, value_t *val)
     if (n != 1)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: unknown band=%s\n", __func__, buf);
-        return (-RIG_EPROTO);
+        RETURNFUNC(-RIG_EPROTO);
     }
 
     switch (band)
@@ -1339,7 +1339,7 @@ struct rig_caps f6k_caps =
 {
     RIG_MODEL(RIG_MODEL_F6K),
     .model_name =       "6xxx",
-    .mfg_name =     "FlexRadio",
+    .mfg_name =     "Flex-radio",
     .version =      "20240129.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
@@ -1472,7 +1472,7 @@ struct rig_caps powersdr_caps =
 {
     RIG_MODEL(RIG_MODEL_POWERSDR),
     .model_name =       "PowerSDR",
-    .mfg_name =     "FlexRadio/Apache",
+    .mfg_name =     "Flex-radio/Apache",
     .version =      "20231107.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,

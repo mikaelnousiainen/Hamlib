@@ -1722,7 +1722,7 @@ declare_proto_amp(set_level)
     if (!strcmp(arg1, "?"))
     {
         char s[SPRINTF_MAX_SIZE];
-        rig_sprintf_level(s, sizeof(s), amp->state.has_set_level);
+        rig_sprintf_level(s, sizeof(s), AMPSTATE(amp)->has_set_level);
         fputs(s, fout);
 
         if (amp->caps->set_ext_level)
@@ -1802,7 +1802,7 @@ declare_proto_amp(get_level)
     if (!strcmp(arg1, "?"))
     {
         char s[SPRINTF_MAX_SIZE];
-        amp_sprintf_level(s, sizeof(s), amp->state.has_get_level);
+        amp_sprintf_level(s, sizeof(s), AMPSTATE(amp)->has_get_level);
 
         fputs(s, fout);
 

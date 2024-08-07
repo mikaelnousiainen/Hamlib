@@ -13,6 +13,14 @@ Version 5.x -- future
         * Change FT1000MP Mark V model names to align with FT1000MP
 
 Version 4.6
+        * Added Xeigu X6200
+        * Added Commradio CTX-10
+        * Added Guoehe PMR-171
+        * Added csntechnoligies.net S.A.T Satellite rotor control
+        * Added PSTRotator control
+        * Added Flex SmartSDR slices A-H
+        * Added Motorola Micom M2/M3
+        * Added SDR Radio SDRConsole -- TS-2000 is now hardware flow control so need separate entry
         * Added --set-conf=filter_usb, filter_usbd, and filter_cw to allow Icom rigs set mode to set filter number too
         * Added macros for applications to obtain pointers to Hamlib structures(issues #1445, #1420, #487).
           Internal conversion is still a WIP, but use of these macros will make the final cutover transparent to applications. 

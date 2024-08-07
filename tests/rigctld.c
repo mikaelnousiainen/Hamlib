@@ -74,6 +74,7 @@
 
 #include "rigctl_parse.h"
 #include "riglist.h"
+#include "token.h"
 
 /*
  * Reminder: when adding long options,
@@ -661,7 +662,9 @@ int main(int argc, char *argv[])
         exit(2);
     }
 
+    my_rig->caps->ptt_type = ptt_type;
     char *token = strtok(conf_parms, ",");
+    struct rig_state *rs = STATE(my_rig);
 
     while (token)
     {
@@ -687,19 +690,20 @@ int main(int argc, char *argv[])
         }
 
         token = strtok(NULL, ",");
+        ptt_type = my_rig->caps->ptt_type; // in case we set the ptt_type with set_conf
     }
 
     if (rig_file)
     {
-        strncpy(RIGPORT(my_rig)->pathname, rig_file, HAMLIB_FILPATHLEN - 1);
+        rig_set_conf(my_rig, TOK_PATHNAME, rig_file);
     }
 
-    my_rig->state.twiddle_timeout = twiddle_timeout;
-    my_rig->state.twiddle_rit = twiddle_rit;
-    my_rig->state.uplink = uplink;
+    rs->twiddle_timeout = twiddle_timeout;
+    rs->twiddle_rit = twiddle_rit;
+    rs->uplink = uplink;
     rig_debug(RIG_DEBUG_TRACE, "%s: twiddle=%d, uplink=%d, twiddle_rit=%d\n",
               __func__,
-              my_rig->state.twiddle_timeout, my_rig->state.uplink, my_rig->state.twiddle_rit);
+              rs->twiddle_timeout, rs->uplink, rs->twiddle_rit);
 
     /*
      * ex: RIG_PTT_PARALLEL and /dev/parport0
@@ -707,29 +711,35 @@ int main(int argc, char *argv[])
     if (ptt_type != RIG_PTT_NONE)
     {
         PTTPORT(my_rig)->type.ptt = ptt_type;
-        my_rig->state.pttport_deprecated.type.ptt = ptt_type;
+        rs->pttport_deprecated.type.ptt = ptt_type;
         // This causes segfault since backend rig_caps are const
-        // rigctld will use the rig->state version of this for clients
+        // rigctld will use the STATE(rig) version of this for clients
         //my_rig->caps->ptt_type = ptt_type;
     }
 
     if (dcd_type != RIG_DCD_NONE)
     {
         DCDPORT(my_rig)->type.dcd = dcd_type;
-        my_rig->state.dcdport_deprecated.type.dcd = dcd_type;
+        rs->dcdport_deprecated.type.dcd = dcd_type;
     }
 
     if (ptt_file)
     {
         strncpy(PTTPORT(my_rig)->pathname, ptt_file, HAMLIB_FILPATHLEN - 1);
-        strncpy(my_rig->state.pttport_deprecated.pathname, ptt_file,
+        strncpy(rs->pttport_deprecated.pathname, ptt_file,
                 HAMLIB_FILPATHLEN - 1);
+        // default to RTS when ptt_type is not specified
+        if (ptt_type == RIG_PTT_NONE) 
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: defaulting to RTS PTT\n", __func__);
+            my_rig->caps->ptt_type = ptt_type = RIG_PTT_SERIAL_RTS;
+        }
     }
 
     if (dcd_file)
     {
         strncpy(DCDPORT(my_rig)->pathname, dcd_file, HAMLIB_FILPATHLEN - 1);
-        strncpy(my_rig->state.dcdport_deprecated.pathname, dcd_file,
+        strncpy(rs->dcdport_deprecated.pathname, dcd_file,
                 HAMLIB_FILPATHLEN - 1);
     }
 
@@ -737,7 +747,7 @@ int main(int argc, char *argv[])
     if (serial_rate != 0)
     {
         RIGPORT(my_rig)->parm.serial.rate = serial_rate;
-        my_rig->state.rigport_deprecated.parm.serial.rate = serial_rate;
+        rs->rigport_deprecated.parm.serial.rate = serial_rate;
     }
 
     if (civaddr)
@@ -751,6 +761,8 @@ int main(int argc, char *argv[])
     if (show_conf)
     {
         rig_token_foreach(my_rig, print_conf_list, (rig_ptr_t)my_rig);
+        fflush(stdout);
+        exit(0);
     }
 
     /*
@@ -1298,7 +1310,7 @@ void *handle_socket(void *arg)
         mutex_rigctld(1);
         rig_get_powerstat(my_rig, &rig_powerstat);
         mutex_rigctld(0);
-        my_rig->state.powerstat = rig_powerstat;
+        STATE(my_rig)->powerstat = rig_powerstat;
     }
 
     elapsed_ms(&powerstat_check_time, HAMLIB_ELAPSED_SET);

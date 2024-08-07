@@ -37,6 +37,7 @@ struct spid_rot2prog_priv_data
 {
     int az_resolution;
     int el_resolution;
+    int dir;  // current direction
 };
 
 enum spid_rot2prog_framemagic
@@ -209,10 +210,11 @@ static int spid_rot_init(ROT *rot)
             return -RIG_ENOMEM;
         }
 
-        rot->state.priv = (void *)priv;
+        ROTSTATE(rot)->priv = (void *)priv;
 
         priv->az_resolution = 0;
         priv->el_resolution = 0;
+        priv->dir = 0;
     }
 
     return RIG_OK;
@@ -227,21 +229,22 @@ static int spid_rot_cleanup(ROT *rot)
         return -RIG_EINVAL;
     }
 
-    if (rot->state.priv && (rot->caps->rot_model == ROT_MODEL_SPID_ROT2PROG ||
+    if (ROTSTATE(rot)->priv && (rot->caps->rot_model == ROT_MODEL_SPID_ROT2PROG ||
                             rot->caps->rot_model == ROT_MODEL_SPID_MD01_ROT2PROG))
     {
-        free(rot->state.priv);
+        free(ROTSTATE(rot)->priv);
     }
 
-    rot->state.priv = NULL;
+    ROTSTATE(rot)->priv = NULL;
 
     return RIG_OK;
 }
 
-static int spid_get_conf2(ROT *rot, hamlib_token_t token, char *val, int val_len)
+static int spid_get_conf2(ROT *rot, hamlib_token_t token, char *val,
+                          int val_len)
 {
-    const  struct spid_rot2prog_priv_data *priv = (struct spid_rot2prog_priv_data *)
-            rot->state.priv;
+    const struct spid_rot2prog_priv_data *priv = (struct spid_rot2prog_priv_data *)
+            ROTSTATE(rot)->priv;
 
     rig_debug(RIG_DEBUG_TRACE, "%s called %d\n", __func__, (int)token);
 
@@ -276,7 +279,7 @@ static int spid_get_conf(ROT *rot, hamlib_token_t token, char *val)
 static int spid_set_conf(ROT *rot, hamlib_token_t token, const char *val)
 {
     struct spid_rot2prog_priv_data *priv = (struct spid_rot2prog_priv_data *)
-                                           rot->state.priv;
+                                           ROTSTATE(rot)->priv;
 
     rig_debug(RIG_DEBUG_TRACE, "%s: called %d=%s\n", __func__, (int)token, val);
 
@@ -341,9 +344,9 @@ static int spid_rot1prog_rot_set_position(ROT *rot, azimuth_t az,
 static int spid_rot2prog_rot_set_position(ROT *rot, azimuth_t az,
         elevation_t el)
 {
-    struct rot_state *rs = &rot->state;
+    struct rot_state *rs = ROTSTATE(rot);
     hamlib_port_t *rotp = ROTPORT(rot);
-    const  struct spid_rot2prog_priv_data *priv = (struct spid_rot2prog_priv_data *)
+    const struct spid_rot2prog_priv_data *priv = (struct spid_rot2prog_priv_data *)
             rs->priv;
     int retval;
     int retry_read = 0;
@@ -494,6 +497,8 @@ static int spid_rot_get_position(ROT *rot, azimuth_t *az, elevation_t *el)
 
 static int spid_rot_stop(ROT *rot)
 {
+    struct spid_rot2prog_priv_data *priv = (struct spid_rot2prog_priv_data *)
+                                           ROTSTATE(rot)->priv;
     hamlib_port_t *rotp = ROTPORT(rot);
     int retval;
     int retry_read = 0;
@@ -530,35 +535,67 @@ static int spid_rot_stop(ROT *rot)
         return retval;
     }
 
+    priv->dir = 0;
+
     return RIG_OK;
 }
 
 static int spid_md01_rot2prog_rot_move(ROT *rot, int direction, int speed)
 {
+    struct spid_rot2prog_priv_data *priv = (struct spid_rot2prog_priv_data *)
+                                           ROTSTATE(rot)->priv;
     char dir = 0x00;
     int retval;
     char cmdstr[13];
 
     rig_debug(RIG_DEBUG_TRACE, "%s called\n", __func__);
 
+    dir = priv->dir;
+
     switch (direction)
     {
     case ROT_MOVE_UP:
-        dir = 0x04;
+        if (dir != 0x01 || dir != 0x02) { dir = 0; }
+
+        dir |= 0x04;
         break;
 
     case ROT_MOVE_DOWN:
+        if (dir != 0x01 || dir != 0x02) { dir = 0; }
+
         dir = 0x08;
         break;
 
     case ROT_MOVE_LEFT:
+        if (dir != 0x04 || dir != 0x08) { dir = 0; }
+
         dir = 0x01;
         break;
 
     case ROT_MOVE_RIGHT:
+        if (dir != 0x04 || dir != 0x08) { dir = 0; }
+
         dir = 0x02;
         break;
+
+    case ROT_MOVE_UP_RIGHT:
+        dir = 0x06;
+        break;
+
+    case ROT_MOVE_DOWN_RIGHT:
+        dir = 0x0a;
+        break;
+
+    case ROT_MOVE_UP_LEFT:
+        dir = 0x05;
+        break;
+
+    case ROT_MOVE_DOWN_LEFT:
+        dir = 0x09;
+        break;
     }
+
+    priv->dir = dir;
 
     cmdstr[0] = 0x57;                       /* S   */
     cmdstr[1] = dir;                        /* H1  */
@@ -599,7 +636,7 @@ const struct rot_caps spid_rot1prog_rot_caps =
     ROT_MODEL(ROT_MODEL_SPID_ROT1PROG),
     .model_name =        "Rot1Prog",
     .mfg_name =          "SPID",
-    .version =           "20220109.0",
+    .version =           "20240530.0",
     .copyright =         "LGPL",
     .status =            RIG_STATUS_STABLE,
     .rot_type =          ROT_TYPE_AZIMUTH,

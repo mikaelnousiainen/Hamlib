@@ -68,7 +68,7 @@
 #include "token.h"
 
 //! @cond Doxygen_Suppress
-#define CHECK_AMP_ARG(r) (!(r) || !(r)->caps || !(r)->state.comm_state)
+#define CHECK_AMP_ARG(r) (!(r) || !(r)->caps || !AMPSTATE(r)->comm_state)
 //! @endcond
 
 /*
@@ -227,7 +227,7 @@ AMP *HAMLIB_API amp_init(amp_model_t amp_model)
     /**
      * \todo Read the Preferences here!
      */
-    rs = &amp->state;
+    rs = AMPSTATE(amp);
 
     //TODO allocate and link new ampport
     // For now, use the embedded one
@@ -301,8 +301,8 @@ AMP *HAMLIB_API amp_init(amp_model_t amp_model)
     // Now we have to copy our new rig state hamlib_port structure to the deprecated one
     // Clients built on older 4.X versions will use the old structure
     // Clients built on newer 4.5 versions will use the new structure
-    memcpy(&amp->state.ampport_deprecated, ap,
-           sizeof(amp->state.ampport_deprecated));
+    memcpy(&rs->ampport_deprecated, ap,
+           sizeof(rs->ampport_deprecated));
 
     return amp;
 }
@@ -340,7 +340,7 @@ int HAMLIB_API amp_open(AMP *amp)
     }
 
     caps = amp->caps;
-    rs = &amp->state;
+    rs = AMPSTATE(amp);
 
     if (rs->comm_state)
     {
@@ -435,8 +435,8 @@ int HAMLIB_API amp_open(AMP *amp)
 
         if (status != RIG_OK)
         {
-	    memcpy(&amp->state.ampport_deprecated, ap,
-                   sizeof(amp->state.ampport_deprecated));
+	    memcpy(&rs->ampport_deprecated, ap,
+                   sizeof(rs->ampport_deprecated));
             return status;
         }
     }
@@ -459,8 +459,8 @@ int HAMLIB_API amp_open(AMP *amp)
         ser_set_rts(ap, 0);
     }
 
-    memcpy(&amp->state.ampport_deprecated, ap,
-           sizeof(amp->state.ampport_deprecated));
+    memcpy(&rs->ampport_deprecated, ap,
+           sizeof(rs->ampport_deprecated));
 
     return RIG_OK;
 }
@@ -504,7 +504,7 @@ int HAMLIB_API amp_close(AMP *amp)
     }
 
     caps = amp->caps;
-    rs = &amp->state;
+    rs = AMPSTATE(amp);
 
     if (!rs->comm_state)
     {
@@ -587,7 +587,7 @@ int HAMLIB_API amp_cleanup(AMP *amp)
     /*
      * check if they forgot to close the amp
      */
-    if (amp->state.comm_state)
+    if (AMPSTATE(amp)->comm_state)
     {
         amp_close(amp);
     }
@@ -1076,6 +1076,8 @@ void * HAMLIB_API amp_data_pointer(AMP *amp, rig_ptrx_t idx)
     {
     case RIG_PTRX_AMPPORT:
       return AMPPORT(amp);
+    case RIG_PTRX_AMPSTATE:
+      return AMPSTATE(amp);
     default:
       amp_debug(RIG_DEBUG_ERR, "%s: Invalid data index=%d\n", __func__, idx);
       return NULL;

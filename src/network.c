@@ -219,9 +219,9 @@ int network_init()
 }
 
 /**
- * \brief Open network port using rig.state data
+ * \brief Open network port using STATE(rig) data
  *
- * Open Open network port using rig.state data.
+ * Open network port using STATE(rig) data.
  * NB: The signal PIPE will be ignored for the whole application.
  *
  * \param rp Port data structure (must spec port id eg hostname:port)
@@ -256,10 +256,12 @@ int network_open(hamlib_port_t *rp, int default_port)
     if (rp->type.rig == RIG_PORT_UDP_NETWORK)
     {
         hints.ai_socktype = SOCK_DGRAM;
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: UDP connect\n", __func__);
     }
     else
     {
         hints.ai_socktype = SOCK_STREAM;
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: TCP connect\n", __func__);
     }
 
     if (rp->pathname[0] == ':' && rp->pathname[1] != ':')
@@ -379,6 +381,36 @@ int network_open(hamlib_port_t *rp, int default_port)
 }
 
 
+// flush and keep what gets flushed based on stopset
+// Used by SmartSDR backend for example
+// return # of bytes read
+int network_flush2(hamlib_port_t *rp, unsigned char *stopset, char *buf, int buf_len)
+{
+#ifdef __MINGW32__
+    ULONG len;
+#else
+    uint len;
+#endif
+
+#ifdef __MINGW32__
+    int ret = ioctlsocket(rp->fd, FIONREAD, &len);
+#else
+    int ret = ioctl(rp->fd, FIONREAD, &len);
+#endif
+    if (ret != 0)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: ioctl err '%s'\n", __func__, strerror(errno));
+        return 0;
+    }
+
+    if (len > 0) {
+        buf[0] = 0;
+        if (len > buf_len) len = buf_len-1;
+        read_string(rp, (unsigned char *)buf, len+1, (char*)stopset, 1, 0, 1);
+    }
+
+    return len;
+}
 /**
  * \brief Clears any data in the read buffer of the socket
  *
@@ -749,7 +781,7 @@ retry:
 
 static void multicast_publisher_write_lock(RIG *rig)
 {
-    struct rig_state *rs = &rig->state;
+    struct rig_state *rs = STATE(rig);
     multicast_publisher_priv_data *priv_data = (multicast_publisher_priv_data *)
             rs->multicast_publisher_priv_data;
     pthread_mutex_lock(&priv_data->args.write_lock);
@@ -757,7 +789,7 @@ static void multicast_publisher_write_lock(RIG *rig)
 
 static void multicast_publisher_write_unlock(RIG *rig)
 {
-    struct rig_state *rs = &rig->state;
+    struct rig_state *rs = STATE(rig);
     multicast_publisher_priv_data *priv_data = (multicast_publisher_priv_data *)
             rs->multicast_publisher_priv_data;
     pthread_mutex_unlock(&priv_data->args.write_lock);
@@ -766,7 +798,7 @@ static void multicast_publisher_write_unlock(RIG *rig)
 static int multicast_publisher_write_packet_header(RIG *rig,
         multicast_publisher_data_packet *packet)
 {
-    struct rig_state *rs = &rig->state;
+    struct rig_state *rs = STATE(rig);
     multicast_publisher_priv_data *mcast_publisher_priv;
     multicast_publisher_args *mcast_publisher_args;
     ssize_t result;
@@ -796,7 +828,7 @@ static int multicast_publisher_write_packet_header(RIG *rig,
 // cppcheck-suppress unusedFunction
 int network_publish_rig_poll_data(RIG *rig)
 {
-    const struct rig_state *rs = &rig->state;
+    const struct rig_state *rs = STATE(rig);
     int result;
     multicast_publisher_data_packet packet =
     {
@@ -820,7 +852,7 @@ int network_publish_rig_poll_data(RIG *rig)
 // cppcheck-suppress unusedFunction
 int network_publish_rig_transceive_data(RIG *rig)
 {
-    const struct rig_state *rs = &rig->state;
+    const struct rig_state *rs = STATE(rig);
     int result;
     multicast_publisher_data_packet packet =
     {
@@ -844,7 +876,7 @@ int network_publish_rig_transceive_data(RIG *rig)
 int network_publish_rig_spectrum_data(RIG *rig, struct rig_spectrum_line *line)
 {
     int result;
-    struct rig_state *rs = &rig->state;
+    struct rig_state *rs = STATE(rig);
     multicast_publisher_priv_data *mcast_publisher_priv;
     multicast_publisher_args *mcast_publisher_args;
     multicast_publisher_data_packet packet =
@@ -974,7 +1006,7 @@ void *multicast_publisher(void *arg)
     struct multicast_publisher_args_s *args = (struct multicast_publisher_args_s *)
             arg;
     RIG *rig = args->rig;
-    struct rig_state *rs = &rig->state;
+    struct rig_state *rs = STATE(rig);
     struct rig_spectrum_line spectrum_line;
     uint8_t packet_type = MULTICAST_PUBLISHER_DATA_PACKET_TYPE_SPECTRUM;
     multicast_publisher_priv_data *mcast_publisher_priv =
@@ -1316,7 +1348,7 @@ void *multicast_receiver(void *arg)
     struct multicast_receiver_args_s *args = (struct multicast_receiver_args_s *)
             arg;
     RIG *rig = args->rig;
-    struct rig_state *rs = &rig->state;
+    struct rig_state *rs = STATE(rig);
     multicast_receiver_priv_data *mcast_receiver_priv =
             (multicast_receiver_priv_data *)
                     rs->multicast_receiver_priv_data;
@@ -1540,7 +1572,7 @@ void *multicast_receiver(void *arg)
 int network_multicast_publisher_start(RIG *rig, const char *multicast_addr,
                                       int multicast_port, enum multicast_item_e items)
 {
-    struct rig_state *rs = &rig->state;
+    struct rig_state *rs = STATE(rig);
     multicast_publisher_priv_data *mcast_publisher_priv;
     int socket_fd;
     int status;
@@ -1569,7 +1601,7 @@ int network_multicast_publisher_start(RIG *rig, const char *multicast_addr,
     {
         rig_debug(RIG_DEBUG_WARN, "%s: No network found...multicast disabled\n",
                   __func__);
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
     }
 
 #endif
@@ -1578,7 +1610,7 @@ int network_multicast_publisher_start(RIG *rig, const char *multicast_addr,
     {
         rig_debug(RIG_DEBUG_TRACE, "%s(%d): not starting multicast publisher\n",
                   __FILE__, __LINE__);
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
     }
 
     status = network_init();
@@ -1697,7 +1729,7 @@ int network_multicast_publisher_start(RIG *rig, const char *multicast_addr,
  */
 int network_multicast_publisher_stop(RIG *rig)
 {
-    struct rig_state *rs = &rig->state;
+    struct rig_state *rs = STATE(rig);
     multicast_publisher_priv_data *mcast_publisher_priv;
 
     ENTERFUNC;
@@ -1755,7 +1787,7 @@ int network_multicast_publisher_stop(RIG *rig)
 int network_multicast_receiver_start(RIG *rig, const char *multicast_addr,
                                      int multicast_port)
 {
-    struct rig_state *rs = &rig->state;
+    struct rig_state *rs = STATE(rig);
     multicast_receiver_priv_data *mcast_receiver_priv;
     int socket_fd;
     int status;
@@ -1865,7 +1897,7 @@ int network_multicast_receiver_start(RIG *rig, const char *multicast_addr,
  */
 int network_multicast_receiver_stop(RIG *rig)
 {
-    struct rig_state *rs = &rig->state;
+    struct rig_state *rs = STATE(rig);
     multicast_receiver_priv_data *mcast_receiver_priv;
 
     ENTERFUNC;

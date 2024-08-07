@@ -44,8 +44,14 @@
 #define TS480_LEVEL_GET (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC|RIG_LEVEL_MICGAIN|RIG_LEVEL_STRENGTH|RIG_LEVEL_KEYSPD|RIG_LEVEL_CWPITCH| \
     RIG_LEVEL_MONITOR_GAIN|RIG_LEVEL_NB|RIG_LEVEL_NR|RIG_LEVEL_PREAMP|RIG_LEVEL_COMP|RIG_LEVEL_ATT|RIG_LEVEL_VOXDELAY|RIG_LEVEL_VOXGAIN|RIG_LEVEL_BKIN_DLYMS| \
     RIG_LEVEL_SWR|RIG_LEVEL_COMP_METER|RIG_LEVEL_ALC|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_SLOPE_HIGH|RIG_LEVEL_SLOPE_LOW)
+#define PT8000A_LEVEL_GET (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC|RIG_LEVEL_MICGAIN|RIG_LEVEL_STRENGTH|RIG_LEVEL_CWPITCH| \
+    RIG_LEVEL_MONITOR_GAIN|RIG_LEVEL_NB|RIG_LEVEL_NR|RIG_LEVEL_PREAMP|RIG_LEVEL_COMP|RIG_LEVEL_ATT|RIG_LEVEL_VOXDELAY|RIG_LEVEL_VOXGAIN|RIG_LEVEL_BKIN_DLYMS| \
+    RIG_LEVEL_SWR|RIG_LEVEL_COMP_METER|RIG_LEVEL_ALC|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_SLOPE_HIGH|RIG_LEVEL_SLOPE_LOW)
 
 #define TS480_LEVEL_SET (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC|RIG_LEVEL_MICGAIN|RIG_LEVEL_KEYSPD|RIG_LEVEL_CWPITCH| \
+    RIG_LEVEL_MONITOR_GAIN|RIG_LEVEL_NB|RIG_LEVEL_NR|RIG_LEVEL_PREAMP|RIG_LEVEL_COMP|RIG_LEVEL_ATT|RIG_LEVEL_VOXDELAY|RIG_LEVEL_VOXGAIN|RIG_LEVEL_BKIN_DLYMS| \
+    RIG_LEVEL_METER|RIG_LEVEL_SLOPE_HIGH|RIG_LEVEL_SLOPE_LOW)
+#define PT8000A_LEVEL_SET (RIG_LEVEL_RFPOWER|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_AGC|RIG_LEVEL_MICGAIN|RIG_LEVEL_CWPITCH| \
     RIG_LEVEL_MONITOR_GAIN|RIG_LEVEL_NB|RIG_LEVEL_NR|RIG_LEVEL_PREAMP|RIG_LEVEL_COMP|RIG_LEVEL_ATT|RIG_LEVEL_VOXDELAY|RIG_LEVEL_VOXGAIN|RIG_LEVEL_BKIN_DLYMS| \
     RIG_LEVEL_METER|RIG_LEVEL_SLOPE_HIGH|RIG_LEVEL_SLOPE_LOW)
 
@@ -247,12 +253,12 @@ static int ts480_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
     {
     case RIG_FUNC_MON:
         SNPRINTF(buf, sizeof(buf), "ML00%c", (status == 0) ? '0' : '1');
-        RETURNFUNC(kenwood_transaction(rig, buf, NULL, 0));
+        RETURNFUNC2(kenwood_transaction(rig, buf, NULL, 0));
 
     case RIG_FUNC_LOCK:
         SNPRINTF(buf, sizeof(buf), "LK%c%c", (status == 0) ? '0' : '1',
                  (status == 0) ? '0' : '1');
-        RETURNFUNC(kenwood_transaction(rig, buf, NULL, 0));
+        RETURNFUNC2(kenwood_transaction(rig, buf, NULL, 0));
 
     default:
         return kenwood_set_func(rig, vfo, func, status);
@@ -296,7 +302,7 @@ static int ts480_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         break;
 
     default:
-        return kenwood_get_func(rig, vfo, func, status);
+        RETURNFUNC(kenwood_get_func(rig, vfo, func, status));
     }
 
     RETURNFUNC(RIG_OK);
@@ -373,7 +379,7 @@ int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     case RIG_LEVEL_PREAMP:
         if (val.i != 12 && val.i != 0)
         {
-            RETURNFUNC(-RIG_EINVAL);
+            RETURNFUNC2(-RIG_EINVAL);
         }
 
         SNPRINTF(levelbuf, sizeof(levelbuf), "PA%c", (val.i == 12) ? '1' : '0');
@@ -382,7 +388,7 @@ int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     case RIG_LEVEL_ATT:
         if (val.i != 12 && val.i != 0)
         {
-            RETURNFUNC(-RIG_EINVAL);
+            RETURNFUNC2(-RIG_EINVAL);
         }
 
         SNPRINTF(levelbuf, sizeof(levelbuf), "RA%02d", (val.i == 12) ? 1 : 0);
@@ -404,7 +410,7 @@ int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             break;
 
         default:
-            RETURNFUNC(-RIG_EINVAL);
+            RETURNFUNC2(-RIG_EINVAL);
         }
 
         SNPRINTF(levelbuf, sizeof(levelbuf), "RM%d", kenwood_val);
@@ -413,10 +419,10 @@ int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     case RIG_LEVEL_CWPITCH:
         if (val.i > 1000 || val.i < 400)
         {
-            RETURNFUNC(-RIG_EINVAL);
+            RETURNFUNC2(-RIG_EINVAL);
         }
 
-        RETURNFUNC(ts480_set_ex_menu(rig, 34, 2, (val.i - 400) / 50));
+        RETURNFUNC2(ts480_set_ex_menu(rig, 34, 2, (val.i - 400) / 50));
 
     default:
         return kenwood_set_level(rig, vfo, level, val);
@@ -495,30 +501,30 @@ kenwood_ts480_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     switch (level)
     {
     case RIG_LEVEL_AF:
-        return kenwood_get_level(rig, vfo, level, val);
+        RETURNFUNC(kenwood_get_level(rig, vfo, level, val));
 
     case RIG_LEVEL_RF:
         retval = kenwood_transaction(rig, "RG", ackbuf, sizeof(ackbuf));
 
         if (RIG_OK != retval)
         {
-            return retval;
+            RETURNFUNC(retval);
         }
 
         ack_len = strlen(ackbuf);
 
         if (5 != ack_len)
         {
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
         if (1 != sscanf(&ackbuf[2], "%d", &levelint))
         {
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
         val->f = levelint / (float) 100;
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
 
     case RIG_LEVEL_SQL:
         retval = kenwood_transaction(rig, "SQ0", ackbuf, sizeof(ackbuf));
@@ -526,23 +532,23 @@ kenwood_ts480_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         if (RIG_OK != retval)
         {
-            return retval;
+            RETURNFUNC(retval);
         }
 
         ack_len = strlen(ackbuf);
 
         if (ack_len != ack_len_expected)
         {
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
         if (1 != sscanf(&ackbuf[ack_len_expected - 3], "%d", &levelint))
         {
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
         val->f = (float) levelint / 255.;
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
 
     case RIG_LEVEL_AGC:
         retval = kenwood_transaction(rig, "GT", ackbuf, sizeof(ackbuf));
@@ -550,14 +556,14 @@ kenwood_ts480_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         if (RIG_OK != retval)
         {
-            return retval;
+            RETURNFUNC(retval);
         }
 
         ack_len = strlen(ackbuf);
 
         if (ack_len != ack_len_expected)
         {
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
         switch (ackbuf[ack_len_expected - 1])
@@ -575,10 +581,10 @@ kenwood_ts480_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             break;
 
         default:
-            return -RIG_EPROTO;
+            RETURNFUNC(-RIG_EPROTO);
         }
 
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
 
     case RIG_LEVEL_STRENGTH:
         if (CACHE(rig)->ptt != RIG_PTT_OFF)
@@ -587,7 +593,7 @@ kenwood_ts480_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             break;
         }
 
-        return kenwood_get_level(rig, vfo, level, val);
+        RETURNFUNC(kenwood_get_level(rig, vfo, level, val));
 
     case RIG_LEVEL_MONITOR_GAIN:
     {
@@ -698,7 +704,7 @@ kenwood_ts480_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             break;
 
         default:
-            return -RIG_ENAVAIL;
+            RETURNFUNC(-RIG_ENAVAIL);
         }
 
         break;
@@ -742,7 +748,7 @@ kenwood_ts480_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     }
 
     default:
-        return kenwood_get_level(rig, vfo, level, val);
+        RETURNFUNC(kenwood_get_level(rig, vfo, level, val));
     }
 
     RETURNFUNC(RIG_OK);
@@ -823,7 +829,7 @@ static int ts480_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
 {
     int retval;
     char buf[7];
-    struct kenwood_priv_data *priv = rig->state.priv;
+    struct kenwood_priv_data *priv = STATE(rig)->priv;
 
     ENTERFUNC;
 
@@ -1204,10 +1210,10 @@ int ts480_init(RIG *rig)
 
     if (retval != RIG_OK)
     {
-        return retval;
+        RETURNFUNC(retval);
     }
 
-    priv = (struct kenwood_priv_data *) rig->state.priv;
+    priv = (struct kenwood_priv_data *) STATE(rig)->priv;
 
     priv->ag_format = 2;
     priv->micgain_min = 0;
@@ -1219,6 +1225,7 @@ int ts480_init(RIG *rig)
 int qdx_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 {
     const char *ptt_cmd;
+    struct hamlib_port *rp = RIGPORT(rig);
 
     ENTERFUNC;
     rig_debug(RIG_DEBUG_VERBOSE, "%s: ptt=%d\n", __func__, ptt);
@@ -1234,7 +1241,8 @@ int qdx_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 
     int retval = kenwood_transaction(rig, ptt_cmd, NULL, 0);
 
-    //if (ptt == RIG_PTT_OFF) { hl_usleep(100 * 1000); } // a little time for PTT to turn off
+    hl_usleep(100 * 1000); // a little time for PTT to return whatever it returns which we ignore
+    rig_flush(rp);
 
     RETURNFUNC(retval);
 }
@@ -1828,7 +1836,7 @@ struct rig_caps qrplabs_caps =
 };
 
 /*
- * Hilberling PS8000A TS480 emulation
+ * Hilberling PT8000A TS480 emulation
  * Notice that some rigs share the same functions.
  */
 struct rig_caps pt8000a_caps =
@@ -1836,7 +1844,7 @@ struct rig_caps pt8000a_caps =
     RIG_MODEL(RIG_MODEL_PT8000A),
     .model_name = "PT-8000A",
     .mfg_name = "Hilberling",
-    .version = BACKEND_VER ".1",
+    .version = BACKEND_VER ".2",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -1889,6 +1897,7 @@ struct rig_caps pt8000a_caps =
     },
     /* mode/filter list, remember: order matters! */
     .filters =  {
+        {RIG_MODE_SSB, kHz(6.0)},
         {RIG_MODE_SSB, kHz(1.0)},
         {RIG_MODE_SSB, kHz(1.2)},
         {RIG_MODE_SSB, kHz(1.4)},
@@ -1912,7 +1921,6 @@ struct rig_caps pt8000a_caps =
         {RIG_MODE_SSB, kHz(3.4)},
         {RIG_MODE_SSB, kHz(3.5)},
         {RIG_MODE_SSB, kHz(4.6)},
-        {RIG_MODE_SSB, kHz(6.0)},
         {RIG_MODE_CW, Hz(50)},
         {RIG_MODE_CW, Hz(100)},
         {RIG_MODE_CW, Hz(200)},
@@ -1977,17 +1985,17 @@ struct rig_caps pt8000a_caps =
     .set_split_vfo = kenwood_set_split_vfo,
     .get_split_vfo = kenwood_get_split_vfo_if,
     .get_ptt = kenwood_get_ptt,
-    .set_ptt = qdx_set_ptt,
+    .set_ptt = kenwood_set_ptt,
     .get_dcd = kenwood_get_dcd,
-    .set_powerstat = kenwood_set_powerstat,
-    .get_powerstat = kenwood_get_powerstat,
+//    .set_powerstat = kenwood_set_powerstat,
+//    .get_powerstat = kenwood_get_powerstat,
     .get_info = kenwood_ts480_get_info,
     .reset = kenwood_reset,
     .set_ant = kenwood_set_ant,
     .get_ant = kenwood_get_ant,
     .scan = kenwood_scan,     /* not working, invalid arguments using rigctl; kenwood_scan does only support on/off and not tone and CTCSS scan */
-    .has_set_level = TS480_LEVEL_SET,
-    .has_get_level = TS480_LEVEL_GET,
+    .has_set_level = PT8000A_LEVEL_SET,
+    .has_get_level = PT8000A_LEVEL_GET,
     .set_level = kenwood_ts480_set_level,
     .get_level = kenwood_ts480_get_level,
     .has_get_func = TS480_FUNC_ALL,
@@ -2167,7 +2175,7 @@ int malachite_init(RIG *rig)
 
     retval = kenwood_init(rig);
 
-    priv = rig->state.priv;
+    priv = STATE(rig)->priv;
 
     priv->no_id = 1;  // the Malchite doesn't like the ID; verify cmd
 
@@ -2178,20 +2186,20 @@ int malachite_init(RIG *rig)
 
 int malachite_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 {
-    int post_write_delay_save = rig->state.post_write_delay;
-    rig->state.post_write_delay = 0;
+    int post_write_delay_save = STATE(rig)->post_write_delay;
+    STATE(rig)->post_write_delay = 0;
     int retval = kenwood_get_mode(rig, vfo, mode, width);
-    rig->state.post_write_delay = post_write_delay_save;
+    STATE(rig)->post_write_delay = post_write_delay_save;
     return retval;
 }
 
 int malachite_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 {
-    int post_write_delay_save = rig->state.post_write_delay;
+    int post_write_delay_save = STATE(rig)->post_write_delay;
     ENTERFUNC;
-    rig->state.post_write_delay = 0;
+    STATE(rig)->post_write_delay = 0;
     int retval = kenwood_get_freq(rig, vfo, freq);
-    rig->state.post_write_delay = post_write_delay_save;
+    STATE(rig)->post_write_delay = post_write_delay_save;
     RETURNFUNC(retval);
 }
 
@@ -2212,18 +2220,18 @@ int malachite_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         // Malachite has a bug where it takes two freq set to make it work
         // under band changes -- so we just do this all the time
         retval = kenwood_set_freq(rig, vfo, freq + 1);
-        rig->state.post_write_delay = 250; // need a bit more time on band  change
+        STATE(rig)->post_write_delay = 250; // need a bit more time on band  change
 
         if (retval != RIG_OK) { RETURNFUNC(retval); }
     }
     else
     {
-        rig->state.post_write_delay = 125;
+        STATE(rig)->post_write_delay = 125;
     }
 
     retval = kenwood_set_freq(rig, vfo, freq);
 
-    RETURNFUNC2(retval);
+    RETURNFUNC(retval);
 }
 
 /*

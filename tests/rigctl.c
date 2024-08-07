@@ -68,6 +68,7 @@ extern int read_history();
 #include "misc.h"
 #include "rigctl_parse.h"
 #include "riglist.h"
+#include "token.h"
 
 #define MAXNAMSIZ 32
 #define MAXNBOPT 100    /* max number of different options */
@@ -562,7 +563,9 @@ int main(int argc, char *argv[])
         exit(2);
     }
 
+    my_rig->caps->ptt_type = ptt_type;
     char *token = strtok(conf_parms, ",");
+    struct rig_state *rs = STATE(my_rig);
 
     while (token)
     {
@@ -586,13 +589,14 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Config parameter error: %s\n", rigerror(retcode));
             exit(2);
         }
+        ptt_type = my_rig->caps->ptt_type; // in case we set the ptt_type with set_conf
 
         token = strtok(NULL, ",");
     }
 
     if (rig_file)
     {
-        strncpy(RIGPORT(my_rig)->pathname, rig_file, HAMLIB_FILPATHLEN - 1);
+        rig_set_conf(my_rig, TOK_PATHNAME, rig_file);
     }
 
     /*
@@ -611,6 +615,12 @@ int main(int argc, char *argv[])
     if (ptt_file)
     {
         strncpy(PTTPORT(my_rig)->pathname, ptt_file, HAMLIB_FILPATHLEN - 1);
+        // default to RTS when ptt_type is not specified
+        if (ptt_type == RIG_PTT_NONE) 
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: defaulting to RTS PTT\n", __func__);
+            my_rig->caps->ptt_type = ptt_type = RIG_PTT_SERIAL_RTS;
+        }
     }
 
     if (dcd_file)
@@ -622,7 +632,7 @@ int main(int argc, char *argv[])
     if (serial_rate != 0)
     {
         RIGPORT(my_rig)->parm.serial.rate = serial_rate;
-        my_rig->state.rigport_deprecated.parm.serial.rate = serial_rate;
+        rs->rigport_deprecated.parm.serial.rate = serial_rate;
     }
 
     if (civaddr)
@@ -689,14 +699,14 @@ int main(int argc, char *argv[])
     if (!skip_init && my_rig->caps->get_powerstat)
     {
         rig_get_powerstat(my_rig, &rig_powerstat);
-        my_rig->state.powerstat = rig_powerstat;
+        rs->powerstat = rig_powerstat;
     }
 
     if (my_rig->caps->rig_model == RIG_MODEL_NETRIGCTL)
     {
         /* We automatically detect if we need to be in vfo mode or not */
         int rigctld_vfo_opt = netrigctl_get_vfo_mode(my_rig);
-        vfo_opt = my_rig->state.vfo_opt = rigctld_vfo_opt;
+        vfo_opt = rs->vfo_opt = rigctld_vfo_opt;
         rig_debug(RIG_DEBUG_TRACE, "%s vfo_opt=%d\n", __func__, vfo_opt);
     }
 

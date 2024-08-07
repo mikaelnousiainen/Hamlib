@@ -267,7 +267,7 @@ int ic7700_get_clock(RIG *rig, int *year, int *month, int *day, int *hour,
 static int ic7700_rig_open(RIG *rig)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s: enter\n", __func__);
-    struct icom_priv_data *priv = (struct icom_priv_data *) rig->state.priv;
+    struct icom_priv_data *priv = (struct icom_priv_data *) STATE(rig)->priv;
     priv->x26cmdfails = priv->x25cmdfails = 1;
     return icom_rig_open(rig);
 }
@@ -277,7 +277,7 @@ struct rig_caps ic7700_caps =
     RIG_MODEL(RIG_MODEL_IC7700),
     .model_name = "IC-7700",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".4",
+    .version =  BACKEND_VER ".5",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,

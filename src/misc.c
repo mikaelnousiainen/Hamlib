@@ -1373,8 +1373,12 @@ static const struct
     { RIG_PARM_BAT, "BAT" },
     { RIG_PARM_KEYLIGHT, "KEYLIGHT"},
     { RIG_PARM_SCREENSAVER, "SCREENSAVER"},
+    { RIG_PARM_AFIF, "AFIF"},
     { RIG_PARM_BANDSELECT, "BANDSELECT"},
     { RIG_PARM_KEYERTYPE, "KEYERTYPE"},
+    { RIG_PARM_AFIF_LAN, "AFIF_LAN"},
+    { RIG_PARM_AFIF_WLAN, "AFIF_WLAN"},
+    { RIG_PARM_AFIF_ACC, "AFIF_ACC"},
     { RIG_PARM_NONE, "" },
 };
 
@@ -3134,26 +3138,21 @@ char *rig_date_strget(char *buf, int buflen, int localtime)
     return date_strget(buf, buflen, localtime);
 }
 
+#define MAX_SPACES 256
 const char *spaces(int len)
 {
-    static char s[256];
-    memset(s, '*', sizeof(s));
+    static const char s[MAX_SPACES + 1] =
+      "****************************************************************"
+      "****************************************************************"
+      "****************************************************************"
+      "****************************************************************";
 
-    if (len > 255)
+    if (len < 0 || len > MAX_SPACES)
     {
         len = 0;
     }
 
-    if (len > 0)
-    {
-        s[len + 1] = 0;
-    }
-    else
-    {
-        s[1] = 0;
-    }
-
-    return s;
+    return &s[MAX_SPACES - len];
 }
 
 // if which==0 rig_band_select str will be returned
@@ -3330,7 +3329,7 @@ int rig_test_2038(RIG *rig)
 {
 
 #if defined(_TIME_BITS)
-#if defined(__GLIBC_MINOR__)
+#if defined(__GLIBC_MINOR__) && defined(__TIMESIZE)
     rig_debug(RIG_DEBUG_TRACE,
               "%s: enter _TIME_BITS=%d, __TIMESIZE=%d testing enabled for GLIBC %d.%d\n",
               __func__, _TIME_BITS, __TIMESIZE, __GLIBC__, __GLIBC_MINOR__);
@@ -3348,6 +3347,7 @@ int rig_test_2038(RIG *rig)
 #endif
 
     int failed = 0;
+    char *stime = NULL;
 #if defined(__MSVCRT_VERSION__)
     __time64_t const x = (__time64_t)0xF0000000;
     char s[64];
@@ -3376,15 +3376,14 @@ int rig_test_2038(RIG *rig)
     }
 
     time_t x = (time_t)0xF0000000;
-    char *s = ctime(&x);
+    stime = ctime(&x);
 
-    if (s == NULL) { failed = 1; }
+    if (stime == NULL) { failed = 1; }
 
-    if (s != NULL)
-    {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: time_t 2038 test = 0x%08lx:%s",
-                __func__, x, s);
-    }
+#if 0 // this fails on 32-bit RigPi -- time_t 32-bit maybe?
+    else rig_debug(RIG_DEBUG_VERBOSE, "%s: time_t 2038 test = 0x%08lx:%s", __func__, x,
+              s == NULL ? "NULL" : s);
+#endif
 
 #endif
 
@@ -3394,15 +3393,16 @@ int rig_test_2038(RIG *rig)
         return 1;
     }
 
-    if (strstr(s, "2097")) { return RIG_OK; }
+    if (stime != NULL && strstr(stime, "2097")) { return RIG_OK; }
 
 #if defined(__MSVCRT_VERSION__)
     _ctime64_s(s, sizeof(s), &x);
+    if (strstr(s, "2097")) { return RIG_OK; }
 #else
-    s = ctime(&x);
+    char *s = ctime(&x);
+    if (s != NULL && strstr(s, "2097")) { return RIG_OK; }
 #endif
 
-    if (strstr(s, "2097")) { return RIG_OK; }
 
     return 1;
 }
@@ -3410,4 +3410,38 @@ int rig_test_2038(RIG *rig)
 
 //! @endcond
 
+/**
+ * Add item to be sent to device after it is opened
+ * (currently only used by rotators)
+ **/
+int queue_deferred_config(deferred_config_header_t *head, hamlib_token_t token, const char *val)
+{
+    deferred_config_item_t *item;
+
+    if (!(item = malloc(sizeof(deferred_config_item_t))))
+    {
+	return -RIG_ENOMEM;
+    }
+    if (!(item->value = strdup(val)))
+    {
+        free(item);
+	return -RIG_ENOMEM;
+    }
+
+    item->token = token;
+    item->next = NULL;
+
+    if (!head->first)
+      {
+	head->first = item;
+      }
+    else
+      {
+	head->last->next = item;
+      }
+
+    head->last = item;
+
+    return RIG_OK;
+}
 /** @} */

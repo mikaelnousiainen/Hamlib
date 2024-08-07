@@ -1897,6 +1897,22 @@ declare_proto_rot(move)
     {
         direction = ROT_MOVE_DOWN;
     }
+    else if (!strcmp(arg1, "DOWN_RIGHT") || !strcmp(arg1, "DOWN_CW"))
+    {
+        direction = ROT_MOVE_DOWN_CW;
+    }
+    else if (!strcmp(arg1, "DOWN_LEFT") || !strcmp(arg1, "DOWN_CCW"))
+    {
+        direction = ROT_MOVE_DOWN_CCW;
+    }
+    else if (!strcmp(arg1, "UP_RIGHT") || !strcmp(arg1, "UP_CW"))
+    {
+        direction = ROT_MOVE_UP_CW;
+    }
+    else if (!strcmp(arg1, "UP_LEFT") || !strcmp(arg1, "UP_CCW"))
+    {
+        direction = ROT_MOVE_UP_CCW;
+    }
     else
     {
         CHKSCN1ARG(sscanf(arg1, "%d", &direction));
@@ -1918,7 +1934,7 @@ declare_proto_rot(set_level)
     if (!strcmp(arg1, "?"))
     {
         char s[SPRINTF_MAX_SIZE];
-        rot_sprintf_level(s, sizeof(s), rot->state.has_set_level);
+        rot_sprintf_level(s, sizeof(s), ROTSTATE(rot)->has_set_level);
         fputs(s, fout);
 
         if (rot->caps->set_ext_level)
@@ -1994,7 +2010,7 @@ declare_proto_rot(get_level)
     if (!strcmp(arg1, "?"))
     {
         char s[SPRINTF_MAX_SIZE];
-        rot_sprintf_level(s, sizeof(s), rot->state.has_get_level);
+        rot_sprintf_level(s, sizeof(s), ROTSTATE(rot)->has_get_level);
         fputs(s, fout);
 
         if (rot->caps->get_ext_level)
@@ -2092,7 +2108,7 @@ declare_proto_rot(set_func)
     if (!strcmp(arg1, "?"))
     {
         char s[SPRINTF_MAX_SIZE];
-        rot_sprintf_func(s, sizeof(s), rot->state.has_set_func);
+        rot_sprintf_func(s, sizeof(s), ROTSTATE(rot)->has_set_func);
         fprintf(fout, "%s\n", s);
         return RIG_OK;
     }
@@ -2130,7 +2146,7 @@ declare_proto_rot(get_func)
     if (!strcmp(arg1, "?"))
     {
         char s[SPRINTF_MAX_SIZE];
-        rot_sprintf_func(s, sizeof(s), rot->state.has_get_func);
+        rot_sprintf_func(s, sizeof(s), ROTSTATE(rot)->has_get_func);
         fprintf(fout, "%s\n", s);
         return RIG_OK;
     }
@@ -2192,7 +2208,7 @@ declare_proto_rot(set_parm)
     if (!strcmp(arg1, "?"))
     {
         char s[SPRINTF_MAX_SIZE];
-        rot_sprintf_parm(s, sizeof(s), rot->state.has_set_parm);
+        rot_sprintf_parm(s, sizeof(s), ROTSTATE(rot)->has_set_parm);
         fprintf(fout, "%s\n", s);
         return RIG_OK;
     }
@@ -2265,7 +2281,7 @@ declare_proto_rot(get_parm)
     if (!strcmp(arg1, "?"))
     {
         char s[SPRINTF_MAX_SIZE];
-        rot_sprintf_parm(s, sizeof(s), rot->state.has_get_parm);
+        rot_sprintf_parm(s, sizeof(s), ROTSTATE(rot)->has_get_parm);
         fprintf(fout, "%s\n", s);
         return RIG_OK;
     }
@@ -2410,7 +2426,7 @@ declare_proto_rot(dump_conf)
  */
 declare_proto_rot(dump_state)
 {
-    struct rot_state *rs = &rot->state;
+    struct rot_state *rs = ROTSTATE(rot);
     char *tag;
 
     /*
@@ -2439,7 +2455,7 @@ declare_proto_rot(dump_state)
         tag = "Minimum Azimuth: ";
     }
 
-    fprintf(fout, "%s%lf%c", tag, rs->min_az + rot->state.az_offset, resp_sep);
+    fprintf(fout, "%s%lf%c", tag, rs->min_az + rs->az_offset, resp_sep);
 
     tag = "max_az=";
 
@@ -2448,7 +2464,7 @@ declare_proto_rot(dump_state)
         tag = "Maximum Azimuth: ";
     }
 
-    fprintf(fout, "%s%lf%c", tag, rs->max_az + rot->state.az_offset, resp_sep);
+    fprintf(fout, "%s%lf%c", tag, rs->max_az + rs->az_offset, resp_sep);
 
     tag = "min_el=";
 
@@ -2457,7 +2473,7 @@ declare_proto_rot(dump_state)
         tag = "Minimum Elevation: ";
     }
 
-    fprintf(fout, "%s%lf%c", tag, rs->min_el + rot->state.el_offset, resp_sep);
+    fprintf(fout, "%s%lf%c", tag, rs->min_el + rs->el_offset, resp_sep);
 
     tag = "max_el=";
 
@@ -2466,7 +2482,7 @@ declare_proto_rot(dump_state)
         tag = "Maximum Elevation: ";
     }
 
-    fprintf(fout, "%s%lf%c", tag, rs->max_el + rot->state.el_offset, resp_sep);
+    fprintf(fout, "%s%lf%c", tag, rs->max_el + rs->el_offset, resp_sep);
 
     tag = "south_zero=";
 

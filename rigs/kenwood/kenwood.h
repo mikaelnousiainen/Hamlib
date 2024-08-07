@@ -28,7 +28,7 @@
 #include "token.h"
 #include "idx_builtin.h"
 
-#define BACKEND_VER "20240224"
+#define BACKEND_VER "20240730"
 
 #define EOM_KEN ';'
 #define EOM_TH '\r'
@@ -211,6 +211,7 @@ int kenwood_set_vfo_main_sub(RIG *rig, vfo_t vfo);
 int kenwood_get_vfo_if(RIG *rig, vfo_t *vfo);
 int kenwood_get_vfo_main_sub(RIG *rig, vfo_t *vfo);
 int kenwood_set_split(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo);
+int kenwood_get_vfo_frft(RIG *rig, vfo_t *vfo);
 int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo);
 int kenwood_get_split_vfo_if(RIG *rig, vfo_t rxvfo, split_t *split,
                              vfo_t *txvfo);
@@ -291,6 +292,7 @@ extern struct rig_caps kx3_caps;
 extern struct rig_caps k4_caps;
 extern struct rig_caps xg3_caps;
 extern struct rig_caps trc80_caps;
+extern struct rig_caps sdrconsole_caps;
 
 extern struct rig_caps thd7a_caps;
 extern struct rig_caps thd72a_caps;
@@ -333,7 +335,7 @@ extern struct rig_caps trudx_caps;
 static int inline kenwood_simple_transaction(RIG *rig, const char *cmd,
         size_t expected)
 {
-    struct kenwood_priv_data *priv = rig->state.priv;
+    struct kenwood_priv_data *priv = STATE(rig)->priv;
     return kenwood_safe_transaction(rig, cmd, priv->info, KENWOOD_MAX_BUF_LEN,
                                     expected);
 }

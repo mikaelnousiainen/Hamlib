@@ -37,24 +37,24 @@
 static int ic7300_set_parm(RIG *rig, setting_t parm, value_t val);
 static int ic7300_get_parm(RIG *rig, setting_t parm, value_t *val);
 int ic7300_set_clock(RIG *rig, int year, int month, int day, int hour,
-                     int min, int sec, double msec, int utc_offset);
+        int min, int sec, double msec, int utc_offset);
 int ic7300_get_clock(RIG *rig, int *year, int *month, int *day,
-                     int *hour,
-                     int *min, int *sec, double *msec, int *utc_offset);
+        int *hour,
+        int *min, int *sec, double *msec, int *utc_offset);
 int ic9700_set_clock(RIG *rig, int year, int month, int day, int hour,
-                     int min, int sec, double msec, int utc_offset);
+        int min, int sec, double msec, int utc_offset);
 int ic9700_get_clock(RIG *rig, int *year, int *month, int *day,
-                     int *hour,
-                     int *min, int *sec, double *msec, int *utc_offset);
+        int *hour,
+        int *min, int *sec, double *msec, int *utc_offset);
 
 int ic9700_set_vfo(RIG *rig, vfo_t vfo);
 
 
-#define IC7300_ALL_RX_MODES (RIG_MODE_FM|RIG_MODE_AM|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_PKTLSB|RIG_MODE_PKTUSB|RIG_MODE_PKTFM|RIG_MODE_PKTAM)
-#define IC7300_1HZ_TS_MODES (RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_PKTLSB|RIG_MODE_PKTUSB|RIG_MODE_PKTFM|RIG_MODE_PKTAM)
+#define IC7300_ALL_RX_MODES (RIG_MODE_FM|RIG_MODE_PKTFM|RIG_MODE_AM|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_PKTLSB|RIG_MODE_PKTUSB|RIG_MODE_PKTFM|RIG_MODE_PKTAM)
+#define IC7300_1HZ_TS_MODES (RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_PKTLSB|RIG_MODE_PKTUSB|RIG_MODE_PKTAM)
 #define IC7300_NOT_TS_MODES (IC7300_ALL_RX_MODES &~IC7300_1HZ_TS_MODES)
 
-#define IC7300_OTHER_TX_MODES (RIG_MODE_FM|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR)
+#define IC7300_OTHER_TX_MODES (RIG_MODE_FM|RIG_MODE_PKTFM|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR)
 #define IC7300_AM_TX_MODES (RIG_MODE_AM|RIG_MODE_PKTAM)
 
 #define IC7300_FUNCS (RIG_FUNC_NB|RIG_FUNC_COMP|RIG_FUNC_VOX|RIG_FUNC_TONE|RIG_FUNC_TSQL|RIG_FUNC_SBKIN|RIG_FUNC_FBKIN|RIG_FUNC_NR|RIG_FUNC_MON|RIG_FUNC_MN|RIG_FUNC_ANF|RIG_FUNC_LOCK|RIG_FUNC_RIT|RIG_FUNC_XIT|RIG_FUNC_SCOPE|RIG_FUNC_TUNER|RIG_FUNC_TRANSCEIVE|RIG_FUNC_SPECTRUM|RIG_FUNC_SPECTRUM_HOLD|RIG_FUNC_SEND_MORSE|RIG_FUNC_SEND_VOICE_MEM|RIG_FUNC_OVF_STATUS)
@@ -64,7 +64,7 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo);
 #define IC7300_VFOS (RIG_VFO_A|RIG_VFO_B|RIG_VFO_MEM)
 // RIG_PARM_BANDSELECT disabled until Icom can describe the return from 0x1a 0x01
 //#define IC7300_PARMS (RIG_PARM_ANN|RIG_PARM_BACKLIGHT|RIG_PARM_TIME|RIG_PARM_BEEP|RIG_PARM_BANDSELECT)
-#define IC7300_PARMS (RIG_PARM_ANN|RIG_PARM_BACKLIGHT|RIG_PARM_SCREENSAVER|RIG_PARM_TIME|RIG_PARM_BEEP|RIG_PARM_KEYERTYPE)
+#define IC7300_PARMS (RIG_PARM_ANN|RIG_PARM_BACKLIGHT|RIG_PARM_SCREENSAVER|RIG_PARM_TIME|RIG_PARM_BEEP|RIG_PARM_KEYERTYPE|RIG_PARM_AFIF)
 
 #define IC7300_VFO_OPS (RIG_OP_CPY|RIG_OP_XCHG|RIG_OP_FROM_VFO|RIG_OP_TO_VFO|RIG_OP_MCL|RIG_OP_TUNE)
 #define IC7300_SCAN_OPS (RIG_SCAN_STOP|RIG_SCAN_MEM|RIG_SCAN_PROG|RIG_SCAN_SLCT)
@@ -147,6 +147,7 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo);
 /*
  * IC705 items that differ from IC7300
  */
+#define IC705_PARMS (RIG_PARM_ANN|RIG_PARM_BACKLIGHT|RIG_PARM_SCREENSAVER|RIG_PARM_TIME|RIG_PARM_BEEP|RIG_PARM_KEYERTYPE|RIG_PARM_AFIF|RIG_PARM_AFIF_WLAN)
 #define IC705_ALL_TX_MODES (RIG_MODE_FM|RIG_MODE_AM|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_DSTAR)
 #define IC705_ALL_RX_MODES (RIG_MODE_FM|RIG_MODE_AM|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_PKTLSB|RIG_MODE_PKTUSB|RIG_MODE_PKTFM|RIG_MODE_PKTAM|RIG_MODE_DSTAR)
 #define IC705_OTHER_TX_MODES (RIG_MODE_FM|RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY|RIG_MODE_RTTYR|RIG_MODE_DSTAR)
@@ -175,7 +176,7 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo);
 #define IC9700_VFOS (RIG_VFO_A|RIG_VFO_B|RIG_VFO_MAIN|RIG_VFO_SUB|RIG_VFO_MEM|RIG_VFO_MAIN_A|RIG_VFO_MAIN_B|RIG_VFO_SUB_A|RIG_VFO_SUB_B)
 // RIG_PARM_BANDSELECT disabled until Icom can describe the return from 0x1a 0x01
 //#define IC9700_PARMS (RIG_PARM_ANN|RIG_PARM_BACKLIGHT|RIG_PARM_TIME|RIG_PARM_BEEP|RIG_PARM_SCREENSAVER|RIG_PARM_BANDSELECT)
-#define IC9700_PARMS (RIG_PARM_ANN|RIG_PARM_BACKLIGHT|RIG_PARM_TIME|RIG_PARM_BEEP|RIG_PARM_SCREENSAVER|RIG_PARM_KEYERTYPE)
+#define IC9700_PARMS (RIG_PARM_ANN|RIG_PARM_BACKLIGHT|RIG_PARM_TIME|RIG_PARM_BEEP|RIG_PARM_SCREENSAVER|RIG_PARM_KEYERTYPE|RIG_PARM_AFIF|RIG_PARM_AFIF_LAN|RIG_PARM_AFIF_ACC)
 #define IC9700_FUNCS (RIG_FUNC_NB|RIG_FUNC_COMP|RIG_FUNC_VOX|RIG_FUNC_TONE|RIG_FUNC_TSQL|RIG_FUNC_SBKIN|RIG_FUNC_FBKIN|RIG_FUNC_NR|RIG_FUNC_MON|RIG_FUNC_MN|RIG_FUNC_ANF|RIG_FUNC_LOCK|RIG_FUNC_RIT|RIG_FUNC_SCOPE|RIG_FUNC_SATMODE|RIG_FUNC_DUAL_WATCH|RIG_FUNC_AFC|RIG_FUNC_TRANSCEIVE|RIG_FUNC_SPECTRUM|RIG_FUNC_SPECTRUM_HOLD|RIG_FUNC_SEND_MORSE|RIG_FUNC_SEND_VOICE_MEM|RIG_FUNC_OVF_STATUS)
 #define IC9700_LEVELS (RIG_LEVEL_PREAMP|RIG_LEVEL_ATT|RIG_LEVEL_AGC|RIG_LEVEL_COMP|RIG_LEVEL_BKINDL|RIG_LEVEL_NR|RIG_LEVEL_PBT_IN|RIG_LEVEL_PBT_OUT|RIG_LEVEL_CWPITCH|RIG_LEVEL_RFPOWER|RIG_LEVEL_MICGAIN|RIG_LEVEL_KEYSPD|RIG_LEVEL_NOTCHF_RAW|RIG_LEVEL_SQL|RIG_LEVEL_RAWSTR|RIG_LEVEL_STRENGTH|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_VOXGAIN|RIG_LEVEL_ANTIVOX|RIG_LEVEL_VOXDELAY|RIG_LEVEL_SWR|RIG_LEVEL_ALC|RIG_LEVEL_RFPOWER_METER|RIG_LEVEL_RFPOWER_METER_WATTS|RIG_LEVEL_COMP_METER|RIG_LEVEL_VD_METER|RIG_LEVEL_ID_METER|RIG_LEVEL_MONITOR_GAIN|RIG_LEVEL_NB|RIG_LEVEL_SPECTRUM_MODE|RIG_LEVEL_SPECTRUM_SPAN|RIG_LEVEL_SPECTRUM_SPEED|RIG_LEVEL_SPECTRUM_REF|RIG_LEVEL_SPECTRUM_AVG|RIG_LEVEL_SPECTRUM_EDGE_LOW|RIG_LEVEL_SPECTRUM_EDGE_HIGH|RIG_LEVEL_USB_AF|RIG_LEVEL_AGC_TIME)
 #define IC9700_VFO_OPS (RIG_OP_CPY|RIG_OP_XCHG|RIG_OP_FROM_VFO|RIG_OP_TO_VFO|RIG_OP_MCL)
@@ -271,7 +272,9 @@ struct cmdparams ic9700_extcmds[] =
     { {.s = RIG_PARM_BACKLIGHT}, CMD_PARAM_TYPE_PARM, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x52}, CMD_DAT_LVL, 2 },
     { {.s = RIG_PARM_SCREENSAVER}, CMD_PARAM_TYPE_PARM, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x67}, CMD_DAT_INT, 1 },
     { {.s = RIG_PARM_TIME}, CMD_PARAM_TYPE_PARM, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x80}, CMD_DAT_TIM, 2 },
-    { {.s = RIG_PARM_AFIF}, CMD_PARAM_TYPE_PARM, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x00}, CMD_DAT_BOL, 1 },
+    { {.s = RIG_PARM_AFIF}, CMD_PARAM_TYPE_PARM, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x05}, CMD_DAT_BOL, 1 },
+    { {.s = RIG_PARM_AFIF_ACC}, CMD_PARAM_TYPE_PARM, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x00}, CMD_DAT_BOL, 1 },
+    { {.s = RIG_PARM_AFIF_LAN}, CMD_PARAM_TYPE_PARM, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x10}, CMD_DAT_BOL, 1 },
     { {.s = RIG_LEVEL_VOXDELAY}, CMD_PARAM_TYPE_LEVEL, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x03, 0x30}, CMD_DAT_INT, 1 },
     { {.s = RIG_FUNC_TRANSCEIVE}, CMD_PARAM_TYPE_FUNC, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x27}, CMD_DAT_BOL, 1 },
     { {.s = RIG_LEVEL_SPECTRUM_AVG}, CMD_PARAM_TYPE_LEVEL, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x92}, CMD_DAT_INT, 1 },
@@ -288,6 +291,7 @@ struct cmdparams ic705_extcmds[] =
     { {.s = RIG_PARM_SCREENSAVER}, CMD_PARAM_TYPE_PARM, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x38}, CMD_DAT_INT, 1 },
     { {.s = RIG_PARM_TIME}, CMD_PARAM_TYPE_PARM, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x66}, CMD_DAT_TIM, 2 },
     { {.s = RIG_PARM_AFIF}, CMD_PARAM_TYPE_PARM, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x09}, CMD_DAT_BOL, 1 },
+    { {.s = RIG_PARM_AFIF_WLAN}, CMD_PARAM_TYPE_PARM, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x14}, CMD_DAT_BOL, 1 },
     { {.s = RIG_LEVEL_VOXDELAY}, CMD_PARAM_TYPE_LEVEL, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x03, 0x59}, CMD_DAT_INT, 1 },
     { {.s = RIG_FUNC_TRANSCEIVE}, CMD_PARAM_TYPE_FUNC, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x31}, CMD_DAT_BOL, 1 },
     { {.s = RIG_LEVEL_SPECTRUM_AVG}, CMD_PARAM_TYPE_LEVEL, C_CTL_MEM, S_MEM_PARM, SC_MOD_RW, 2, {0x01, 0x78}, CMD_DAT_INT, 1 },
@@ -737,7 +741,7 @@ struct rig_caps ic7300_caps =
     RIG_MODEL(RIG_MODEL_IC7300),
     .model_name = "IC-7300",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".12",
+    .version =  BACKEND_VER ".13",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -982,7 +986,7 @@ struct rig_caps ic9700_caps =
     RIG_MODEL(RIG_MODEL_IC9700),
     .model_name = "IC-9700",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".19",
+    .version =  BACKEND_VER ".20",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -1306,7 +1310,7 @@ struct rig_caps ic705_caps =
     RIG_MODEL(RIG_MODEL_IC705),
     .model_name = "IC-705",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".10",
+    .version =  BACKEND_VER ".11",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -1600,7 +1604,7 @@ struct rig_caps ic905_caps =
     .has_get_level =  IC705_LEVELS,
     .has_set_level =  RIG_LEVEL_SET(IC705_LEVELS),
     .has_get_parm =  IC7300_PARMS,
-    .has_set_parm =  RIG_PARM_SET(IC7300_PARMS),
+    .has_set_parm =  RIG_PARM_SET(IC705_PARMS),
     .level_gran = {
 #include "level_gran_icom.h"
         [LVL_KEYSPD] = {.min = {.i = 6}, .max = {.i = 48}, .step = {.i = 1}},
@@ -2238,7 +2242,7 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo)
         else
         {
             rig_debug(RIG_DEBUG_ERR, "%s: Invalid VFO %s in satellite mode\n", __func__, rig_strvfo(vfo));
-            return -RIG_EINVAL;
+            RETURNFUNC(-RIG_EINVAL);
         }
     }
 
@@ -2253,7 +2257,7 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo)
             rig_debug(RIG_DEBUG_WARN, "%s: cannot switch to VFOB when in satmode\n",
                       __func__);
             // we return RIG_OK anyways as this should just be a bad request
-            return RIG_OK;
+            RETURNFUNC(RIG_OK);
         }
 
         retval = icom_transaction(rig, C_SET_VFO, S_VFOB, NULL, 0, ackbuf, &ack_len);
@@ -2265,14 +2269,14 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo)
         if (retval != RIG_OK)
         {
             rig_debug(RIG_DEBUG_ERR, "%s: %s\n", __func__, rigerror(retval));
-            return retval;
+            RETURNFUNC(retval);
         }
 
         if (cachep->satmode && vfo == RIG_VFO_MAIN_B)
         {
             rig_debug(RIG_DEBUG_WARN, "%s: cannot switch to VFOB when in satmode\n", __func__);
             // we return RIG_OK anyways as this should just be a bad request
-            return RIG_OK;
+            RETURNFUNC(RIG_OK);
         }
 
         if (vfo == RIG_VFO_MAIN_A || vfo == RIG_VFO_MAIN_B)
@@ -2288,14 +2292,14 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo)
         if (retval != RIG_OK)
         {
             rig_debug(RIG_DEBUG_ERR, "%s: %s\n", __func__, rigerror(retval));
-            return retval;
+            RETURNFUNC(retval);
         }
 
         if (cachep->satmode && vfo == RIG_VFO_SUB_B)
         {
             rig_debug(RIG_DEBUG_WARN, "%s: cannot switch to VFOB when in satmode\n", __func__);
             // we return RIG_OK anyways as this should just be a bad request
-            return RIG_OK;
+            RETURNFUNC(RIG_OK);
         }
 
         if (vfo == RIG_VFO_SUB_A || vfo == RIG_VFO_SUB_B)
@@ -2307,7 +2311,7 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo)
     }
     else if (vfo == RIG_VFO_MEM)
     {
-        return icom_set_vfo(rig, vfo);
+        RETURNFUNC(icom_set_vfo(rig, vfo));
     }
     else
     {
@@ -2318,7 +2322,7 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo)
     if (retval != RIG_OK)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: %s\n", __func__, rigerror(retval));
-        return retval;
+        RETURNFUNC(retval);
     }
 
     RETURNFUNC(retval);

@@ -117,15 +117,15 @@ static int dummy_amp_init(AMP *amp)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    amp->state.priv = (struct dummy_amp_priv_data *)
+    AMPSTATE(amp)->priv = (struct dummy_amp_priv_data *)
                       calloc(1, sizeof(struct dummy_amp_priv_data));
 
-    if (!amp->state.priv)
+    if (!AMPSTATE(amp)->priv)
     {
         return -RIG_ENOMEM;
     }
 
-    priv = amp->state.priv;
+    priv = AMPSTATE(amp)->priv;
 
     priv->ext_funcs = alloc_init_ext(dummy_ext_funcs);
 
@@ -162,21 +162,20 @@ static int dummy_amp_init(AMP *amp)
 static int dummy_amp_cleanup(AMP *amp)
 {
     const struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
-            amp->state.priv;
+            AMPSTATE(amp)->priv;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    free(priv->ext_funcs);
-    free(priv->ext_levels);
-    free(priv->ext_parms);
-    free(priv->magic_conf);
-
-    if (amp->state.priv)
+    if (AMPSTATE(amp)->priv)
     {
-        free(amp->state.priv);
+        free(priv->ext_funcs);
+        free(priv->ext_levels);
+        free(priv->ext_parms);
+        free(priv->magic_conf);
+        free(AMPSTATE(amp)->priv);
     }
 
-    amp->state.priv = NULL;
+    AMPSTATE(amp)->priv = NULL;
 
     return RIG_OK;
 }
@@ -291,7 +290,7 @@ Also a way to display faults (there are commands)
 static int dummy_amp_get_freq(AMP *amp, freq_t *freq)
 {
     const struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
-            amp->state.priv;
+            AMPSTATE(amp)->priv;
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
     *freq = priv->freq;
     return RIG_OK;
@@ -300,7 +299,7 @@ static int dummy_amp_get_freq(AMP *amp, freq_t *freq)
 static int dummy_amp_set_freq(AMP *amp, freq_t freq)
 {
     struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
-                                       amp->state.priv;
+                                       AMPSTATE(amp)->priv;
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
     priv->freq = freq;
     return RIG_OK;
@@ -834,7 +833,7 @@ static int dummy_amp_get_status(AMP *amp, amp_status_t *status)
 static int dummy_amp_set_powerstat(AMP *amp, powerstat_t status)
 {
     struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
-                                       amp->state.priv;
+                                       AMPSTATE(amp)->priv;
 
     switch (status)
     {
@@ -874,7 +873,7 @@ static int dummy_amp_set_powerstat(AMP *amp, powerstat_t status)
 static int dummy_amp_get_powerstat(AMP *amp, powerstat_t *status)
 {
     const struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
-            amp->state.priv;
+            AMPSTATE(amp)->priv;
 
     *status = priv->powerstat;
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -885,7 +884,9 @@ static int dummy_amp_get_powerstat(AMP *amp, powerstat_t *status)
 static int dummy_set_func(AMP *amp, setting_t func, int status)
 {
     struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
-            amp->state.priv;
+                                       AMPSTATE(amp)->priv;
+    const struct confparams *cfp;
+    struct ext_list *elp;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s %d\n", __func__,
               amp_strfunc(func), status);

@@ -48,7 +48,7 @@ struct netrigctl_priv_data
 int netrigctl_get_vfo_mode(RIG *rig)
 {
     struct netrigctl_priv_data *priv;
-    priv = (struct netrigctl_priv_data *)rig->state.priv;
+    priv = (struct netrigctl_priv_data *)STATE(rig)->priv;
     return priv->rigctld_vfo_mode;
 }
 
@@ -105,7 +105,7 @@ static int netrigctl_vfostr(RIG *rig, char *vfostr, int len, vfo_t vfo)
 
     vfostr[0] = 0;
 
-    priv = (struct netrigctl_priv_data *)rig->state.priv;
+    priv = (struct netrigctl_priv_data *)STATE(rig)->priv;
 
     if (vfo == RIG_VFO_CURR)
     {
@@ -118,9 +118,9 @@ static int netrigctl_vfostr(RIG *rig, char *vfostr, int len, vfo_t vfo)
     else if (vfo == RIG_VFO_RX) { vfo = priv->rx_vfo; }
     else if (vfo == RIG_VFO_TX) { vfo = priv->tx_vfo; }
 
-    rig_debug(RIG_DEBUG_TRACE, "%s: vfo_opt=%d\n", __func__, rig->state.vfo_opt);
+    rig_debug(RIG_DEBUG_TRACE, "%s: vfo_opt=%d\n", __func__, STATE(rig)->vfo_opt);
 
-    if (rig->state.vfo_opt || priv->rigctld_vfo_mode)
+    if (STATE(rig)->vfo_opt || priv->rigctld_vfo_mode)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: vfo_opt vfo=%u\n", __func__, vfo);
         char *myvfo;
@@ -164,15 +164,15 @@ static int netrigctl_init(RIG *rig)
         return -RIG_EINVAL;
     }
 
-    rig->state.priv = (struct netrigctl_priv_data *)calloc(1, sizeof(
+    STATE(rig)->priv = (struct netrigctl_priv_data *)calloc(1, sizeof(
                           struct netrigctl_priv_data));
 
-    if (!rig->state.priv)
+    if (!STATE(rig)->priv)
     {
         return -RIG_ENOMEM;
     }
 
-    priv = rig->state.priv;
+    priv = STATE(rig)->priv;
     memset(priv, 0, sizeof(struct netrigctl_priv_data));
 
     rig_debug(RIG_DEBUG_TRACE, "%s version %s\n", __func__, rig->caps->version);
@@ -189,9 +189,9 @@ static int netrigctl_init(RIG *rig)
 
 static int netrigctl_cleanup(RIG *rig)
 {
-    if (rig->state.priv) { free(rig->state.priv); }
+    if (STATE(rig)->priv) { free(STATE(rig)->priv); }
 
-    rig->state.priv = NULL;
+    STATE(rig)->priv = NULL;
     return RIG_OK;
 }
 
@@ -247,7 +247,7 @@ int parse_array_double(const char *s, const char *delim, double *array,
 static int netrigctl_open(RIG *rig)
 {
     int ret, i;
-    struct rig_state *rs = &rig->state;
+    struct rig_state *rs = STATE(rig);
     hamlib_port_t *rp = RIGPORT(rig);
     int prot_ver;
     char cmd[CMD_MAX];
@@ -257,7 +257,7 @@ static int netrigctl_open(RIG *rig)
 
     ENTERFUNC;
 
-    priv = (struct netrigctl_priv_data *)rig->state.priv;
+    priv = (struct netrigctl_priv_data *)STATE(rig)->priv;
     priv->rx_vfo = RIG_VFO_A;
     priv->tx_vfo = RIG_VFO_B;
 
@@ -266,7 +266,7 @@ static int netrigctl_open(RIG *rig)
 
     if (sscanf(buf, "%d", &priv->rigctld_vfo_mode) == 1)
     {
-        rig->state.vfo_opt = priv->rigctld_vfo_mode;
+        STATE(rig)->vfo_opt = priv->rigctld_vfo_mode;
         rig_debug(RIG_DEBUG_TRACE, "%s: chkvfo=%d\n", __func__, priv->rigctld_vfo_mode);
     }
     else if (ret == 2)
@@ -635,7 +635,7 @@ static int netrigctl_open(RIG *rig)
         ret = read_string(rp, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
         strtok(buf, "\r\n"); // chop the EOL
 
-rig_debug(RIG_DEBUG_ERR, "## %s\n", buf);
+        rig_debug(RIG_DEBUG_VERBOSE, "## %s\n", buf);
         if (ret <= 0)
         {
             RETURNFUNC((ret < 0) ? ret : -RIG_EPROTO);
@@ -647,7 +647,7 @@ rig_debug(RIG_DEBUG_ERR, "## %s\n", buf);
         {
             if (strcmp(setting, "vfo_ops") == 0)
             {
-                rig->caps->vfo_ops = rig->state.vfo_ops = strtoll(value, NULL, 0);
+                rig->caps->vfo_ops = STATE(rig)->vfo_ops = strtoll(value, NULL, 0);
                 rig_debug(RIG_DEBUG_TRACE, "%s: %s set to %d\n", __func__, setting,
                           rig->caps->vfo_ops);
             }
@@ -665,7 +665,7 @@ rig_debug(RIG_DEBUG_ERR, "## %s\n", buf);
                      * locally overridden it
                      */
                     pttp->type.ptt = RIG_PTT_RIG_MICDATA;
-                    rig->caps->ptt_type = rig->state.ptt_type = RIG_PTT_RIG_MICDATA;
+                    rig->caps->ptt_type = STATE(rig)->ptt_type = RIG_PTT_RIG_MICDATA;
                     rig_debug(RIG_DEBUG_TRACE, "%s: %s set to %d\n", __func__, setting,
                               pttp->type.ptt);
                 }
@@ -673,13 +673,13 @@ rig_debug(RIG_DEBUG_ERR, "## %s\n", buf);
                 {
                     rig_debug(RIG_DEBUG_VERBOSE, "%s: ptt_type= %d\n", __func__, temp);
                     pttp->type.ptt = temp;
-                    rig->caps->ptt_type = rig->state.ptt_type = temp;
+                    rig->caps->ptt_type = STATE(rig)->ptt_type = temp;
                 }
             }
 
             else if (strcmp(setting, "targetable_vfo") == 0)
             {
-                rig->caps->targetable_vfo = rig->state.targetable_vfo = strtol(value, NULL, 0);
+                rig->caps->targetable_vfo = STATE(rig)->targetable_vfo = strtol(value, NULL, 0);
                 rig_debug(RIG_DEBUG_VERBOSE, "%s: targetable_vfo=0x%2x\n", __func__,
                           rig->caps->targetable_vfo);
             }
@@ -889,6 +889,11 @@ rig_debug(RIG_DEBUG_ERR, "## %s\n", buf);
                     p = strtok(NULL, ";");
                 }
             }
+            else if (strcmp(setting, "hamlib_version") == 0)
+            {
+                printf("rigctld: %s\n", value);
+            }
+
 
             else
             {
@@ -917,7 +922,7 @@ rig_debug(RIG_DEBUG_ERR, "## %s\n", buf);
 
 static int netrigctl_close(RIG *rig)
 {
-    const struct rig_state *rs = &rig->state;
+    const struct rig_state *rs = STATE(rig);
     int ret;
     char buf[BUF_MAX];
 
@@ -1100,7 +1105,7 @@ static int netrigctl_set_vfo(RIG *rig, vfo_t vfo)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    priv = (struct netrigctl_priv_data *)rig->state.priv;
+    priv = (struct netrigctl_priv_data *)STATE(rig)->priv;
 
     SNPRINTF(cmd, sizeof(cmd), "V %s\n", rig_strvfo(vfo));
     rig_debug(RIG_DEBUG_VERBOSE, "%s: cmd='%s'\n", __func__, cmd);
@@ -1112,7 +1117,7 @@ static int netrigctl_set_vfo(RIG *rig, vfo_t vfo)
     }
 
     priv->vfo_curr = vfo; // remember our vfo
-    rig->state.current_vfo = vfo;
+    STATE(rig)->current_vfo = vfo;
     return ret;
 }
 
@@ -1126,7 +1131,7 @@ static int netrigctl_get_vfo(RIG *rig, vfo_t *vfo)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    priv = (struct netrigctl_priv_data *)rig->state.priv;
+    priv = (struct netrigctl_priv_data *)STATE(rig)->priv;
 
     SNPRINTF(cmd, sizeof(cmd), "v\n");
 
@@ -2646,7 +2651,7 @@ static int netrigctl_set_vfo_opt(RIG *rig, int status)
         return -RIG_EPROTO;
     }
 
-    rig->state.vfo_opt = status;
+    STATE(rig)->vfo_opt = status;
     return RIG_OK;
 }
 
@@ -2681,7 +2686,7 @@ static int netrigctl_get_trn(RIG *rig, int *trn)
 
     if (ret <= 0)
     {
-        return -RIG_EPROTO;
+        RETURNFUNC(-RIG_EPROTO);
     }
 
     if (strstr(buf, "OFF")) { *trn = RIG_TRN_OFF; }
@@ -2713,7 +2718,7 @@ static int netrigctl_mW2power(RIG *rig, float *power, unsigned int mwpower,
 
     if (ret <= 0)
     {
-        return -RIG_EPROTO;
+        RETURNFUNC(-RIG_EPROTO);
     }
 
     *power = atof(buf);
@@ -2738,7 +2743,7 @@ static int netrigctl_power2mW(RIG *rig, unsigned int *mwpower, float power,
 
     if (ret <= 0)
     {
-        return -RIG_EPROTO;
+        RETURNFUNC(-RIG_EPROTO);
     }
 
     *mwpower = atof(buf);
@@ -2785,6 +2790,8 @@ int netrigctl_get_lock_mode(RIG *rig, int *lock)
     char cmdbuf[256];
     char buf[BUF_MAX];
     int ret;
+    hamlib_port_t *rp = RIGPORT(rig);
+
     SNPRINTF(cmdbuf, sizeof(cmdbuf), "\\get_lock_mode\n");
     ret = netrigctl_transaction(rig, cmdbuf, strlen(cmdbuf), buf);
 
@@ -2794,6 +2801,7 @@ int netrigctl_get_lock_mode(RIG *rig, int *lock)
     }
 
     sscanf(buf, "%d", lock);
+    ret = read_string(rp, (unsigned char *) buf, BUF_MAX, "\n", 1, 0, 1);
     return (RIG_OK);
 }
 
@@ -2814,7 +2822,7 @@ struct rig_caps netrigctl_caps =
     RIG_MODEL(RIG_MODEL_NETRIGCTL),
     .model_name =     "NET rigctl",
     .mfg_name =       "Hamlib",
-    .version =        "20240304.0",
+    .version =        "20240418.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,

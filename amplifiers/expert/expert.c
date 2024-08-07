@@ -475,10 +475,10 @@ int expert_init(AMP *amp)
         return -RIG_EINVAL;
     }
 
-    amp->state.priv = (struct expert_priv_data *)
+    AMPSTATE(amp)->priv = (struct expert_priv_data *)
                       calloc(1, sizeof(struct expert_priv_data));
 
-    if (!amp->state.priv)
+    if (!AMPSTATE(amp)->priv)
     {
         return -RIG_ENOMEM;
     }
@@ -522,12 +522,12 @@ int expert_cleanup(AMP *amp)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    if (amp->state.priv)
+    if (AMPSTATE(amp)->priv)
     {
-        free(amp->state.priv);
+        free(AMPSTATE(amp)->priv);
     }
 
-    amp->state.priv = NULL;
+    AMPSTATE(amp)->priv = NULL;
 
     return RIG_OK;
 }
