@@ -186,8 +186,8 @@ declare_proto_amp(get_powerstat);
  */
 struct test_table test_list[] =
 {
-    { 'F', "set_freq",      ACTION(set_freq),       ARG_IN, "Frequency(Hz)" },
-    { 'f', "get_freq",      ACTION(get_freq),       ARG_OUT, "Frequency(Hz)" },
+    { 'F', "set_freq",      ACTION(set_freq),       ARG_IN, "Frequency" },
+    { 'f', "get_freq",      ACTION(get_freq),       ARG_OUT, "Frequency" },
     { 'l', "get_level",     ACTION(get_level),      ARG_IN1 | ARG_OUT2, "Level", "Level Value" },
     { 'L', "set_level",     ACTION(set_level),      ARG_IN, "Level", "Level Value" },
     { 'U', "set_func",      ACTION(set_func),       ARG_IN, "Func", "Func Status" },
