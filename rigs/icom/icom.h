@@ -297,7 +297,8 @@ struct icom_priv_data
     int filter_usbd;         /*!< Filter number to use for USBD/LSBD when setting mode */
     int filter_usb;          /*!< Filter number to use for USB/LSB when setting mode */
     int filter_cw;           /*!< Filter number to use for CW/CWR when setting mode */
-    int filter_fm;           /*!< Filter number to use for CW/CWR when setting mode */
+    int filter_fm;           /*!< Filter number to use for FM when setting mode */
+    int retry_collisions;    /*!< Retry commands when CI-V collisions occur */
 };
 
 extern const struct ts_sc_list r8500_ts_sc_list[];

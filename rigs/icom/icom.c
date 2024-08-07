@@ -489,6 +489,7 @@ struct icom_addr
 #define TOK_FILTER_USB TOKEN_BACKEND(6)
 #define TOK_FILTER_CW TOKEN_BACKEND(7)
 #define TOK_FILTER_FM TOKEN_BACKEND(8)
+#define TOK_RETRY_COLLISIONS TOKEN_BACKEND(9)
 
 const struct confparams icom_cfg_params[] =
 {
@@ -526,6 +527,10 @@ const struct confparams icom_cfg_params[] =
     {
         TOK_FILTER_FM, "filter_fm", "Filter to use FM", "Filter to use for FM/PKTFM when setting mode",
         "1", RIG_CONF_NUMERIC, {.n = {0, 3, 1}}
+    },
+    {
+        TOK_RETRY_COLLISIONS, "retry_collisions", "Retry collisions", "Retry commands when CI-V collisions occur",
+        "1", RIG_CONF_CHECKBUTTON
     },
     {RIG_CONF_END, NULL,}
 };
@@ -766,6 +771,7 @@ int icom_init(RIG *rig)
     priv->re_civ_addr = priv_caps->re_civ_addr;
     priv->civ_731_mode = priv_caps->civ_731_mode;
     priv->no_xchg = priv_caps->no_xchg;
+    priv->retry_collisions = 1;
     priv->serial_USB_echo_off = -1; // unknown at this point
     priv->x25cmdfails = 1;
     priv->x26cmdfails = 1;
@@ -5376,6 +5382,10 @@ int icom_set_conf(RIG *rig, hamlib_token_t token, const char *val)
 
         if (priv->filter_fm < 1) { priv->filter_fm = 1; }
 
+        break;
+
+    case TOK_RETRY_COLLISIONS:
+        priv->retry_collisions = atoi(val) ? 1 : 0;
         break;
 
     default:
