@@ -44,6 +44,7 @@
 // to stop warnings about including winsock2.h before windows.h
 #if defined(_WIN32)
 #include <winsock2.h>
+#include <windows.h>
 #include <ws2tcpip.h>
 #else
 #include <sys/socket.h>
@@ -1156,7 +1157,8 @@ enum rig_parm_e {
 enum rig_keyertype_e {
     RIG_KEYERTYPE_STRAIGHT = 0,
     RIG_KEYERTYPE_BUG      = (1 << 0),
-    RIG_KEYERTYPE_PADDLE   = (2 << 0)
+    RIG_KEYERTYPE_PADDLE   = (1 << 1),
+    RIG_KEYERTYPE_UNKNOWN  = (1 << 2)
 };
 
 /**
@@ -1675,7 +1677,8 @@ typedef enum {
     RIG_MTYPE_BAND,         /*!< VFO/Band channel */
     RIG_MTYPE_PRIO,         /*!< Priority channel */
 	RIG_MTYPE_VOICE,		/*!< Stored Voice Message */
-	RIG_MTYPE_MORSE			/*!< Morse Message */
+	RIG_MTYPE_MORSE,		/*!< Morse Message */
+	RIG_MTYPE_SPLIT			/*!< Split operations */
 } chan_type_t;
 
 
@@ -2903,7 +2906,7 @@ struct rig_state {
  */
 struct rig_state_deprecated {
     /********* ENSURE YOU DO NOT EVER MODIFY THIS STRUCTURE *********/
-    /********* It will remain forever to provide DLL backwards compatiblity ******/
+    /********* It will remain forever to provide DLL backwards compatibility ******/
     /*
      * overridable fields
      */
@@ -3063,7 +3066,7 @@ typedef int (*spectrum_cb_t)(RIG *,
  * \sa rig_set_freq_callback(), rig_set_mode_callback(), rig_set_vfo_callback(),
  *     rig_set_ptt_callback(), rig_set_dcd_callback()
  */
-// Do NOT add/remove from this structure -- it will break DLL backwards compatiblity
+// Do NOT add/remove from this structure -- it will break DLL backwards compatibility
 struct rig_callbacks {
     freq_cb_t freq_event;   /*!< Frequency change event */
     rig_ptr_t freq_arg;     /*!< Frequency change argument */
@@ -3771,7 +3774,7 @@ extern HAMLIB_EXPORT_VAR(char) debugmsgsave3[DEBUGMSGSAVE_SIZE];  // last-2 debu
 #define ELAPSED2 rig_debug(RIG_DEBUG_VERBOSE, "%s%d:%s: elapsed=%.0lfms\n", spaces(STATE(rig)->depth), STATE(rig)->depth, __func__, elapsed_ms(&__begin, HAMLIB_ELAPSED_GET));
 
 // use this instead of snprintf for automatic detection of buffer limit
-#define SNPRINTF(s,n,...) { snprintf(s,n,##__VA_ARGS__);if (strlen(s) > n-1) fprintf(stderr,"****** %s(%d): buffer overflow ******\n", __func__, __LINE__); }
+#define SNPRINTF(s,n,...) { if (snprintf(s,n,##__VA_ARGS__) >= (n)) fprintf(stderr,"***** %s(%d): message truncated *****\n", __func__, __LINE__); }
 
 extern HAMLIB_EXPORT(void)
 rig_debug HAMLIB_PARAMS((enum rig_debug_level_e debug_level,

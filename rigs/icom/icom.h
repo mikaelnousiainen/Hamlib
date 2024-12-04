@@ -35,7 +35,7 @@
 #include <sys/time.h>
 #endif
 
-#define BACKEND_VER "20240804"
+#define BACKEND_VER "20241203"
 
 #define ICOM_IS_ID31 rig_is_model(rig, RIG_MODEL_ID31)
 #define ICOM_IS_ID51 rig_is_model(rig, RIG_MODEL_ID51)
@@ -251,6 +251,7 @@ struct icom_priv_caps
     int x1ax03_supported;       /*!< Rig supports setting/getting filter width */
     int mode_with_filter;       /*!< Rig mode commands include filter selection */
     int data_mode_supported;    /*!< Rig supports data mode flag */
+    int fm_filters[3];          /*!< For models with FIL1/2/3 for FM low-to-high fixed filters -- IC7300/9700 */
 };
 
 struct icom_priv_data
@@ -498,6 +499,7 @@ extern struct rig_caps ic475_caps;
 extern struct rig_caps ic575_caps;
 extern struct rig_caps ic1275_caps;
 extern struct rig_caps icf8101_caps;
+extern struct rig_caps ic7760_caps;
 
 extern struct rig_caps omnivip_caps;
 extern struct rig_caps delta2_caps;

@@ -80,8 +80,9 @@ int main(int argc, const char *argv[])
 
     uint64_t levels = rig_get_caps_int(my_rig->caps->rig_model,
                                        RIG_CAPS_HAS_GET_LEVEL);
-    printf("HAS_GET_LEVEL=0x%8lx, SWR=%8llx,true=%d\n", levels,
-           levels & RIG_LEVEL_SWR, (levels & RIG_LEVEL_SWR) == RIG_LEVEL_SWR);
+    printf("HAS_GET_LEVEL=0x%8llx, SWR=%8llx,true=%d\n", (unsigned long long)levels,
+           (unsigned long long)(levels & RIG_LEVEL_SWR),
+           (levels & RIG_LEVEL_SWR) == RIG_LEVEL_SWR);
 
     char val[256];
     retcode = rig_get_conf2(my_rig, rig_token_lookup(my_rig, "write_delay"), val,
@@ -152,7 +153,7 @@ int main(int argc, const char *argv[])
 
     if (freq != 29620000)
     {
-        printf("rig_set_freq: error exptect %.0f got %.0f\n", 296290000.0, freq);
+        printf("rig_set_freq: error expect %.0f got %.0f\n", 296290000.0, freq);
     }
 
     if (rmode != RIG_MODE_FM || width != rig_passband_narrow(my_rig, RIG_MODE_FM))

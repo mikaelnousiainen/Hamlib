@@ -565,7 +565,9 @@ struct rig_caps ts870s_caps =
     .has_set_parm =  RIG_PARM_NONE,    /* FIXME: parms */
     .level_gran =
     {
+#define NO_LVL_ATT
 #include "level_gran_kenwood.h"
+#undef NO_LVL_ATT
         [LVL_ATT] = { .min = { .i = 0 }, .max = { .i = 18 }, .step = { .i = 6 } },
     },
     .parm_gran =  {},
@@ -587,7 +589,7 @@ struct rig_caps ts870s_caps =
     .chan_list =  {
         {  0, 89, RIG_MTYPE_MEM  }, /* TBC */
         { 90, 99, RIG_MTYPE_EDGE },
-		{  1,  4, RIG_MTYPE_MORSE },
+        {  1,  4, RIG_MTYPE_MORSE },
         RIG_CHAN_END,
     },
 

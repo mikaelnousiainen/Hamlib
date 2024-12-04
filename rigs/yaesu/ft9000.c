@@ -71,7 +71,15 @@ struct rig_caps ft9000_caps =
     .has_set_parm =       RIG_PARM_NONE,
     .level_gran =
     {
+#define NO_LVL_CWPITCH
+#define NO_LVL_NOTCHF
+#define NO_LVL_COMP
+#define NO_LVL_VOXGAIN
 #include "level_gran_yaesu.h"
+#undef NO_LVL_CWPITCH
+#undef NO_LVL_NOTCHF
+#undef NO_LVL_COMP
+#undef NO_LVL_VOXGAIN
         [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 1050 }, .step = { .i = 50 } },
         [LVL_NOTCHF] = { .min = { .i = 1 }, .max = { .i = 3000 }, .step = { .i = 10 } },
         [LVL_COMP] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 255.0f } },
@@ -98,7 +106,7 @@ struct rig_caps ft9000_caps =
         /* TBC */
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
         { 100, 117, RIG_MTYPE_EDGE, NEWCAT_MEM_CAP },    /* two by two */
-        {   1,	5, RIG_MTYPE_MORSE },
+        {   1,  5, RIG_MTYPE_MORSE },
         RIG_CHAN_END,
     },
 
@@ -248,7 +256,15 @@ struct rig_caps ft9000Old_caps =
     .has_set_parm =       RIG_PARM_NONE,
     .level_gran =
     {
+#define NO_LVL_CWPITCH
+#define NO_LVL_NOTCHF
+#define NO_LVL_COMP
+#define NO_LVL_VOXGAIN
 #include "level_gran_yaesu.h"
+#undef NO_LVL_CWPITCH
+#undef NO_LVL_NOTCHF
+#undef NO_LVL_COMP
+#undef NO_LVL_VOXGAIN
         [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 1050 }, .step = { .i = 50 } },
         [LVL_NOTCHF] = { .min = { .i = 1 }, .max = { .i = 3000 }, .step = { .i = 10 } },
         [LVL_COMP] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 255.0f } },
@@ -275,7 +291,7 @@ struct rig_caps ft9000Old_caps =
         /* TBC */
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
         { 100, 117, RIG_MTYPE_EDGE, NEWCAT_MEM_CAP },    /* two by two */
-        {   1,	5, RIG_MTYPE_MORSE },
+        {   1,  5, RIG_MTYPE_MORSE },
         RIG_CHAN_END,
     },
 

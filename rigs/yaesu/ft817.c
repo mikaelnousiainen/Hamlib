@@ -310,7 +310,7 @@ struct rig_caps ft817_caps =
     RIG_MODEL(RIG_MODEL_FT817),
     .model_name =          "FT-817",
     .mfg_name =            "Yaesu",
-    .version =             "20240728.3",
+    .version =             "20241117.0",
     .copyright =           "LGPL",
     .status =              RIG_STATUS_STABLE,
     .rig_type =            RIG_TYPE_TRANSCEIVER,
@@ -460,7 +460,7 @@ struct rig_caps q900_caps =
     RIG_MODEL(RIG_MODEL_Q900),
     .model_name =          "Q900",
     .mfg_name =            "Guohe",
-    .version =             "20240122.0",
+    .version =             "20241117.0",
     .copyright =           "LGPL",
     .status =              RIG_STATUS_STABLE,
     .rig_type =            RIG_TYPE_TRANSCEIVER,
@@ -610,7 +610,7 @@ struct rig_caps ft818_caps =
     RIG_MODEL(RIG_MODEL_FT818),
     .model_name =          "FT-818",
     .mfg_name =            "Yaesu",
-    .version =             "20220424.0",
+    .version =             "20221117.0",
     .copyright =           "LGPL",
     .status =              RIG_STATUS_STABLE,
     .rig_type =            RIG_TYPE_TRANSCEIVER,
@@ -774,6 +774,7 @@ static int ft817_init(RIG *rig)
     {
         return -RIG_ENOMEM;
     }
+
     p = (struct ft817_priv_data *) STATE(rig)->priv;
 
     p->swr = 10;
@@ -1173,12 +1174,12 @@ static int ft817_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split,
         }
 
         *split = (c[0] & 0x80) ? RIG_SPLIT_ON : RIG_SPLIT_OFF;
-	*tx_vfo = RIG_VFO_A;
+        *tx_vfo = RIG_VFO_A;
     }
     else
     {
         *split = (p->tx_status & 0x20) ? RIG_SPLIT_ON : RIG_SPLIT_OFF;
-	*tx_vfo = RIG_VFO_B;
+        *tx_vfo = RIG_VFO_B;
     }
 
     return RIG_OK;
@@ -1236,7 +1237,7 @@ static int ft817_get_tx_level(RIG *rig, value_t *val, unsigned char *tx_level,
         if (ptt == RIG_PTT_OFF)
         {
 
-	      val->f = p->swr;
+            val->f = p->swr;
             return RIG_OK;
         }
 
@@ -1537,10 +1538,12 @@ int ft817_read_ack(RIG *rig)
         rig_debug(RIG_DEBUG_TRACE, "%s: ack value=0x%x\n", __func__, dummy);
 
 #if 0 // don't know of any reject codes -- none documented
+
         if (dummy != 0)
         {
             return -RIG_ERJCTED;
         }
+
 #endif
     }
 
@@ -1649,7 +1652,8 @@ static int ft817_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     rig_debug(RIG_DEBUG_VERBOSE, "ft817: requested freq = %"PRIfreq" Hz\n", freq);
 
     /* fill in the frequency */
-    to_bcd_be(data, (freq + 5) / 10, 8);
+    /* changed to truncate the freq for gpredict compatibility */
+    to_bcd_be(data, (freq + 0) / 10, 8);
 
     rig_force_cache_timeout(
         &((struct ft817_priv_data *)STATE(rig)->priv)->fm_status_tv);
@@ -1706,11 +1710,15 @@ static int ft817_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         digmode[0] = digmode[0] >> 5; // shift 5 bits
 
         // check if we're already in the mode and return if so
-        if (digmode[0] == 0x00 &&  mode == RIG_MODE_RTTY) { return RIG_OK; }
-        else if (digmode[0] == 0x01 &&  mode == RIG_MODE_PSKR) { return RIG_OK; }
-        else if (digmode[0] == 0x02 &&  mode == RIG_MODE_PSK) { return RIG_OK; }
-        else if (digmode[0] == 0x03 &&  mode == RIG_MODE_PKTLSB) { return RIG_OK; }
-        else if (digmode[0] == 0x04 &&  mode == RIG_MODE_PKTUSB) { return RIG_OK; }
+        // the memory check was failing when in FM mode -- still showing digmode
+        if (STATE(rig)->current_mode == mode)
+        {
+            if (digmode[0] == 0x00 &&  mode == RIG_MODE_RTTY) { return RIG_OK; }
+            else if (digmode[0] == 0x01 &&  mode == RIG_MODE_PSKR) { return RIG_OK; }
+            else if (digmode[0] == 0x02 &&  mode == RIG_MODE_PSK) { return RIG_OK; }
+            else if (digmode[0] == 0x03 &&  mode == RIG_MODE_PKTLSB) { return RIG_OK; }
+            else if (digmode[0] == 0x04 &&  mode == RIG_MODE_PKTUSB) { return RIG_OK; }
+        }
 
         memcpy(data, ncmd[FT817_NATIVE_CAT_EEPROM_WRITE].nseq, YAESU_CMD_LENGTH);
 

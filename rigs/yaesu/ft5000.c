@@ -163,7 +163,13 @@ struct rig_caps ftdx5000_caps =
     .has_set_parm =       RIG_PARM_BANDSELECT,
     .level_gran =
     {
+#define NO_LVL_NOTCHF
+#define NO_LVL_COMP
+#define NO_LVL_VOXGAIN
 #include "level_gran_yaesu.h"
+#undef NO_LVL_NOTCHF
+#undef NO_LVL_COMP
+#undef NO_LVL_VOXGAIN
         [LVL_NOTCHF] = { .min = { .i = 1 }, .max = { .i = 4000 }, .step = { .i = 10 } },
         [LVL_COMP] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 255.0f } },
         [LVL_VOXGAIN] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 255.0f } },
@@ -192,7 +198,7 @@ struct rig_caps ftdx5000_caps =
     .chan_list =          {
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
         { 100, 117, RIG_MTYPE_EDGE, NEWCAT_MEM_CAP },    /* two by two */
-        {   1,	5,  RIG_MTYPE_MORSE },
+        {   1,  5,  RIG_MTYPE_MORSE },
         RIG_CHAN_END,
     },
 

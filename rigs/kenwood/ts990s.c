@@ -42,7 +42,7 @@
 
 #define TS2000_LEVEL_ALL (RIG_LEVEL_PREAMP|RIG_LEVEL_ATT|RIG_LEVEL_VOXDELAY|RIG_LEVEL_AF|RIG_LEVEL_RF|RIG_LEVEL_SQL|RIG_LEVEL_CWPITCH|RIG_LEVEL_RFPOWER|RIG_LEVEL_MICGAIN|RIG_LEVEL_KEYSPD|RIG_LEVEL_COMP|RIG_LEVEL_AGC|RIG_LEVEL_BKINDL|RIG_LEVEL_METER|RIG_LEVEL_VOXGAIN|RIG_LEVEL_ANTIVOX|RIG_LEVEL_RAWSTR|RIG_LEVEL_STRENGTH|RIG_LEVEL_SWR)
 
-#define TS990S_VFO_OP (RIG_OP_BAND_UP|RIG_OP_BAND_DOWN)
+#define TS990S_VFO_OP (RIG_OP_BAND_UP|RIG_OP_BAND_DOWN|RIG_OP_TUNE)
 #define TS990S_SCAN_OP (RIG_SCAN_VFO)
 #define TS990S_ANTS (RIG_ANT_1|RIG_ANT_2|RIG_ANT_3|RIG_ANT_4)
 
@@ -88,6 +88,7 @@
 
 /* prototypes */
 static int ts990s_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val);
+static int ts990s_get_split_vfo(RIG *rig, vfo_t rxvfo, split_t *split, vfo_t *txvfo);
 
 static rmode_t ts990s_mode_table[KENWOOD_MODE_TABLE_MAX] =
 {
@@ -135,7 +136,7 @@ struct rig_caps ts990s_caps =
     RIG_MODEL(RIG_MODEL_TS990S),
     .model_name = "TS-990S",
     .mfg_name =  "Kenwood",
-    .version =  BACKEND_VER ".6",
+    .version =  BACKEND_VER ".7",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -161,7 +162,13 @@ struct rig_caps ts990s_caps =
     .has_set_parm =  RIG_PARM_NONE,    /* FIXME: parms */
     .level_gran =
     {
+#define NO_LVL_ATT
+#define NO_LVL_CWPITCH
+#define NO_LVL_COMP
 #include "level_gran_kenwood.h"
+#undef NO_LVL_ATT
+#undef NO_LVL_CWPITCH
+#undef NO_LVL_COMP
         [LVL_ATT]     = { .min = { .i = 0 }, .max = { .i = 18 }, .step = { .i = 6 } },
         [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 1100 }, .step = { .i = 10 } },
         [LVL_COMP]    = { .min = { .f = 0.0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 255.0f } },
@@ -183,7 +190,7 @@ struct rig_caps ts990s_caps =
 
     .chan_list =  {
         { 0, 299, RIG_MTYPE_MEM, TS990S_MEM_CAP  },
-		{ 1,   6, RIG_MTYPE_VOICE },
+        { 1,   6, RIG_MTYPE_VOICE },
         { 1,   8, RIG_MTYPE_MORSE },
         RIG_CHAN_END,
     },
@@ -337,16 +344,16 @@ struct rig_caps ts990s_caps =
     .rig_cleanup = kenwood_cleanup,
     .set_freq =  kenwood_set_freq,
     .get_freq =  kenwood_get_freq,
-    .set_rit =  kenwood_set_rit,
-    .get_rit =  kenwood_get_rit,
-    .set_xit =  kenwood_set_xit,
-    .get_xit =  kenwood_get_xit,
+    .set_rit =  kenwood_set_rit_new,
+    .get_rit =  kenwood_get_rit_new,
+    .set_xit =  kenwood_set_rit_new,  // Use same routines as for rit
+    .get_xit =  kenwood_get_rit_new,  // Same
     .set_mode =  kenwood_set_mode,
     .get_mode =  kenwood_get_mode,
     .set_vfo =  kenwood_set_vfo_main_sub,
     .get_vfo =  kenwood_get_vfo_main_sub,
     .set_split_vfo = kenwood_set_split_vfo,
-    .get_split_vfo = kenwood_get_split_vfo_if,
+    .get_split_vfo = ts990s_get_split_vfo,
     .set_ctcss_tone =  kenwood_set_ctcss_tone_tn,
     .get_ctcss_tone =  kenwood_get_ctcss_tone,
     .set_ctcss_sql =  kenwood_set_ctcss_sql,
@@ -373,6 +380,8 @@ struct rig_caps ts990s_caps =
     .set_powerstat =  kenwood_set_powerstat,
     .get_powerstat =  kenwood_get_powerstat,
     .reset =  kenwood_reset,
+    .get_clock = kenwood_get_clock,
+    .set_clock = kenwood_set_clock,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
@@ -381,7 +390,7 @@ struct rig_caps ts990s_caps =
  */
 
 /*
- * ts2000_get_level
+ * ts990s_get_level
  * Assumes rig!=NULL, val!=NULL
  */
 
@@ -749,6 +758,37 @@ int ts990s_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         rig_debug(RIG_DEBUG_ERR, "%s: unsupported get_level %s", __func__,
                   rig_strlevel(level));
         return -RIG_EINVAL;
+    }
+
+    return retval;
+}
+
+/*
+ *  Gets split VFO status
+ *
+ */
+static int ts990s_get_split_vfo(RIG *rig, vfo_t rxvfo, split_t *split,
+                             vfo_t *txvfo)
+{
+    char buf[4];
+    int retval;
+    struct rig_state *rs = STATE(rig);
+    struct kenwood_priv_data *priv = rs->priv;
+
+    if (RIG_OK == (retval = kenwood_safe_transaction(rig, "TB", buf, sizeof(buf),
+                                3)))
+    {
+        if ('1' == buf[2])
+        {
+            *split = RIG_SPLIT_ON;
+            *txvfo = RIG_VFO_SUB;
+        }
+        else
+        {
+            *split = RIG_SPLIT_OFF;
+            *txvfo = RIG_VFO_MAIN;
+        }
+        priv->tx_vfo = rs->tx_vfo = *txvfo;
     }
 
     return retval;

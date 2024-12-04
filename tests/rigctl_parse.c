@@ -375,7 +375,7 @@ static struct test_table test_list[] =
     { 0xf6, "get_modes",       ACTION(get_modes),   ARG_OUT | ARG_NOVFO, "Modes" },
 //    { 0xf9, "get_clock",        ACTION(get_clock),      ARG_IN | ARG_NOVFO, "local/utc" },
     { 0xf9, "get_clock",        ACTION(get_clock),      ARG_NOVFO },
-    { 0xf8, "set_clock",        ACTION(set_clock),      ARG_IN | ARG_NOVFO, "YYYYMMDDHHMMSS.sss+ZZ" },
+    { 0xf8, "set_clock",        ACTION(set_clock),      ARG_IN | ARG_NOVFO, "local or utc or YYYY-MM-DDTHH:MM:SS.sss+ZZ or YYYY-MM-DDTHH:MM+ZZ" },
     { 0xf1, "halt",             ACTION(halt),           ARG_NOVFO },   /* rigctld only--halt the daemon */
     { 0x8c, "pause",            ACTION(pause),          ARG_IN | ARG_NOVFO, "Seconds" },
     { 0x98, "password",         ACTION(password),       ARG_IN | ARG_NOVFO, "Password" },
@@ -498,14 +498,18 @@ void hash_delete_all()
 
 // modifies s to remove quotes
 void strip_quotes(char *s)
-{   
+{
     char *s2 = strdup(s);
     char *p;
-    if (s[0] != '\"') return; // no quotes
+
+    if (s[0] != '\"') { return; } // no quotes
+
     s2 = strdup(&s[1]);
-    p = strrchr(s2,'"');
-    if (p) *p = 0;
-    strcpy(s,s2);
+    p = strrchr(s2, '"');
+
+    if (p) { *p = 0; }
+
+    strcpy(s, s2);
 }
 
 #ifdef HAVE_LIBREADLINE
@@ -1740,7 +1744,8 @@ readline_repeat:
      * Extended Response protocol: output received command name and arguments
      * response.  Don't send command header on '\chk_vfo' command.
      */
-    if (p1) strip_quotes(p1);
+    if (p1) { strip_quotes(p1); }
+
     if (interactive && *ext_resp_ptr && !prompt && cmd != 0xf0)
     {
         char a1[MAXARGSZ + 2];
@@ -1790,7 +1795,7 @@ readline_repeat:
     // chk_vfo is the one command we'll allow without a password
     // since it's in the initial handshake
     int preCmd =
-        0;  // some command are allowed without passoword to satisfy rigctld initialization from rigctl -m 2
+        0;  // some command are allowed without password to satisfy rigctld initialization from rigctl -m 2
 
     if (cmd_entry->arg1 != NULL)
     {
@@ -1810,7 +1815,7 @@ readline_repeat:
     {
         // Allow only certain commands when the rig is powered off
         if (rs->powerstat == RIG_POWER_OFF && (rig_powerstat == RIG_POWER_OFF
-                || rig_powerstat == RIG_POWER_STANDBY)
+                                               || rig_powerstat == RIG_POWER_STANDBY)
                 && cmd_entry->cmd != '1' // dump_caps
                 && cmd_entry->cmd != '3' // dump_conf
                 && cmd_entry->cmd != 0x8f // dump_state
@@ -1929,6 +1934,7 @@ declare_proto_rig(hamlib_version)
 declare_proto_rig(client_version)
 {
     struct rig_state *rs = STATE(rig);
+
     if ((interactive && prompt) || (interactive && !prompt && ext_resp))
     {
         fprintf(fout, "%s: ", cmd->arg1);
@@ -2099,15 +2105,16 @@ void print_model_list()
                s->macro_name,
                s->status);
 
-        if (strcmp(s->mfg_name,"Misc") == 0
-         || strcmp(s->mfg_name,"Other") == 0
-         || strcmp(s->mfg_name,"Dummy") == 0)
+        if (strcmp(s->mfg_name, "Misc") == 0
+                || strcmp(s->mfg_name, "Other") == 0
+                || strcmp(s->mfg_name, "Dummy") == 0)
         {
             printf("Do not use %s as mfg_name\n", s->mfg_name);
             exit(0);
         }
-        if (strcmp(s->model_name,"Misc") == 0
-         || strcmp(s->model_name,"Other") == 0)
+
+        if (strcmp(s->model_name, "Misc") == 0
+                || strcmp(s->model_name, "Other") == 0)
         {
             printf("Do not use %s as model_name\n", s->model_name);
             exit(0);
@@ -3191,8 +3198,16 @@ declare_proto_rig(get_split_vfo)
 declare_proto_rig(set_ts)
 {
     unsigned long ts;
+    char s[SPRINTF_MAX_SIZE];
 
     ENTERFUNC2;
+
+    if (!strcmp(arg1, "?"))
+    {
+        rig_sprintf_tuning_steps(s, sizeof(s), rig->caps->tuning_steps);
+        fprintf(fout, "%s\n", s);
+        RETURNFUNC2(RIG_OK);
+    }
 
     CHKSCN1ARG(sscanf(arg1, "%lu", &ts));
 
@@ -3737,11 +3752,13 @@ declare_proto_rig(set_parm)
             break;
 
         case RIG_CONF_STRING:
+#if 0
             if (parm == RIG_PARM_KEYERTYPE)
             {
                 val.i = atoi(arg2);
             }
             else
+#endif
             {
                 val.cs = arg2;
             }
@@ -4713,7 +4730,7 @@ declare_proto_rig(dump_state)
     rig_debug(RIG_DEBUG_ERR, "%s: chk_vfo_executed=%d\n", __func__,
               chk_vfo_executed);
 
-    if (chk_vfo_executed) // for 3.3 compatiblility
+    if (chk_vfo_executed) // for 3.3 compatibility
     {
         fprintf(fout, "vfo_ops=0x%x\n", rig->caps->vfo_ops);
         fprintf(fout, "ptt_type=0x%x\n",
@@ -5107,7 +5124,7 @@ declare_proto_rig(send_cmd)
     if (rig->caps->rig_model == RIG_MODEL_FLRIG)
     {
         // call flrig raw send function cat_string or cat_priority_string
-        flrig_cat_string2(rig, arg1, (char*)buf, sizeof(buf));
+        flrig_cat_string2(rig, arg1, (char *)buf, sizeof(buf));
         fwrite(cmd->arg2, 1, strlen(cmd->arg2), fout); /* i.e. "Frequency" */
         fprintf(fout, ": %s\n", buf);
         RETURNFUNC2(RIG_OK);
@@ -5124,7 +5141,7 @@ declare_proto_rig(send_cmd)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: arg1=%s\n", __func__, arg1);
 
-    // note that hex sscanf expectes at least 2 values to pass this check
+    // note that hex sscanf expects at least 2 values to pass this check
     // is there any situation where only one x00 value would be written?
     unsigned int n, i1, i2;
     n = sscanf(arg1, "x%x x%x", &i1, &i2);
@@ -5384,7 +5401,7 @@ declare_proto_rig(send_cmd)
         }
     }
     while ((retval > 0 && rxbytes == BUFSZ && eom_buf[0] != ';'
-            && eom_buf[0] != 0xfd) || --cmdcount > 1);
+            && (unsigned char)eom_buf[0] != 0xfd) || --cmdcount > 1);
 
     rig_flush_force(rp, 1);
     set_transaction_inactive(rig);
@@ -5657,7 +5674,7 @@ declare_proto_rig(set_clock)
               __func__, n, year, mon, day, hour, min, sec, msec, utc_offset >= 0 ? "+" : "-",
               (unsigned)abs(utc_offset));
 
-    if (utc_offset < 24) { utc_offset *= 100; } // allow for minutes offset too
+    if (abs(utc_offset) < 24) { utc_offset *= 100; } // allow for minutes offset too
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: utc_offset=%d\n", __func__, utc_offset);
 
@@ -5776,21 +5793,33 @@ static int parse_hex(const char *s, unsigned char *buf, int len)
     int i = 0;
     buf[0] = 0;
     char *s2 = strdup(s);
-    char *p = strtok(s2, ";");
+    char *p = strtok(s2, ";:");
 
     while (p)
     {
         unsigned int val;
-        sscanf(p, "0x%x", &val);
+        int n;
+
+        if ((n = sscanf(p, "0x%2x", &val)) != 1)
+        {
+            n = sscanf(p, "x%2x", &val);
+        }
+
+        if (n == 0)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: unable to parse 0x??; or x??; from '%s'\n",
+                      __func__, s);
+        }
+
         buf[i++] = val;
-        p = strtok(NULL, ";");
+        p = strtok(NULL, ";:");
     }
 
     free(s2);
     return i;
 }
 
-// sends whatever is in s -- no addtions or changes done
+// sends whatever is in s -- no additions or changes done
 extern int netrigctl_send_raw(RIG *rig, char *s);
 /* 0xa4 */
 declare_proto_rig(send_raw)
@@ -5846,7 +5875,7 @@ declare_proto_rig(send_raw)
         return -RIG_EINVAL;
     }
 
-    if (strncmp(arg2, "0x", 2) == 0)
+    if (strncmp(arg2, "0x", 2)  == 0 || arg2[0] == 'x')
     {
         arg2_len = parse_hex(arg2, send, sizeof(send));
         sendp = send;

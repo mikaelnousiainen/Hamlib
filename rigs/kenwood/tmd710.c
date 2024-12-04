@@ -1118,7 +1118,7 @@ int tmd710_push_mu(RIG *rig, tmd710_mu *mu_struct)
 
     rig_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
 
-    // we re-use fo_struct->vfo for the channel#
+    // we reuse fo_struct->vfo for the channel#
     snprintf(cmdbuf, sizeof(cmdbuf),
              "MU %1d,%1d,%1d,%1d,%1d,%1d,%1d,%1d,%02d,%1d,"
              "%1d,%1d,%1d,%1d,%1d,%1d,%1d,%1d,%1d,%1d,"
@@ -2907,7 +2907,8 @@ int tmd710_set_parm(RIG *rig, setting_t parm, value_t val)
  * Assumes rig!=NULL, STATE(rig)->priv!=NULL, val!=NULL
  *
  */
-int tmd710_get_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token, value_t *val)
+int tmd710_get_ext_level(RIG *rig, vfo_t vfo, hamlib_token_t token,
+                         value_t *val)
 {
     int retval;
     tmd710_mu mu_struct;

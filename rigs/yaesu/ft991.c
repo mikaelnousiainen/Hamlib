@@ -199,7 +199,15 @@ struct rig_caps ft991_caps =
     .has_get_parm =       RIG_PARM_BANDSELECT,
     .has_set_parm =       RIG_PARM_BANDSELECT,
     .level_gran = {
+#define NO_LVL_MICGAIN
+#define NO_LVL_SQL
+#define NO_LVL_MONITOR_GAIN
+#define NO_LVL_RFPOWER
 #include "level_gran_yaesu.h"
+#undef NO_LVL_MICGAIN
+#undef NO_LVL_SQL
+#undef NO_LVL_MONITOR_GAIN
+#undef NO_LVL_RFPOWER
         [LVL_MICGAIN] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 100.0f } },
         [LVL_SQL] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 100.0f } },
         [LVL_MONITOR_GAIN] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 100.0f } },
@@ -233,9 +241,9 @@ struct rig_caps ft991_caps =
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
         {   100,  117, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP }, // P1L-P9U PMS channels
         {   118,  127, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP }, // 5xx 5MHz band
-        {   1,	    5, RIG_MTYPE_VOICE },
-        {   1,	    5, RIG_MTYPE_MORSE },
-            RIG_CHAN_END,
+        {   1,      5, RIG_MTYPE_VOICE },
+        {   1,      5, RIG_MTYPE_MORSE },
+        RIG_CHAN_END,
     },
 
     // Rig only has 1 model

@@ -123,6 +123,9 @@ void frameParse(int fd, unsigned char *frame, int len)
         return;
     }
 
+    frame[2] = 0xe0;
+    frame[3] = 0x60;
+
     switch (frame[4])
     {
     case 0x03:

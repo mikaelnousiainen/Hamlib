@@ -72,21 +72,12 @@
          { 120, 1.0f } \
     } }
 
-#define IC7700_RFPOWER_METER_CAL { 13, \
+#define IC7700_RFPOWER_METER_CAL { 4, \
     { \
          { 0, 0.0f }, \
-         { 21, 5.0f }, \
-         { 43, 10.0f }, \
-         { 65, 15.0f }, \
-         { 83, 20.0f }, \
-         { 95, 25.0f }, \
-         { 105, 30.0f }, \
-         { 114, 35.0f }, \
-         { 124, 40.0f }, \
-         { 143, 50.0f }, \
-         { 183, 75.0f }, \
-         { 213, 100.0f }, \
-         { 255, 120.0f } \
+         { 143, 100.0f }, \
+         { 212, 200.0f }, \
+         { 255, 250.0f }, \
     } }
 
 
@@ -277,7 +268,7 @@ struct rig_caps ic7700_caps =
     RIG_MODEL(RIG_MODEL_IC7700),
     .model_name = "IC-7700",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".5",
+    .version =  BACKEND_VER ".6",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -302,7 +293,11 @@ struct rig_caps ic7700_caps =
     .has_set_parm =  RIG_PARM_SET(IC7700_PARMS),    /* FIXME: parms */
     .level_gran =
     {
+#define NO_LVL_KEYSPD
+#define NO_LVL_CWPITCH
 #include "level_gran_icom.h"
+#undef NO_LVL_KEYSPD
+#undef NO_LVL_CWPITCH
         [LVL_KEYSPD] = { .min = { .i = 6 }, .max = { .i = 48 }, .step = { .i = 1 } },
         [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 900 }, .step = { .i = 1 } },
     },
@@ -333,7 +328,7 @@ struct rig_caps ic7700_caps =
     .chan_list =  {
         {   1,  99, RIG_MTYPE_MEM  },
         { 100, 101, RIG_MTYPE_EDGE },    /* two by two */
-        {   1,	4, RIG_MTYPE_MORSE },
+        {   1,  4, RIG_MTYPE_MORSE },
         RIG_CHAN_END,
     },
 

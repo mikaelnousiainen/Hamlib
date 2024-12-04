@@ -77,7 +77,7 @@ int dumpcaps(RIG *rig, FILE *fout)
     char freqbuf[20];
     int backend_warnings = 0;
     char warnbuf[4096];
-    char prntbuf[2048];  /* a malloc would be better.. */
+    char prntbuf[8192];  /* a malloc would be better.. */
     char *label1, *label2, *label3, *label4, *label5;
     char *labelrx1; // , *labelrx2, *labelrx3, *labelrx4, *labelrx5;
 
@@ -251,20 +251,35 @@ int dumpcaps(RIG *rig, FILE *fout)
             caps->targetable_vfo ? "Y" : "N");
 
     fprintf(fout, "Targetable features:");
+
     if (caps->targetable_vfo & RIG_TARGETABLE_FREQ) { fprintf(fout, " FREQ"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_MODE) { fprintf(fout, " MODE"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_TONE) { fprintf(fout, " TONE"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_FUNC) { fprintf(fout, " FUNC"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_LEVEL) { fprintf(fout, " LEVEL"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_RITXIT) { fprintf(fout, " RITXIT"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_PTT) { fprintf(fout, " PTT"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_MEM) { fprintf(fout, " MEM"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_BANK) { fprintf(fout, " BANK"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_ANT) { fprintf(fout, " ANT"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_ROOFING) { fprintf(fout, " ROOFING"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_SPECTRUM) { fprintf(fout, " SPECTRUM"); }
+
     if (caps->targetable_vfo & RIG_TARGETABLE_BAND) { fprintf(fout, " BAND"); }
+
     if (caps->targetable_vfo == 0) { fprintf(fout, " None"); }
+
     fprintf(fout, "\n");
 
     fprintf(fout,
@@ -1152,6 +1167,11 @@ static void dump_chan_caps(const channel_cap_t *chan, FILE *fout)
     if (chan->width)
     {
         fprintf(fout, "WIDTH ");
+    }
+
+    if (chan->split)
+    {
+        fprintf(fout, "SPLIT ");
     }
 
     if (chan->tx_freq)

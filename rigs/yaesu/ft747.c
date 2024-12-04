@@ -301,7 +301,7 @@ struct rig_caps ft747_caps =
     RIG_MODEL(RIG_MODEL_FT747),
     .model_name =       "FT-747GX",
     .mfg_name =         "Yaesu",
-    .version =           "20220819.1",
+    .version =           "20241108.0",
     .copyright =         "LGPL",
     .status =            RIG_STATUS_STABLE,
     .rig_type =          RIG_TYPE_MOBILE,
@@ -442,7 +442,7 @@ struct rig_caps ft747_caps =
 int ft747_init(RIG *rig)
 {
     STATE(rig)->priv = (struct ft747_priv_data *) calloc(1,
-                      sizeof(struct ft747_priv_data));
+                       sizeof(struct ft747_priv_data));
 
     if (!STATE(rig)->priv)           /* whoops! memory shortage! */
     {

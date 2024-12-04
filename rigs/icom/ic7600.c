@@ -313,7 +313,11 @@ struct rig_caps ic7600_caps =
     .has_set_parm =  RIG_PARM_SET(IC7600_PARMS),
     .level_gran =
     {
+#define NO_LVL_KEYSPD
+#define NO_LVL_CWPITCH
 #include "level_gran_icom.h"
+#undef NO_LVL_KEYSPD
+#undef NO_LVL_CWPITCH
         [LVL_KEYSPD] = { .min = { .i = 6 }, .max = { .i = 48 }, .step = { .i = 1 } },
         [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 900 }, .step = { .i = 1 } },
     },
@@ -350,7 +354,7 @@ struct rig_caps ic7600_caps =
     .chan_list =  {
         {   1,  99, RIG_MTYPE_MEM  },
         { 100, 101, RIG_MTYPE_EDGE },    /* two by two */
-        {   1,	4, RIG_MTYPE_MORSE },
+        {   1,  4, RIG_MTYPE_MORSE },
         RIG_CHAN_END,
     },
 

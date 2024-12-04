@@ -436,6 +436,7 @@ static int pmr171_close(RIG *rig)
 
 /* ---------------------------------------------------------------------- */
 
+#if 0
 static inline long timediff(const struct timeval *tv1,
                             const struct timeval *tv2)
 {
@@ -446,6 +447,7 @@ static inline long timediff(const struct timeval *tv1,
 
     return ((tv.tv_sec * 1000L) + (tv.tv_usec / 1000L));
 }
+#endif
 
 static int pmr171_send_cmd1(RIG *rig, unsigned char cmd, unsigned char *reply)
 {
@@ -512,11 +514,14 @@ static int pmr171_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     return RIG_OK;
 }
 
-static int pmr171_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split, vfo_t *tx_vfo)
+static int pmr171_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split,
+                                vfo_t *tx_vfo)
 {
     *split = CACHE(rig)->split;
-    if (*split) *tx_vfo=RIG_VFO_B;
-    else *tx_vfo = RIG_VFO_A;
+
+    if (*split) { *tx_vfo = RIG_VFO_B; }
+    else { *tx_vfo = RIG_VFO_A; }
+
     return RIG_OK;
 }
 

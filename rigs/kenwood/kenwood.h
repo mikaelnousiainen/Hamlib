@@ -28,7 +28,7 @@
 #include "token.h"
 #include "idx_builtin.h"
 
-#define BACKEND_VER "20240730"
+#define BACKEND_VER "20241022"
 
 #define EOM_KEN ';'
 #define EOM_TH '\r'
@@ -89,6 +89,7 @@ extern struct confparams kenwood_cfg_params[];
 #define RIG_IS_K3S       (rig->caps->rig_model == RIG_MODEL_K3S)
 #define RIG_IS_KX2       (rig->caps->rig_model == RIG_MODEL_KX2)
 #define RIG_IS_KX3       (rig->caps->rig_model == RIG_MODEL_KX3)
+#define RIG_IS_K4        (rig->caps->rig_model == RIG_MODEL_K4)
 #define RIG_IS_THD7A     (rig->caps->rig_model == RIG_MODEL_THD7A)
 #define RIG_IS_THD74     (rig->caps->rig_model == RIG_MODEL_THD74)
 #define RIG_IS_TMD700    (rig->caps->rig_model == RIG_MODEL_TMD700)
@@ -109,9 +110,9 @@ extern struct confparams kenwood_cfg_params[];
 #define RIG_IS_XG3       (rig->caps->rig_model == RIG_MODEL_XG3)
 #define RIG_IS_PT8000A   (rig->caps->rig_model == RIG_MODEL_PT8000A)
 #define RIG_IS_POWERSDR  (rig->caps->rig_model == RIG_MODEL_POWERSDR)
-#define RIG_IS_THETIS  (rig->caps->rig_model == RIG_MODEL_THETIS)
+#define RIG_IS_THETIS    (rig->caps->rig_model == RIG_MODEL_THETIS)
 #define RIG_IS_MALACHITE (rig->caps->rig_model == RIG_MODEL_MALACHITE)
-#define RIG_IS_QRPLABS (rig->caps->rig_model == RIG_MODEL_QRPLABS)
+#define RIG_IS_QRPLABS   (rig->caps->rig_model == RIG_MODEL_QRPLABS)
 
 struct kenwood_filter_width
 {
@@ -182,6 +183,8 @@ struct kenwood_priv_data
     int save_k2_ext_lvl; // so we can restore to original
     int save_k3_ext_lvl; // so we can restore to original -- for future use if needed
     int voice_bank; /* last voice bank send for use by stop_voice_mem */
+    mode_t last_mode_pc; // last mode memory for PC command
+    int power_now,power_min,power_max;
 };
 
 
@@ -220,9 +223,11 @@ int kenwood_set_freq(RIG *rig, vfo_t vfo, freq_t freq);
 int kenwood_get_freq(RIG *rig, vfo_t vfo, freq_t *freq);
 int kenwood_get_freq_if(RIG *rig, vfo_t vfo, freq_t *freq);
 int kenwood_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit);
+int kenwood_set_rit_new(RIG *rig, vfo_t vfo, shortfreq_t rit);  // Also use this for xit
 int kenwood_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit);
-int kenwood_set_xit(RIG *rig, vfo_t vfo, shortfreq_t rit);
-int kenwood_get_xit(RIG *rig, vfo_t vfo, shortfreq_t *rit);
+int kenwood_get_rit_new(RIG *rig, vfo_t vfo, shortfreq_t *rit); // Also use this for xit
+int kenwood_set_xit(RIG *rig, vfo_t vfo, shortfreq_t xit);
+int kenwood_get_xit(RIG *rig, vfo_t vfo, shortfreq_t *xit);
 int kenwood_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width);
 int kenwood_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width);
 int kenwood_get_mode_if(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width);
@@ -261,6 +266,8 @@ int kenwood_get_id(RIG *rig, char *buf);
 int kenwood_get_if(RIG *rig);
 int kenwood_send_voice_mem(RIG *rig, vfo_t vfo, int bank);
 int kenwood_stop_voice_mem(RIG *rig, vfo_t vfo);
+int kenwood_get_clock(RIG *rig, int *year, int *month, int *day, int *hour, int *min, int *sec, double *msec, int *utc_offset);
+int kenwood_set_clock(RIG *rig, int year, int month, int day, int hour, int min, int sec, double msec, int utc_offset);
 
 int kenwood_set_trn(RIG *rig, int trn);
 int kenwood_get_trn(RIG *rig, int *trn);

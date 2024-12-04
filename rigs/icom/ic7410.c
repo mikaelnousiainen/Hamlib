@@ -149,9 +149,13 @@ struct rig_caps ic7410_caps =
     .has_set_parm =  RIG_PARM_SET(IC7410_PARMS),    /* FIXME: parms */
     .level_gran =
     {
+#define NO_LVL_KEYSPD
+#define NO_LVL_CWPITCH
 #include "level_gran_icom.h"
         [LVL_KEYSPD] = { .min = { .i = 6 }, .max = { .i = 48 }, .step = { .i = 1 } },
         [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 900 }, .step = { .i = 1 } },
+#undef NO_LVL_KEYSPD
+#undef NO_LVL_CWPITCH
     },
     .parm_gran =  {
         [PARM_BACKLIGHT] = {.min = {.f = 0.0f}, .max = {.f = 1.0f}, .step = {.f = 1.0f / 255.0f}},
@@ -178,7 +182,7 @@ struct rig_caps ic7410_caps =
     .chan_list =  {
         {   1,  99, RIG_MTYPE_MEM  },
         { 100, 101, RIG_MTYPE_EDGE },    /* two by two */
-        {   1,	4, RIG_MTYPE_MORSE },
+        {   1,  4, RIG_MTYPE_MORSE },
         RIG_CHAN_END,
     },
 

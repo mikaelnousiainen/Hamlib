@@ -153,7 +153,7 @@ static int tt565_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
 #endif
         *data_len = data_len_init;  /* restore orig. buffer length */
         read_string(rp, (unsigned char *) data, *data_len,
-                                EOM, strlen(EOM), 0, 1);
+                    EOM, strlen(EOM), 0, 1);
         *data_len = strlen(data);
         rig_debug(RIG_DEBUG_ERR, "%s: data_len = %d\n", __func__, *data_len);
 
@@ -185,7 +185,7 @@ static int tt565_transaction(RIG *rig, const char *cmd, int cmd_len, char *data,
         }
         else                            // Yes, it was a 'read', phew!
         {
-            if (strncmp(data + 1, cmd + 1, cmd_len - 2)==0) //response matches cmd?
+            if (strncmp(data + 1, cmd + 1, cmd_len - 2) == 0) //response matches cmd?
             {
                 MUTEX_UNLOCK(mutex);
                 return RIG_OK;  // all is well, normal exit
@@ -408,7 +408,7 @@ static char which_vfo(const RIG *rig, vfo_t vfo)
  * \param rig must != NULL
  * \param vfo RIG_VFO_A or RIG_VFO_B
  * \param freq
- * \brief Set a frequence into the specified VFO
+ * \brief Set a frequency into the specified VFO
  *
  * assumes STATE(rig)->priv!=NULL
  * \n assumes priv->mode in AM,CW,LSB or USB.

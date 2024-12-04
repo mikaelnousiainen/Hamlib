@@ -38,7 +38,7 @@ int gemini_init(AMP *amp)
     }
 
     AMPSTATE(amp)->priv = (struct gemini_priv_data *)
-                      calloc(1, sizeof(struct gemini_priv_data));
+                          calloc(1, sizeof(struct gemini_priv_data));
 
     if (!AMPSTATE(amp)->priv)
     {

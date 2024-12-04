@@ -203,7 +203,7 @@ static const struct confparams frontend_cfg_params[] =
     {
         TOK_MULTICAST_DATA_ADDR, "multicast_data_addr", "Multicast data UDP address",
         "Multicast data UDP address for publishing rig data and state, value of 0.0.0.0 disables multicast data publishing",
-        "224.0.0.1", RIG_CONF_STRING,
+        "0.0.0.0", RIG_CONF_STRING,
     },
     {
         TOK_MULTICAST_DATA_PORT, "multicast_data_port", "Multicast data UDP port",
@@ -213,7 +213,7 @@ static const struct confparams frontend_cfg_params[] =
     {
         TOK_MULTICAST_CMD_ADDR, "multicast_cmd_addr", "Multicast command server UDP address",
         "Multicast command UDP address for sending commands to rig, value of 0.0.0.0 disables multicast command server",
-        "224.0.0.2", RIG_CONF_STRING,
+        "0.0.0.0", RIG_CONF_STRING,
     },
     {
         TOK_MULTICAST_CMD_PORT, "multicast_cmd_port", "Multicast command server UDP port",
@@ -1372,10 +1372,18 @@ const struct confparams *HAMLIB_API rig_confparam_lookup(RIG *rig,
     const struct confparams *cfp;
     hamlib_token_t token;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called for %s\n", __func__, name);
 
     if (!rig || !rig->caps)
     {
+        if (rig)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: rig->caps is NULL\n", __func__);
+        }
+        else
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: rig  is NULL\n", __func__);
+        }
+
         return NULL;
     }
 
@@ -1386,6 +1394,7 @@ const struct confparams *HAMLIB_API rig_confparam_lookup(RIG *rig,
     {
         if (!strcmp(cfp->name, name) || token == cfp->token)
         {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s called for %s\n", __func__, cfp->name);
             return cfp;
         }
     }
@@ -1394,6 +1403,7 @@ const struct confparams *HAMLIB_API rig_confparam_lookup(RIG *rig,
     {
         if (!strcmp(cfp->name, name) || token == cfp->token)
         {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s called for %s\n", __func__, cfp->name);
             return cfp;
         }
     }
@@ -1404,11 +1414,15 @@ const struct confparams *HAMLIB_API rig_confparam_lookup(RIG *rig,
         {
             if (!strcmp(cfp->name, name) || token == cfp->token)
             {
+                rig_debug(RIG_DEBUG_VERBOSE, "%s called for %s\n", __func__, cfp->name);
                 return cfp;
             }
         }
     }
 
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called for %s and not found\n", __func__,
+              name);
     return NULL;
 }
 

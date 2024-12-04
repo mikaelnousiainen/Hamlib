@@ -41,7 +41,8 @@
 
 #define TS890_VFO_OPS (RIG_OP_UP|RIG_OP_DOWN|RIG_OP_BAND_UP|RIG_OP_BAND_DOWN|RIG_OP_CPY|RIG_OP_TUNE)
 
-int kenwood_ts890_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
+static int kenwood_ts890_set_level(RIG *rig, vfo_t vfo, setting_t level,
+                                   value_t val)
 {
     char levelbuf[16], *command_string;
     int kenwood_val, retval;
@@ -109,7 +110,8 @@ int kenwood_ts890_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     return kenwood_transaction(rig, levelbuf, NULL, 0);
 }
 
-int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
+static int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level,
+                                   value_t *val)
 {
     char ackbuf[50];
     size_t ack_len, ack_len_expected, len;
@@ -403,7 +405,7 @@ int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     return -RIG_EINTERNAL;
 }
 
-int ts890_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
+static int ts890_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 {
     int mask, retval;
     char current[4];
@@ -434,7 +436,7 @@ int ts890_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
     return kenwood_transaction(rig, current, NULL, 0);
 }
 
-int ts890_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
+static int ts890_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 {
     int mask, retval;
     char current[4];
@@ -462,6 +464,50 @@ int ts890_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
     *status = current[2] & mask ? 1 : 0;
     return RIG_OK;
+}
+
+/*
+ *  Gets split VFO status
+ *
+ */
+static int ts890s_get_split_vfo(RIG *rig, vfo_t rxvfo, split_t *split,
+                                vfo_t *txvfo)
+{
+    char buf[4];
+    int retval;
+    vfo_t tvfo;
+    struct rig_state *rs = STATE(rig);
+    struct kenwood_priv_data *priv = rs->priv;
+
+    if (RIG_OK == (retval = kenwood_safe_transaction(rig, "FT", buf, sizeof(buf),
+                                3)))
+    {
+        if ('0' == buf[2])
+        {
+            tvfo = RIG_VFO_A;
+        }
+        else if ('1' == buf[2])
+        {
+            tvfo = RIG_VFO_B;
+        }
+        else if ('3' == buf[2])
+        {
+            tvfo = RIG_VFO_MEM;
+        }
+        else
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: Unknown VFO - %s\n", __func__, buf);
+            return -RIG_EPROTO;
+        }
+
+        *txvfo = priv->tx_vfo = rs->tx_vfo = tvfo;
+	// Now get split status
+	retval = kenwood_safe_transaction(rig, "TB", buf, sizeof buf, 3);
+	if (RIG_OK != retval) {return retval;}
+        *split = priv->split = buf[2] == '1';
+    }
+
+    return retval;
 }
 
 
@@ -615,16 +661,16 @@ struct rig_caps ts890s_caps =
     .rig_cleanup = kenwood_cleanup,
     .set_freq = kenwood_set_freq,
     .get_freq = kenwood_get_freq,
-    .set_rit = kenwood_set_rit,
-    .get_rit = kenwood_get_rit,
-    .set_xit = kenwood_set_xit,
-    .get_xit = kenwood_get_xit,
+    .set_rit = kenwood_set_rit_new,
+    .get_rit = kenwood_get_rit_new,
+    .set_xit = kenwood_set_rit_new,  // Same routines as for RIT
+    .get_xit = kenwood_get_rit_new,  // Same
     .set_mode = kenwood_set_mode,
     .get_mode = kenwood_get_mode,
     .set_vfo = kenwood_set_vfo,
     .get_vfo = kenwood_get_vfo_if,
     .set_split_vfo = kenwood_set_split_vfo,
-    .get_split_vfo = kenwood_get_split_vfo_if,
+    .get_split_vfo = ts890s_get_split_vfo,
     .set_ctcss_tone = kenwood_set_ctcss_tone_tn,
     .get_ctcss_tone = kenwood_get_ctcss_tone,
     .set_ctcss_sql = kenwood_set_ctcss_sql,
@@ -650,7 +696,17 @@ struct rig_caps ts890s_caps =
     .get_level = kenwood_ts890_get_level,
     .level_gran =
     {
+#define NO_LVL_ATT
+#define NO_LVL_CWPITCH
+#define NO_LVL_SQL
+#define NO_LVL_USB_AF
+#define NO_LVL_USB_AF_INPUT
 #include "level_gran_kenwood.h"
+#undef NO_LVL_ATT
+#undef NO_LVL_CWPITCH
+#undef NO_LVL_SQL
+#undef NO_LVL_USB_AF
+#undef NO_LVL_USB_AF_INPUT
         [LVL_ATT]     = { .min = { .i = 0 }, .max = { .i = 18 }, .step = { .i = 6 } },
         [LVL_CWPITCH] = { .min = { .i = 300 }, .max = { .i = 1100 }, .step = { .i = 5 } },
         [LVL_SQL] = { .min = { .f = 0 }, .max = { .f = 1.0f }, .step = { .f = 1.0 / 255.0 } },
@@ -661,5 +717,7 @@ struct rig_caps ts890s_caps =
     .has_set_func = TS890_FUNC_ALL,
     .set_func = ts890_set_func,
     .get_func = ts890_get_func,
+    .get_clock = kenwood_get_clock,
+    .set_clock = kenwood_set_clock,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

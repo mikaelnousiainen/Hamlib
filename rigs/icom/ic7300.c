@@ -37,15 +37,15 @@
 static int ic7300_set_parm(RIG *rig, setting_t parm, value_t val);
 static int ic7300_get_parm(RIG *rig, setting_t parm, value_t *val);
 int ic7300_set_clock(RIG *rig, int year, int month, int day, int hour,
-        int min, int sec, double msec, int utc_offset);
+                     int min, int sec, double msec, int utc_offset);
 int ic7300_get_clock(RIG *rig, int *year, int *month, int *day,
-        int *hour,
-        int *min, int *sec, double *msec, int *utc_offset);
+                     int *hour,
+                     int *min, int *sec, double *msec, int *utc_offset);
 int ic9700_set_clock(RIG *rig, int year, int month, int day, int hour,
-        int min, int sec, double msec, int utc_offset);
+                     int min, int sec, double msec, int utc_offset);
 int ic9700_get_clock(RIG *rig, int *year, int *month, int *day,
-        int *hour,
-        int *min, int *sec, double *msec, int *utc_offset);
+                     int *hour,
+                     int *min, int *sec, double *msec, int *utc_offset);
 
 int ic9700_set_vfo(RIG *rig, vfo_t vfo);
 
@@ -67,7 +67,7 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo);
 #define IC7300_PARMS (RIG_PARM_ANN|RIG_PARM_BACKLIGHT|RIG_PARM_SCREENSAVER|RIG_PARM_TIME|RIG_PARM_BEEP|RIG_PARM_KEYERTYPE|RIG_PARM_AFIF)
 
 #define IC7300_VFO_OPS (RIG_OP_CPY|RIG_OP_XCHG|RIG_OP_FROM_VFO|RIG_OP_TO_VFO|RIG_OP_MCL|RIG_OP_TUNE)
-#define IC7300_SCAN_OPS (RIG_SCAN_STOP|RIG_SCAN_MEM|RIG_SCAN_PROG|RIG_SCAN_SLCT)
+#define IC7300_SCAN_OPS (RIG_SCAN_STOP|RIG_SCAN_MEM|RIG_SCAN_PROG|RIG_SCAN_SLCT|RIG_SCAN_VFO)
 
 #define IC7300_ANTS (RIG_ANT_1) /* ant-1 is Hf-6m */
 
@@ -419,7 +419,8 @@ static const struct icom_priv_caps IC7300_priv_caps =
     .x1cx03_possibly = 1,
     .x1ax03_supported = 1,
     .mode_with_filter = 1,
-    .data_mode_supported = 1
+    .data_mode_supported = 1,
+    .fm_filters = { 7000, 10000, 15000 }
 };
 
 static const struct icom_priv_caps IC9700_priv_caps =
@@ -474,7 +475,7 @@ static const struct icom_priv_caps IC9700_priv_caps =
     .x1cx03_possibly = 1,
     .x1ax03_supported = 1,
     .mode_with_filter = 1,
-    .data_mode_supported = 1
+    .data_mode_supported = 1,
 };
 
 static const struct icom_priv_caps IC705_priv_caps =
@@ -741,7 +742,7 @@ struct rig_caps ic7300_caps =
     RIG_MODEL(RIG_MODEL_IC7300),
     .model_name = "IC-7300",
     .mfg_name =  "Icom",
-    .version =  BACKEND_VER ".13",
+    .version =  BACKEND_VER ".14",
     .copyright =  "LGPL",
     .status =  RIG_STATUS_STABLE,
     .rig_type =  RIG_TYPE_TRANSCEIVER,
@@ -765,7 +766,13 @@ struct rig_caps ic7300_caps =
     .has_get_parm =  IC7300_PARMS,
     .has_set_parm =  RIG_PARM_SET(IC7300_PARMS),
     .level_gran = {
+#define NO_LVL_KEYSPD
+#define NO_LVL_CWPITCH
+#define NO_LVL_USB_AF
 #include "level_gran_icom.h"
+#undef NO_LVL_KEYSPD
+#undef NO_LVL_CWPITCH
+#undef NO_LVL_USB_AF
         [LVL_KEYSPD] = {.min = {.i = 6}, .max = {.i = 48}, .step = {.i = 1}},
         [LVL_CWPITCH] = {.min = {.i = 300}, .max = {.i = 900}, .step = {.i = 1}},
         [LVL_SPECTRUM_SPEED] = {.min = {.i = 0}, .max = {.i = 2}, .step = {.i = 1}},
@@ -1010,7 +1017,13 @@ struct rig_caps ic9700_caps =
     .has_get_parm =  IC9700_PARMS,
     .has_set_parm =  RIG_PARM_SET(IC9700_PARMS),
     .level_gran = {
+#define NO_LVL_KEYSPD
+#define NO_LVL_CWPITCH
+#define NO_LVL_USB_AF
 #include "level_gran_icom.h"
+#undef NO_LVL_KEYSPD
+#undef NO_LVL_CWPITCH
+#undef NO_LVL_USB_AF
         [LVL_KEYSPD] = {.min = {.i = 6}, .max = {.i = 48}, .step = {.i = 1}},
         [LVL_CWPITCH] = {.min = {.i = 300}, .max = {.i = 900}, .step = {.i = 1}},
         [LVL_SPECTRUM_SPEED] = {.min = {.i = 0}, .max = {.i = 2}, .step = {.i = 1}},
@@ -1334,7 +1347,13 @@ struct rig_caps ic705_caps =
     .has_get_parm =  IC7300_PARMS,
     .has_set_parm =  RIG_PARM_SET(IC7300_PARMS),
     .level_gran = {
+#define NO_LVL_KEYSPD
+#define NO_LVL_CWPITCH
+#define NO_LVL_USB_AF
 #include "level_gran_icom.h"
+#undef NO_LVL_KEYSPD
+#undef NO_LVL_CWPITCH
+#undef NO_LVL_USB_AF
         [LVL_KEYSPD] = {.min = {.i = 6}, .max = {.i = 48}, .step = {.i = 1}},
         [LVL_CWPITCH] = {.min = {.i = 300}, .max = {.i = 900}, .step = {.i = 1}},
         [LVL_SPECTRUM_SPEED] = {.min = {.i = 0}, .max = {.i = 2}, .step = {.i = 1}},
@@ -1606,7 +1625,13 @@ struct rig_caps ic905_caps =
     .has_get_parm =  IC7300_PARMS,
     .has_set_parm =  RIG_PARM_SET(IC705_PARMS),
     .level_gran = {
+#define NO_LVL_KEYSPD
+#define NO_LVL_CWPITCH
+#define NO_LVL_USB_AF
 #include "level_gran_icom.h"
+#undef NO_LVL_KEYSPD
+#undef NO_LVL_CWPITCH
+#undef NO_LVL_USB_AF
         [LVL_KEYSPD] = {.min = {.i = 6}, .max = {.i = 48}, .step = {.i = 1}},
         [LVL_CWPITCH] = {.min = {.i = 300}, .max = {.i = 900}, .step = {.i = 1}},
         [LVL_SPECTRUM_SPEED] = {.min = {.i = 0}, .max = {.i = 2}, .step = {.i = 1}},
@@ -2241,7 +2266,8 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo)
         }
         else
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: Invalid VFO %s in satellite mode\n", __func__, rig_strvfo(vfo));
+            rig_debug(RIG_DEBUG_ERR, "%s: Invalid VFO %s in satellite mode\n", __func__,
+                      rig_strvfo(vfo));
             RETURNFUNC(-RIG_EINVAL);
         }
     }
@@ -2266,6 +2292,7 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo)
     {
         // First switch to Main receiver
         retval = icom_transaction(rig, C_SET_VFO, S_MAIN, NULL, 0, ackbuf, &ack_len);
+
         if (retval != RIG_OK)
         {
             rig_debug(RIG_DEBUG_ERR, "%s: %s\n", __func__, rigerror(retval));
@@ -2274,7 +2301,8 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo)
 
         if (cachep->satmode && vfo == RIG_VFO_MAIN_B)
         {
-            rig_debug(RIG_DEBUG_WARN, "%s: cannot switch to VFOB when in satmode\n", __func__);
+            rig_debug(RIG_DEBUG_WARN, "%s: cannot switch to VFOB when in satmode\n",
+                      __func__);
             // we return RIG_OK anyways as this should just be a bad request
             RETURNFUNC(RIG_OK);
         }
@@ -2289,6 +2317,7 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo)
     {
         // First switch to Sub receiver
         retval = icom_transaction(rig, C_SET_VFO, S_SUB, NULL, 0, ackbuf, &ack_len);
+
         if (retval != RIG_OK)
         {
             rig_debug(RIG_DEBUG_ERR, "%s: %s\n", __func__, rigerror(retval));
@@ -2297,7 +2326,8 @@ int ic9700_set_vfo(RIG *rig, vfo_t vfo)
 
         if (cachep->satmode && vfo == RIG_VFO_SUB_B)
         {
-            rig_debug(RIG_DEBUG_WARN, "%s: cannot switch to VFOB when in satmode\n", __func__);
+            rig_debug(RIG_DEBUG_WARN, "%s: cannot switch to VFOB when in satmode\n",
+                      __func__);
             // we return RIG_OK anyways as this should just be a bad request
             RETURNFUNC(RIG_OK);
         }

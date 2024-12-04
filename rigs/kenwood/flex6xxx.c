@@ -751,16 +751,16 @@ int flex6k_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
     switch (level)
     {
-        case RIG_LEVEL_RFPOWER:
-            if (val.f > 1.0) { return -RIG_EINVAL; }
+    case RIG_LEVEL_RFPOWER:
+        if (val.f > 1.0) { return -RIG_EINVAL; }
 
-            ival = val.f * 100;
-            SNPRINTF(cmd, sizeof(cmd) - 1, "ZZPC%03d", ival);
+        ival = val.f * 100;
+        SNPRINTF(cmd, sizeof(cmd) - 1, "ZZPC%03d", ival);
 
-            break;
+        break;
 
-        default:
-            return kenwood_set_level(rig, vfo, level, val);
+    default:
+        return kenwood_set_level(rig, vfo, level, val);
     }
 
     retval = kenwood_transaction(rig, cmd, NULL, 0);
@@ -794,14 +794,14 @@ int flex6k_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     switch (level)
     {
-        case RIG_LEVEL_RFPOWER:
-            cmd = "ZZPC";
-            len = 4;
-            ans = 3;
-            break;
+    case RIG_LEVEL_RFPOWER:
+        cmd = "ZZPC";
+        len = 4;
+        ans = 3;
+        break;
 
-        default:
-            return kenwood_get_level(rig, vfo, level, val);
+    default:
+        return kenwood_get_level(rig, vfo, level, val);
     }
 
     retval = kenwood_safe_transaction(rig, cmd, lvlbuf, sizeof(lvlbuf), len + ans);
@@ -815,23 +815,23 @@ int flex6k_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     switch (level)
     {
-        case RIG_LEVEL_RFPOWER:
-            n = sscanf(lvlbuf, "ZZPC%f", &val->f);
+    case RIG_LEVEL_RFPOWER:
+        n = sscanf(lvlbuf, "ZZPC%f", &val->f);
 
-            if (n != 1)
-            {
-                rig_debug(RIG_DEBUG_ERR, "%s: Error parsing value from lvlbuf='%s'\n",
-                        __func__, lvlbuf);
-                val->f = 0;
-                return -RIG_EPROTO;
-            }
+        if (n != 1)
+        {
+            rig_debug(RIG_DEBUG_ERR, "%s: Error parsing value from lvlbuf='%s'\n",
+                      __func__, lvlbuf);
+            val->f = 0;
+            return -RIG_EPROTO;
+        }
 
-            val->f /= 100;
+        val->f /= 100;
 
-            break;
+        break;
 
-        default:
-            rig_debug(RIG_DEBUG_ERR, "%s: should never get here\n", __func__);
+    default:
+        rig_debug(RIG_DEBUG_ERR, "%s: should never get here\n", __func__);
     }
 
     return RIG_OK;
@@ -1331,6 +1331,9 @@ int powersdr_get_parm(RIG *rig, setting_t parm, value_t *val)
     RETURNFUNC(RIG_OK);
 }
 
+#define NO_LVL_KEYSPD
+#define NO_LVL_SLOPE_LOW
+#define NO_LVL_SLOPE_HIGH
 
 /*
  * F6K rig capabilities.
@@ -1339,8 +1342,8 @@ struct rig_caps f6k_caps =
 {
     RIG_MODEL(RIG_MODEL_F6K),
     .model_name =       "6xxx",
-    .mfg_name =     "Flex-radio",
-    .version =      "20240129.0",
+    .mfg_name =     "FlexRadio",
+    .version =      "20240829.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TRANSCEIVER,
@@ -1462,6 +1465,9 @@ struct rig_caps f6k_caps =
     .get_level =        flex6k_get_level,
     //.set_ant =       kenwood_set_ant_no_ack,
     //.get_ant =       kenwood_get_ant,
+    .send_morse =  kenwood_send_morse,
+    .stop_morse =  kenwood_stop_morse,
+    .wait_morse =  rig_wait_morse,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
@@ -1472,7 +1478,7 @@ struct rig_caps powersdr_caps =
 {
     RIG_MODEL(RIG_MODEL_POWERSDR),
     .model_name =       "PowerSDR",
-    .mfg_name =     "Flex-radio/Apache",
+    .mfg_name =     "FlexRadio/Apache",
     .version =      "20231107.0",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
@@ -1503,7 +1509,9 @@ struct rig_caps powersdr_caps =
     .has_get_parm =     RIG_PARM_BANDSELECT,
     .has_set_parm =     RIG_PARM_BANDSELECT,
     .level_gran =       {
+#define NO_LVL_KEYSPD
 #include "level_gran_kenwood.h"
+#undef NO_LVL_KEYSPD
         [LVL_KEYSPD] = { .min = { .i = 5 }, .max = { .i = 60 }, .step = { .i = 1 } },
     },     /* FIXME: granularity */
     .parm_gran =  {
@@ -1655,7 +1663,9 @@ struct rig_caps thetis_caps =
     .has_get_parm =     RIG_PARM_BANDSELECT,
     .has_set_parm =     RIG_PARM_BANDSELECT,
     .level_gran =       {
+#define NO_LVL_KEYSPD
 #include "level_gran_kenwood.h"
+#undef NO_LVL_KEYSPD
         [LVL_KEYSPD] = { .min = { .i = 5 }, .max = { .i = 60 }, .step = { .i = 1 } },
     },     /* FIXME: granularity */
     .parm_gran =  {

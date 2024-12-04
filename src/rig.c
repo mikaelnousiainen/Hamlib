@@ -169,6 +169,10 @@ const char hamlib_copyright[231] = /* hamlib 1.2 ABI specifies 231 bytes */
 #define CHECK_RIG_ARG(r) (!(r) || !(r)->caps || !STATE((r))->comm_state)
 #define CHECK_RIG_CAPS(r) (!(r) || !(r)->caps)
 
+// The LOCK macro is for the primary thread calling the rig functions
+// For a separate thread use rig_lock directly
+// The purpose here is to avoid deadlock during recursion
+// Any other thread should grab the mutex itself via rig_lock
 #define LOCK(n) if (STATE(rig)->depth == 1) { rig_debug(RIG_DEBUG_CACHE, "%s: %s\n", n?"lock":"unlock", __func__);  rig_lock(rig,n); }
 
 MUTEX(morse_mutex);
@@ -441,7 +445,7 @@ const char *HAMLIB_API rigerror2(int errnum) // returns single-line message
         return "ERR_OUT_OF_RANGE";
     }
 
-    static char msg[DEBUGMSGSAVE_SIZE];
+    static char msg[DEBUGMSGSAVE_SIZE / 2];
     snprintf(msg, sizeof(msg), "%s\n", rigerror_table[errnum]);
     return msg;
 }
@@ -618,6 +622,7 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
     rs->comm_state = 0;
     rs->comm_status = RIG_COMM_STATUS_CONNECTING;
     rs->tuner_control_pathname = DEFAULT_TUNER_CONTROL_PATHNAME;
+    strncpy(rs->client_version, "Hamlib", sizeof(rs->client_version));
 
     rp->fd = -1;
     pttp->fd = -1;
@@ -708,11 +713,18 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
     rs->rx_vfo = RIG_VFO_CURR;  /* we don't know yet! */
     rs->tx_vfo = RIG_VFO_CURR;  /* we don't know yet! */
     rs->poll_interval = 1000; // enable polling by default
+#if 0
     rs->multicast_data_addr =
-        "224.0.0.1"; // enable multicast data publishing by default
-    rs->multicast_data_port = 4532;
+        "224.0.0.1"; // do not enable multicast data publishing by default
     rs->multicast_cmd_addr =
         "224.0.0.2"; // enable multicast command server by default
+#else
+    rs->multicast_data_addr =
+        "0.0.0.0"; // do not enable multicast data publishing by default
+    rs->multicast_cmd_addr =
+        "0.0.0.0"; // enable multicast command server by default
+#endif
+    rs->multicast_data_port = 4532;
     rs->multicast_cmd_port = 4532;
     rs->lo_freq = 0;
     cachep->timeout_ms = 500;  // 500ms cache timeout by default
@@ -869,7 +881,7 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
     rs->announces = caps->announces;
 
     rp->fd = pttp->fd = dcdp->fd = -1;
-    // some rigs (like SDR) behave differnt when checking for power on
+    // some rigs (like SDR) behave different when checking for power on
     // So we assume power is on until one of the backends KNOWS it is off
     rs->powerstat = RIG_POWER_ON; // default to power on until proven otherwise
 
@@ -985,11 +997,11 @@ int HAMLIB_API rig_open(RIG *rig)
     else
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: cwd=%s\n", __func__, cwd);
-        char *path = calloc(1, 4096);
+        char *path = calloc(1, 8192);
         extern char settings_file[4096];
         const char *xdgpath = getenv("XDG_CONFIG_HOME");
 
-        strcpy(settings_file,"hamlib_settings");
+        strcpy(settings_file, "hamlib_settings");
 
         if (xdgpath)
         {
@@ -1066,22 +1078,25 @@ int HAMLIB_API rig_open(RIG *rig)
         rp->type.rig = RIG_PORT_NETWORK;
 
         if (rig->caps->rig_model == RIG_MODEL_SMARTSDR_A
-            || rig->caps->rig_model == RIG_MODEL_SMARTSDR_B
-            || rig->caps->rig_model == RIG_MODEL_SMARTSDR_C
-            || rig->caps->rig_model == RIG_MODEL_SMARTSDR_D
-            || rig->caps->rig_model == RIG_MODEL_SMARTSDR_E
-            || rig->caps->rig_model == RIG_MODEL_SMARTSDR_F
-            || rig->caps->rig_model == RIG_MODEL_SMARTSDR_G
-            || rig->caps->rig_model == RIG_MODEL_SMARTSDR_H
-            )
+                || rig->caps->rig_model == RIG_MODEL_SMARTSDR_B
+                || rig->caps->rig_model == RIG_MODEL_SMARTSDR_C
+                || rig->caps->rig_model == RIG_MODEL_SMARTSDR_D
+                || rig->caps->rig_model == RIG_MODEL_SMARTSDR_E
+                || rig->caps->rig_model == RIG_MODEL_SMARTSDR_F
+                || rig->caps->rig_model == RIG_MODEL_SMARTSDR_G
+                || rig->caps->rig_model == RIG_MODEL_SMARTSDR_H
+           )
         {
-            if (strstr(rp->pathname,"127.0.0.1"))
+            if (strstr(rp->pathname, "127.0.0.1"))
             {
                 rig_debug_clear();
-                rig_debug(RIG_DEBUG_ERR, "%s: Do not use 127.0.0.1 for SmartSDR.  Network Server entry needs to be the Radio's IP address, no port necessary\n", __func__);
+                rig_debug(RIG_DEBUG_ERR,
+                          "%s: Do not use 127.0.0.1 for SmartSDR.  Network Server entry needs to be the Radio's IP address, no port necessary\n",
+                          __func__);
                 return -RIG_EINVAL;
             }
         }
+
         if (RIG_BACKEND_NUM(rig->caps->rig_model) == RIG_ICOM)
         {
             // Xiegu X6100 does TCP and does not support UDP spectrum that I know of
@@ -1498,6 +1513,7 @@ int HAMLIB_API rig_open(RIG *rig)
     if (skip_init) { RETURNFUNC2(RIG_OK); }
 
 #if defined(HAVE_PTHREAD)
+
     // Some models don't support CW so don't need morse handler
     if (rig->caps->send_morse)
     {
@@ -1505,8 +1521,8 @@ int HAMLIB_API rig_open(RIG *rig)
 
         if (status < 0)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: cw_data_handler_start failed: %s\n", __func__,
-                  rigerror(status));
+            rig_debug(RIG_DEBUG_ERR, "%s: cw_data_handler_start failed: %.23000s\n", __func__,
+                      rigerror(status));
             port_close(rp, rp->type.rig);
             RETURNFUNC2(status);
         }
@@ -1590,7 +1606,7 @@ int HAMLIB_API rig_open(RIG *rig)
 
     if (retval != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: network_multicast_publisher_start failed: %s\n",
+        rig_debug(RIG_DEBUG_ERR, "%s: network_multicast_publisher_start failed: %.23000s\n",
                   __FILE__,
                   rigerror(retval));
         // we will consider this non-fatal for now
@@ -1601,7 +1617,7 @@ int HAMLIB_API rig_open(RIG *rig)
 
     if (retval != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: network_multicast_receiver_start failed: %s\n",
+        rig_debug(RIG_DEBUG_ERR, "%s: network_multicast_receiver_start failed: %.23000s\n",
                   __FILE__,
                   rigerror(retval));
         // we will consider this non-fatal for now
@@ -1611,7 +1627,7 @@ int HAMLIB_API rig_open(RIG *rig)
 
     if (retval != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: rig_poll_routine_start failed: %s\n", __FILE__,
+        rig_debug(RIG_DEBUG_ERR, "%s: rig_poll_routine_start failed: %.23000s\n", __FILE__,
                   rigerror(retval));
         // we will consider this non-fatal for now
     }
@@ -1982,7 +1998,7 @@ static int twiddling(RIG *rig)
 
 #include "band_changed.c"
 
-// for rigs that do not have targetable VFO 
+// for rigs that do not have targetable VFO
 // skip setting frequency on the non-active vfo
 // this allow gpredict to work correctly on these rigs
 // but we might have trou
@@ -1998,9 +2014,11 @@ static int skip_freq(RIG *rig, vfo_t vfo)
     // gpredict needs to set Doppler all the time so causes VFO flashing on rigs without TARGETABLE_FREQ
     if (rs->freq_skip == 0)
     {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: not skipping set_freq on vfo %s\n", __func__, rig_strvfo(vfo));
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: not skipping set_freq on vfo %s\n", __func__,
+                  rig_strvfo(vfo));
         return 0;
     }
+
     if (cachep->ptt && cachep->split
             && ((rig->caps->targetable_vfo & RIG_TARGETABLE_FREQ) == 0)
             && (vfo == RIG_VFO_RX || vfo == rs->rx_vfo))
@@ -2018,6 +2036,7 @@ static int skip_freq(RIG *rig, vfo_t vfo)
                   "%s: skip setting frequency on TX vfo when PTT is not on\n", __func__);
         retval = 1;
     }
+
     return retval;
 }
 
@@ -2073,7 +2092,9 @@ int rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         band_changing = 1;
         //rig_band_changed(rig, curr_band);
         last_band = curr_band;
-        if (cachep->ptt) {
+
+        if (cachep->ptt)
+        {
             rig_set_ptt(rig, RIG_VFO_CURR, RIG_PTT_OFF);
             hl_usleep(200); // make sure PTT is off
         }
@@ -2270,7 +2291,7 @@ int rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
         if (retcode != RIG_OK)
         {
-            rig_debug(RIG_DEBUG_ERR, "%s: set_vfo failed: %s\n", __func__,
+            rig_debug(RIG_DEBUG_ERR, "%s: set_vfo failed: %.23000s\n", __func__,
                       rigerror(retcode));
         }
 
@@ -2807,8 +2828,14 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         retcode = caps->get_mode(rig, vfo, &mode_curr, &width_curr);
 
         // For Icom rigs we may need to force the filter so we always set mode
+#if 0
+        // This should not be necessary anymore with the new filter method for Icom rigs
+        // Hopefully fixes issue https://github.com/Hamlib/Hamlib/issues/1580
         if (retcode == RIG_OK && mode == mode_curr
                 && RIG_ICOM != RIG_BACKEND_NUM(rig->caps->rig_model))
+#else
+        if (retcode == RIG_OK && mode == mode_curr)
+#endif
         {
             rig_debug(RIG_DEBUG_VERBOSE,
                       "%s: mode already %s and bw change not requested\n", __func__,
@@ -2890,7 +2917,7 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     if (retcode != RIG_OK)
     {
-        rig_debug(RIG_DEBUG_TRACE, "%s: failed set_mode(%s)=%s\n",
+        rig_debug(RIG_DEBUG_TRACE, "%s: failed set_mode(%s)=%.23000s\n",
                   __func__, rig_strrmode(mode), rigerror(retcode));
         ELAPSED2;
         LOCK(0);
@@ -3305,7 +3332,7 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
 
         if (retcode != RIG_OK)
         {
-            rig_debug(RIG_DEBUG_WARN, "%s: rig_get_vfo error=%s\n", __func__,
+            rig_debug(RIG_DEBUG_WARN, "%s: rig_get_vfo error=%.23000s\n", __func__,
                       rigerror(retcode));
         }
 
@@ -3458,9 +3485,9 @@ int HAMLIB_API rig_get_vfo(RIG *rig, vfo_t *vfo)
     HAMLIB_TRACE;
     LOCK(1);
 
-    if (caps->get_vfo)
+    if (rig->caps->get_vfo)
     {
-        retcode = caps->get_vfo(rig, vfo);
+        retcode = rig->caps->get_vfo(rig, vfo);
 
         if (retcode == RIG_OK)
         {
@@ -3470,6 +3497,13 @@ int HAMLIB_API rig_get_vfo(RIG *rig, vfo_t *vfo)
         }
         else
         {
+            if (RIG_ICOM == RIG_BACKEND_NUM(rig->caps->rig_model))
+            {
+                rig->caps->get_vfo = NULL;
+                *vfo = RIG_VFO_A;
+                RETURNFUNC(RIG_OK);
+            }
+
             //cache_ms = elapsed_ms(&cachep->time_vfo, HAMLIB_ELAPSED_INVALIDATE);
         }
     }
@@ -5913,7 +5947,8 @@ int HAMLIB_API rig_get_split_vfo(RIG *rig,
 
     if (caps->get_split_vfo == NULL || use_cache)
     {
-        rig_debug(RIG_DEBUG_TRACE, "%s: ?get_split_vfo=%d use_cache=%d\n", __func__, caps->get_split_vfo != NULL, use_cache);
+        rig_debug(RIG_DEBUG_TRACE, "%s: ?get_split_vfo=%d use_cache=%d\n", __func__,
+                  caps->get_split_vfo != NULL, use_cache);
         // if we can't get the vfo we will return whatever we have cached
         *split = cachep->split;
         *tx_vfo = cachep->split_vfo;
@@ -6997,10 +7032,8 @@ vfo_op_t HAMLIB_API rig_has_vfo_op(RIG *rig, vfo_op_t op)
         return (0);
     }
 
-    ENTERFUNC;
-
     retcode = STATE(rig)->vfo_ops & op;
-    RETURNFUNC(retcode);
+    return retcode;
 }
 
 
@@ -7518,7 +7551,7 @@ int HAMLIB_API rig_stop_morse(RIG *rig, vfo_t vfo)
 /*
  * wait_morse_ptt
  * generic routine to wait for ptt=0
- * should work on any full breakin CW morse send
+ * should work on any full break-in CW morse send
  * Assumes rig!=NULL, msg!=NULL
  */
 static int wait_morse_ptt(RIG *rig, vfo_t vfo)
@@ -7829,6 +7862,7 @@ const char *HAMLIB_API rig_get_info(RIG *rig)
 }
 
 
+#if 0
 static void make_crc_table(unsigned long crcTable[])
 {
     unsigned long POLYNOMIAL = 0xEDB88320;
@@ -7870,6 +7904,7 @@ static unsigned long gen_crc(unsigned char *p, size_t n)
 
     return ((~crc) & 0xffffffff);
 }
+#endif
 
 /**
  * \brief get freq/mode/width for requested VFO
@@ -7945,10 +7980,11 @@ int HAMLIB_API rig_get_rig_info(RIG *rig, char *response, int max_response_len)
     rxb = !rxa;
     txb = split == 1;
     SNPRINTF(response, max_response_len - strlen("CRC=0x00000000\n"),
-             "VFO=%s Freq=%.0f Mode=%s Width=%d RX=%d TX=%d\nVFO=%s Freq=%.0f Mode=%s Width=%d RX=%d TX=%d\nSplit=%d SatMode=%d\nRig=%s\nApp=Hamlib\nVersion=20210506 1.0.0\n",
+             "VFO=%s Freq=%.0f Mode=%s Width=%d RX=%d TX=%d\nVFO=%s Freq=%.0f Mode=%s Width=%d RX=%d TX=%d\nSplit=%d SatMode=%d\nRig=%s\nApp=%s\nVersion=20241103 1.1.0\nModel=%u\n",
              rig_strvfo(vfoA), freqA, modeAstr, (int)widthA, rxa, txa, rig_strvfo(vfoB),
-             freqB, modeBstr, (int)widthB, rxb, txb, split, satmode, rig->caps->model_name);
-    unsigned long crc = gen_crc((unsigned char *)response, strlen(response));
+             freqB, modeBstr, (int)widthB, rxb, txb, split, satmode, rig->caps->model_name,
+             STATE(rig)->client_version, rig->caps->rig_model);
+    unsigned long crc = CRC32_function((unsigned char *)response, strlen(response));
     char tmpstr[32];
     SNPRINTF(tmpstr, sizeof(tmpstr), "CRC=0x%08lx\n", crc);
     strcat(response, tmpstr);
@@ -8087,6 +8123,7 @@ int HAMLIB_API rig_set_clock(RIG *rig, int year, int month, int day, int hour,
                              int min, int sec, double msec, int utc_offset)
 {
     ENTERFUNC2;
+
     if (rig->caps->set_clock == NULL)
     {
         return -RIG_ENIMPL;
@@ -8323,6 +8360,7 @@ void rig_lock(RIG *rig, int lock)
 #if defined(HAVE_PTHREAD)
 
     struct rig_state *rs = STATE(rig);
+
     if (rs->multicast == NULL) { return; } // not initialized yet
 
     if (!rs->multicast->mutex_initialized)
@@ -8601,7 +8639,7 @@ void *async_data_handler(void *arg)
         }
         else
         {
-            static int busy_retry=2;
+            static int busy_retry = 2;
 again:
             result = write_block_sync(RIGPORT(rig), frame, frame_length);
 
@@ -8610,10 +8648,13 @@ again:
                 // TODO: error handling? can writing to a pipe really fail in ways we can recover from?
                 rig_debug(RIG_DEBUG_ERR, "%s: write_block_sync() failed, result=%d\n", __func__,
                           result);
-                if (result == EBUSY && --busy_retry>0) { // we can try again
-                    hl_usleep(200*1000);
+
+                if (result == EBUSY && --busy_retry > 0) // we can try again
+                {
+                    hl_usleep(200 * 1000);
                     goto again;
                 }
+
                 continue;
             }
         }
@@ -8723,15 +8764,16 @@ void *morse_data_handler(void *arg)
             if (strlen(c) > 0)
             {
                 int nloops = 10;
-                MUTEX_LOCK(morse_mutex);
+                MUTEX_LOCK(morse_mutex); // wait until the write is idle
 
+		rig_lock(rig, 1);
                 do
                 {
                     result = rig->caps->send_morse(rig, RIG_VFO_CURR, c);
 
                     if (result != RIG_OK)
                     {
-                        rig_debug(RIG_DEBUG_ERR, "%s: error: %s\n", __func__, rigerror(result));
+                        rig_debug(RIG_DEBUG_ERR, "%s: error: %.23971s\n", __func__, rigerror(result));
 
                         if (result == -RIG_EINVAL)
                         {
@@ -8748,6 +8790,7 @@ void *morse_data_handler(void *arg)
 
                 }
                 while (result != RIG_OK && STATE(rig)->fifo_morse->flush == 0 && --nloops > 0);
+		rig_lock(rig,0);
 
                 MUTEX_UNLOCK(morse_mutex);
 
@@ -8969,7 +9012,7 @@ int morse_data_handler_set_keyspd(RIG *rig, int keyspd)
  * \retval The address of the enumed structure
  *
  * Note: This is meant for use by the HAMLIB_???PORT macros mostly. Only
- *  compatiblity with them is supported.
+ *  compatibility with them is supported.
  *
  * \sa amp_data_pointer, rot_data_pointer
  */

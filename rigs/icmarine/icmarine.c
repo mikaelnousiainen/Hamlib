@@ -130,7 +130,7 @@ int icmarine_init(RIG *rig)
     priv_caps = (const struct icmarine_priv_caps *) caps->priv;
 
     STATE(rig)->priv = (struct icmarine_priv_data *)calloc(1, sizeof(
-                          struct icmarine_priv_data));
+                           struct icmarine_priv_data));
 
     if (!STATE(rig)->priv)
     {
@@ -269,7 +269,7 @@ int icmarine_transaction(RIG *rig, const char *cmd, const char *param,
         cmd_len += snprintf(cmdbuf + cmd_len, BUFSZ - cmd_len, ",%s", param);
     }
 
-    /* NMEA checksum, betwwen '$' and '*' */
+    /* NMEA checksum, between '$' and '*' */
     for (i = 1; i < cmd_len; i++)
     {
         csum = csum ^ (unsigned)cmdbuf[i];

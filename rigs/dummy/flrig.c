@@ -143,7 +143,7 @@ struct rig_caps flrig_caps =
     RIG_MODEL(RIG_MODEL_FLRIG),
     .model_name = "",
     .mfg_name = "FLRig",
-    .version = "20240612.0",
+    .version = "20241204.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -632,7 +632,7 @@ static int flrig_init(RIG *rig)
     rig_debug(RIG_DEBUG_TRACE, "%s version %s\n", __func__, rig->caps->version);
 
     STATE(rig)->priv  = (struct flrig_priv_data *)calloc(1, sizeof(
-                           struct flrig_priv_data));
+                            struct flrig_priv_data));
 
     if (!STATE(rig)->priv)
     {
@@ -850,6 +850,10 @@ static int flrig_open(RIG *rig)
 
     strncpy(priv->info, value, sizeof(priv->info));
     rig_debug(RIG_DEBUG_VERBOSE, "Transceiver=%s\n", value);
+    char model_name[256];
+    snprintf(model_name,sizeof(model_name), "%.248s(%s)", value, "FLRig");
+    rig->caps->model_name = strdup(model_name);
+    STATE(rig)->model_name = strdup(model_name);
 
     /* see if get_pwrmeter_scale is available */
     retval = flrig_transaction(rig, "rig.get_pwrmeter_scale", NULL, value,
@@ -954,7 +958,7 @@ static int flrig_open(RIG *rig)
             rig_debug(RIG_DEBUG_VERBOSE, "%s: get_bwB is available=%s\n", __func__, value);
         }
 
-        /* see if set_bwA is available */
+        /* see if set_bwB is available */
         retval = flrig_transaction(rig, "rig.set_bwB", NULL, value, sizeof(value));
 
         if (retval == RIG_ENAVAIL) // must not have it
@@ -1120,7 +1124,8 @@ static int flrig_open(RIG *rig)
     rig_get_split_vfo(rig, RIG_VFO_A, &split, &tx_vfo);
 
 #if 0
-    retval = flrig_transaction(rig, "rig.get_agc_labels", NULL, value, sizeof(value));
+    retval = flrig_transaction(rig, "rig.get_agc_labels", NULL, value,
+                               sizeof(value));
 
     if (retval != RIG_OK) { RETURNFUNC(retval); }
 
@@ -1315,7 +1320,7 @@ static int flrig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     retval = flrig_transaction(rig, cmd, cmd_arg, NULL, 0);
 
-    hl_usleep(100*1000); // FLRig needs a moment to update the active VFO
+    hl_usleep(100 * 1000); // FLRig needs a moment to update the active VFO
 
     if (retval != RIG_OK)
     {
@@ -1783,9 +1788,11 @@ static int flrig_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
         cmdp = "rig.get_bwA";
         retval = flrig_transaction(rig, cmdp, NULL, value, sizeof(value));
 
-        if (strlen(value) == 0) // sometimes we get a null reply here -- OK...deal with it
+        if (strlen(value) ==
+                0) // sometimes we get a null reply here -- OK...deal with it
         {
-            rig_debug(RIG_DEBUG_WARN, "%s: empty value return cached bandwidth\n", __func__);
+            rig_debug(RIG_DEBUG_WARN, "%s: empty value return cached bandwidth\n",
+                      __func__);
             *width = CACHE(rig)->widthMainA;
             RETURNFUNC(RIG_OK);
         }
@@ -1811,10 +1818,12 @@ static int flrig_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 
             if (strlen(value) == 0)
             {
-                rig_debug(RIG_DEBUG_WARN, "%s: empty value return cached bandwidth\n", __func__);
+                rig_debug(RIG_DEBUG_WARN, "%s: empty value return cached bandwidth\n",
+                          __func__);
                 *width = CACHE(rig)->widthMainA;
                 RETURNFUNC(RIG_OK);
             }
+
             if (retval == RIG_OK && strlen(value) == 0)
             {
                 rig_debug(RIG_DEBUG_VERBOSE, "%s: does not have rig.get_bwB\n", __func__);
@@ -2323,7 +2332,7 @@ static int flrig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     case RIG_LEVEL_MICGAIN: cmd = "rig.get_micgain"; break;
 
-    case RIG_LEVEL_STRENGTH: cmd = "rig.get_smeter"; break;
+    case RIG_LEVEL_STRENGTH: cmd = "rig.get_DBM"; break;
 
     case RIG_LEVEL_SWR:
         cmd = "rig.get_swrmeter";
@@ -2377,8 +2386,7 @@ static int flrig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     }
 
     case RIG_LEVEL_STRENGTH:
-        val->i = atoi(value) - 54;
-        //if (val->i > 0) val->i /= 10;
+        val->i = atoi(value) + 73;
         rig_debug(RIG_DEBUG_TRACE, "%s: val.i='%s'(%d)\n", __func__, value, val->i);
         break;
 
@@ -2412,7 +2420,8 @@ static int flrig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 */
 static const char *flrig_get_info(RIG *rig)
 {
-    const struct flrig_priv_data *priv = (struct flrig_priv_data *) STATE(rig)->priv;
+    const struct flrig_priv_data *priv = (struct flrig_priv_data *) STATE(
+            rig)->priv;
 
     return (priv->info);
 }
@@ -2420,7 +2429,8 @@ static const char *flrig_get_info(RIG *rig)
 static int flrig_power2mW(RIG *rig, unsigned int *mwpower, float power,
                           freq_t freq, rmode_t mode)
 {
-    const struct flrig_priv_data *priv = (struct flrig_priv_data *) STATE(rig)->priv;
+    const struct flrig_priv_data *priv = (struct flrig_priv_data *) STATE(
+            rig)->priv;
     ENTERFUNC;
     rig_debug(RIG_DEBUG_TRACE, "%s: passed power = %f\n", __func__, power);
     rig_debug(RIG_DEBUG_TRACE, "%s: passed freq = %"PRIfreq" Hz\n", __func__, freq);
@@ -2567,7 +2577,8 @@ static int flrig_get_ext_parm(RIG *rig, hamlib_token_t token, value_t *val)
     RETURNFUNC(RIG_OK);
 }
 
-HAMLIB_EXPORT(int) flrig_cat_string2(RIG *rig, const char *arg, char *value, int value_size)
+HAMLIB_EXPORT(int) flrig_cat_string2(RIG *rig, const char *arg, char *value,
+                                     int value_size)
 {
     int retval;
     char cmd_arg[MAXARGLEN];

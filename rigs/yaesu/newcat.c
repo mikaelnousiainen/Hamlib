@@ -477,9 +477,10 @@ int newcat_init(RIG *rig)
     ENTERFUNC;
 
     STATE(rig)->priv = (struct newcat_priv_data *) calloc(1,
-                      sizeof(struct newcat_priv_data));
+                       sizeof(struct newcat_priv_data));
 
-    if (!STATE(rig)->priv)                                  /* whoops! memory shortage! */
+    if (!STATE(
+                rig)->priv)                                  /* whoops! memory shortage! */
     {
         RETURNFUNC(-RIG_ENOMEM);
     }
@@ -1008,6 +1009,13 @@ int newcat_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         rig_debug(RIG_DEBUG_TRACE, "%s: 60M VFO_MEM exception, no freq change done\n",
                   __func__);
         RETURNFUNC(RIG_OK); /* make it look like we changed */
+    }
+
+    if ((is_ftdx101d || is_ftdx101mp) && (freq >= 70000000 && freq <= 70499999))
+    {
+        // ensure the tuner is off for 70cm -- can cause damage to the rig
+        newcat_set_func(rig, RIG_VFO_A, RIG_FUNC_TUNER, 0);
+        hl_usleep(100 * 1000); // give it a chance to turn off
     }
 
     switch (vfo)
@@ -1993,7 +2001,7 @@ int newcat_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
                 && (is_ftdx3000 || is_ftdx3000dm)
            )
         {
-            // DX3000 with seperate rx/tx antennas was failing frequency change
+            // DX3000 with separate rx/tx antennas was failing frequency change
             // so we increased the sleep from 100ms to 300ms
             hl_usleep(300 * 1000);
         }
@@ -3705,11 +3713,17 @@ int newcat_set_powerstat(RIG *rig, powerstat_t status)
         // some rigs reset the serial port during power up
         // so we reopen the com port  again
         HAMLIB_TRACE;
+
         //oser_close(rp);
-        rig_close(rig);
-        hl_usleep(3000000);
-        //PTTPORT(rig)->fd = ser_open(rp);
-        rig_open(rig);
+        // we can add more rigs to this exception to speed them up
+        if (!is_ft991)
+        {
+            rig_close(rig);
+            hl_usleep(3000000);
+            //PTTPORT(rig)->fd = ser_open(rp);
+            rig_open(rig);
+        }
+
         break;
 
     case RIG_POWER_OFF:

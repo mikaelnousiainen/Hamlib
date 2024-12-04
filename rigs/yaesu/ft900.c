@@ -418,7 +418,7 @@ struct rig_caps ft900_caps =
     RIG_MODEL(RIG_MODEL_FT900),
     .model_name =         "FT-900",
     .mfg_name =           "Yaesu",
-    .version =            "20200323.0",
+    .version =            "20241122.0",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -560,7 +560,7 @@ static int ft900_init(RIG *rig)
     }
 
     STATE(rig)->priv = (struct ft900_priv_data *) calloc(1,
-                      sizeof(struct ft900_priv_data));
+                       sizeof(struct ft900_priv_data));
 
     if (!STATE(rig)->priv)                       /* whoops! memory shortage! */
     {
@@ -897,6 +897,7 @@ static int ft900_set_mode(RIG *rig, vfo_t vfo, rmode_t mode,
         break;
 
     default:
+        rig_debug(RIG_DEBUG_ERR, "%s: mode %s not supported by FT900\n", __func__, rig_strrmode(mode));
         return -RIG_EINVAL;       /* sorry, wrong MODE */
     }
 

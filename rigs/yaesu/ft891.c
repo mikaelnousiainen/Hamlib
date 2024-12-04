@@ -130,7 +130,7 @@ struct rig_caps ft891_caps =
     RIG_MODEL(RIG_MODEL_FT891),
     .model_name =         "FT-891",
     .mfg_name =           "Yaesu",
-    .version =            NEWCAT_VER ".10",
+    .version =            NEWCAT_VER ".11",
     .copyright =          "LGPL",
     .status =             RIG_STATUS_STABLE,
     .rig_type =           RIG_TYPE_TRANSCEIVER,
@@ -155,7 +155,16 @@ struct rig_caps ft891_caps =
     .has_set_parm =       RIG_PARM_BANDSELECT,
     .level_gran =
     {
+#define NO_LVL_RF
+#define NO_LVL_MICGAIN
+#define NO_LVL_SQL
+#define NO_LVL_MONITOR_GAIN
+#define NO_LVL_RFPOWER
 #include "level_gran_yaesu.h"
+#undef NO_LVL_RF
+#undef NO_LVL_MICGAIN
+#undef NO_LVL_SQL
+#undef NO_LVL_MONITOR_GAIN
         [LVL_RF] = { .min = { .f = 0 }, .max = { .f = 1.0f }, .step = { .f = 1.0f / 30.0f } },
         [LVL_MICGAIN] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 100.0f } },
         [LVL_SQL] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 100.0f } },
@@ -185,7 +194,7 @@ struct rig_caps ft891_caps =
     .str_cal =            FT891_STR_CAL,
     .chan_list =          {
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
-        {   1,	5,  RIG_MTYPE_MORSE },
+        {   1,  5,  RIG_MTYPE_MORSE },
         RIG_CHAN_END,
     },
 
@@ -374,7 +383,7 @@ static int ft891_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
     priv = (struct newcat_priv_data *)STATE(rig)->priv;
 
     // RX VFO and TX VFO cannot be the same, no support for MEM as TX VFO
-    if (vfo == tx_vfo || tx_vfo == RIG_VFO_MEM)
+    if ((split == RIG_SPLIT_ON && (vfo == tx_vfo)) || tx_vfo == RIG_VFO_MEM)
     {
         return -RIG_ENTARGET;
     }

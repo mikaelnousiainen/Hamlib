@@ -182,7 +182,7 @@ below.
 .BR \-L ", " \-\-show\-conf
 List all config parameters for the radio defined with
 .B \-m
-above. Note the dummy device has no serial parameters.
+above. Will exit if no -r is given. Note the dummy device has no serial parameters.
 .
 .TP
 .BR \-C ", " \-\-set\-conf = \fIparm=val\fP [ \fI,parm=val\fP ]
@@ -494,6 +494,7 @@ Mode is a token: \(oqUSB\(cq, \(oqLSB\(cq, \(oqCW\(cq, \(oqCWR\(cq,
 \(oqDSB\(cq.
 .IP
 Passband is in Hz as an integer, -1 for no change, or \(oq0\(cq for the radio backend default.
+IC7300 can use 1,2,3 to select which filter to use
 .IP
 .BR Note :
 Passing a \(oq?\(cq (query) as the first argument instead of a Mode token will
@@ -1137,7 +1138,7 @@ Set
 .RI \(aq Transceive \(aq
 mode.
 .IP
-Transcieve is a token: \(oqOFF\(cq, \(oqRIG\(cq, \(oqPOLL\(cq.
+Transceive is a token: \(oqOFF\(cq, \(oqRIG\(cq, \(oqPOLL\(cq.
 .IP
 Transceive is a mechanism for radios to report events without a specific call
 for information.
@@ -1317,10 +1318,17 @@ YYYY-MM-DDTHH:MM:SS+ZZZZ
 YYYY-MM-DDTHH:MM+ZZ
 YYYY-MM-DDTHH:MM+ZZZZ
 YYYY-MM-DD (sets date only)
+local (sets both clocks to local time)
+utc (sets both clocks to utc time)
 Note: Icom rigs expect you to set local time and the hours off to UTC.
-So...4PM EST example would be 2021-12-01T16:00:00+0500
+So...4PM EST example would be 2021-12-01T16:00:00-0500
 But...if you want to display GMT you must set the clock for GMT with zero UTC offset.  
 Hopefully Icom will allow displaying either clock in the future
+
+Note: Kenwood rigs only allow setting local clock, and then only if not autoset by NTP.
+Trying to set clock when NTP is in use will set the offset, but not the time -
+   and no error status will be returned.
+Time displayed on the auxiliary clock is solely determined by UTC and the aux offset.
 
 .EE
 .
@@ -1348,7 +1356,7 @@ Set
 .IP
 Set vfo option Status 1=on or 0=off
 This is the same as using the -o switch for rigctl and ritctld.
-This can be dyamically changed while running.
+This can be dynamically changed while running.
 .
 .TP
 .BR get_separator 
@@ -1363,9 +1371,8 @@ Set
 .RI \(aq SeparatorChar \(aq
 .IP
 Change rigctld response to use a special char instead of newline (recommend #).
-This can be dyamically changed while running.
 Handy for node-red's tcprequest node.
-This can be dyamically changed while running.
+This can be dynamically changed while running.
 .
 .TP
 .BR pause " \(aq" \fISeconds\fP \(aq
@@ -1391,13 +1398,26 @@ Returns current lock mode status 1=On, 2=Off (only useful when using rigctld)
 .TP
 .BR send_raw " \(aq" \fITerminator\fP "\(aq \(aq" \fIString\fP \(aq
 .EX
-Can send ASCII string or 0xnn values -- there can be no spaces in the command string.
+Can send ASCII string or 0xnn values or xnn values -- there can be no spaces in the command string.
 Possible terminator values are CR, LF, ;, ICOM, 0-100 (bytes to read), or -1 meaning unknown (will timeout on read)
-Examples:
-  send_raw ; FA;MD;
+Examples (note that a ; must be escaped in Unix/Linux):
+For Windows & Unix/Linux we have a new colon-separated format for hex digits
+  send_raw icom 0xFE:0xFE:0x94:0x03:0xFD Note: colon-separated does not have to be escaped on Unix/Linux
+  send_raw -1 0xFE:0xFE:0x94:0x03:0xFD
+  send_raw 14 0xFE:0xFE:0x94:0x03:0xFD
+  Note that ASCII commands still require escaping the semicolon on Unix/Linux
+  send_raw \; FA\;MD\;
+  
+For Windows:
   send_raw icom 0xFE;0xFE;0x94;0x03;0xFD
   send_raw -1 0xFE;0xFE;0x94;0x03;0xFD
   send_raw 14 0xFE;0xFE;0x94;0x03;0xFD
+
+  For Unix/Linux
+  send_raw icom 0xFE\;0xFE\;0x94\;0x03\;0xFD
+  send_raw \; FA\;MD\;
+  send_raw -1 0xFE\;0xFE\;0x94\;0x03\;0xFD
+  send_raw 14 0xFE\;0xFE\;0x94\;0x03\;0xFD
 .
 .TP
 .BR client_version " \(aq" \fIString\fP "\(aq
@@ -1443,7 +1463,7 @@ If
 .B Readline
 library development files are found at configure time,
 .B rigctl
-will be conditonally built with Readline support for command and argument entry.
+will be conditionally built with Readline support for command and argument entry.
 Readline command key bindings are at their defaults as described in the
 .UR https://tiswww.cwru.edu/php/chet/readline/rluserman.html
 Readline manual

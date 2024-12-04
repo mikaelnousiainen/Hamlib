@@ -198,7 +198,19 @@ struct rig_caps ftdx101d_caps =
     .has_set_parm =       RIG_PARM_BANDSELECT,
     .level_gran =
     {
+#define NO_LVL_MICGAIN
+#define NO_LVL_SQL
+#define NO_LVL_MONITOR_GAIN
+#define NO_LVL_RFPOWER
+#define NO_LVL_USB_AF
+#define NO_LVL_USB_AF_INPUT
 #include "level_gran_yaesu.h"
+#undef NO_LVL_MICGAIN
+#undef NO_LVL_SQL
+#undef NO_LVL_MONITOR_GAIN
+#undef NO_LVL_RFPOWER
+#undef NO_LVL_USB_AF
+#undef NO_LVL_USB_AF_INPUT
         [LVL_MICGAIN] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 100.0f } },
         [LVL_SQL] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 100.0f } },
         [LVL_MONITOR_GAIN] = { .min = { .f = 0 }, .max = { .f = 1.0 }, .step = { .f = 1.0f / 100.0f } },
@@ -232,7 +244,7 @@ struct rig_caps ftdx101d_caps =
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
         {   100,  117, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP }, // P1L-P9U PMS channels
         {   501,  510, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP }, // 5xx 5MHz band
-        {   1,	  5,   RIG_MTYPE_MORSE },
+        {   1,    5,   RIG_MTYPE_MORSE },
         RIG_CHAN_END,
     },
 

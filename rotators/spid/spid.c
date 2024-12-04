@@ -198,6 +198,7 @@ static int spid_rot_init(ROT *rot)
     }
 
     if (rot->caps->rot_model == ROT_MODEL_SPID_ROT2PROG ||
+            rot->caps->rot_model == ROT_MODEL_SPID_ROT1PROG ||
             rot->caps->rot_model == ROT_MODEL_SPID_MD01_ROT2PROG)
     {
         struct spid_rot2prog_priv_data *priv;
@@ -216,6 +217,11 @@ static int spid_rot_init(ROT *rot)
         priv->el_resolution = 0;
         priv->dir = 0;
     }
+    else
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: Unknown SPID model=%s\n", __func__,
+                  rot->caps->model_name);
+    }
 
     return RIG_OK;
 }
@@ -230,7 +236,7 @@ static int spid_rot_cleanup(ROT *rot)
     }
 
     if (ROTSTATE(rot)->priv && (rot->caps->rot_model == ROT_MODEL_SPID_ROT2PROG ||
-                            rot->caps->rot_model == ROT_MODEL_SPID_MD01_ROT2PROG))
+                                rot->caps->rot_model == ROT_MODEL_SPID_MD01_ROT2PROG))
     {
         free(ROTSTATE(rot)->priv);
     }
@@ -535,7 +541,7 @@ static int spid_rot_stop(ROT *rot)
         return retval;
     }
 
-    priv->dir = 0;
+    if (priv) { priv->dir = 0; }
 
     return RIG_OK;
 }
@@ -555,25 +561,25 @@ static int spid_md01_rot2prog_rot_move(ROT *rot, int direction, int speed)
     switch (direction)
     {
     case ROT_MOVE_UP:
-        if (dir != 0x01 || dir != 0x02) { dir = 0; }
+        if (dir != 0x01 && dir != 0x02) { dir = 0; }
 
         dir |= 0x04;
         break;
 
     case ROT_MOVE_DOWN:
-        if (dir != 0x01 || dir != 0x02) { dir = 0; }
+        if (dir != 0x01 && dir != 0x02) { dir = 0; }
 
         dir = 0x08;
         break;
 
     case ROT_MOVE_LEFT:
-        if (dir != 0x04 || dir != 0x08) { dir = 0; }
+        if (dir != 0x04 && dir != 0x08) { dir = 0; }
 
         dir = 0x01;
         break;
 
     case ROT_MOVE_RIGHT:
-        if (dir != 0x04 || dir != 0x08) { dir = 0; }
+        if (dir != 0x04 && dir != 0x08) { dir = 0; }
 
         dir = 0x02;
         break;
@@ -636,7 +642,7 @@ const struct rot_caps spid_rot1prog_rot_caps =
     ROT_MODEL(ROT_MODEL_SPID_ROT1PROG),
     .model_name =        "Rot1Prog",
     .mfg_name =          "SPID",
-    .version =           "20240530.0",
+    .version =           "20240815.0",
     .copyright =         "LGPL",
     .status =            RIG_STATUS_STABLE,
     .rot_type =          ROT_TYPE_AZIMUTH,
@@ -674,7 +680,7 @@ const struct rot_caps spid_rot2prog_rot_caps =
     ROT_MODEL(ROT_MODEL_SPID_ROT2PROG),
     .model_name =        "Rot2Prog",
     .mfg_name =          "SPID",
-    .version =           "20220109.0",
+    .version =           "20240815.0",
     .copyright =         "LGPL",
     .status =            RIG_STATUS_STABLE,
     .rot_type =          ROT_TYPE_AZEL,
@@ -712,7 +718,7 @@ const struct rot_caps spid_md01_rot2prog_rot_caps =
     ROT_MODEL(ROT_MODEL_SPID_MD01_ROT2PROG),
     .model_name =        "MD-01/02 (ROT2 mode)",
     .mfg_name =          "SPID",
-    .version =           "20220109.0",
+    .version =           "20240815.0",
     .copyright =         "LGPL",
     .status =            RIG_STATUS_STABLE,
     .rot_type =          ROT_TYPE_AZEL,

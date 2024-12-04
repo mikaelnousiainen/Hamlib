@@ -50,38 +50,57 @@ extern double monotonic_seconds();
 int hl_usleep(rig_useconds_t usec)
 {
     double sleep_time = usec / 1e6;
-    struct timespec tv1, tv2;
-    double start_at = monotonic_seconds();
-    double end_at = start_at + sleep_time;
+    struct timespec tv1;
     double delay = sleep_time;
-    double lasterr = 0;
 
     if (sleep_time > .001) { delay -= .0001; }
     else if (sleep_time > .0001) { delay -= .00005; }
 
     tv1.tv_sec = (time_t) delay;
     tv1.tv_nsec = (long)((delay - tv1.tv_sec) * 1e+9);
-    tv2.tv_sec = 0;
-    tv2.tv_nsec = 1000000;
 //    rig_debug(RIG_DEBUG_CACHE,"usec=%ld, sleep_time=%f, tv1=%ld,%ld\n", usec, sleep_time, (long)tv1.tv_sec,
 //           (long)tv1.tv_nsec);
 
 #ifdef __WIN32__
-    timeBeginPeriod(1);
-    nanosleep(&tv1, NULL);
 
-    while ((lasterr = end_at - monotonic_seconds()) > 0)
+    if (sleep_time < 0.003)
     {
-        nanosleep(&tv2, NULL);
+        // Busy-wait for small durations < 2 milliseconds
+        LARGE_INTEGER frequency, start, end;
+        double elapsed;
+        QueryPerformanceFrequency(&frequency);
+        QueryPerformanceCounter(&start);
+
+        do
+        {
+            struct timespec startc;
+            clock_gettime(CLOCK_REALTIME, &startc);
+            QueryPerformanceCounter(&end);
+            elapsed = (double)(end.QuadPart - start.QuadPart) / frequency.QuadPart;
+        }
+        while (elapsed < sleep_time);
+    }
+    else
+    {
+        // Use Sleep for larger durations >= 3 milliseconds
+        //Sleep((DWORD)(seconds * 1000 - 1));  // Convert seconds to milliseconds
+        usleep(sleep_time * 1e6 - 400);
     }
 
-    timeEndPeriod(1);
 #else
-    nanosleep(&tv1, NULL);
-
-    while (((lasterr = end_at - monotonic_seconds()) > 0))
     {
-        nanosleep(&tv2, NULL);
+        struct timespec tv2;
+        double lasterr = 0;
+        double start_at = monotonic_seconds();
+        double end_at = start_at + sleep_time;
+        tv2.tv_sec = 0;
+        tv2.tv_nsec = 1000000;
+        nanosleep(&tv1, NULL);
+
+        while (((lasterr = end_at - monotonic_seconds()) > 0))
+        {
+            nanosleep(&tv2, NULL);
+        }
     }
 
 #endif
@@ -97,7 +116,7 @@ int hl_usleep(rig_useconds_t usec)
     int retval = 0;
     rig_debug(RIG_DEBUG_ERR, "%s: usec=%ld\n", __func__, usec);
 
-    if (usec <= 1000) { return 0; } // dont' sleep if only 1ms is requested -- speeds things up on Windows
+    if (usec <= 1000) { return 0; } // don't sleep if only 1ms is requested -- speeds things up on Windows
 
     while (usec > 1000000)
     {
