@@ -110,7 +110,7 @@ static struct option long_options[] =
     {"help",            0, 0, 'h'},
     {"version",         0, 0, 'V'},
     {"cookie",          0, 0, '!'},
-    {"skipinit",        0, 0, '#'},
+    {"skip-init",       0, 0, '#'},
     {0, 0, 0, 0}
 
 };
@@ -475,7 +475,7 @@ int main(int argc, char *argv[])
                 return 1;
             }
 
-            strncat(conf_parms, optarg, MAXCONFLEN - strlen(conf_parms));
+            strncat(conf_parms, optarg, MAXCONFLEN - strlen(conf_parms) - 1);
             break;
 
         case 'o':
@@ -547,6 +547,8 @@ int main(int argc, char *argv[])
     if (optind < argc)
     {
         interactive = 0;
+        // skip_init here caused segfault on rigctl -m 2041 -r /dev/pts/4 M CW 250 b 73
+        //skip_init = 1;
     }
     else
     {
@@ -954,8 +956,8 @@ void usage(void)
         "  -Z, --debug-time-stamps       enable time stamps for debug messages\n"
         "  -h, --help                    display this help and exit\n"
         "  -V, --version                 output version information and exit\n"
-        "  -!, --cookie                  use cookie control\n\n"
-        "  -#, --skipinit                skips rig initialization\n"
+        "  -!, --cookie                  use cookie control\n"
+        "  -#, --skip-init                skips rig initialization\n\n"
     );
 
     usage_rig(stdout);

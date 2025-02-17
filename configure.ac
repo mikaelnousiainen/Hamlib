@@ -14,7 +14,7 @@ dnl Please do not use '-' in the version number, as package managers will fail,
 dnl however, the use of '~' should be fine as apt (others?) will treat
 dnl it as an earlier version than the actual release.  TNX KA6MAL
 dnl PACKAGE_NAME + " " + PACKAGE_VERSION must not exceed 20 chars!
-AC_INIT([Hamlib],[4.6~git],[hamlib-developer@lists.sourceforge.net],[hamlib],[http://www.hamlib.org])
+AC_INIT([Hamlib],[4.7~git],[hamlib-developer@lists.sourceforge.net],[hamlib],[http://www.hamlib.org])
 #AC_INIT([PRODUCT_NAME], [Hamlib])
 #AC_DEFINE([Hamlib], [PRODUCT_VERSION_RESOURCE])
 
@@ -601,7 +601,7 @@ AC_MSG_RESULT([$cf_with_python_binding])
 dnl AX_PYTHON_DEVEL from macros/ax_python_devel.m4
 AS_IF([test x"${cf_with_python_binding}" = "xyes"],[
     dnl Order matters!	AX_PYTHON_DEVEL must be first for PYTHON_VERSION to be honored.
-    AX_PYTHON_DEVEL([">='2.1'"])
+    AX_PYTHON_DEVEL([>='2.1'])
     AM_PATH_PYTHON([2.1],, [:])
 
     BINDING_LIST="${BINDING_LIST} python"

@@ -280,7 +280,7 @@ static int netrigctl_open(RIG *rig)
     }
     else
     {
-        rig_debug(RIG_DEBUG_ERR, "%s:  unknown return from netrigctl_transaction=%d\n",
+        rig_debug(RIG_DEBUG_ERR, "%s:  unknown value returned from netrigctl_transaction=%d\n",
                   __func__, ret);
     }
 
@@ -892,7 +892,7 @@ static int netrigctl_open(RIG *rig)
             }
             else if (strcmp(setting, "hamlib_version") == 0)
             {
-                printf("rigctld: %s\n", value);
+                //printf("rigctld: %s\n", value);
             }
 
 
@@ -2823,7 +2823,7 @@ struct rig_caps netrigctl_caps =
     RIG_MODEL(RIG_MODEL_NETRIGCTL),
     .model_name =     "NET rigctl",
     .mfg_name =       "Hamlib",
-    .version =        "20240418.0",
+    .version =        "20250211.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,

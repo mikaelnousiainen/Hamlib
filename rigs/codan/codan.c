@@ -48,13 +48,21 @@ int codan_transaction(RIG *rig, char *cmd, int expected, char **result)
     int retval;
     hamlib_port_t *rp = RIGPORT(rig);
     struct codan_priv_data *priv = STATE(rig)->priv;
-    //int retry = 3;
+    int retry = 3;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: cmd=%s\n", __func__, cmd);
 
-    SNPRINTF(cmd_buf, sizeof(cmd_buf), "%s%s", cmd, EOM);
+    // Seems the 2110 wants CR instead of LF
+    if (rig->caps->rig_model == RIG_MODEL_CODAN_2110)
+    {
+        SNPRINTF(cmd_buf, sizeof(cmd_buf), "%s%c", cmd, 0x0d);
+    }
+    else
+    {
+        SNPRINTF(cmd_buf, sizeof(cmd_buf), "%s%c", cmd, 0x0a);
+    }
 
-    rig_flush(rp);
+repeat:
     retval = write_block(rp, (unsigned char *) cmd_buf, strlen(cmd_buf));
     hl_usleep(rig->caps->post_write_delay);
 
@@ -65,12 +73,19 @@ int codan_transaction(RIG *rig, char *cmd, int expected, char **result)
 
     if (expected == 0)
     {
+again1:
         // response format is response...0x0d0x0a
         retval = read_string(rp, (unsigned char *) priv->ret_data,
                              sizeof(priv->ret_data),
                              "\x0a", 1, 0, 1);
         rig_debug(RIG_DEBUG_VERBOSE, "%s: result=%s, resultlen=%d\n", __func__,
                   priv->ret_data, (int)strlen(priv->ret_data));
+
+        if (strncmp(cmd, priv->ret_data, strlen(cmd)) == 0) { goto again1; }
+
+        if (strstr(priv->ret_data, "ERROR") && --retry > 0) { goto repeat; }
+
+        if (strstr(priv->ret_data, "CHAN") && --retry > 0) { goto again1; }
 
         if (retval < 0)
         {
@@ -79,9 +94,16 @@ int codan_transaction(RIG *rig, char *cmd, int expected, char **result)
     }
     else
     {
+again2:
         retval = read_string(rp, (unsigned char *) priv->ret_data,
                              sizeof(priv->ret_data),
                              "\x0a", 1, 0, 1);
+
+        if (strncmp(cmd, priv->ret_data, strlen(cmd)) == 0) { goto again2; }
+
+        if (strstr(priv->ret_data, "ERROR") && --retry > 0) { goto repeat; }
+
+        if (strstr(priv->ret_data, "CHAN")) { goto again2; } 
 
         if (retval < 0)
         {
@@ -148,6 +170,28 @@ int codan_init(RIG *rig)
     RETURNFUNC2(RIG_OK);
 }
 
+int codan_set_freq_2110(RIG *rig, vfo_t vfo, freq_t freq)
+{
+    char cmd_buf[MAXCMDLEN];
+    int retval;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: vfo=%s freq=%.0f\n", __func__,
+              rig_strvfo(vfo), freq);
+
+    // Purportedly can't do split so we just set VFOB=VFOA
+    SNPRINTF(cmd_buf, sizeof(cmd_buf), "\rfreq %.0f", freq / 1000);
+
+    char *response = NULL;
+    retval = codan_transaction(rig, cmd_buf, 0, &response);
+
+    if (retval < 0)
+    {
+        return retval;
+    }
+
+    return retval;
+}
+
 int codan_open(RIG *rig)
 {
     char *results = NULL;
@@ -162,7 +206,15 @@ int codan_open(RIG *rig)
     }
 
     codan_transaction(rig, "login", 1, &results);
-    codan_set_freq(rig, RIG_VFO_A, 14074000.0);
+
+    if (rig->caps->rig_model == RIG_MODEL_CODAN_2110)
+    {
+        codan_set_freq_2110(rig, RIG_VFO_A, 14074000.0);
+    }
+    else
+    {
+        codan_set_freq(rig, RIG_VFO_A, 14074000.0);
+    }
 
     RETURNFUNC2(RIG_OK);
 }
@@ -379,6 +431,38 @@ int codan_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
     return RIG_OK;
 }
 
+int codan_get_ptt_2110(RIG *rig, vfo_t vfo, ptt_t *ptt)
+{
+    int retval;
+    char *response = NULL;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: vfo=%s\n", __func__, rig_strvfo(vfo));
+
+    retval = codan_transaction(rig, "ptt", 0, &response);
+
+    if (retval != RIG_OK)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: error response?='%s'\n", __func__, response);
+        return retval;
+    }
+
+    const char *p = strstr(response, "PTT");
+
+    if (p)
+    {
+        if (strstr(p, "OFF")) { *ptt = 0; }
+        else { *ptt = 1; }
+    }
+    else
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: unable to find Ptt in %s\n", __func__, response);
+        return -RIG_EPROTO;
+    }
+
+    return RIG_OK;
+}
+
+
 /*
  * codan_set_ptt
  * Assumes rig!=NULL
@@ -407,10 +491,36 @@ int codan_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
     return RIG_OK;
 }
 
+int codan_set_ptt_2110(RIG *rig, vfo_t vfo, ptt_t ptt)
+{
+    int retval;
+    char cmd_buf[MAXCMDLEN];
+    char *response;
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: ptt=%d\n", __func__, ptt);
+
+    SNPRINTF(cmd_buf, sizeof(cmd_buf), "ptt %s",
+             ptt == 0 ? "off" : "on");
+    response = NULL;
+    retval = codan_transaction(rig, cmd_buf, 0, &response);
+
+    if (retval < 0)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: invalid response=%s\n", __func__, response);
+        return retval;
+    }
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: cmd result=%s\n", __func__, response);
+
+    return RIG_OK;
+}
 
 
 
-struct rig_caps envoy_caps =
+
+
+
+struct rig_caps codan_envoy_caps =
 {
     RIG_MODEL(RIG_MODEL_CODAN_ENVOY),
     .model_name =       "Envoy",
@@ -475,7 +585,7 @@ struct rig_caps envoy_caps =
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
-struct rig_caps ngs_caps =
+struct rig_caps codan_ngs_caps =
 {
     RIG_MODEL(RIG_MODEL_CODAN_NGT),
     .model_name =       "NGT",
@@ -538,14 +648,77 @@ struct rig_caps ngs_caps =
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
+struct rig_caps codan_2110_caps =
+{
+    RIG_MODEL(RIG_MODEL_CODAN_2110),
+    .model_name =       "2110",
+    .mfg_name =         "CODAN",
+    .version =          BACKEND_VER ".0",
+    .copyright =        "LGPL",
+    .status =           RIG_STATUS_STABLE,
+    .rig_type =         RIG_TYPE_TRANSCEIVER,
+    .targetable_vfo =   RIG_TARGETABLE_FREQ,
+    .ptt_type =         RIG_PTT_RIG,
+    .dcd_type =         RIG_DCD_NONE,
+    .port_type =        RIG_PORT_SERIAL,
+    .serial_rate_min =  9600,
+    .serial_rate_max =  115200,
+    .serial_data_bits = 8,
+    .serial_stop_bits = 1,
+    .serial_parity =    RIG_PARITY_NONE,
+    .serial_handshake = RIG_HANDSHAKE_NONE,
+    .write_delay =      0,
+    .post_write_delay = 50,
+    .timeout =          1000,
+    .retry =            3,
 
+    .has_get_func =     RIG_FUNC_NONE,
+    .has_set_func =     RIG_FUNC_NONE,
+    .has_get_level =    RIG_LEVEL_NONE,
+    .has_set_level =    RIG_LEVEL_NONE,
+    .has_get_parm =     RIG_PARM_NONE,
+    .has_set_parm =     RIG_PARM_NONE,
+    .transceive =       RIG_TRN_RIG,
+    .rx_range_list1 = {{
+            .startf = kHz(1600), .endf = MHz(30), .modes = CODAN_MODES,
+            .low_power = -1, .high_power = -1, CODAN_VFOS, RIG_ANT_1
+        },
+        RIG_FRNG_END,
+    },
+    .rx_range_list2 = {RIG_FRNG_END,},
+    .tx_range_list1 = {RIG_FRNG_END,},
+    .tx_range_list2 = {RIG_FRNG_END,},
+    .tuning_steps =  { {CODAN_MODES, 1}, {CODAN_MODES, RIG_TS_ANY},  RIG_TS_END, },
+    .filters = {
+        {RIG_MODE_SSB, kHz(2.4)},
+        {RIG_MODE_SSB, kHz(0.5)},
+        {RIG_MODE_SSB, kHz(2.7)},
+        {RIG_MODE_SSB, kHz(3.0)},
+        RIG_FLT_END,
+    },
+    .priv = NULL,
+
+    .rig_init =     codan_init,
+    .rig_open =     codan_open,
+    .rig_cleanup =  codan_cleanup,
+
+    .set_freq = codan_set_freq_2110,
+    .get_freq = codan_get_freq,
+    .set_mode = codan_set_mode,
+    .get_mode = codan_get_mode,
+
+    .set_ptt =      codan_set_ptt_2110,
+    .get_ptt =      codan_get_ptt_2110,
+    .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
+};
 
 DECLARE_INITRIG_BACKEND(codan)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s: _init called\n", __func__);
 
-    rig_register(&envoy_caps);
-    rig_register(&ngs_caps);
+    rig_register(&codan_envoy_caps);
+    rig_register(&codan_ngs_caps);
+    rig_register(&codan_2110_caps);
     rig_debug(RIG_DEBUG_VERBOSE, "%s: _init back from rig_register\n", __func__);
 
     return RIG_OK;

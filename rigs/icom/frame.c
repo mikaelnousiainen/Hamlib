@@ -159,9 +159,8 @@ int icom_one_transaction(RIG *rig, unsigned char cmd, int subcmd,
 
     ctrl_id = priv_caps->serial_full_duplex == 0 ? CTRLID : 0x80;
 
-    /*
-     * should check return code and that write wrote cmd_len chars!
-     */
+    // Should check return code and that write wrote cmd_len chars!
+
     set_transaction_active(rig);
 
 collision_retry:
@@ -228,7 +227,7 @@ again1:
         if (retval < 0)
         {
             set_transaction_inactive(rig);
-            /* Other error, return it */
+            // Other error, return it
             RETURNFUNC(retval);
         }
 
@@ -470,8 +469,8 @@ again2:
                       __func__, priv_caps->re_civ_addr, priv->re_civ_addr);
         }
 
-        /* RIG_TIMEOUT: timeout getting response, return timeout */
-        /* other error: return it */
+        // RIG_TIMEOUT: timeout getting response, return timeout
+        // other error: return it
         RETURNFUNC(frm_len);
     }
 

@@ -231,6 +231,23 @@ struct confparams kenwood_cfg_params[] =
     { RIG_CONF_END, NULL, }
 };
 
+int remove_nonprint(char *s)
+{
+    int i, j = 0;
+    if (s == NULL) return 0;
+
+    for (i = 0; s[i] != '\0'; ++i)
+    {
+        if (isprint((unsigned char)s[i]))
+        {
+            s[j++] = s[i]; // Copy printable character
+        }
+    }
+    s[j] = '\0'; // Null-terminate the string
+
+    return j; // Return the new length of the string
+}
+
 
 /**
  * kenwood_transaction
@@ -423,6 +440,10 @@ transaction_read:
                          cmdtrm_str, strlen(cmdtrm_str), 0, 1);
     rig_debug(RIG_DEBUG_TRACE, "%s: read_string len=%d '%s'\n", __func__,
               (int)strlen(buffer), buffer);
+
+    // this fixes the case when some corrupt data is returned
+    // let's us be a little more robust about funky serial data
+    remove_nonprint(buffer);
 
     if (retval < 0)
     {
@@ -5518,12 +5539,11 @@ int kenwood_send_morse(RIG *rig, vfo_t vfo, const char *msg)
                 RETURNFUNC(retval);
             }
 
-            /*
-             * If answer is "KY0;", there is space in buffer and we can proceed.
-             * If answer is "KY1;", we have to wait a while
-             * If answer is "KY2;", there is space in buffer and we aren't sending so we can proceed.
-             * If answer is something else, return with error to prevent infinite loops
-             */
+            // If answer is "KY0;", there is space in buffer and we can proceed.
+            // If answer is "KY1;", we have to wait a while
+            // If answer is "KY2;", there is space in buffer and we aren't sending so we can proceed.
+            // If answer is something else, return with error to prevent infinite loops
+
             if (!strncmp(m2, "KY0", 3)) { break; }
 
             if (!strncmp(m2, "KY2", 3)) { break; }
@@ -6512,6 +6532,7 @@ DECLARE_INITRIG_BACKEND(kenwood)
     rig_register(&tx500_caps);
     rig_register(&sdruno_caps);
     rig_register(&qrplabs_caps);
+    rig_register(&qrplabs_qmx_caps);
     rig_register(&fx4_caps);
     rig_register(&thetis_caps);
     rig_register(&trudx_caps);

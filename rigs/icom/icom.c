@@ -1196,7 +1196,7 @@ retry_open:
         rig_debug(RIG_DEBUG_ERR,
                   "%s: Unable to determine Icom echo status -- is rig on and connected?\n",
                   __func__);
-        return retval_echo;
+        RETURNFUNC(retval_echo);
     }
     else
     {
@@ -2295,6 +2295,8 @@ static int icom_set_mode_without_data(RIG *rig, vfo_t vfo, rmode_t mode,
             || RIG_IS_IC375
             || RIG_IS_IC726
             || RIG_IS_IC475
+            || RIG_IS_IC746
+            || RIG_IS_IC746PRO
             || RIG_IS_IC756
             || RIG_IS_IC756PROII
             || RIG_IS_IC756PROIII
@@ -2693,7 +2695,7 @@ int icom_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     if (width <= 3)
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: setting filter=%d\n", __func__, (int)width);
-        return RIG_OK;
+        RETURNFUNC(RIG_OK);
     }
 
     if (((width != RIG_PASSBAND_NOCHANGE) && (width != current_width))

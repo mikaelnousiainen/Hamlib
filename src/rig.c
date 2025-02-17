@@ -169,6 +169,8 @@ const char hamlib_copyright[231] = /* hamlib 1.2 ABI specifies 231 bytes */
 #define CHECK_RIG_ARG(r) (!(r) || !(r)->caps || !STATE((r))->comm_state)
 #define CHECK_RIG_CAPS(r) (!(r) || !(r)->caps)
 
+#define ICOM_EXCEPTIONS (rig->caps->rig_model == RIG_MODEL_IC9700 || rig->caps->rig_model == RIG_MODEL_IC9100 || rig->caps->rig_model == RIG_MODEL_IC910)
+
 // The LOCK macro is for the primary thread calling the rig functions
 // For a separate thread use rig_lock directly
 // The purpose here is to avoid deadlock during recursion
@@ -233,7 +235,8 @@ static const char *const rigerror_table[] =
     "Function deprecated",
     "Security error password not provided or crypto failure",
     "Rig is not powered on",
-    "Limit exceeded"
+    "Limit exceeded",
+    "Access denied"
 };
 
 
@@ -996,7 +999,7 @@ int HAMLIB_API rig_open(RIG *rig)
     }
     else
     {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: cwd=%s\n", __func__, cwd);
+        //rig_debug(RIG_DEBUG_VERBOSE, "%s: cwd=%s\n", __func__, cwd);
         char *path = calloc(1, 8192);
         extern char settings_file[4096];
         const char *xdgpath = getenv("XDG_CONFIG_HOME");
@@ -1016,7 +1019,7 @@ int HAMLIB_API rig_open(RIG *rig)
 
         if (fp == NULL)
         {
-            rig_debug(RIG_DEBUG_VERBOSE, "%s: %s %s\n", __func__, path, strerror(errno));
+            //rig_debug(RIG_DEBUG_VERBOSE, "%s: %s %s\n", __func__, path, strerror(errno));
         }
         else
         {
@@ -1169,8 +1172,7 @@ int HAMLIB_API rig_open(RIG *rig)
 
     if (status < 0)
     {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: rs->comm_state==0?=%d\n", __func__,
-                  rs->comm_state);
+        //rig_debug(RIG_DEBUG_VERBOSE, "%s: rs->comm_state==0?=%d\n", __func__, rs->comm_state);
         rs->comm_state = 0;
         rs->comm_status = RIG_COMM_STATUS_ERROR;
         RETURNFUNC2(status);
@@ -1547,7 +1549,7 @@ int HAMLIB_API rig_open(RIG *rig)
     {
         vfo_t myvfo = RIG_VFO_A;
 
-        if (rig->caps->rig_model == RIG_MODEL_IC9700) { myvfo = RIG_VFO_MAIN_A; }
+        if (ICOM_EXCEPTIONS) { myvfo = RIG_VFO_MAIN_A; }
 
         retval = rig_get_freq(rig, myvfo, &freq);
 
@@ -1557,7 +1559,7 @@ int HAMLIB_API rig_open(RIG *rig)
             vfo_t tx_vfo = RIG_VFO_NONE;
             myvfo = RIG_VFO_B;
 
-            if (rig->caps->rig_model == RIG_MODEL_IC9700) { myvfo = RIG_VFO_MAIN_B; }
+            if (ICOM_EXCEPTIONS) { myvfo = RIG_VFO_MAIN_B; }
 
             rig_get_freq(rig, myvfo, &freq);
             rig_get_split_vfo(rig, RIG_VFO_RX, &split, &tx_vfo);
@@ -1570,7 +1572,8 @@ int HAMLIB_API rig_open(RIG *rig)
             {
                 myvfo = RIG_VFO_A;
 
-                if (rig->caps->rig_model == RIG_MODEL_IC9700) { myvfo = RIG_VFO_MAIN_A; }
+                if (ICOM_EXCEPTIONS) { myvfo = RIG_VFO_MAIN_A; }
+
 
                 rig_get_mode(rig, myvfo, &mode, &width);
 
@@ -1578,7 +1581,7 @@ int HAMLIB_API rig_open(RIG *rig)
                 {
                     myvfo = RIG_VFO_B;
 
-                    if (rig->caps->rig_model == RIG_MODEL_IC9700) { myvfo = RIG_VFO_MAIN_A; }
+                    if (ICOM_EXCEPTIONS) { myvfo = RIG_VFO_MAIN_A; }
 
                     rig_debug(RIG_DEBUG_VERBOSE, "xxxsplit=%d\n", split);
                     HAMLIB_TRACE;
@@ -1697,10 +1700,8 @@ int HAMLIB_API rig_close(RIG *rig)
 
 #endif
 
-    /*
-     * Let the backend say 73s to the rig.
-     * and ignore the return code.
-     */
+    // Let the backend say 73 to the rig.
+    // and ignore the return code.
     if (caps->rig_close)
     {
         caps->rig_close(rig);
@@ -2375,6 +2376,7 @@ int rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     rig_set_cache_freq(rig, vfo, freq_new);
 
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: vfo=%s, save=%s\n", __func__, rig_strvfo(vfo), rig_strvfo(vfo_save));
     if (vfo != vfo_save && vfo != RIG_VFO_CURR)
     {
         HAMLIB_TRACE;
@@ -2541,8 +2543,9 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     // WSJT-X senses rig precision with 55 and 56 Hz values
     // We do not want to allow cache response with these values
     int wsjtx_special = ((long) * freq % 100) == 55 || ((long) * freq % 100) == 56;
+    int rig_special = rig->caps->rig_model == RIG_MODEL_IC9100;
 
-    if (!wsjtx_special && *freq != 0 && (cache_ms_freq < cachep->timeout_ms
+    if (!rig_special && !wsjtx_special && *freq != 0 && (cache_ms_freq < cachep->timeout_ms
                                          || (cachep->timeout_ms == HAMLIB_CACHE_ALWAYS
                                                  || rs->use_cached_freq)))
     {
@@ -3145,14 +3148,14 @@ pbwidth_t HAMLIB_API rig_passband_normal(RIG *rig, rmode_t mode)
     {
         if (rs->filters[i].modes & mode)
         {
-            rig_debug(RIG_DEBUG_VERBOSE, "%s: return filter#%d, width=%d\n", __func__, i,
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: Return filter#%d, width=%d\n", __func__, i,
                       (int)rs->filters[i].width);
             RETURNFUNC(rs->filters[i].width);
         }
     }
 
     rig_debug(RIG_DEBUG_VERBOSE,
-              "%s: filter not found...return %d\n", __func__,
+              "%s: filter not found...returning %d\n", __func__,
               0);
     RETURNFUNC(0);
 }
@@ -3407,7 +3410,7 @@ int HAMLIB_API rig_set_vfo(RIG *rig, vfo_t vfo)
         rig_set_cache_freq(rig, RIG_VFO_ALL, 0);
     }
 
-    rig_debug(RIG_DEBUG_TRACE, "%s: return %d, vfo=%s, curr_vfo=%s\n", __func__,
+    rig_debug(RIG_DEBUG_TRACE, "%s: returning %d, vfo=%s, curr_vfo=%s\n", __func__,
               retcode,
               rig_strvfo(vfo), rig_strvfo(rs->current_vfo));
     ELAPSED2;
@@ -3838,7 +3841,7 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
     cachep->ptt = ptt;
     elapsed_ms(&cachep->time_ptt, HAMLIB_ELAPSED_SET);
 
-    if (retcode != RIG_OK) { rig_debug(RIG_DEBUG_ERR, "%s: return code=%d\n", __func__, retcode); }
+    if (retcode != RIG_OK) { rig_debug(RIG_DEBUG_ERR, "%s: Return code=%d\n", __func__, retcode); }
 
     memcpy(&rs->pttport_deprecated, pttp,
            sizeof(rs->pttport_deprecated));

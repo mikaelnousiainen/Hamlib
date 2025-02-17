@@ -143,7 +143,7 @@ struct rig_caps flrig_caps =
     RIG_MODEL(RIG_MODEL_FLRIG),
     .model_name = "",
     .mfg_name = "FLRig",
-    .version = "20241204.0",
+    .version = "20250107.0",
     .copyright = "LGPL",
     .status = RIG_STATUS_STABLE,
     .rig_type = RIG_TYPE_TRANSCEIVER,
@@ -910,7 +910,7 @@ static int flrig_open(RIG *rig)
     int dummy;
 
     if (retval == RIG_ENAVAIL || value[0] == 0
-            || sscanf(value, "%d", &dummy) == 0) // must not have it
+            || sscanf(value, "%d", &dummy) <= 0) // must not have it
     {
         priv->has_get_bwA = 0;
         priv->has_get_bwB = 0; // if we don't have A then surely we don't have B either
@@ -943,7 +943,7 @@ static int flrig_open(RIG *rig)
 
     if (priv->has_get_bwA)
     {
-        /* see if get_bwB is available FLRig can return empty value too */
+        // see if get_bwB is available FLRig can return empty value too
         retval = flrig_transaction(rig, "rig.get_bwB", NULL, value, sizeof(value));
 
         if (retval == RIG_ENAVAIL || strlen(value) == 0) // must not have it
@@ -1047,6 +1047,7 @@ static int flrig_open(RIG *rig)
         else if (streq(p, "D-USB")) { modeMapAdd(&modes, RIG_MODE_PKTUSB, p); }
         else if (streq(p, "DATA")) { modeMapAdd(&modes, RIG_MODE_PKTUSB, p); }
         else if (streq(p, "DATA-FM")) { modeMapAdd(&modes, RIG_MODE_PKTFM, p); }
+        else if (streq(p, "DATA-FMN")) { modeMapAdd(&modes, RIG_MODE_PKTFMN, p); }
         else if (streq(p, "DATA-L")) { modeMapAdd(&modes, RIG_MODE_PKTLSB, p); }
         else if (streq(p, "DATA-R")) { modeMapAdd(&modes, RIG_MODE_PKTLSB, p); }
         else if (streq(p, "DATA-LSB")) { modeMapAdd(&modes, RIG_MODE_PKTLSB, p); }
@@ -1055,7 +1056,9 @@ static int flrig_open(RIG *rig)
         else if (streq(p, "DIG")) { modeMapAdd(&modes, RIG_MODE_PKTUSB, p); }
         else if (streq(p, "DIGI")) { modeMapAdd(&modes, RIG_MODE_PKTUSB, p); }
         else if (streq(p, "DIGL")) { modeMapAdd(&modes, RIG_MODE_PKTLSB, p); }
+        else if (streq(p, "DIGI-L")) { modeMapAdd(&modes, RIG_MODE_PKTLSB, p); }
         else if (streq(p, "DIGU")) { modeMapAdd(&modes, RIG_MODE_PKTUSB, p); }
+        else if (streq(p, "DIGI-U")) { modeMapAdd(&modes, RIG_MODE_PKTUSB, p); }
         else if (streq(p, "DSB")) { modeMapAdd(&modes, RIG_MODE_DSB, p); }
         else if (streq(p, "FM")) { modeMapAdd(&modes, RIG_MODE_FM, p); }
         else if (streq(p, "FM-D")) { modeMapAdd(&modes, RIG_MODE_PKTFM, p); }
@@ -1666,7 +1669,7 @@ static int flrig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     }
 
     rig_debug(RIG_DEBUG_TRACE,
-              "%s: return modeA=%s, widthA=%d\n,modeB=%s, widthB=%d\n", __func__,
+              "%s: Return modeA=%s, widthA=%d\n,modeB=%s, widthB=%d\n", __func__,
               rig_strrmode(priv->curr_modeA), (int)priv->curr_widthA,
               rig_strrmode(priv->curr_modeB), (int)priv->curr_widthB);
     RETURNFUNC(RIG_OK);
@@ -1791,7 +1794,7 @@ static int flrig_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
         if (strlen(value) ==
                 0) // sometimes we get a null reply here -- OK...deal with it
         {
-            rig_debug(RIG_DEBUG_WARN, "%s: empty value return cached bandwidth\n",
+            rig_debug(RIG_DEBUG_WARN, "%s: empty value, returning cached bandwidth\n",
                       __func__);
             *width = CACHE(rig)->widthMainA;
             RETURNFUNC(RIG_OK);
@@ -1818,7 +1821,7 @@ static int flrig_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 
             if (strlen(value) == 0)
             {
-                rig_debug(RIG_DEBUG_WARN, "%s: empty value return cached bandwidth\n",
+                rig_debug(RIG_DEBUG_WARN, "%s: empty value, returning cached bandwidth\n",
                           __func__);
                 *width = CACHE(rig)->widthMainA;
                 RETURNFUNC(RIG_OK);

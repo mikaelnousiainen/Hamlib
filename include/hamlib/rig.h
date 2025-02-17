@@ -26,7 +26,9 @@
 
 // as of 2023-11-23 rig_caps is no longer constant
 // this #define allows clients to test which declaration to use for backwards compatibility
-#define RIGCAPS_NOT_CONST 1
+// As of 2025-01-03 removeing this -- fldigi was the only one that got it right
+// riglist_foreach is now constant again but others are not
+// #define RIGCAPS_NOT_CONST 1
 
 #define BUILTINFUNC 0
 
@@ -37,6 +39,7 @@
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <inttypes.h>
 #include <time.h>
@@ -47,9 +50,9 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 #else
-#include <sys/socket.h>
+//#include <sys/socket.h> // doesn't seem we need this
 #include <netinet/in.h>
-#include <arpa/inet.h>
+//#include <arpa/inet.h>
 #endif
 
 // mingw64 still shows __TIMESIZE != 64
@@ -207,6 +210,7 @@ enum rig_errcode_e {
     RIG_ESECURITY,  /*!< 19 Security error */
     RIG_EPOWER,     /*!< 20 Rig not powered on */
     RIG_ELIMIT,     /*!< 21 Limit exceeded */
+    RIG_EACCESS,    /*!< 22 Access denied -- e.g. port already in use */
     RIG_EEND        // MUST BE LAST ITEM IN LAST
 };
 /**
@@ -3794,7 +3798,7 @@ extern HAMLIB_EXPORT(int)
 rig_unregister HAMLIB_PARAMS((rig_model_t rig_model));
 
 extern HAMLIB_EXPORT(int)
-rig_list_foreach HAMLIB_PARAMS((int (*cfunc)(struct rig_caps *, rig_ptr_t),
+rig_list_foreach HAMLIB_PARAMS((int (*cfunc)(const struct rig_caps *, rig_ptr_t),
                                 rig_ptr_t data));
 
 extern HAMLIB_EXPORT(int)
