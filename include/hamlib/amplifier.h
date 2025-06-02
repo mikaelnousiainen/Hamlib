@@ -172,10 +172,10 @@ enum amp_level_e
   AMP_LEVEL_SWR           = CONSTANT_64BIT_FLAG(0), /*!< \c Standing Wave Ratio (SWR) from antenna, 1.0 or greater, type float */
   AMP_LEVEL_NH            = CONSTANT_64BIT_FLAG(1), /*!< \c Tune setting in nanohenries (nH), type int */
   AMP_LEVEL_PF            = CONSTANT_64BIT_FLAG(2), /*!< \c Tune setting in picofarads (pF), type int */
-  AMP_LEVEL_PWR_INPUT     = CONSTANT_64BIT_FLAG(3), /*!< \c Input power from amplifier in watts (W), type int */
+  AMP_LEVEL_PWR_INPUT     = CONSTANT_64BIT_FLAG(3), /*!< \c Input power for amplifier in watts (W), type int */
   AMP_LEVEL_PWR_FWD       = CONSTANT_64BIT_FLAG(4), /*!< \c Output power forward in watts (W), type int */
   AMP_LEVEL_PWR_REFLECTED = CONSTANT_64BIT_FLAG(5), /*!< \c Output power reflected in watts (W), type int */
-  AMP_LEVEL_PWR_PEAK      = CONSTANT_64BIT_FLAG(6), /*!< \c Peak power reading in watts (W), type int */
+  AMP_LEVEL_PWR_PEAK      = CONSTANT_64BIT_FLAG(6), /*!< \c Peak output power reading in watts (W), type int */
   AMP_LEVEL_FAULT         = CONSTANT_64BIT_FLAG(7), /*!< \c Fault code as a string message (device-dependent), type string */
   AMP_LEVEL_PWR           = CONSTANT_64BIT_FLAG(8), /*!< \c Output power setting, type float [model-specific range, defaults to 0.0 ... 1.0] - round up to nearest step where 1.0 = max power, if range not specified */
   AMP_LEVEL_WARNING       = CONSTANT_64BIT_FLAG(9), /*!< \c Warning code as a string message (device-dependent), type string */
