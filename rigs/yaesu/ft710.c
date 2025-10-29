@@ -241,9 +241,16 @@ struct rig_caps ft710_caps =
         {FT710_CW_RTTY_PKT_RX_MODES,  Hz(300)},    /* Narrow CW, RTTY, PKT/USER */
         {FT710_CW_RTTY_PKT_RX_MODES,  Hz(2400)},   /* Wide   CW, RTTY, PKT/USER */
         {FT710_CW_RTTY_PKT_RX_MODES,  Hz(1200)},   /* Normal CW, RTTY, PKT/USER */
+        {FT710_CW_RTTY_PKT_RX_MODES,  Hz(3000)},   /* CW, RTTY, PKT/USER */
+        {FT710_CW_RTTY_PKT_RX_MODES,  Hz(3200)},   /* CW, RTTY, PKT/USER */
+        {FT710_CW_RTTY_PKT_RX_MODES,  Hz(3500)},   /* CW, RTTY, PKT/USER */
+        {FT710_CW_RTTY_PKT_RX_MODES,  Hz(4000)},   /* CW, RTTY, PKT/USER */
         {RIG_MODE_SSB,                 Hz(2400)},   /* Normal SSB */
         {RIG_MODE_SSB,                 Hz(1800)},   /* Narrow SSB */
         {RIG_MODE_SSB,                 Hz(3000)},   /* Wide   SSB */
+        {RIG_MODE_SSB,                 Hz(3200)},   /* SSB */
+        {RIG_MODE_SSB,                 Hz(3500)},   /* SSB */
+        {RIG_MODE_SSB,                 Hz(4000)},   /* SSB */
         {RIG_MODE_AM,                  Hz(9000)},   /* Normal AM  */
         {RIG_MODE_AMN,                 Hz(6000)},   /* Narrow AM  */
         {RIG_MODE_FM | RIG_MODE_PKTFM, Hz(16000)},  /* Normal FM  */
