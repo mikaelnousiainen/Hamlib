@@ -4040,7 +4040,7 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         {
             scale = 100.;
         }
-        else if (is_ft450 && newcat_get_rigid(rig) == NC_RIGID_FT450D)
+        else if (is_ft450)
         {
             scale = 100.;
         }
@@ -5440,7 +5440,7 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         {
             scale = 100.;
         }
-        else if (is_ft450 && newcat_get_rigid(rig) == NC_RIGID_FT450D)
+        else if (is_ft450)
         {
             scale = 100.;
         }
