@@ -2265,10 +2265,18 @@ int HAMLIB_API rig_flush_force(hamlib_port_t *port, int flush_async_data)
         return RIG_OK;
     }
 
-    // Flush also the async I/O pipes
-    if (port->asyncio && flush_async_data)
+    // When async I/O is active, only flush the sync pipes.
+    // The hardware port is the async thread's domain -- serial_flush()
+    // would read from the sync pipe (not hardware) via read_string(),
+    // double-draining the pipes and leaving the hardware buffer dirty.
+    if (port->asyncio)
     {
-        port_flush_sync_pipes(port);
+        if (flush_async_data)
+        {
+            port_flush_sync_pipes(port);
+        }
+
+        return RIG_OK;
     }
 
 #ifndef RIG_FLUSH_REMOVE

@@ -1142,7 +1142,9 @@ int HAMLIB_API rig_open(RIG *rig)
               "%s: async_data_enable=%d, async_data_supported=%d\n", __func__,
               rs->async_data_enabled, caps->async_data_supported);
     rs->async_data_enabled = rs->async_data_enabled && caps->async_data_supported;
-    rp->asyncio = rs->async_data_enabled;
+    // Note: rp->asyncio is NOT set here. It is deferred until after
+    // caps->rig_open() so that backend initialization reads go directly
+    // to the hardware port. See port_setup_async() call below.
 
     if (strlen(rp->pathname) > 0)
     {
@@ -1597,6 +1599,25 @@ int HAMLIB_API rig_open(RIG *rig)
     {
         add_opened_rig(rig);
         RETURNFUNC2(RIG_OK);
+    }
+
+    // Now that the backend rig_open() has completed, enable async I/O.
+    // This must happen after caps->rig_open() so that initialization
+    // reads go directly to the hardware port, and before starting the
+    // async data handler thread that services the sync pipe.
+    if (rs->async_data_enabled)
+    {
+        status = port_setup_async(rp);
+
+        if (status < 0)
+        {
+            rig_debug(RIG_DEBUG_ERR,
+                      "%s: port_setup_async failed: %s\n",
+                      __func__, rigerror(status));
+            port_close(rp, rp->type.rig);
+            rs->comm_status = RIG_COMM_STATUS_ERROR;
+            RETURNFUNC2(status);
+        }
     }
 
     status = async_data_handler_start(rig);
@@ -8720,23 +8741,32 @@ static void *async_data_handler(void *arg)
         }
         else
         {
-            static int busy_retry = 2;
-again:
-            result = write_block_sync(RIGPORT(rig), frame, frame_length);
+            int retries = 3;
+
+            do
+            {
+                result = write_block_sync(RIGPORT(rig), frame, frame_length);
+
+                if (result >= 0)
+                {
+                    break;
+                }
+
+                // Write can fail if the sync pipe is full (main thread
+                // not reading fast enough). Retry after a short delay
+                // to give the main thread time to drain the pipe.
+                rig_debug(RIG_DEBUG_ERR,
+                          "%s: write_block_sync() failed, result=%d, retries=%d\n",
+                          __func__, result, retries);
+                hl_usleep(200 * 1000);
+            }
+            while (--retries > 0);
 
             if (result < 0)
             {
-                // TODO: error handling? can writing to a pipe really fail in ways we can recover from?
-                rig_debug(RIG_DEBUG_ERR, "%s: write_block_sync() failed, result=%d\n", __func__,
-                          result);
-
-                if (result == EBUSY && --busy_retry > 0) // we can try again
-                {
-                    hl_usleep(200 * 1000);
-                    goto again;
-                }
-
-                continue;
+                rig_debug(RIG_DEBUG_ERR,
+                          "%s: write_block_sync() retries exhausted, dropping frame\n",
+                          __func__);
             }
         }
     }

@@ -222,6 +222,40 @@ static int create_sync_data_pipe(hamlib_port_t *p)
 #endif
 
 /**
+ * \brief Enable async I/O mode and create sync data pipes
+ * \param p rig port descriptor
+ * \return RIG_OK on success, negative on error
+ *
+ * Must be called after port_open() and after the backend rig_open()
+ * has completed, but before starting the async data handler thread.
+ * This sets the asyncio flag so that subsequent reads go through the
+ * sync pipe instead of directly from the hardware port.
+ */
+int HAMLIB_API port_setup_async(hamlib_port_t *p)
+{
+    int status;
+
+    if (p->asyncio)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE,
+                  "%s: async I/O already enabled\n", __func__);
+        return RIG_OK;
+    }
+
+    p->asyncio = 1;
+
+    status = create_sync_data_pipe(p);
+
+    if (status < 0)
+    {
+        p->asyncio = 0;
+        return status;
+    }
+
+    return RIG_OK;
+}
+
+/**
  * \brief Open a hamlib_port based on its rig port type
  * \param p rig port descriptor
  * \return status
