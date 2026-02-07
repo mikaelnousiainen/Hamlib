@@ -8,16 +8,16 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #define HISTORYSIZE 10
 double history[HISTORYSIZE];
 int nhistory;
 int historyinit = 1;
 
-double compute_mean(const double arr[], int length)
+static double compute_mean(const double arr[], int length)
 {
     double sum = 0.0;
 
@@ -29,7 +29,7 @@ double compute_mean(const double arr[], int length)
     return sum / length;
 }
 
-double sigma(double arr[], int length)
+static double sigma(double arr[], int length)
 {
     double mean = compute_mean(arr, length);
     double sum_of_squares = 0.0;
@@ -44,7 +44,7 @@ double sigma(double arr[], int length)
 
 int main(int argc, const char *argv[])
 {
-    RIG *my_rig;        /* handle to rig (nstance) */
+    RIG *my_rig;        /* handle to rig (instance) */
     int strength;       /* S-Meter level */
     int retcode;        /* generic return code from functions */
 

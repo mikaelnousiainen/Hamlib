@@ -2,27 +2,99 @@ Hamlib -- History of visible changes.
 
 Copyright (C) 2000-2003  Frank Singleton
 Copyright (C) 2000-2023  Stephane Fillod, and others
-Copyright (C) 2000-2023  Michael Black W9MDB, and others
+Copyright (C) 2000-2025  Michael Black W9MDB, and others
+Copyright (C) 2000-2026  The Hamlib Group
 
 Please send Hamlib bug reports to hamlib-developer@lists.sourceforge.net
 
-
++
 Version 5.x -- future
         * rig_get_conf deprecated and replaced by rig_get_conf2
         * rot_get_conf deprecated and replaced by rot_get_conf2
         * Change FT1000MP Mark V model names to align with FT1000MP
+        * Internal data structures moved out of rig_struct to individual
+          heap buffers
+
+Version 4.7.0
+        * 2026-02-15 (target)
+        * New Icom IC-7300MK2 support
+        * Fix unbounded string usage in tests/*ctl_parse.c. May cause crashes or worse.
+          Reported by Vlatko Kosturjak with Marlink Cyber
+        * Revamp Kenwood voice memory handler - Fixes TS-890S & TS-990S (n3gb)
+        * libusb is now detected using the pkg-config facility.
+        * Some internal functions change names to avoid conflicts with apps.
+        * POSIX threads are required to build and run Hamlib. Note that it was
+          actually the case for 4.6.x, but now the configuration step will
+          fail instead of the compilation. (n3gb)
+        * Functions rig_get_conf, rot_get_conf, amp_get_conf deprecated;
+          use *_get_conf2() instead. Also rig_set_trn and rig_get_trn deprecated.
+        * Reduce/repair excess output from cppcheck.sh - mostly cosmetic changes (WIP)
+          Output from `wc -l cppcheck.log` - 4.6.2: 981  now: 581
+        * Remove dead getopt code.  GitHub PR #1709. (TNX Daniele Forsi)
+        * Move rig_cache to separate(calloc) storage. Prepare for other moves.
+          Issue #1420
+        * Many fixes for SWIG binding generation and improved Python support
+          and testing.  (TNX Daniele Forsi).
+        * Fix AGC for IC-R75, fix AGC for all Icom rigs.  (TNX Mark Fine).
+        * Separate PMR-171 and Q900 into new the GUOHETEC backend, add
+          additional support add clean up code.  (TNX FVsonar).
+        * New Drake R8 backend.  (TNX Mark Fine)
+        * New AF6SA WRC rotator backend.  (TNX Michael Morgan)
+        * New Yaesu FTX-1 model support (alpha).  (TNX Jeremy Miller).
+
+Version 4.6.5
+        * 2025-09-05
+        * Update Kenwood CW buffer max message size, fix one byte buffer
+          overrun in icom.c.  (TNX George Baltz).
+        * Fix Segmentation Fault in rigs/dummy/netrigctl.c. (TNX Daniele Forsi)
+        * Fix segfault with set_parm KEYERTYPE in rigctl_parse.c. (TNX Daniele
+          Forsi)
+
+Version 4.6.4
+        * 2025-07-18--Hamlib's 25th birthday!!!
+        * Fix handling of unprintable characters in kenwood.c that broke radios
+          such as the TM-D710/TM-V71 that use EOM_TH (\r) as the command terminator.
+          (TNX, Lars Kellogg-Stedman and George Baltz).
+        * Fixed jrc_set_chan. (TNX Mark Fine).
+        * Fix memory leak in rigctl_parse.c and use unique separator character
+          for each rigctld connection--closes GitHub #1748. (TNX George Baltz).
+        * Fix powerstat check for Icom R75 which rejects the command.  (TNX Mark Fine).
+        * Restore TS-590S/SG RIG_LEVEL_RFPOWER_METER, Fix rotctl \dump_caps output
+          (TNX, George Baltz).
+        * Add CW sending capability to Flex SmartSDR.  (TNX Michael Morgan)
+        * Handle spaces correctly for Fles SmartSDR.  (TNX Michael Morgan)
 
 Version 4.6.3
+        * 2025-06-10
+        * Release dedicated to the memory of Michael Black, W9MDB (SK).  Mike was a
+          long-time contributor to Hamlib and led development of the project for over
+          five years from 2020 to 2025.  Mike passed away on March 28, 2025 due to
+          complications from ALS (Lou Gehrig's disease).
+
+        * JRC: Removed RIG_FUNC_FAGC from 535D as erroneous, Added RIG_FUNC_NB2
+          functionality to both 535D and 545. (TNX Mark Fine)
+        * Restore IC-7300 spectrum data callback - regression in 4.6 (n3gb)
+        * Add locking to rig_[gs]et_level() - fixes sending CW from tlf (n3gb)
+        * Fix attempt to use memory returned by setlocale() after being freed (TNX Mooneer Salem)
+        * Language bindings configuration and build fixes (TNX Daniele Forsi)
+        * Various build system and compilation fixes (TNX Daniele Forsi)
+        * IC-705 filter selection bandwidth for FM and WFM (TNX Kenji Rikitake)
+        * IC-705 COMP, VD, and ID meter calibration values (TNX Kenji Rikitake)
+        * Fix ACLog thousands separator
+        * Documentation updates, typo fixes, man page fixes (TNX Daniele Forsi)
+        * Drop redundant token lookups and make local functions static (TNX George Baltz)
         * Fix rigctl showing hamlib_verson when connecting to rigctld
         * Add rig CODAN 2110
 
 Version 4.6.2
+        * 2025-02-09
         * Add missing levels for IC746/PRO RIG_LEVEL_RFPOWER_METER,RIG_LEVEL_RFPOWER_METER_WATTS,RIG_LEVEL_SWR,RIG_LEVEL_ALC
         * Fix IC905 for gpredict
         * Fix potential segfault on QMX 
         * Fix pmr171
         
 Version 4.6.1
+        * 2025-01-21
         * Fix C++ builds failing on rig_list_foreach function
         * Fix IC9100 rigctld startup to end up on VFOA
         * Fix grig build by removing sys/socket.h -- apparently not needed
@@ -34,6 +106,7 @@ Version 4.6.1
         * Fix SDRConsole by removing lots of things it does not have
 
 Version 4.6
+        * 2024-12-24
 	* send_raw can now take hex digits as colon-separated -- e.g. send_raw icom xfe:xfe:x94:xe0:03:xfd
 	* Add IC7760
         * IC7300 Mode filter can now be set by # (i.e. 1,2,3) 

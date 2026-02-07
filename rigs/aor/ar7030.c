@@ -26,8 +26,8 @@
 
 #include <stdio.h>
 
-#include <hamlib/rig.h>
-#include "serial.h"
+#include "hamlib/rig.h"
+#include "iofunc.h"
 #include "idx_builtin.h"
 
 
@@ -485,7 +485,7 @@ static int ar7030_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     }
 
     // fltbw    Mem_Page=0   Address=38
-    // Filter bandwidth dezimal in Hz.
+    // Filter bandwidth decimal in Hz.
     // Filter bandwidth (2 BCD digits : x.x kHz).
 
     setMemPtr(rig, 0, 0x38);
@@ -540,7 +540,7 @@ static int ar7030_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
     case RIG_LEVEL_CWPITCH :
         // bfoval    Mem_Page=0   Address=36
-        // BFO offset in Hz (x33.19Hz)(values -4248.320 to 4215.130kHz).
+        // BFO offset in Hz (x33.19 Hz)(values -4248.320 to 4215.130 kHz).
         val.i = val.i * 100 / 3319;
 
         if (val.i < -128) {val.i = -128;}
@@ -619,7 +619,7 @@ static int ar7030_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     case RIG_LEVEL_CWPITCH :
         // bfoval    Mem_Page=0   Address=36
-        // BFO offset in Hz (x33.19Hz)(values -4248.320 to 4215.130kHz).
+        // BFO offset in Hz (x33.19 Hz)(values -4248.320 to 4215.130 kHz).
         setMemPtr(rig, 0, 0x36);
         val->i = ((char)rxr_readByte(rig) * 3319) / 100;
         return RIG_OK;

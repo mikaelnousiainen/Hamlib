@@ -20,6 +20,7 @@
  *
  */
 
+#include "hamlib/config.h"
 // cppcheck-suppress *
 #include <stdint.h>
 // cppcheck-suppress *
@@ -43,6 +44,7 @@
 #include "tones.h"
 #include "idx_builtin.h"
 #include "register.h"
+#include "cache.h"
 
 #include "dummy.h"
 
@@ -195,7 +197,7 @@ static void init_chan(RIG *rig, vfo_t vfo, channel_t *chan)
     chan->rit = 0;
     chan->xit = 0;
     chan->tuning_step = 0;
-    chan->ant = 0;
+    chan->ant = RIG_ANT_NONE;
 
     chan->funcs = (setting_t)0;
     memset(chan->levels, 0, RIG_SETTING_MAX * sizeof(value_t));
@@ -352,10 +354,7 @@ static int dummy_cleanup(RIG *rig)
     free(priv->ext_parms);
     free(priv->magic_conf);
 
-    if (rs->priv)
-    {
-        free(rs->priv);
-    }
+    free(priv);
 
     rs->priv = NULL;
 
@@ -431,6 +430,10 @@ static int dummy_get_conf(RIG *rig, hamlib_token_t token, char *val)
         strcpy(val, priv->magic_conf);
         break;
 
+    case TOK_CFG_STATIC_DATA:
+        SNPRINTF(val, 128, "%d", priv->static_data);
+        break;
+
     default:
         RETURNFUNC(-RIG_EINVAL);
     }
@@ -464,7 +467,7 @@ static int dummy_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
 // if needed for testing enable this to emulate a rig with 100hz resolution
 #if 0
-    // we emulate a rig with 100Hz set freq interval limits -- truncation
+    // we emulate a rig with 100 Hz set freq interval limits -- truncation
     freq = freq - fmod(freq, 100);
 #endif
     usleep(CMDSLEEP);
@@ -487,6 +490,12 @@ static int dummy_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     case RIG_VFO_SUB_B: priv->vfo_subb.freq = freq; break;
 
     case RIG_VFO_C: priv->vfo_c.freq = freq; break;
+    }
+
+    if (rig->callbacks.freq_event)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s callbacks.freq_event(%p, %p)\n", __func__, rig->callbacks.freq_event, rig->callbacks.freq_arg);
+        rig->callbacks.freq_event(rig, vfo, freq, rig->callbacks.freq_arg);
     }
 
     if (!priv->split)
@@ -633,6 +642,12 @@ static int dummy_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     case RIG_VFO_C: priv->vfo_c.width = width; break;
     }
 
+    if (rig->callbacks.mode_event)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s callbacks.mode_event(%p, %p)\n", __func__, rig->callbacks.mode_event, rig->callbacks.mode_arg);
+        rig->callbacks.mode_event(rig, vfo, mode, width, rig->callbacks.mode_arg);
+    }
+
     RETURNFUNC(RIG_OK);
 }
 
@@ -714,6 +729,9 @@ static int dummy_set_vfo(RIG *rig, vfo_t vfo)
             priv->curr = &priv->mem[curr->channel_num];
             break;
         }
+        rig_debug(RIG_DEBUG_ERR, "%s: invalid memory channel %d\n", __func__,
+		  curr->channel_num);
+        RETURNFUNC(-RIG_EINVAL);
 
     case RIG_VFO_TX:
         if (priv->tx_vfo == RIG_VFO_A) { priv->curr = &priv->vfo_maina; }
@@ -727,6 +745,12 @@ static int dummy_set_vfo(RIG *rig, vfo_t vfo)
         rig_debug(RIG_DEBUG_VERBOSE, "%s unknown vfo: %s\n", __func__,
                   rig_strvfo(vfo));
         RETURNFUNC(-RIG_EINVAL);
+    }
+
+    if (rig->callbacks.vfo_event)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s callbacks.vfo_event(%p, %p)\n", __func__, rig->callbacks.vfo_event, rig->callbacks.vfo_arg);
+        rig->callbacks.vfo_event(rig, vfo, rig->callbacks.vfo_arg);
     }
 
     priv->last_vfo = priv->curr_vfo;
@@ -754,6 +778,12 @@ static int dummy_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
     struct dummy_priv_data *priv = (struct dummy_priv_data *)STATE(rig)->priv;
 
     ENTERFUNC;
+    if (rig->callbacks.ptt_event)
+    {
+        rig_debug(RIG_DEBUG_TRACE, "%s callbacks.ptt_event(%p, %p)\n", __func__, rig->callbacks.ptt_event, rig->callbacks.ptt_arg);
+        rig->callbacks.ptt_event(rig, vfo, ptt, rig->callbacks.ptt_arg);
+    }
+
     priv->ptt = ptt;
 
     RETURNFUNC(RIG_OK);
@@ -1112,11 +1142,25 @@ static int dummy_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: split=%d, vfo=%s, tx_vfo=%s\n",
               __func__, split, rig_strvfo(vfo), rig_strvfo(tx_vfo));
 
+    switch (split)
+    {
+        case RIG_SPLIT_OFF:
+            priv->split = RIG_SPLIT_OFF;
+            break;
+
+        case RIG_SPLIT_ON:
+            priv->split = RIG_SPLIT_ON;
+            break;
+
+        default:
+            rig_debug(RIG_DEBUG_ERR, "%s: unsupported split %d", __func__, split);
+            RETURNFUNC(-RIG_EINVAL);
+    }
+
     if (tx_vfo == RIG_VFO_NONE || tx_vfo == RIG_VFO_CURR) { tx_vfo = priv->curr_vfo; }
 
     if (tx_vfo == RIG_VFO_CURR || tx_vfo == RIG_VFO_TX) { tx_vfo = vfo_fixup(rig, vfo, CACHE(rig)->split); }
 
-    priv->split = split;
     priv->tx_vfo = tx_vfo;
 
     RETURNFUNC(RIG_OK);
@@ -1661,7 +1705,7 @@ static int dummy_set_parm(RIG *rig, setting_t parm, value_t val)
 
     if (RIG_PARM_IS_STRING(parm))
     {
-        strcpy(pstr, val.cs);
+        SNPRINTF(pstr, sizeof(pstr), "%s", val.cs);
     }
     else
     {
@@ -1821,6 +1865,7 @@ static int dummy_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
     case RIG_ANT_2:
     case RIG_ANT_3:
     case RIG_ANT_4:
+    case RIG_ANT_5:
         curr->ant = ant;
         break;
 
@@ -1858,6 +1903,7 @@ static int dummy_get_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t *option,
     case RIG_ANT_2:
     case RIG_ANT_3:
     case RIG_ANT_4:
+    case RIG_ANT_5:
         *ant_curr = ant;
         break;
 
@@ -2312,7 +2358,7 @@ static int dummy_mW2power(RIG *rig, float *power, unsigned int mwpower,
 static int m_year, m_month, m_day, m_hour, m_min, m_sec, m_utc_offset;
 static double m_msec;
 
-int dummy_set_clock(RIG *rig, int year, int month, int day, int hour, int min,
+static int dummy_set_clock(RIG *rig, int year, int month, int day, int hour, int min,
                     int sec, double msec, int utc_offset)
 {
     int retval = RIG_OK;
@@ -2337,7 +2383,7 @@ int dummy_set_clock(RIG *rig, int year, int month, int day, int hour, int min,
     return retval;
 }
 
-int dummy_get_clock(RIG *rig, int *year, int *month, int *day, int *hour,
+static int dummy_get_clock(RIG *rig, int *year, int *month, int *day, int *hour,
                     int *min, int *sec, double *msec, int *utc_offset)
 {
     int retval = RIG_OK;
@@ -2418,7 +2464,7 @@ struct rig_caps dummy_caps =
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,
     .targetable_vfo = RIG_TARGETABLE_PTT | RIG_TARGETABLE_RITXIT | RIG_TARGETABLE_FREQ | RIG_TARGETABLE_MODE | RIG_TARGETABLE_SPECTRUM,
-    .ptt_type =       RIG_PTT_NONE,
+    .ptt_type =       RIG_PTT_RIG,
     .dcd_type =       RIG_DCD_RIG,
     .port_type =      RIG_PORT_NONE,
     .has_get_func =   DUMMY_FUNC,
@@ -2461,14 +2507,14 @@ struct rig_caps dummy_caps =
     .agc_levels = { RIG_AGC_OFF, RIG_AGC_SUPERFAST, RIG_AGC_FAST, RIG_AGC_MEDIUM, RIG_AGC_SLOW, RIG_AGC_AUTO, RIG_AGC_USER },
     .rx_range_list1 =  { {
             .startf = kHz(150), .endf = MHz(1500), .modes = DUMMY_MODES,
-            .low_power = -1, .high_power = -1, DUMMY_VFOS, RIG_ANT_1 | RIG_ANT_2 | RIG_ANT_3 | RIG_ANT_4,
+            .low_power = -1, .high_power = -1, DUMMY_VFOS, RIG_ANT_1 | RIG_ANT_2 | RIG_ANT_3 | RIG_ANT_4 | RIG_ANT_5,
             .label = "Dummy#1"
         },
         RIG_FRNG_END,
     },
     .tx_range_list1 =  { {
             .startf = kHz(150), .endf = MHz(1500), .modes = DUMMY_MODES,
-            .low_power = W(5), .high_power = W(100), DUMMY_VFOS, RIG_ANT_1 | RIG_ANT_2 | RIG_ANT_3 | RIG_ANT_4,
+            .low_power = W(5), .high_power = W(100), DUMMY_VFOS, RIG_ANT_1 | RIG_ANT_2 | RIG_ANT_3 | RIG_ANT_4 | RIG_ANT_5,
             .label = "Dummy#1"
         },
         RIG_FRNG_END,
@@ -2830,6 +2876,7 @@ DECLARE_INITRIG_BACKEND(dummy)
     rig_register(&aclog_caps);
     rig_register(&sdrsharp_caps);
     rig_register(&quisk_caps);
+    rig_register(&gqrx_caps);
 //    rig_register(&tci1x_caps);
     return RIG_OK;
 }

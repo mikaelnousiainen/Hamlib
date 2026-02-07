@@ -3,7 +3,7 @@
  *  Copyright (c) 2000-2008 by Stephane Fillod
  *  Derived from ext.c and rot_ext.c
  *  Copyright (c) 2019 by Michael Black W9MDB
- *  Copyright (c) 2024 by Mikael Nousiainen OH3BHX
+ *  Copyright (c) 2026 by Mikael Nousiainen OH3BHX
  *
  *
  *   This library is free software; you can redistribute it and/or
@@ -32,7 +32,7 @@
  * \brief Amplifier extension parameters and levels interface.
  *
  * \author Mikael Nousiainen OH3BHX
- * \date 2024
+ * \date 2026
  *
  * An open-ended set of extension parameters, functions and levels are
  * available for each amplifier, as provided in the amp_caps::extparms,
@@ -41,13 +41,13 @@
  * amplifier" of Hamlib.
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
 
-#include <hamlib/rig.h>
-#include <hamlib/amplifier.h>
+#include "hamlib/rig.h"
+#include "hamlib/amplifier.h"
 
 #include "token.h"
 
@@ -73,7 +73,6 @@ static int amp_has_ext_token(AMP *amp, token_t token)
 
     return 0;
 }
-
 
 /**
  * \brief Executes \a cfunc on all the elements stored in the
@@ -146,7 +145,7 @@ int HAMLIB_API amp_ext_func_foreach(AMP *amp,
  * **negative value** which means an abnormal end.
  *
  * \retval RIG_OK All extension levels elements successfully processed.
- * \retval RIG_EINVAL \a amp or \a cfunc is NULL or inconsistent.
+ * \retval -RIG_EINVAL \a amp or \a cfunc is NULL or inconsistent.
  */
 int HAMLIB_API amp_ext_level_foreach(AMP *amp,
                                      int (*cfunc)(AMP *,
@@ -202,7 +201,7 @@ int HAMLIB_API amp_ext_level_foreach(AMP *amp,
  * **negative value** which means an abnormal end.
  *
  * \retval RIG_OK All extension parameters elements successfully processed.
- * \retval RIG_EINVAL \a amp or \a cfunc is NULL or inconsistent.
+ * \retval -RIG_EINVAL \a amp or \a cfunc is NULL or inconsistent.
  */
 int HAMLIB_API amp_ext_parm_foreach(AMP *amp,
                                     int (*cfunc)(AMP *,
@@ -365,7 +364,7 @@ const struct confparams *HAMLIB_API amp_ext_lookup_tok(AMP *amp,
  * \note As this function calls amp_ext_lookup(), it can be considered a
  * higher level API.
  *
- * \return The token ID or RIG_CONF_END if there is a lookup failure.
+ * \return The token ID or #RIG_CONF_END if there is a lookup failure.
  *
  * \sa amp_ext_lookup()
  */

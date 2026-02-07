@@ -31,13 +31,14 @@
 
 #include <stdlib.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "idx_builtin.h"
 
 #include "icom.h"
 #include "icom_defs.h"
 #include "frame.h"
 #include "misc.h"
+#include "cache.h"
 #include "tones.h"
 #include "bandplan.h"
 
@@ -131,7 +132,7 @@ static int x108g_rig_open(RIG *rig)
     RETURNFUNC(RIG_OK);
 }
 
-int xiegu_rig_open(RIG *rig)
+static int xiegu_rig_open(RIG *rig)
 {
     int retval;
     unsigned char id[4];
@@ -266,7 +267,7 @@ struct rig_caps x108g_caps =
     .rx_range_list2 =   { {kHz(30), MHz(199.999999), X108G_ALL_RX_MODES, -1, -1, X108G_VFOS},
         {MHz(400), MHz(470), X108G_ALL_RX_MODES, -1, -1, X108G_VFOS}, RIG_FRNG_END,
     },
-    .tx_range_list2 =  { /* needs the 5 mhz channels added */
+    .tx_range_list2 =  { /* needs the 5 MHz channels added */
         FRQ_RNG_HF(2, X108G_OTHER_TX_MODES, W(2), W(100), X108G_VFOS, RIG_ANT_1),
         FRQ_RNG_6m(2, X108G_OTHER_TX_MODES, W(2), W(100), X108G_VFOS, RIG_ANT_1),
         FRQ_RNG_2m(2, X108G_OTHER_TX_MODES, W(2), W(50), X108G_VFOS, RIG_ANT_2),
@@ -457,7 +458,7 @@ struct rig_caps x6100_caps =
     .rx_range_list2 =   { {kHz(30), MHz(199.999999), X108G_ALL_RX_MODES, -1, -1, X108G_VFOS},
         {MHz(400), MHz(470), X108G_ALL_RX_MODES, -1, -1, X108G_VFOS}, RIG_FRNG_END,
     },
-    .tx_range_list2 =  { /* needs the 5 mhz channels added */
+    .tx_range_list2 =  { /* needs the 5 MHz channels added */
         FRQ_RNG_HF(2, X108G_OTHER_TX_MODES, W(2), W(100), X108G_VFOS, RIG_ANT_1),
         FRQ_RNG_6m(2, X108G_OTHER_TX_MODES, W(2), W(100), X108G_VFOS, RIG_ANT_1),
         FRQ_RNG_2m(2, X108G_OTHER_TX_MODES, W(2), W(50), X108G_VFOS, RIG_ANT_2),
@@ -633,7 +634,7 @@ struct rig_caps x6200_caps =
     .rx_range_list2 =   { {kHz(30), MHz(199.999999), X108G_ALL_RX_MODES, -1, -1, X108G_VFOS},
         {MHz(400), MHz(470), X108G_ALL_RX_MODES, -1, -1, X108G_VFOS}, RIG_FRNG_END,
     },
-    .tx_range_list2 =  { /* needs the 5 mhz channels added */
+    .tx_range_list2 =  { /* needs the 5 MHz channels added */
         FRQ_RNG_HF(2, X108G_OTHER_TX_MODES, W(2), W(100), X108G_VFOS, RIG_ANT_1),
         FRQ_RNG_6m(2, X108G_OTHER_TX_MODES, W(2), W(100), X108G_VFOS, RIG_ANT_1),
         FRQ_RNG_2m(2, X108G_OTHER_TX_MODES, W(2), W(50), X108G_VFOS, RIG_ANT_2),
@@ -824,7 +825,7 @@ struct rig_caps g90_caps =
     .rx_range_list2 =   { {kHz(30), MHz(199.999999), X108G_ALL_RX_MODES, -1, -1, X108G_VFOS},
         {MHz(400), MHz(470), X108G_ALL_RX_MODES, -1, -1, X108G_VFOS}, RIG_FRNG_END,
     },
-    .tx_range_list2 =  { /* needs the 5 mhz channels added */
+    .tx_range_list2 =  { /* needs the 5 MHz channels added */
         FRQ_RNG_HF(2, X108G_OTHER_TX_MODES, W(2), W(100), X108G_VFOS, RIG_ANT_1),
         FRQ_RNG_6m(2, X108G_OTHER_TX_MODES, W(2), W(100), X108G_VFOS, RIG_ANT_1),
         FRQ_RNG_2m(2, X108G_OTHER_TX_MODES, W(2), W(50), X108G_VFOS, RIG_ANT_2),
@@ -999,7 +1000,7 @@ struct rig_caps x5105_caps =
     .rx_range_list2 =   { {kHz(30), MHz(199.999999), X108G_ALL_RX_MODES, -1, -1, X108G_VFOS},
         {MHz(400), MHz(470), X108G_ALL_RX_MODES, -1, -1, X108G_VFOS}, RIG_FRNG_END,
     },
-    .tx_range_list2 =  { /* needs the 5 mhz channels added */
+    .tx_range_list2 =  { /* needs the 5 MHz channels added */
         FRQ_RNG_HF(2, X108G_OTHER_TX_MODES, W(2), W(100), X108G_VFOS, RIG_ANT_1),
         FRQ_RNG_6m(2, X108G_OTHER_TX_MODES, W(2), W(100), X108G_VFOS, RIG_ANT_1),
         FRQ_RNG_2m(2, X108G_OTHER_TX_MODES, W(2), W(50), X108G_VFOS, RIG_ANT_2),

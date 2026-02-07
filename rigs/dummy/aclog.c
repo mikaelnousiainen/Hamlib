@@ -19,13 +19,14 @@
 *
 */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <hamlib/rig.h>
-#include <serial.h>
-#include <misc.h>
+#include "hamlib/rig.h"
+#include "iofunc.h"
+#include "misc.h"
 
 #define DEBUG 1
 #define DEBUG_TRACE DEBUG_VERBOSE
@@ -73,7 +74,7 @@ struct aclog_priv_data
     struct ext_list *ext_parms;
 };
 
-//Structure for mapping aclog dynmamic modes to hamlib modes
+//Structure for mapping aclog dynamic modes to hamlib modes
 //aclog displays modes as the rig displays them
 struct s_modeMap
 {
@@ -292,7 +293,7 @@ static int aclog_transaction(RIG *rig, char *cmd, char *value,
         }
 
         // we get an unknown response if function does not exist
-        if (strstr(xml, "UNKNOWN")) { set_transaction_inactive(rig); RETURNFUNC(RIG_ENAVAIL); }
+        if (strstr(xml, "UNKNOWN")) { set_transaction_inactive(rig); RETURNFUNC(-RIG_ENAVAIL); }
 
         if (value) { strncpy(value, xml, value_len); }
 
@@ -303,7 +304,7 @@ static int aclog_transaction(RIG *rig, char *cmd, char *value,
     if (value && strlen(value) == 0)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: no value returned\n", __func__);
-        set_transaction_inactive(rig); RETURNFUNC(RIG_EPROTO);
+        set_transaction_inactive(rig); RETURNFUNC(-RIG_EPROTO);
     }
 
     ELAPSED2;
@@ -421,9 +422,12 @@ static rmode_t modeMapGetHamlib(const char *modeACLog)
 /*
 * aclog_get_freq
 * Assumes rig!=NULL, STATE(rig)->priv!=NULL, freq!=NULL
+*
+* string='<CMD><READBMFRESPONSE><BAND>23</BAND><MODE>SSB</MODE><MODETEST>PH</MODETEST><FREQ>1,296.171100</FREQ></CMD> '
 */
 static int aclog_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 {
+
     char value[MAXARGLEN];
     struct aclog_priv_data *priv = (struct aclog_priv_data *) STATE(rig)->priv;
 
@@ -461,7 +465,33 @@ static int aclog_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     char *p = strstr(value, "<FREQ>");
     *freq = 0;
 
-    if (p) { sscanf(p, "<FREQ>%lf", freq); }
+    if (p)
+    {
+        int j = 0;
+        char f_string[32];
+
+        // Move the pointer to the first digit.
+        p += strlen("<FREQ>");
+
+        // Parse "1,296.171100" ignoring the comma.
+        for (int i = 0; p[i] != '<'; i++)
+        {
+            if (isdigit(p[i]))
+            {
+                f_string[j++] = p[i];
+            }
+            else if (ispunct(p[i]) && p[i] == '.')
+            {
+                f_string[j++] = p[i];
+            }
+        }
+
+        f_string[j] = '\0';
+        rig_debug(RIG_DEBUG_TRACE, "%s: f_string=%s\n", __func__, f_string);
+
+        *freq = strtold(f_string, NULL);
+        rig_debug(RIG_DEBUG_TRACE, "%s: freq=%.0f\n", __func__, *freq);
+    }
 
     *freq *= 1e6; // convert from MHz to Hz
 
@@ -617,7 +647,7 @@ static int aclog_open(RIG *rig)
     if (retval != RIG_OK)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: aclog_get_freq not working!!\n", __func__);
-        RETURNFUNC(RIG_EPROTO);
+        RETURNFUNC(-RIG_EPROTO);
     }
 
     STATE(rig)->current_vfo = RIG_VFO_A;

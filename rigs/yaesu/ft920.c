@@ -33,7 +33,7 @@
 
 #include "hamlib/rig.h"
 #include "bandplan.h"
-#include "serial.h"
+#include "iofunc.h"
 #include "misc.h"
 #include "yaesu.h"
 #include "ft920.h"
@@ -794,6 +794,7 @@ static int ft920_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         {
             return err;
         }
+        HL_FALLTHROUGH
 
     case RIG_VFO_MEM:                   /* MEM TUNE or user doesn't care */
     case RIG_VFO_MAIN:
@@ -965,6 +966,7 @@ static int ft920_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
         {
             return err;
         }
+        HL_FALLTHROUGH
 
     case RIG_VFO_MEM:                   /* MEM TUNE or user doesn't care */
     case RIG_VFO_MAIN:

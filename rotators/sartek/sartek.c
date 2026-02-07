@@ -25,7 +25,8 @@
 #include <string.h>             /* String function definitions */
 
 #include "hamlib/rotator.h"
-#include "serial.h"
+#include "hamlib/port.h"
+#include "iofunc.h"
 #include "register.h"
 
 #include "sartek.h"

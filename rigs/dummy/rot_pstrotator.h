@@ -40,7 +40,6 @@
 extern struct rot_caps pstrotator_caps;
 extern struct rot_caps netrotctl_caps;
 
-#if defined(HAVE_PTHREAD)
 typedef struct pstrotator_handler_args_sw
 {
     ROT *rot;
@@ -51,12 +50,10 @@ typedef struct pstrotator_handler_priv_data_s
 {
     pthread_t thread_id;
     pstrotator_handler_args args;
-    int pstrotator_handler_thread_run;
+    volatile int pstrotator_handler_thread_run;
     int sockfd2;
 
 } pstrotator_handler_priv_data;
-#endif
-
 
 
 #endif /* _ROT_PSTROTATOR_H */

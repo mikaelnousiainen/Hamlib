@@ -27,6 +27,7 @@
 #include "hamlib/rig.h"
 #include "kenwood.h"
 #include "misc.h"
+#include "cache.h"
 #include "cal.h"
 #include "iofunc.h"
 
@@ -185,7 +186,7 @@ const struct confparams ts590_ext_levels[] =
  * This is not documented in the manual as of 3/11/15 but confirmed from Kenwood
  * "TY" produces "TYK 00" for example
  */
-const char *ts590_get_info(RIG *rig)
+static const char *ts590_get_info(RIG *rig)
 {
     char firmbuf[10];
     int retval;
@@ -1013,14 +1014,13 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     case RIG_LEVEL_RFPOWER_METER:
     case RIG_LEVEL_RFPOWER_METER_WATTS:
     {
-        static cal_table_t power_meter =
+        int raw_value;
+        const static cal_table_t power_meter =
         {
             7, { { 0, 0}, { 3, 5}, { 6, 10}, { 8, 15}, {12, 25},
                 { 17, 50}, { 30, 100}
             }
         };
-
-        int raw_value;
 
         if (CACHE(rig)->ptt == RIG_PTT_OFF)
         {
@@ -1037,8 +1037,6 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         sscanf(ackbuf, "SM0%d", &raw_value);
 
-//        val->f = (float) raw_value / 30.0f;
-
         if (level == RIG_LEVEL_RFPOWER_METER_WATTS)
         {
             val->f = roundf(rig_raw2val(raw_value, &power_meter));
@@ -1049,7 +1047,11 @@ static int ts590_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             }
 
         }
-
+        else
+        {
+            val->f = (float) raw_value / 30.0f;
+        }
+    
         break;
     }
 
@@ -1746,6 +1748,7 @@ struct rig_caps ts590_caps =
     .chan_list =  { /* TBC */
         {  0, 89, RIG_MTYPE_MEM,  TS590_CHANNEL_CAPS },
         { 90, 99, RIG_MTYPE_EDGE, TS590_CHANNEL_CAPS },
+        {  1,  4, RIG_MTYPE_VOICE },
         RIG_CHAN_END,
     },
 
@@ -1917,10 +1920,13 @@ struct rig_caps ts590_caps =
     .send_morse =  kenwood_send_morse,
     .stop_morse =  kenwood_stop_morse,
     .wait_morse =  rig_wait_morse,
+    .send_voice_mem = kenwood_send_voice_mem,
+    .stop_voice_mem = kenwood_stop_voice_mem,
     .set_mem =  kenwood_set_mem,
     .get_mem =  kenwood_get_mem,
     .vfo_ops = TS590_VFO_OPS,
     .vfo_op =  kenwood_vfo_op,
+    .morse_qsize = 24,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
@@ -1966,6 +1972,7 @@ struct rig_caps fx4_caps =
     .chan_list =  { /* TBC */
         {  0, 89, RIG_MTYPE_MEM,  TS590_CHANNEL_CAPS },
         { 90, 99, RIG_MTYPE_EDGE, TS590_CHANNEL_CAPS },
+        {  1,  4, RIG_MTYPE_VOICE }, //??? Standard ???
         RIG_CHAN_END,
     },
 
@@ -2177,6 +2184,7 @@ struct rig_caps ts590sg_caps =
         {  0, 89, RIG_MTYPE_MEM,  TS590_CHANNEL_CAPS },
         { 90, 99, RIG_MTYPE_EDGE, TS590_CHANNEL_CAPS },
         {  1,  3, RIG_MTYPE_MORSE },
+        {  1,  4, RIG_MTYPE_VOICE },
         RIG_CHAN_END,
     },
 
@@ -2347,9 +2355,12 @@ struct rig_caps ts590sg_caps =
     .send_morse =  kenwood_send_morse,
     .stop_morse =  kenwood_stop_morse,
     .wait_morse =  rig_wait_morse,
+    .send_voice_mem = kenwood_send_voice_mem,
+    .stop_voice_mem = kenwood_stop_voice_mem,
     .set_mem =  kenwood_set_mem,
     .get_mem =  kenwood_get_mem,
     .vfo_ops = TS590_VFO_OPS,
     .vfo_op =  kenwood_vfo_op,
+    .morse_qsize = 24,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

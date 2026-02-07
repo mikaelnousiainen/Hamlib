@@ -27,15 +27,13 @@
  * doc todo: Let's explain what's going on here!
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/types.h>
 
-#include <hamlib/rotator.h>
+#include "hamlib/rotator.h"
 
 #include "register.h"
 
@@ -447,7 +445,7 @@ int HAMLIB_API rot_load_backend(const char *be_name)
             if (be_init == NULL)
             {
                 printf("Null\n");
-                return -EINVAL;
+                return -RIG_EINVAL;
             }
 
             status = (*be_init)(NULL);
@@ -455,7 +453,7 @@ int HAMLIB_API rot_load_backend(const char *be_name)
         }
     }
 
-    return -EINVAL;
+    return -RIG_EINVAL;
 
 }
 //! @endcond

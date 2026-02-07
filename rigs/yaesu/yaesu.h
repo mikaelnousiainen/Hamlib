@@ -3,6 +3,7 @@
  *
  * yaesu.h - (C) Frank Singleton 2000 (vk3fcs@ix.netcom.com)
  *           (C) Stephane Fillod 2001-2010
+ *           (C) Jeremy Miller KO4SSD 2025 (ko4ssd at ko4ssd.com)
  *
  * Common yaesu declarations for hamlib
  *
@@ -69,6 +70,7 @@ extern struct rig_caps ft980_caps;
 extern struct rig_caps ft990_caps;
 extern struct rig_caps ft990uni_caps;
 extern struct rig_caps ft991_caps;
+extern struct rig_caps ftx1_caps;
 extern struct rig_caps ft1000mp_caps;
 extern struct rig_caps ft1000mpmkv_caps;
 extern struct rig_caps ft1000mpmkvfld_caps;
@@ -93,7 +95,5 @@ extern struct rig_caps mchfqrp_caps;
 extern struct rig_caps ft650_caps;
 extern struct rig_caps ft710_caps;
 extern struct rig_caps ft9000Old_caps;
-extern struct rig_caps q900_caps;
-extern struct rig_caps pmr171_caps;
 
 #endif /* _YAESU_H */

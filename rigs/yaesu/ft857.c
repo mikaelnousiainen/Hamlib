@@ -58,11 +58,12 @@
 #endif
 
 #include "hamlib/rig.h"
-#include "serial.h"
+#include "iofunc.h"
 #include "yaesu.h"
 #include "ft857.h"
 #include "ft817.h" /* We use functions from the 817 code */
 #include "misc.h"
+#include "cache.h"
 #include "tones.h"
 #include "bandplan.h"
 #include "cal.h"
@@ -459,7 +460,7 @@ static inline long timediff(const struct timeval *tv1,
     return ((tv.tv_sec * 1000L) + (tv.tv_usec / 1000L));
 }
 
-static int check_cache_timeout(struct timeval *tv)
+static int check_cache_timeout(const struct timeval *tv)
 {
     struct timeval curr;
     long t;
@@ -928,11 +929,11 @@ int ft857_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         rig_get_cache(rig, vfo, &freq, &freq_ms, &mode, &mode_ms, &width,
                       &width_ms);
 
-        if (144000000.0f >= freq && 148000000.0f <= freq)
+        if (144000000.0f <= freq && 148000000.0f > freq)
         {
             return ft857_get_pometer_level(rig, val, &rig->caps->rfpower_meter_cal, 2.0);
         }
-        else if (420000000.0f >= freq && 450000000.0f <= freq)
+        else if (420000000.0f <= freq && 450000000.0f > freq)
         {
             return ft857_get_pometer_level(rig, val, &rig->caps->rfpower_meter_cal, 5.0);
         }
@@ -1350,7 +1351,7 @@ int ft857_set_rptr_shift(RIG *rig, vfo_t vfo, rptr_shift_t shift)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called \n", __func__);
 
-    rig_debug(RIG_DEBUG_VERBOSE, "ft857: set repeter shift = %i\n", shift);
+    rig_debug(RIG_DEBUG_VERBOSE, "ft857: set repeater shift = %i\n", shift);
 
     switch (shift)
     {
@@ -1373,7 +1374,7 @@ int ft857_set_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t offs)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called \n", __func__);
 
-    rig_debug(RIG_DEBUG_VERBOSE, "ft857: set repeter offs = %li\n", offs);
+    rig_debug(RIG_DEBUG_VERBOSE, "ft857: set repeater offs = %li\n", offs);
 
     /* fill in the offset freq */
     to_bcd_be(data, offs / 10, 8);

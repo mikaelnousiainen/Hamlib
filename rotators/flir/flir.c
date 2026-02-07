@@ -23,13 +23,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
-#include <math.h>
 #include <sys/time.h>
 
 #include "hamlib/rotator.h"
+#include "hamlib/port.h"
+#include "hamlib/rot_state.h"
 #include "register.h"
 #include "idx_builtin.h"
-#include "serial.h"
+#include "iofunc.h"
 
 #include "flir.h"
 

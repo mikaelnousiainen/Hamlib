@@ -25,6 +25,7 @@
 #include <math.h>
 
 #include "hamlib/rig.h"
+#include "hamlib/rig_state.h"
 #include "kenwood.h"
 #include "th.h"
 #include "misc.h"
@@ -64,8 +65,8 @@ static rmode_t thd74_mode_table[10] =
 
 static pbwidth_t thd74_width_table[10] =
 {
-    [0] = 10000,    // +-5KHz
-    [1] =  5000,    // +-2.5KHz
+    [0] = 10000,    // +-5 kHz
+    [1] =  5000,    // +-2.5 kHz
     [2] = 10000,    // FIXME: what should this be?
     [3] = 10000,    // FIXME: what should this be?
     [4] = 10000,    // FIXME: what should this be?
@@ -159,6 +160,7 @@ int thd74_open(RIG *rig)
     //struct kenwood_priv_data *priv = STATE(rig)->priv;
     // this is already done in kenwood_init
     //strcpy(priv->verify_cmd, "ID\r");
+    //priv->verify_cmd_len = 3;
 
     //ret = kenwood_transaction(rig, "", NULL, 0);
 

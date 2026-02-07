@@ -1,6 +1,6 @@
 /*
  * dumpmem.c - Copyright (C) 2001 Stephane Fillod
- * This programs dumps the mmeory contents of a rig.
+ * This programs dumps the memory contents of a rig.
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -24,9 +24,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include "misc.h"
 

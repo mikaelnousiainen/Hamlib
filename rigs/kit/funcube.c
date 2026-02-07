@@ -23,27 +23,22 @@
  *
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include "hamlib/rig.h"
-#include "misc.h"
 
 #define BACKEND_VER "20210830"
 
 /*
  * Compile this model only if libusb is available
  */
-#if defined(HAVE_LIBUSB) && (defined(HAVE_LIBUSB_H) || defined(HAVE_LIBUSB_1_0_LIBUSB_H))
+#if defined(HAVE_LIBUSB)
 
-#include <errno.h>
 
-#ifdef HAVE_LIBUSB_H
+// LIBUSB_CFLAGS set by pkg-config should set the include path appropriately.
 # include <libusb.h>
-#elif defined HAVE_LIBUSB_1_0_LIBUSB_H
-# include <libusb-1.0/libusb.h>
-#endif
 
 #include "funcube.h"
 
@@ -956,4 +951,4 @@ static int funcube_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode,
     return RIG_OK;
 }
 
-#endif  /* defined(HAVE_LIBUSB) && defined(HAVE_LIBUSB_H) */
+#endif  /* defined(HAVE_LIBUSB) */

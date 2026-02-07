@@ -28,7 +28,7 @@
  */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -76,8 +76,9 @@
 #  endif
 #endif
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "misc.h"
+#include "cache.h"
 #include "iofunc.h"
 #include "rigctl_parse.h"
 #include "riglist.h"
@@ -113,12 +114,12 @@ static struct option long_options[] =
     {0, 0, 0, 0}
 };
 
-void usage();
+static void usage(FILE *fout);
 static int handle_ts2000(void *arg);
 
 static RIG *my_rig;             /* handle to rig */
 static hamlib_port_t my_com;    /* handle to virtual COM port */
-static int verbose;
+static int verbose = RIG_DEBUG_NONE;
 /* CW Skimmer can only set VFOA */
 /* IC7300 for example can run VFOA on FM and VFOB on CW */
 /* So -A/--mapa2b changes set_freq on VFOA to VFOB */
@@ -226,6 +227,7 @@ int main(int argc, char *argv[])
 
     printf("rigctlcom Version 1.6\n");
 
+    rig_set_debug(verbose);
     while (1)
     {
         int c;
@@ -246,7 +248,7 @@ int main(int argc, char *argv[])
         switch (c)
         {
         case 'h':
-            usage();
+            usage(stdout);
             exit(0);
 
         case 'V':
@@ -258,63 +260,27 @@ int main(int argc, char *argv[])
             break;
 
         case 'm':
-            if (!optarg)
-            {
-                usage();        /* wrong arg count */
-                exit(1);
-            }
-
             my_model = atoi(optarg);
             break;
 
         case 'r':
-            if (!optarg)
-            {
-                usage();        /* wrong arg count */
-                exit(1);
-            }
-
             rig_file = optarg;
             break;
 
         case 'R':
-            if (!optarg)
-            {
-                usage();        /* wrong arg count */
-                exit(1);
-            }
-
             rig_file2 = optarg;
             break;
 
 
         case 'p':
-            if (!optarg)
-            {
-                usage();        /* wrong arg count */
-                exit(1);
-            }
-
             ptt_file = optarg;
             break;
 
         case 'd':
-            if (!optarg)
-            {
-                usage();        /* wrong arg count */
-                exit(1);
-            }
-
             dcd_file = optarg;
             break;
 
         case 'P':
-            if (!optarg)
-            {
-                usage();        /* wrong arg count */
-                exit(1);
-            }
-
             if (!strcmp(optarg, "RIG"))
             {
                 ptt_type = RIG_PTT_RIG;
@@ -347,12 +313,6 @@ int main(int argc, char *argv[])
             break;
 
         case 'D':
-            if (!optarg)
-            {
-                usage();        /* wrong arg count */
-                exit(1);
-            }
-
             if (!strcmp(optarg, "RIG"))
             {
                 dcd_type = RIG_DCD_RIG;
@@ -385,22 +345,10 @@ int main(int argc, char *argv[])
             break;
 
         case 'c':
-            if (!optarg)
-            {
-                usage();        /* wrong arg count */
-                exit(1);
-            }
-
             civaddr = optarg;
             break;
 
         case 's':
-            if (!optarg)
-            {
-                usage();        /* wrong arg count */
-                exit(1);
-            }
-
             if (sscanf(optarg, "%d%1s", &serial_rate, dummy) != 1)
             {
                 fprintf(stderr, "Invalid baud rate of %s\n", optarg);
@@ -410,23 +358,11 @@ int main(int argc, char *argv[])
             break;
 
         case 'S':
-            if (!optarg)
-            {
-                usage();        /* wrong arg count */
-                exit(1);
-            }
-
             serial_rate2 = atoi(optarg);
             break;
 
 
         case 'C':
-            if (!optarg)
-            {
-                usage();        /* wrong arg count */
-                exit(1);
-            }
-
             if (*conf_parms != '\0')
             {
                 strcat(conf_parms, ",");
@@ -444,6 +380,7 @@ int main(int argc, char *argv[])
 
         case 'v':
             verbose++;
+            rig_set_debug(verbose);
             break;
 
         case 'L':
@@ -451,7 +388,6 @@ int main(int argc, char *argv[])
             break;
 
         case 'l':
-            rig_set_debug(verbose);
             list_models();
             exit(0);
 
@@ -464,12 +400,10 @@ int main(int argc, char *argv[])
             break;
 
         default:
-            usage();            /* unknown option? */
+            usage(stderr);        
             exit(1);
         }
     }
-
-    rig_set_debug(verbose);
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s, %s\n", "rigctlcom", hamlib_version2);
     rig_debug(RIG_DEBUG_VERBOSE, "%s",
@@ -477,8 +411,8 @@ int main(int argc, char *argv[])
 
     if (argc == 1)
     {
-        usage();
-        exit(2);
+        usage(stderr);
+        exit(1);
     }
 
     my_rig = rig_init(my_model);
@@ -508,7 +442,7 @@ int main(int argc, char *argv[])
     if (my_model > 5 && !rig_file)
     {
         fprintf(stderr, "-r rig com port not provided\n");
-        exit(2);
+        exit(1);
     }
 
     if (rig_file)
@@ -519,7 +453,7 @@ int main(int argc, char *argv[])
     if (!rig_file2)
     {
         fprintf(stderr, "-R com port not provided\n");
-        exit(2);
+        exit(1);
     }
 
     strncpy(my_com.pathname, rig_file2, HAMLIB_FILPATHLEN - 1);
@@ -1756,20 +1690,21 @@ static int handle_ts2000(void *arg)
 }
 
 
-void usage()
+static void usage(FILE *fout)
 {
     char *name = "rigctlcom";
-    printf("Usage: %s -m rignumber -r comport -s baud -R comport [OPTIONS]...\n\n"
+
+    fprintf(fout, "Usage: %s -m rignumber -r comport -s baud -R comport [OPTIONS]...\n\n"
            "A TS-2000 emulator for rig sharing with programs that don't support Hamlib or FLRig to be able\n"
            "to use a connected radio transceiver or receiver with FLRig or rigctld via Hamlib.\n\n",
            name);
 
-    printf("Example: Using FLRig with virtual COM5/COM6 and other program:\n");
-    printf("\t%s -m 4 -R COM5 -S 115200\n\n", name);
-    printf("Other program would connect to COM6 and use TS-2000 115200 8N1\n\n");
-    printf("See the %s.1 manual page for complete details.\n\n", name);
+    fprintf(fout, "Example: Using FLRig with virtual COM5/COM6 and other program:\n");
+    fprintf(fout, "\t%s -m 4 -R COM5 -S 115200\n\n", name);
+    fprintf(fout, "Other program would connect to COM6 and use TS-2000 115200 8N1\n\n");
+    fprintf(fout, "See the %s.1 manual page for complete details.\n\n", name);
 
-    printf(
+    fprintf(fout,
         "  -m, --model=ID                select radio model number. See model list (-l)\n"
         "  -r, --rig-file=DEVICE         set device of the radio to operate on\n"
         "  -R, --rig-file2=DEVICE        set device of the virtual com port to operate on\n"
@@ -1780,8 +1715,8 @@ void usage()
         "  -s, --serial-speed=BAUD       set serial speed of the serial port\n"
         "  -S, --serial-speed2=BAUD      set serial speed of the virtual com port [default=115200]\n"
         "  -c, --civaddr=ID              set CI-V address, decimal (for Icom rigs only)\n"
-        "  -C, --set-conf=PARM=VAL       set config parameters\n"
-        "  -B, --mapa2b                  maps set_freq on VFOA to VFOB -- useful for CW Skimmer\n"
+        "  -C, --set-conf=PARM=VAL[,...] set config parameters\n"
+        "  -B, --mapa2b                  map set_freq on VFOA to VFOB -- useful for CW Skimmer\n"
         "  -L, --show-conf               list all config parameters\n"
         "  -l, --list                    list all model numbers and exit\n"
         "  -u, --dump-caps               dump capabilities and exit\n"
@@ -1791,6 +1726,5 @@ void usage()
         "  -V, --version                 output version information and exit\n\n"
     );
 
-    printf("\nReport bugs to <hamlib-developer@lists.sourceforge.net>.\n");
-
+    fprintf(fout, "\nReport bugs to <hamlib-developer@lists.sourceforge.net>.\n");
 }

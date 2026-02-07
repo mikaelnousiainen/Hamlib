@@ -37,7 +37,7 @@
  * Notes on limitations in RIG control capabilities. These are
  * related to the Yaesu's FT847 design, not my program :-)
  *
- * 1. Rig opcodes allow only 10Hz resolution.
+ * 1. Rig opcodes allow only 10 Hz resolution.
  * 2. Cannot select VFO B
  * 3. Using CAT and Tuner controls simultaneously  can
  *    cause problems.
@@ -48,7 +48,7 @@
 #include <string.h>  /* String function definitions */
 
 #include "hamlib/rig.h"
-#include "serial.h"
+#include "iofunc.h"
 #include "yaesu.h"
 #include "ft847.h"
 #include "misc.h"
@@ -1285,7 +1285,7 @@ static int get_freq_and_mode(RIG *rig, vfo_t vfo, freq_t *freq, rmode_t *mode,
         return n < 0 ? n : -RIG_EPROTO;
     }
 
-    /* Remember, this is 10Hz resolution */
+    /* Remember, this is 10 Hz resolution */
     *freq = 10 * from_bcd_be(data, 8);
 
     *width = RIG_PASSBAND_NORMAL;
@@ -1298,6 +1298,7 @@ static int get_freq_and_mode(RIG *rig, vfo_t vfo, freq_t *freq, rmode_t *mode,
 
     case MD_CWN:
         *width = rig_passband_narrow(rig, RIG_MODE_CW);
+        HL_FALLTHROUGH
 
     case MD_CW:
         *mode = RIG_MODE_CW;
@@ -1305,6 +1306,7 @@ static int get_freq_and_mode(RIG *rig, vfo_t vfo, freq_t *freq, rmode_t *mode,
 
     case MD_CWNR:
         *width = rig_passband_narrow(rig, RIG_MODE_CW);
+        HL_FALLTHROUGH
 
     case MD_CWR:
         *mode = RIG_MODE_CWR;
@@ -1312,6 +1314,7 @@ static int get_freq_and_mode(RIG *rig, vfo_t vfo, freq_t *freq, rmode_t *mode,
 
     case MD_AMN:
         *width = rig_passband_narrow(rig, RIG_MODE_AM);
+        HL_FALLTHROUGH
 
     case MD_AM:
         *mode = RIG_MODE_AM;
@@ -1319,6 +1322,7 @@ static int get_freq_and_mode(RIG *rig, vfo_t vfo, freq_t *freq, rmode_t *mode,
 
     case MD_FMN:
         *width = rig_passband_narrow(rig, RIG_MODE_FM);
+        HL_FALLTHROUGH
 
     case MD_FM:
         *mode = RIG_MODE_FM;

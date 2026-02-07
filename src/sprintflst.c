@@ -20,15 +20,14 @@
  *
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
-#include <stdlib.h>
 #include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
 
-#include <hamlib/rig.h>
-#include <hamlib/rotator.h>
-#include <hamlib/amplifier.h>
+#include "hamlib/rig.h"
+#include "hamlib/rotator.h"
+#include "hamlib/amplifier.h"
 #include "../rigs/icom/icom.h"
 
 
@@ -40,7 +39,7 @@
 
 // just doing a warning message for now
 // eventually should make this -RIG_EINTERNAL
-int check_buffer_overflow(char *str, int len, int nlen)
+static int check_buffer_overflow(char *str, int len, int nlen)
 {
     if (len + 32 >= nlen) // make sure at least 32 bytes are available
     {
@@ -213,16 +212,19 @@ int rig_sprintf_func(char *str, int nlen, setting_t func)
     {
         const char *ms = rig_strfunc(func & rig_idx2setting(i));
 
-        if (!ms || !ms[0])
+        if (!ms)
         {
             rig_debug(RIG_DEBUG_ERR, "%s: unknown RIG_FUNC=%x\n", __func__, i);
             continue;    /* unknown, FIXME! */
         }
 
-        strcat(str, ms);
-        strcat(str, " ");
-        len += strlen(ms) + 1;
-        check_buffer_overflow(str, len, nlen);
+        if (ms[0])
+        {
+            strcat(str, ms);
+            strcat(str, " ");
+            len += strlen(ms) + 1;
+            check_buffer_overflow(str, len, nlen);
+        }
     }
 
     return len;

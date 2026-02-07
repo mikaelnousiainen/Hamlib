@@ -23,7 +23,7 @@
 
 #include <stdlib.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "icom.h"
 #include "icom_defs.h"
 #include "frame.h"
@@ -135,7 +135,7 @@ static const struct icom_priv_caps ic910_priv_caps =
     .r2i_mode = ic910_r2i_mode
 };
 
-int ic910_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
+static int ic910_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 {
     switch (func)
     {
@@ -152,7 +152,7 @@ int ic910_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
     }
 }
 
-int ic910_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
+static int ic910_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 {
     switch (func)
     {
@@ -167,7 +167,7 @@ int ic910_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
     }
 }
 
-int ic910_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
+static int ic910_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -182,7 +182,7 @@ int ic910_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     }
 }
 
-int ic910_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
+static int ic910_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -236,7 +236,7 @@ struct rig_caps ic910_caps =
     .dcs_list =   NULL,
     .preamp =   { 20, RIG_DBLST_END, },
     .attenuator =   { 20, RIG_DBLST_END, },
-    .max_rit =    Hz(0),    /* SSB,CW: +-1.0kHz  FM: +-5.0kHz */
+    .max_rit =    Hz(0),    /* SSB,CW: +-1.0 kHz  FM: +-5.0 kHz */
     .max_xit =    Hz(0),
     .max_ifshift =    Hz(0),    /* 1.2kHz manual knob */
 //    .targetable_vfo = RIG_TARGETABLE_FREQ,

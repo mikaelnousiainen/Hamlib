@@ -22,11 +22,12 @@
  *  the complete text of the GNU Lesser Public License version 2.1.
  *
  */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #include <string.h>
 #include <stdio.h>
 
-#include "serial.h"
+#include "iofunc.h"
 #include "elecraft.h"
 #include "kenwood.h"
 #include "misc.h"
@@ -77,9 +78,9 @@ const struct confparams elecraft_ext_levels[] =
 
 
 /* Private function declarations */
-int verify_kenwood_id(RIG *rig, char *id);
-int elecraft_get_extension_level(RIG *rig, const char *cmd, int *ext_level);
-int elecraft_get_firmware_revision_level(RIG *rig, const char *cmd,
+static int verify_kenwood_id(RIG *rig, char *id);
+static int elecraft_get_extension_level(RIG *rig, const char *cmd, int *ext_level);
+static int elecraft_get_firmware_revision_level(RIG *rig, const char *cmd,
         char *fw_rev, size_t fw_rev_sz);
 
 /* Shared backend function definitions */
@@ -173,7 +174,7 @@ int elecraft_open(RIG *rig)
         }
     }
 
-    priv->save_k2_ext_lvl = -1; // so we don't restore if not neeede
+    priv->save_k2_ext_lvl = -1; // so we don't restore if not needed
 
     if (rig->caps->rig_model != RIG_MODEL_XG3)   // XG3 doesn't have extended
     {
@@ -419,10 +420,10 @@ int elecraft_close(RIG *rig)
 
 /* Tests for Kenwood ID string of "017" */
 
-int verify_kenwood_id(RIG *rig, char *id)
+static int verify_kenwood_id(RIG *rig, char *id)
 {
     int err;
-    char *idptr;
+    const char *idptr;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -472,11 +473,11 @@ int verify_kenwood_id(RIG *rig, char *id)
 
 /* Determines K2 and K3 extension level */
 
-int elecraft_get_extension_level(RIG *rig, const char *cmd, int *ext_level)
+static int elecraft_get_extension_level(RIG *rig, const char *cmd, int *ext_level)
 {
     int err, i;
     char buf[KENWOOD_MAX_BUF_LEN];
-    char *bufptr;
+    const char *bufptr;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -511,7 +512,7 @@ int elecraft_get_extension_level(RIG *rig, const char *cmd, int *ext_level)
 
 /* Determine firmware revision level */
 
-int elecraft_get_firmware_revision_level(RIG *rig, const char *cmd,
+static int elecraft_get_firmware_revision_level(RIG *rig, const char *cmd,
         char *fw_rev, size_t fw_rev_sz)
 {
     int err;

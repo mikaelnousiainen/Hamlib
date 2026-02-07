@@ -32,7 +32,7 @@
 #include <string.h>
 #include "hamlib/rig.h"
 #include "bandplan.h"
-#include "serial.h"
+#include "iofunc.h"
 #include "newcat.h"
 #include "yaesu.h"
 #include "ft891.h"
@@ -194,6 +194,7 @@ struct rig_caps ft891_caps =
     .str_cal =            FT891_STR_CAL,
     .chan_list =          {
         {   1,  99, RIG_MTYPE_MEM,  NEWCAT_MEM_CAP },
+        {   1,      5, RIG_MTYPE_VOICE },
         {   1,  5,  RIG_MTYPE_MORSE },
         RIG_CHAN_END,
     },
@@ -338,6 +339,7 @@ struct rig_caps ft891_caps =
     .set_clock =          newcat_set_clock,
     .get_clock =          newcat_get_clock,
     .scan =               newcat_scan,
+    .send_voice_mem =     newcat_send_voice_mem,
     .morse_qsize =        50,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
@@ -455,7 +457,7 @@ static int ft891_get_split_vfo(RIG *rig, vfo_t vfo, split_t *split,
     }
 
     // Get split mode status
-    *split = priv->ret_data[2] != '0'; // 1=split, 2=split + 5khz
+    *split = priv->ret_data[2] != '0'; // 1=split, 2=split + 5kHz
     rig_debug(RIG_DEBUG_TRACE, "%s: get split = 0x%02x\n", __func__, *split);
 
     *tx_vfo = RIG_VFO_A;
@@ -531,7 +533,7 @@ static int ft891_get_split_mode(RIG *rig, vfo_t vfo, rmode_t *tx_mode,
  * Returns RIG_OK on success or an error code on failure
  *
  * Comments:    Passsband is not set here.
- *              FT891 apparentlhy cannot set VFOB mode directly
+ *              FT891 apparently cannot set VFOB mode directly
  *              So we'll just set A and swap A into B
  *
  */

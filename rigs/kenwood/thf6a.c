@@ -27,7 +27,7 @@
 
 #include <stdlib.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "tones.h"
 #include "kenwood.h"
 #include "th.h"
@@ -209,7 +209,7 @@ struct rig_caps thf6a_caps =
 
     .tuning_steps =  {
         /* This table is ordered according to protocol, from '0' to 'b' */
-        /* The steps are not available on every band/frequency limit 470MHz */
+        /* The steps are not available on every band/frequency limit 470 MHz */
         {THF6_ALL_MODES, kHz(5)},
         {THF6_ALL_MODES, kHz(6.25)},
         {THF6_ALL_MODES, kHz(8.33)},

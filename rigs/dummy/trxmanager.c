@@ -20,12 +20,13 @@
  *
  */
 
+#include "hamlib/config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>             /* String function definitions */
 
-#include <hamlib/rig.h>
-#include <serial.h>
+#include "hamlib/rig.h"
+#include "iofunc.h"
 
 #include "trxmanager.h"
 
@@ -1164,11 +1165,7 @@ static int trxmanager_set_split_freq_mode(RIG *rig, vfo_t vfo, freq_t freq,
 
     if (strlen(response) != 16 || strstr(response, cmd) == NULL)
     {
-        FILE *fp;
         rig_debug(RIG_DEBUG_ERR, "%s invalid response='%s'\n", __func__, response);
-        fp = fopen("debug.txt", "w+");
-        fprintf(fp, "XT response=%s\n", response);
-        fclose(fp);
         return -RIG_EPROTO;
     }
 

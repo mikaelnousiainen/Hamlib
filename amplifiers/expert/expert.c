@@ -23,10 +23,13 @@
 #include <string.h>
 
 #include "expert.h"
+#include "hamlib/port.h"
+#include "hamlib/amp_state.h"
 #include "register.h"
 #include "misc.h"
 #include "bandplan.h"
 #include "idx_builtin.h"
+#include "serial.h"
 
 #define EXPERT_INPUTS (RIG_ANT_1 | RIG_ANT_2)
 #define EXPERT_ANTS_4 (RIG_ANT_1 | RIG_ANT_2 | RIG_ANT_3 | RIG_ANT_4)

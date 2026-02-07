@@ -19,14 +19,15 @@
 *
 */
 
+#include "hamlib/config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>             /* String function definitions */
 
-#include <hamlib/rig.h>
-#include <serial.h>
-#include <misc.h>
-#include <token.h>
+#include "hamlib/rig.h"
+#include "iofunc.h"
+#include "misc.h"
+#include "token.h"
 
 #include "dummy_common.h"
 
@@ -212,7 +213,7 @@ struct rig_caps tci1x_caps =
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };
 
-//Structure for mapping tci1x dynmamic modes to hamlib modes
+//Structure for mapping tci1x dynamic modes to hamlib modes
 //tci1x displays modes as the rig displays them
 struct s_modeMap
 {
@@ -407,7 +408,7 @@ static int tci1x_transaction(RIG *rig, char *cmd, char *cmd_arg, char *value,
     while ((value && (strlen(value) == 0))
             && retry--); // we'll do retries if needed
 
-    if (value && strlen(value) == 0) { RETURNFUNC(RIG_EPROTO); }
+    if (value && strlen(value) == 0) { RETURNFUNC(-RIG_EPROTO); }
 
     RETURNFUNC(RIG_OK);
 }

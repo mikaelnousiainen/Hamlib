@@ -1,6 +1,6 @@
-#include <stdio.h>
-#include <hamlib/rig.h>
-#include <misc.h>
+#include <string.h>
+#include "hamlib/rig.h"
+#include "misc.h"
 
 
 // cppcheck-suppress unusedFunction

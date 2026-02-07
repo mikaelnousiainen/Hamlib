@@ -30,14 +30,15 @@
  * \file amp_conf.c
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
-#include <stdarg.h>
 #include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
 
-#include <hamlib/amplifier.h>
+#include "hamlib/amplifier.h"
+#include "hamlib/port.h"
+#include "hamlib/amp_state.h"
 
 #include "amp_conf.h"
 #include "token.h"
@@ -102,7 +103,7 @@ static const struct confparams ampfrontend_serial_cfg_params[] =
  * \return RIG_OK or a **negative value** error.
  *
  * \retval RIG_OK TOK_... value set successfully.
- * \retval RIG_EINVAL TOK_.. value not set.
+ * \retval -RIG_EINVAL TOK_.. value not set.
  *
  * \sa frontamp_get_conf()
  */
@@ -365,7 +366,7 @@ int frontamp_set_conf(AMP *amp, hamlib_token_t token, const char *val)
  * \return RIG_OK or a **negative value** on error.
  *
  * \retval RIG_OK TOK_... value queried successfully.
- * \retval RIG_EINVAL TOK_.. value not queried.
+ * \retval -RIG_EINVAL TOK_.. value not queried.
  *
  * \sa frontamp_set_conf()
  */
@@ -517,7 +518,7 @@ int frontamp_get_conf2(AMP *amp, hamlib_token_t token, char *val, int val_len)
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK The \a cfunc action completed successfully.
- * \retval RIG_EINVAL \a amp is NULL or inconsistent or \a cfunc is NULL.
+ * \retval -RIG_EINVAL \a amp is NULL or inconsistent or \a cfunc is NULL.
  */
 int HAMLIB_API amp_token_foreach(AMP *amp,
                                  int (*cfunc)(const struct confparams *,
@@ -673,8 +674,8 @@ hamlib_token_t HAMLIB_API amp_token_lookup(AMP *amp, const char *name)
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK The parameter was set successfully.
- * \retval RIG_EINVAL \a amp is NULL or inconsistent or \a token is invalid.
- * \retval RIG_ENAVAIL amp_caps#set_conf() capability is not available.
+ * \retval -RIG_EINVAL \a amp is NULL or inconsistent or \a token is invalid.
+ * \retval -RIG_ENAVAIL amp_caps#set_conf() capability is not available.
  *
  * \sa amp_get_conf()
  */
@@ -682,7 +683,7 @@ int HAMLIB_API amp_set_conf(AMP *amp, hamlib_token_t token, const char *val)
 {
     amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    if (!amp || !amp->caps)
+    if (!amp || !amp->caps || !val)
     {
         return -RIG_EINVAL;
     }
@@ -729,8 +730,8 @@ int HAMLIB_API amp_set_conf(AMP *amp, hamlib_token_t token, const char *val)
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK Querying the parameter was successful.
- * \retval RIG_EINVAL \a amp is NULL or inconsistent.
- * \retval RIG_ENAVAIL amp_caps#get_conf() capability is not available.
+ * \retval -RIG_EINVAL \a amp is NULL or inconsistent.
+ * \retval -RIG_ENAVAIL amp_caps#get_conf() capability is not available.
  *
  * \sa amp_set_conf()
  */

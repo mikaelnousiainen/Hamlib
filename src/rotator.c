@@ -47,27 +47,23 @@
  * etc.
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 
-#include <hamlib/rotator.h>
+#include "hamlib/rotator.h"
+#include "hamlib/port.h"
+#include "hamlib/rot_state.h"
 #include "serial.h"
 #include "parallel.h"
 #if defined(HAVE_LIB_USB_H) || defined(HAMB_LIBUSB_1_0_LIBUSB_H)
 #include "usb_port.h"
 #endif
 #include "network.h"
-#include "rot_conf.h"
-#include "token.h"
-#include "serial.h"
-
 
 #ifndef DOC_HIDDEN
 
@@ -364,8 +360,8 @@ ROT *HAMLIB_API rot_init(rot_model_t rot_model)
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK Communication channel successfully opened.
- * \retval RIG_EINVAL \a rot is NULL or inconsistent.
- * \retval RIG_ENIMPL Communication port type is not implemented yet.
+ * \retval -RIG_EINVAL \a rot is NULL or inconsistent.
+ * \retval -RIG_ENIMPL Communication port type is not implemented yet.
  *
  * \sa rot_init(), rot_close()
  */
@@ -556,9 +552,9 @@ int HAMLIB_API rot_open(ROT *rot)
      * Now that the rotator port is officially opened, we can
      *  send the deferred configuration info.
      */
-    while ((item = rs->config_queue.first))
+    while ((item = rs->config_queue.firstt))
     {
-        rs->config_queue.first = item->next;
+        rs->config_queue.firstt = item->nextt;
         status = rot_set_conf(rot, item->token, item->value);
         free(item->value);
         free(item);
@@ -603,7 +599,7 @@ int HAMLIB_API rot_open(ROT *rot)
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK Communication channel successfully closed.
- * \retval RIG_EINVAL \a rot is NULL or inconsistent.
+ * \retval -RIG_EINVAL \a rot is NULL or inconsistent.
  *
  * \sa rot_cleanup(), rot_open()
  */
@@ -692,7 +688,7 @@ int HAMLIB_API rot_close(ROT *rot)
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK #ROT handle successfully released.
- * \retval RIG_EINVAL \a rot is NULL or inconsistent.
+ * \retval -RIG_EINVAL \a rot is NULL or inconsistent.
  *
  * \sa rot_init(), rot_close()
  */
@@ -746,9 +742,9 @@ int HAMLIB_API rot_cleanup(ROT *rot)
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK Either or both parameters set successfully.
- * \retval RIG_EINVAL \a rot is NULL or inconsistent \b or either \a azimuth
+ * \retval -RIG_EINVAL \a rot is NULL or inconsistent \b or either \a azimuth
  * or \a elevation is out of range for this rotator.
- * \retval RIG_ENAVAIL rot_caps#set_position() capability is not available.
+ * \retval -RIG_ENAVAIL rot_caps#set_position() capability is not available.
  *
  * \sa rot_get_position()
  */
@@ -819,8 +815,8 @@ int HAMLIB_API rot_set_position(ROT *rot,
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK Either or both parameters queried and stored successfully.
- * \retval RIG_EINVAL \a rot is NULL or inconsistent.
- * \retval RIG_ENAVAIL rot_caps#get_position() capability is not available.
+ * \retval -RIG_EINVAL \a rot is NULL or inconsistent.
+ * \retval -RIG_ENAVAIL rot_caps#get_position() capability is not available.
  *
  * \sa rot_set_position()
  */
@@ -880,8 +876,8 @@ int HAMLIB_API rot_get_position(ROT *rot,
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK The rotator was parked successfully.
- * \retval RIG_EINVAL \a rot is NULL or inconsistent.
- * \retval RIG_ENAVAIL rot_caps#park() capability is not available.
+ * \retval -RIG_EINVAL \a rot is NULL or inconsistent.
+ * \retval -RIG_ENAVAIL rot_caps#park() capability is not available.
  *
  */
 int HAMLIB_API rot_park(ROT *rot)
@@ -917,8 +913,8 @@ int HAMLIB_API rot_park(ROT *rot)
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK The rotator was stopped successfully.
- * \retval RIG_EINVAL \a rot is NULL or inconsistent.
- * \retval RIG_ENAVAIL rot_caps#stop() capability is not available.
+ * \retval -RIG_EINVAL \a rot is NULL or inconsistent.
+ * \retval -RIG_ENAVAIL rot_caps#stop() capability is not available.
  *
  * \sa rot_move()
  */
@@ -956,8 +952,8 @@ int HAMLIB_API rot_stop(ROT *rot)
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK The rotator was reset successfully.
- * \retval RIG_EINVAL \a rot is NULL or inconsistent.
- * \retval RIG_ENAVAIL rot_caps#reset() capability is not available.
+ * \retval -RIG_EINVAL \a rot is NULL or inconsistent.
+ * \retval -RIG_ENAVAIL rot_caps#reset() capability is not available.
  */
 int HAMLIB_API rot_reset(ROT *rot, rot_reset_t reset)
 {
@@ -995,8 +991,8 @@ int HAMLIB_API rot_reset(ROT *rot, rot_reset_t reset)
  * The \a speed is a value between 1 and 100 or #ROT_SPEED_NOCHANGE.
  *
  * \retval RIG_OK The rotator move was successful.
- * \retval RIG_EINVAL \a rot is NULL or inconsistent.
- * \retval RIG_ENAVAIL rot_caps#move() capability is not available.
+ * \retval -RIG_EINVAL \a rot is NULL or inconsistent.
+ * \retval -RIG_ENAVAIL rot_caps#move() capability is not available.
  *
  * \sa rot_stop()
  */
@@ -1065,8 +1061,8 @@ const char *HAMLIB_API rot_get_info(ROT *rot)
  * value** if an error occurred (in which case, cause is set appropriately).
  *
  * \retval RIG_OK The query was successful.
- * \retval RIG_EINVAL \a rot is NULL or inconsistent.
- * \retval RIG_ENAVAIL rot_caps#get_status() capability is not available.
+ * \retval -RIG_EINVAL \a rot is NULL or inconsistent.
+ * \retval -RIG_ENAVAIL rot_caps#get_status() capability is not available.
  */
 int HAMLIB_API rot_get_status(ROT *rot, rot_status_t *status)
 {
@@ -1088,7 +1084,7 @@ int HAMLIB_API rot_get_status(ROT *rot, rot_status_t *status)
 /**
  * \brief Get the address of rotator data structure(s)
  *
- * \sa rig_data_pointer
+ * \sa amp_data_pointer(), rig_data_pointer()
  *
  */
 void *HAMLIB_API rot_data_pointer(ROT *rot, rig_ptrx_t idx)

@@ -25,11 +25,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <getopt.h>
 
-#include <hamlib/rig.h>
-#include <hamlib/config.h>
+#include "hamlib/rig.h"
+#include "hamlib/config.h"
 #include "riglist.h"
 
 #define MAXNAMSIZ 32
@@ -53,11 +54,11 @@ extern int csv_parm_load(RIG *rig, const char *infilename);
 /*
  * Prototypes
  */
-void usage();
+static void usage(FILE *fout);
 void version();
-int set_conf(RIG *rig, char *conf_parms);
+static int set_conf(RIG *rig, char *conf_parms);
 
-int clear_chans(RIG *rig, const char *infilename);
+static int clear_chans(RIG *rig, const char *infilename);
 
 /*
  * Reminder: when adding long options,
@@ -89,12 +90,12 @@ int all;
 
 int main(int argc, char *argv[])
 {
-    RIG *rig;       /* handle to rig (nstance) */
+    RIG *rig;       /* handle to rig (instance) */
     rig_model_t my_model = RIG_MODEL_DUMMY;
 
     int retcode;        /* generic return code from functions */
 
-    int verbose = 0;
+    int verbose = RIG_DEBUG_NONE;
 #ifdef HAVE_XML2
     int xml = 0;
 #endif
@@ -104,6 +105,7 @@ int main(int argc, char *argv[])
     char conf_parms[MAXCONFLEN] = "";
     extern char csv_sep;
 
+    rig_set_debug(verbose);
     while (1)
     {
         int c;
@@ -120,7 +122,7 @@ int main(int argc, char *argv[])
         switch (c)
         {
         case 'h':
-            usage();
+            usage(stdout);
             exit(0);
 
         case 'V':
@@ -128,42 +130,18 @@ int main(int argc, char *argv[])
             exit(0);
 
         case 'm':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             my_model = atoi(optarg);
             break;
 
         case 'r':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             rig_file = optarg;
             break;
 
         case 'c':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             civaddr = optarg;
             break;
 
         case 's':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             if (sscanf(optarg, "%d%1s", &serial_rate, dummy) != 1)
             {
                 fprintf(stderr, "Invalid baud rate of %s\n", optarg);
@@ -173,12 +151,6 @@ int main(int argc, char *argv[])
             break;
 
         case 'C':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             if (*conf_parms != '\0')
             {
                 strcat(conf_parms, ",");
@@ -195,12 +167,6 @@ int main(int argc, char *argv[])
             break;
 
         case 'p':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             csv_sep = optarg[0];
             break;
 
@@ -217,11 +183,11 @@ int main(int argc, char *argv[])
 
         case 'v':
             verbose++;
+            rig_set_debug(verbose);
             break;
 
         default:
-            fprintf(stderr, "Unknown option '%c'\n", c);
-            usage();    /* unknown option? */
+            usage(stderr);
             exit(1);
         }
     }
@@ -235,7 +201,7 @@ int main(int argc, char *argv[])
 
     if (optind + 1 >= argc)
     {
-        usage();
+        usage(stderr);
         exit(1);
     }
 
@@ -382,7 +348,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        usage();
+        usage(stderr);
         exit(1);
     }
 
@@ -406,29 +372,29 @@ void version()
 }
 
 
-void usage()
+static void usage(FILE *fout)
 {
-    printf("Usage: rigmem [OPTION]... COMMAND...FILE\n"
+    fprintf(fout, "Usage: rigmem [OPTION]... COMMAND... FILE\n"
            "Backup/restore COMMANDs to a connected radio transceiver or receiver.\n\n");
 
 
-    printf(
-        "  -m, --model=ID                select radio model number. See model list\n"
+    fprintf(fout,
+        "  -m, --model=ID                select radio model number. See model list (rigctl -l)\n"
         "  -r, --rig-file=DEVICE         set device of the radio to operate on\n"
         "  -s, --serial-speed=BAUD       set serial speed of the serial port\n"
         "  -c, --civaddr=ID              set CI-V address, decimal (for Icom rigs only)\n"
-        "  -C, --set-conf=PARM=VAL       set config parameters\n"
-        "  -p, --set-separator=SEP       set character separator instead of the CSV comma\n"
+        "  -C, --set-conf=PARM=VAL[,...] set config parameters\n"
+        "  -p, --set-separator=CHAR      set character separator instead of the CSV comma\n"
         "  -a, --all                     bypass mem_caps, apply to all fields of channel_t\n"
 #ifdef HAVE_XML2
         "  -x, --xml                     use XML format instead of CSV\n"
 #endif
-        "  -v, --verbose                 set verbose mode, cumulative\n"
+        "  -v, --verbose                 set verbose mode, cumulative (-v to -vvvvv)\n"
         "  -h, --help                    display this help and exit\n"
         "  -V, --version                 output version information and exit\n\n"
     );
 
-    printf(
+    fprintf(fout,
         "COMMANDs:\n"
         "  load\n"
         "  save\n"
@@ -437,12 +403,11 @@ void usage()
         "  clear\n\n"
     );
 
-    printf("\nReport bugs to <hamlib-developer@lists.sourceforge.net>.\n");
-
+    fprintf(fout, "\nReport bugs to <hamlib-developer@lists.sourceforge.net>.\n");
 }
 
 
-int set_conf(RIG *rig, char *conf_parms)
+static int set_conf(RIG *rig, char *conf_parms)
 {
     char *p, *n;
 
@@ -457,7 +422,7 @@ int set_conf(RIG *rig, char *conf_parms)
 
         if (!q)
         {
-            return RIG_EINVAL;
+            return -RIG_EINVAL;
         }
 
         *q++ = '\0';
@@ -485,7 +450,7 @@ int set_conf(RIG *rig, char *conf_parms)
 /*
  * Pretty nasty, clears everything you have in rig memory
  */
-int clear_chans(RIG *rig, const char *infilename)
+static int clear_chans(RIG *rig, const char *infilename)
 {
     int i, j, ret;
     channel_t chan;

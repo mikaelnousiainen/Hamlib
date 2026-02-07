@@ -23,7 +23,7 @@
 #include <string.h>
 #include <math.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "kenwood.h"
 #include "cal.h"
 #include "misc.h"
@@ -44,7 +44,8 @@
 static int kenwood_ts890_set_level(RIG *rig, vfo_t vfo, setting_t level,
                                    value_t val)
 {
-    char levelbuf[16], *command_string;
+    char levelbuf[16];
+    const char *command_string;
     int kenwood_val, retval;
     gran_t *level_info;
 
@@ -117,7 +118,7 @@ static int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level,
     size_t ack_len, ack_len_expected, len;
     int levelint;
     int retval;
-    char *command_string;
+    const char *command_string;
     gran_t *level_info;
 
     level_info = &rig->caps->level_gran[rig_setting2idx(level)];
@@ -290,13 +291,13 @@ static int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level,
     case RIG_LEVEL_STRENGTH:
     case RIG_LEVEL_RFPOWER_METER_WATTS:
     {
-        cal_table_float_t *table;
+        const cal_table_float_t *table;
         ptt_t ptt = RIG_PTT_OFF;
         /* Values taken from the TS-890S In-Depth Manual (IDM), p. 8
          * 0.03 - 21.5 MHz, Preamp 1
          */
         /* Meter Type 1 - Kenwood specific, factory default */
-        static cal_table_float_t meter_type1 =
+        static const cal_table_float_t meter_type1 =
         {
             9, { { 0, -28.4f}, { 3, -26}, {11, -19.5f},
                 {19, -13}, {27, -6.5f}, {35, 0},
@@ -304,7 +305,7 @@ static int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level,
             }
         };
         /* Meter Type 2 - IARU recommended */
-        static cal_table_float_t meter_type2 =
+        static const cal_table_float_t meter_type2 =
         {
             9, { { 0, -54}, { 3, -48}, {11, -36},
                 {19, -24}, {27, -12}, {35, 0},
@@ -366,16 +367,16 @@ static int kenwood_ts890_get_level(RIG *rig, vfo_t vfo, setting_t level,
             return retval;
         }
 
-        sscanf(ackbuf + 2, "%d", &val->i);
+        sscanf(ackbuf + 2, "%d", &levelint);
 
         if (level == RIG_LEVEL_RFPOWER_METER_WATTS)
         {
-            val->f = roundf(rig_raw2val(val->i, &power_meter));
+            val->f = roundf(rig_raw2val(levelint, &power_meter));
         }
         else
         {
             /* Convert reading back to dB (rounded) */
-            val->i = (int)floorf(rig_raw2val_float(val->i, table) + 0.5f);
+            val->i = (int)floorf(rig_raw2val_float(levelint, table) + 0.5f);
         }
 
         return RIG_OK;
@@ -462,7 +463,7 @@ static int ts890_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         return retval;
     }
 
-    *status = current[2] & mask ? 1 : 0;
+    *status = (current[2] & mask) ? 1 : 0;
     return RIG_OK;
 }
 
@@ -475,13 +476,13 @@ static int ts890s_get_split_vfo(RIG *rig, vfo_t rxvfo, split_t *split,
 {
     char buf[4];
     int retval;
-    vfo_t tvfo;
     struct rig_state *rs = STATE(rig);
     struct kenwood_priv_data *priv = rs->priv;
 
     if (RIG_OK == (retval = kenwood_safe_transaction(rig, "FT", buf, sizeof(buf),
                                 3)))
     {
+        vfo_t tvfo;
         if ('0' == buf[2])
         {
             tvfo = RIG_VFO_A;
@@ -669,6 +670,7 @@ struct rig_caps ts890s_caps =
     .get_mode = kenwood_get_mode,
     .set_vfo = kenwood_set_vfo,
     .get_vfo = kenwood_get_vfo_if,
+    .vfo_op = kenwood_vfo_op,
     .set_split_vfo = kenwood_set_split_vfo,
     .get_split_vfo = ts890s_get_split_vfo,
     .set_ctcss_tone = kenwood_set_ctcss_tone_tn,
@@ -719,5 +721,6 @@ struct rig_caps ts890s_caps =
     .get_func = ts890_get_func,
     .get_clock = kenwood_get_clock,
     .set_clock = kenwood_set_clock,
+    .morse_qsize = 24,
     .hamlib_check_rig_caps = HAMLIB_CHECK_RIG_CAPS
 };

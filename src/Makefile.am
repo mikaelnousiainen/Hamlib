@@ -1,5 +1,6 @@
+AM_CFLAGS += $(LIBUSB_CFLAGS)
 
-BUILT_SOURCES = $(builddir)/hamlibdatetime.h
+BUILT_SOURCES = hamlibdatetime.h
 
 DISTCLEANFILES = hamlibdatetime.h
 
@@ -29,6 +30,9 @@ libhamlib_la_DEPENDENCIES = $(top_builddir)/lib/libmisc.la $(top_builddir)/secur
 
 EXTRA_DIST = Android.mk hamlibdatetime.h.in band_changed.c
 
+# Rule to build the dependencies of libhamlib.la that are in other directories
+$(libhamlib_la_DEPENDENCIES):
+	$(MAKE) -C $(@D) $(@F)
 
 # If we have  a .git directory then we will  generate the hamlibdate.h
 # file and  replace it if it  is different. Fall  back to a copy  of a
@@ -36,15 +40,17 @@ EXTRA_DIST = Android.mk hamlibdatetime.h.in band_changed.c
 # directory  before  the  source directory  for  the  hamlibdatetime.h
 # header.
 hamlibdatetime.h: FORCE
-	@if test -x $(top_srcdir)/.git ; then \
+	${AM_V_at}if test -x $(top_srcdir)/.git ; then \
 		echo "/* This date time is from the last non-merge commit to Hamlib. */" > $(builddir)/$(@F).tmp ;\
-		echo "#define HAMLIBDATETIME "\"$$(TZ=UTC git --git-dir=$(top_srcdir)/.git log --no-merges --date='format-local:%Y-%m-%dT%H:%M:%SZ SHA=' --format='%cd' -n 1)$$(git --git-dir=$(top_srcdir)/.git log --no-merges -n 1 | head -n 1 | cut -c8-13)\"  >> $(builddir)/$(@F).tmp ;\
-		diff -qN $(builddir)/$(@F).tmp $(builddir)/$(@F) ; test $$? -eq 0 || { echo "Generating SCS header \"$(builddir)/$(@F)\"" ; mv -f $(builddir)/$(@F).tmp $(builddir)/$(@F) ; } ;\
+		echo "#define HAMLIBDATETIME "\"$$(TZ=UTC git --git-dir=$(top_srcdir)/.git log --no-merges --date='format-local:%Y-%m-%dT%H:%M:%SZ SHA=' --format='%cd' -n 1)$$(git --git-dir=$(top_srcdir)/.git log --no-merges -n 1 --format='%h')\" >> $(builddir)/$(@F).tmp ;\
+		if ! diff -qN $(builddir)/$(@F).tmp $(builddir)/$(@F) ; then { echo "Generating SCS header \"$(builddir)/$(@F)\"" ; mv -f $(builddir)/$(@F).tmp $(builddir)/$(@F) ; } fi ;\
 		rm -f $(builddir)/$(@F).tmp ;\
 		touch -c $(top_srcdir)/src/version_dll.rc ;\
 	else \
 		test -f $(srcdir)/$(@F) || cp $(srcdir)/$(@F).in $(srcdir)/$(@F) ;\
 	fi
+
+snapshot_data.o rig.o: hamlibdatetime.h
 
 RCCOMPILE = $(RC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS)
 

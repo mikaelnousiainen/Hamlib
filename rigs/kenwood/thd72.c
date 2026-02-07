@@ -25,6 +25,7 @@
 #include <math.h>
 
 #include "hamlib/rig.h"
+#include "hamlib/rig_state.h"
 #include "kenwood.h"
 #include "th.h"
 #include "misc.h"
@@ -63,8 +64,8 @@ static rmode_t thd72_mode_table[3] =
 
 static pbwidth_t thd72_width_table[3] =
 {
-    [0] = 10000,  // +-5KHz
-    [1] =  5000,  // +-2.5KHz
+    [0] = 10000,  // +-5 kHz
+    [1] =  5000,  // +-2.5 kHz
     [2] = 10000,  // what should this be?
 };
 
@@ -150,6 +151,7 @@ int thd72_open(RIG *rig)
     int ret;
     struct kenwood_priv_data *priv = STATE(rig)->priv;
     strcpy(priv->verify_cmd, "ID\r");
+    priv->verify_cmd_len = 3;
 
     //ret = kenwood_transaction(rig, "", NULL, 0);
     //DELAY;

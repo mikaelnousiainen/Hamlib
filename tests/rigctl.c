@@ -25,7 +25,7 @@
  */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,7 +64,7 @@ extern int read_history();
 #endif                              /* HAVE_READLINE_HISTORY */
 
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "misc.h"
 #include "rigctl_parse.h"
 #include "riglist.h"
@@ -73,8 +73,11 @@ extern int read_history();
 #define MAXNAMSIZ 32
 #define MAXNBOPT 100    /* max number of different options */
 
-
-static void usage(void);
+/*
+ * Prototypes
+ */
+static void usage(FILE *fout);
+static void short_usage(FILE *fout);
 
 /*
  * Reminder: when adding long options,
@@ -203,7 +206,7 @@ int main(int argc, char *argv[])
     int retcode;        /* generic return code from functions */
     int exitcode;
 
-    int verbose = 0;
+    int verbose = RIG_DEBUG_NONE;
     int show_conf = 0;
     int dump_caps_opt = 0;
     int ignore_rig_open_error = 0;
@@ -220,7 +223,7 @@ int main(int argc, char *argv[])
     ptt_type_t ptt_type = RIG_PTT_NONE;
     dcd_type_t dcd_type = RIG_DCD_NONE;
     int serial_rate = 0;
-    char *civaddr = NULL;   /* NULL means no need to set conf */
+    const char *civaddr = NULL;   /* NULL means no need to set conf */
     char conf_parms[MAXCONFLEN] = "";
     int interactive;    /* if no cmd on command line, switch to interactive */
     int prompt = 1;         /* Print prompt in rigctl */
@@ -240,6 +243,7 @@ int main(int argc, char *argv[])
 
     if (err) { rig_debug(RIG_DEBUG_ERR, "%s: setvbuf err=%s\n", __func__, strerror(err)); }
 
+    rig_set_debug(verbose);
     while (1)
     {
         int c;
@@ -268,7 +272,7 @@ int main(int argc, char *argv[])
             break;
 
         case 'h':
-            usage();
+            usage(stdout);
             exit(0);
 
         case 'V':
@@ -276,52 +280,22 @@ int main(int argc, char *argv[])
             exit(0);
 
         case 'm':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             my_model = atoi(optarg);
             break;
 
         case 'r':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             rig_file = optarg;
             break;
 
         case 'p':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             ptt_file = optarg;
             break;
 
         case 'd':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             dcd_file = optarg;
             break;
 
         case 'P':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             if (!strcmp(optarg, "RIG"))
             {
                 ptt_type = RIG_PTT_RIG;
@@ -363,12 +337,6 @@ int main(int argc, char *argv[])
             break;
 
         case 'D':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             if (!strcmp(optarg, "RIG"))
             {
                 dcd_type = RIG_DCD_RIG;
@@ -414,22 +382,10 @@ int main(int argc, char *argv[])
             break;
 
         case 'c':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             civaddr = optarg;
             break;
 
         case 't':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             if (strlen(optarg) > 1)
             {
                 send_cmd_term = strtol(optarg, NULL, 0);
@@ -442,12 +398,6 @@ int main(int argc, char *argv[])
             break;
 
         case 's':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             if (sscanf(optarg, "%d%1s", &serial_rate, dummy) != 1)
             {
                 fprintf(stderr, "Invalid baud rate of %s\n", optarg);
@@ -457,12 +407,6 @@ int main(int argc, char *argv[])
             break;
 
         case 'C':
-            if (!optarg)
-            {
-                usage();    /* wrong arg count */
-                exit(1);
-            }
-
             if (*conf_parms != '\0')
             {
                 strcat(conf_parms, ",");
@@ -498,6 +442,7 @@ int main(int argc, char *argv[])
 
         case 'v':
             verbose++;
+            rig_set_debug(verbose);
             break;
 
         case 'L':
@@ -505,7 +450,6 @@ int main(int argc, char *argv[])
             break;
 
         case 'l':
-            rig_set_debug(verbose);
             list_models();
             exit(0);
 
@@ -522,12 +466,11 @@ int main(int argc, char *argv[])
             break;
 
         default:
-            usage();    /* unknown option? */
+            /* unknown getopt option */
+            short_usage(stderr);
             exit(1);
         }
     }
-
-    rig_set_debug(verbose);
 
     SNPRINTF(rigstartup, sizeof(rigstartup), "%s(%d) Startup:", __FILE__, __LINE__);
 
@@ -567,7 +510,7 @@ int main(int argc, char *argv[])
     }
 
     my_rig->caps->ptt_type = ptt_type;
-    char *token = strtok(conf_parms, ",");
+    const char *token = strtok(conf_parms, ",");
     struct rig_state *rs = STATE(my_rig);
 
     while (token)
@@ -585,7 +528,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        retcode = rig_set_conf(my_rig, rig_token_lookup(my_rig, mytoken), myvalue);
+        retcode = rig_set_conf(my_rig, lookup, myvalue);
 
         if (retcode != RIG_OK)
         {
@@ -624,7 +567,7 @@ int main(int argc, char *argv[])
         if (ptt_type == RIG_PTT_NONE)
         {
             rig_debug(RIG_DEBUG_VERBOSE, "%s: defaulting to RTS PTT\n", __func__);
-            my_rig->caps->ptt_type = ptt_type = RIG_PTT_SERIAL_RTS;
+            my_rig->caps->ptt_type = RIG_PTT_SERIAL_RTS;
         }
     }
 
@@ -750,7 +693,14 @@ int main(int argc, char *argv[])
             hist_path_size = sizeof(char) * (strlen(hist_dir) + strlen(hist_file) + 1);
             hist_path = (char *)calloc(hist_path_size, sizeof(char));
 
-            SNPRINTF(hist_path, hist_path_size, "%s%s", hist_dir, hist_file);
+            if (hist_path)
+            {
+                SNPRINTF(hist_path, hist_path_size, "%s%s", hist_dir, hist_file);
+            }
+	    else
+            {
+                fprintf(stderr, "Allocation failed - no readline history\n");
+            }
         }
 
         if (rd_hist && hist_path)
@@ -876,7 +826,7 @@ int main(int argc, char *argv[])
 
         // if we get a hard error we try to reopen the rig again
         // this should cover short dropouts that can occur
-        if (retcode < 0 && !RIG_IS_SOFT_ERRCODE(-retcode))
+        if (retcode < 0 && !RIG_IS_SOFT_ERRCODE(retcode))
         {
             int retry = 3;
             rig_debug(RIG_DEBUG_ERR, "%s: i/o error\n", __func__);
@@ -893,7 +843,7 @@ int main(int argc, char *argv[])
             while (retry-- > 0 && retcode != RIG_OK);
         }
     }
-    while (!ctrl_c && (retcode == RIG_OK || RIG_IS_SOFT_ERRCODE(-retcode)));
+    while (!ctrl_c && (retcode == RIG_OK || RIG_IS_SOFT_ERRCODE(retcode)));
 
     if (interactive && prompt)
     {
@@ -925,14 +875,13 @@ int main(int argc, char *argv[])
 }
 
 
-void usage(void)
+static void usage(FILE *fout)
 {
-    printf("Usage: rigctl [OPTION]... [COMMAND]...\n"
+    fprintf(fout, "Usage: rigctl [OPTION]... [COMMAND]...\n"
            "Send COMMANDs to a connected radio transceiver or receiver.\n\n");
 
-
-    printf(
-        "  -m, --model=ID                select radio model number. See model list\n"
+    fprintf(fout,
+        "  -m, --model=ID                select radio model number. See model list (-l)\n"
         "  -r, --rig-file=DEVICE         set device of the radio to operate on\n"
         "  -p, --ptt-file=DEVICE         set device of the PTT device to operate on\n"
         "  -d, --dcd-file=DEVICE         set device of the DCD device to operate on\n"
@@ -941,7 +890,7 @@ void usage(void)
         "  -s, --serial-speed=BAUD       set serial speed of the serial port\n"
         "  -c, --civaddr=ID              set CI-V address, decimal (for Icom rigs only)\n"
         "  -t, --send-cmd-term=CHAR      set send_cmd command termination char\n"
-        "  -C, --set-conf=PARM=VAL       set config parameters\n"
+        "  -C, --set-conf=PARM=VAL[,...] set config parameters\n"
         "  -L, --show-conf               list all config parameters\n"
         "  -l, --list                    list all model numbers and exit\n"
         "  -u, --dump-caps               dump capabilities and exit\n"
@@ -957,18 +906,18 @@ void usage(void)
         "  -h, --help                    display this help and exit\n"
         "  -V, --version                 output version information and exit\n"
         "  -!, --cookie                  use cookie control\n"
-        "  -#, --skip-init                skips rig initialization\n\n"
+        "  -#, --skip-init               skip rig initialization\n"
+        "  -                             read commands from standard input\n"
+        "\n"
     );
 
-    usage_rig(stdout);
+    usage_rig(fout);
+}
 
-    printf("\nError codes and messages\n");
 
-    for (enum rig_errcode_e e = 0; e < RIG_EEND; ++e)
-    {
-        printf("-%d - %s", e, rigerror2(e));
-    }
-
-    printf("\nReport bugs to <hamlib-developer@lists.sourceforge.net>.\n");
-
+static void short_usage(FILE *fout)
+{
+    fprintf(fout, "Usage: rigctl [OPTION]... [-m ID] [-r DEVICE] [-s BAUD] [COMMAND...|-]\n");
+    fprintf(fout, "Send COMMANDs to a connected radio transceiver or receiver.\n\n");
+    fprintf(fout, "Type: rigctl --help for extended usage.\n");
 }

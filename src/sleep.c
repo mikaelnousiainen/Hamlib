@@ -35,10 +35,9 @@
  * \note parameters are same as man page for each
  *
  */
-#include <unistd.h>
-#include <errno.h>
-#include <pthread.h>
 #include "hamlib/config.h"
+#include <unistd.h>
+#include <pthread.h>
 #include "sleep.h"
 
 #ifdef  __cplusplus

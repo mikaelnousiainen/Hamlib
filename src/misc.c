@@ -17,6 +17,7 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 /**
  * \addtogroup rig_internal
@@ -28,10 +29,9 @@
  * \brief Miscellaneous utility routines
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
-#include <stdarg.h>
 #include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
 
@@ -45,11 +45,13 @@
 
 #include <math.h>
 
-#include <hamlib/rig.h>
-#include <hamlib/rotator.h>
-#include <hamlib/amplifier.h>
+#include "hamlib/rig.h"
+#include "hamlib/rig_state.h"
+#include "hamlib/rotator.h"
+#include "hamlib/amplifier.h"
 
 #include "misc.h"
+#include "cache.h"
 #include "serial.h"
 #include "network.h"
 #include "sprintflst.h"
@@ -339,7 +341,7 @@ double morse_code_dot_to_millis(int wpm)
 
 /**
  * \brief Convert duration of tenths of morse code dots to milliseconds at the given speed.
- * \param tenths_of_dots number of 1/10ths of dots
+ * \param dot10ths number of 1/10ths of dots
  * \param wpm morse code speed in words per minute
  * \return int duration in milliseconds
  *
@@ -382,7 +384,7 @@ int millis_to_dot10ths(int millis, int wpm)
 int HAMLIB_API sprintf_freq(char *str, int str_len, freq_t freq)
 {
     double f;
-    char *hz;
+    const char *hz;
     int decplaces = 10;
     int retval;
 
@@ -498,6 +500,13 @@ static const struct
     { RIG_MODE_IQ, "IQ"},
     { RIG_MODE_ISBUSB, "ISBUSB"},
     { RIG_MODE_ISBLSB, "ISBLSB"},
+// AB4MW last six rig modes added for Icom IC-F8101 data modes
+    { RIG_MODE_LSBD1, "LSBD1"},
+    { RIG_MODE_LSBD2, "LSBD2"},
+    { RIG_MODE_LSBD3, "LSBD3"},
+    { RIG_MODE_USBD1, "USBD1"},
+    { RIG_MODE_USBD2, "USBD2"},
+    { RIG_MODE_USBD3, "USBD3"},
     { RIG_MODE_NONE, "None" }, // so we can return None when NONE is requested
     { -1, "" }, // need to end list
 };
@@ -734,6 +743,7 @@ static const struct
     { RIG_FUNC_DIVERSITY, "DIVERSITY"},
     { RIG_FUNC_CSQL, "CSQL" },
     { RIG_FUNC_SCEN, "SCEN" },
+    { RIG_FUNC_SLICE, "SLICE" },
     { RIG_FUNC_TRANSCEIVE, "TRANSCEIVE" },
     { RIG_FUNC_SPECTRUM, "SPECTRUM" },
     { RIG_FUNC_SPECTRUM_HOLD, "SPECTRUM_HOLD" },
@@ -1127,12 +1137,14 @@ static const struct
     { AMP_LEVEL_NONE, "" },
 };
 
-/*
- * \brief check input to set_level
- * \param rig Pointer to rig data
+/**
+ * \brief Check the input to rig_set_level
+ * \ingroup lib_internal
+ *
+ * \param rig The rig handle
  * \param level RIG_LEVEL_* trying to set
  * \param val Raw input from the caller
- * \param gran If not NULL, set to location of level_gran data
+ * \param[out] gran If not NULL, set to location of level_gran data
  *
  * \return RIG_OK if value is in range for this level, -RIG_EINVAL if not
  */
@@ -1616,7 +1628,7 @@ const char *HAMLIB_API rig_stragclevel(enum agc_level_e level)
 
 /**
  * \brief Convert a enum agc_level_e to value
- * \param integer...
+ * \param agcLevel level to convert
  * \return agc_level_e value
  */
 value_t rig_valueagclevel(enum agc_level_e agcLevel)
@@ -1636,7 +1648,7 @@ value_t rig_valueagclevel(enum agc_level_e agcLevel)
 
 /**
  * \brief Convert a value to agc_level_e -- constrains the range
- * \param integer...
+ * \param agcValue value to convert
  * \return agc_level_e
  */
 enum agc_level_e rig_levelagcvalue(int agcValue)
@@ -1667,7 +1679,7 @@ enum agc_level_e rig_levelagcvalue(int agcValue)
 
 /**
  * \brief Convert AGC string... to agc_level_e
- * \param mode AGC string...
+ * \param agcString AGC string to convert
  * \return agc_level_e
  */
 enum agc_level_e rig_levelagcstr(const char *agcString)
@@ -2126,7 +2138,6 @@ double HAMLIB_API elapsed_ms(struct timespec *start, int option)
         //rig_debug(RIG_DEBUG_TRACE, "%s: after gettime, start = %ld,%ld\n", __func__,
         //          (long)start->tv_sec, (long)start->tv_nsec);
         return 999 * 1000; // so we can tell the difference in debug where we came from
-        break;
 
     case HAMLIB_ELAPSED_INVALIDATE:
         clock_gettime(CLOCK_REALTIME, start);
@@ -2135,8 +2146,9 @@ double HAMLIB_API elapsed_ms(struct timespec *start, int option)
         break;
     }
 
-    elapsed_msec = ((stop.tv_sec - start->tv_sec) + (stop.tv_nsec / 1e9 -
-                    start->tv_nsec / 1e9)) * 1e3;
+    // Casts used to make sure the add is done as double
+    elapsed_msec = (double)((stop.tv_sec - start->tv_sec) * 1000) + // sec -> ms
+                   (double)(stop.tv_nsec - start->tv_nsec) / 1e6;   // ns  -> ms
 
     //rig_debug(RIG_DEBUG_TRACE, "%s: elapsed_msecs=%.0f\n", __func__, elapsed_msec);
 
@@ -2145,22 +2157,6 @@ double HAMLIB_API elapsed_ms(struct timespec *start, int option)
     return elapsed_msec;
 }
 //! @endcond
-
-
-int HAMLIB_API rig_get_cache_timeout_ms(RIG *rig, hamlib_cache_t selection)
-{
-    rig_debug(RIG_DEBUG_TRACE, "%s: called selection=%d\n", __func__, selection);
-    return CACHE(rig)->timeout_ms;
-}
-
-int HAMLIB_API rig_set_cache_timeout_ms(RIG *rig, hamlib_cache_t selection,
-                                        int ms)
-{
-    rig_debug(RIG_DEBUG_TRACE, "%s: called selection=%d, ms=%d\n", __func__,
-              selection, ms);
-    CACHE(rig)->timeout_ms = ms;
-    return RIG_OK;
-}
 
 static char *funcname = "Unknown";
 static int linenum = 0;
@@ -2312,14 +2308,14 @@ int HAMLIB_API parse_hoststr(char *hoststr, int hoststr_len, char host[256],
 
     // Exclude any names that aren't a host:port format
     // Handle device names 1st
-    if (strstr(hoststr, "/dev")) { return -1; }
+    if (strstr(hoststr, "/dev")) { return -RIG_EINVAL; }
 
-    if (strstr(hoststr, "/")) { return -1; } // probably a path so not a hoststr
+    if (strstr(hoststr, "/")) { return -RIG_EINVAL; } // probably a path so not a hoststr
 
-    if (strncasecmp(hoststr, "com", 3) == 0) { return -1; }
+    if (strncasecmp(hoststr, "com", 3) == 0) { return -RIG_EINVAL; }
 
     // escaped COM port like \\.\COM3 or \.\COM3
-    if (strstr(hoststr, "\\.\\")) { return -1; }
+    if (strstr(hoststr, "\\.\\")) { return -RIG_EINVAL; }
 
     // Now let's try and parse a host:port thing
     // bracketed IPV6 with optional port
@@ -2414,9 +2410,9 @@ int HAMLIB_API parse_hoststr(char *hoststr, int hoststr_len, char host[256],
 
     if (n >= 1 && strlen(dummy) == 0) { return RIG_OK; }
 
-    printf("Unhandled host=%s\n", hoststr);
+    rig_debug(RIG_DEBUG_BUG, "%s: Unhandled host=%s\n", __func__, hoststr);
 
-    return -1;
+    return -RIG_EINVAL;
 }
 
 
@@ -2639,7 +2635,8 @@ const char *HAMLIB_API amp_strampop(amp_op_t op)
 
 /**
  * \brief Get pointer to rig function instead of using rig->caps
- * \param RIG* and rig_function_e
+ * \param rig_model
+ * \param rig_function
  * \return the corresponding function pointer
  */
 void *HAMLIB_API rig_get_function_ptr(rig_model_t rig_model,
@@ -2931,7 +2928,8 @@ void *HAMLIB_API rig_get_function_ptr(rig_model_t rig_model,
 /**
  * \brief Get integer/long instead of using rig->caps
  *  watch out for integer values that may be negative -- if needed must change hamlib
- * \param RIG* and rig_caps_int_e
+ * \param rig_model
+ * \param rig_caps
  * \return the corresponding long value -- -RIG_EINVAL is the only error possible
  */
 uint64_t HAMLIB_API rig_get_caps_int(rig_model_t rig_model,
@@ -3024,7 +3022,7 @@ static const struct
     { RIG_COMM_STATUS_OK, "OK" },
     { RIG_COMM_STATUS_CONNECTING, "CONNECTING" },
     { RIG_COMM_STATUS_DISCONNECTED, "DISCONNECTED" },
-    { RIG_COMM_STATUS_TERMINATED, "TERMINATIED" },
+    { RIG_COMM_STATUS_TERMINATED, "TERMINATED" },
     { RIG_COMM_STATUS_WARNING, "WARNING" },
     { RIG_COMM_STATUS_ERROR, "ERROR" },
     { 0xffffffff, "" },
@@ -3032,7 +3030,7 @@ static const struct
 
 /**
  * \brief Convert enum RIG_COMM_STATUS... to alpha string
- * \param vfo RIG_COMM_STATUS_...
+ * \param status RIG_COMM_STATUS_...
  * \return alpha string
  */
 const char *HAMLIB_API rig_strcommstatus(rig_comm_status_t status)
@@ -3057,7 +3055,7 @@ void errmsg(int err, char *s, const char *func, const char *file, int line)
               rigerror(err));
 }
 
-uint32_t CRC32_function(uint8_t *buf, uint32_t len)
+uint32_t CRC32_function(const uint8_t *buf, uint32_t len)
 {
 
     uint32_t crc;
@@ -3102,6 +3100,28 @@ static struct tm *gmtime_r(const time_t *t, struct tm *r)
 #endif // gmtime_r
 #endif // _WIN32
 
+/**
+ * \brief Get a string of stars for indenting messages
+ * \ingroup lib_internal
+ *
+ * \param len number of stars (sounds kinda like a rating)
+ * \return pointer to an appropriate string
+ */
+const char *hl_stars(int len)
+{
+#define MAX_STARS 128
+    static const char s[MAX_STARS + 1] =
+        "****************************************************************"
+        "****************************************************************";
+
+    if (len < 0 || len > MAX_STARS)
+    {
+        len = 0;
+    }
+
+    return &s[MAX_STARS - len];
+}
+
 //! @cond Doxygen_Suppress
 char *date_strget(char *buf, int buflen, int localtime)
 {
@@ -3145,23 +3165,6 @@ char *rig_date_strget(char *buf, int buflen, int localtime)
     return date_strget(buf, buflen, localtime);
 }
 
-#define MAX_SPACES 256
-const char *spaces(int len)
-{
-    static const char s[MAX_SPACES + 1] =
-        "****************************************************************"
-        "****************************************************************"
-        "****************************************************************"
-        "****************************************************************";
-
-    if (len < 0 || len > MAX_SPACES)
-    {
-        len = 0;
-    }
-
-    return &s[MAX_SPACES - len];
-}
-
 // if which==0 rig_band_select str will be returned
 // if which!=0 the rig_parm_gran band str will be returned
 const char *rig_get_band_str(RIG *rig, hamlib_band_t band, int which)
@@ -3187,7 +3190,7 @@ const char *rig_get_band_str(RIG *rig, hamlib_band_t band, int which)
         rig_debug(RIG_DEBUG_VERBOSE, "%s: bandlist=%s\n", __func__, bandlist);
         int n = 0;
         char *p = strchr(bandlist, '(') + 1;
-        char *token;
+        const char *token;
 
         if (p == NULL)
         {
@@ -3235,7 +3238,7 @@ hamlib_band_t rig_get_band(RIG *rig, freq_t freq, int band)
         rig_debug(RIG_DEBUG_VERBOSE, "%s: bandlist=%s\n", __func__, bandlist);
         // e.g. BANDSELECT(BAND160M,BAND80M,BANDUNUSED,BAND40M)
         char *p = strchr(bandlist, '(') + 1;
-        char *token;
+        const char *token;
 
         if (p == NULL)
         {
@@ -3294,7 +3297,7 @@ int rig_get_band_rig(RIG *rig, freq_t freq, const char *band)
         }
 
         char *p = strchr(bandlist, '(') + 1;
-        char *token;
+        const char *token;
 
         if (p == NULL)
         {
@@ -3444,18 +3447,18 @@ int queue_deferred_config(deferred_config_header_t *head, hamlib_token_t token,
     }
 
     item->token = token;
-    item->next = NULL;
+    item->nextt = NULL;
 
-    if (!head->first)
+    if (!head->firstt)
     {
-        head->first = item;
+        head->firstt = item;
     }
     else
     {
-        head->last->next = item;
+        head->lastt->nextt = item;
     }
 
-    head->last = item;
+    head->lastt = item;
 
     return RIG_OK;
 }

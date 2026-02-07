@@ -33,7 +33,7 @@
  *
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -41,7 +41,8 @@
 #include <errno.h>   /* Error number definitions */
 #include <unistd.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
+#include "hamlib/rig_state.h"
 #include "cal.h"
 #include "misc.h"
 
@@ -90,11 +91,11 @@ int HAMLIB_API rig_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_LEVEL)
             || vfo == RIG_VFO_CURR
             || vfo == STATE(rig)->current_vfo)
     {
-#if defined(HAVE_PTHREAD)
 
         if (level == RIG_LEVEL_KEYSPD)
         {
@@ -102,13 +103,14 @@ int HAMLIB_API rig_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
             morse_data_handler_set_keyspd(rig, val.i);
         }
 
-#endif
-
-        return caps->set_level(rig, vfo, level, val);
+        retcode = caps->set_level(rig, vfo, level, val);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -117,11 +119,13 @@ int HAMLIB_API rig_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->set_level(rig, vfo, level, val);
     caps->set_vfo(rig, curr_vfo);
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -172,6 +176,7 @@ int HAMLIB_API rig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1); // Keep Out!
     /*
      * Special case(frontend emulation): calibrated S-meter reading
      */
@@ -187,10 +192,12 @@ int HAMLIB_API rig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
         if (retcode != RIG_OK)
         {
+            rig_lock(rig, 0);
             return retcode;
         }
 
         val->i = (int)rig_raw2val(rawstr.i, &rs->str_cal);
+        rig_lock(rig, 0);
         return RIG_OK;
     }
 
@@ -199,12 +206,14 @@ int HAMLIB_API rig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
             || vfo == RIG_VFO_CURR
             || vfo == rs->current_vfo)
     {
-
-        return caps->get_level(rig, vfo, level, val);
+        retcode = caps->get_level(rig, vfo, level, val);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -213,11 +222,13 @@ int HAMLIB_API rig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->get_level(rig, vfo, level, val);
     caps->set_vfo(rig, curr_vfo);
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -986,10 +997,9 @@ int HAMLIB_API rig_setting2idx(setting_t s)
     return 0;
 }
 
-#include <unistd.h>  /* UNIX standard function definitions */
 
 #if 0
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -1006,7 +1016,7 @@ int HAMLIB_API rig_setting2idx(setting_t s)
 
 #include <math.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #endif
 
 
@@ -1049,6 +1059,7 @@ HAMLIB_EXPORT(int) rig_settings_get_path(char *path, int pathlen)
         home = "?HOME";
     }
 
+    // cppcheck-suppress nullPointerRedundantCheck
     snprintf(path, pathlen, "%s/.config", home);
 
     if (xdgpath)
@@ -1088,13 +1099,13 @@ HAMLIB_EXPORT(int) rig_settings_save(const char *setting, void *value,
     FILE *fptmp;
     char path[4096];
     char buf[4096];
-    char *cvalue = (char *)value;
-    int *ivalue = (int *)value;
+    const char *cvalue = (char *)value;
+    const int *ivalue = (int *)value;
     int n = 0;
-    long *lvalue = (long *) value;
-    float *fvalue = (float *) value;
-    double *dvalue = (double *) value;
-    char *vformat = "Unknown format??";
+    const long *lvalue = (long *) value;
+    const float *fvalue = (float *) value;
+    const double *dvalue = (double *) value;
+    const char *vformat = "Unknown format??";
     char template[64];
 
     rig_settings_get_path(path, sizeof(path));
@@ -1252,6 +1263,8 @@ HAMLIB_EXPORT(int) rig_settings_load_all(char *settings_file)
             free(sharedkey);
         }
     }
+
+    fclose(fp);
 
     return RIG_OK;
 }

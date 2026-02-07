@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "kenwood.h"
 #include "bandplan.h"
 
@@ -237,7 +237,7 @@ static int ts870s_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
                 pbwidth_t mode_default_hpf;
 
                 /* we assume the HPF is set to default and set the LPF to
-                     give the best approximaation of the requested width */
+                     give the best approximation of the requested width */
                 if (RIG_MODE_AM == mode)
                 {
                     mode_default_hpf = 300;
@@ -265,7 +265,7 @@ static int ts870s_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     return retval;
 }
 
-int ts870s_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
+static int ts870s_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 {
     char levelbuf[16];
     int intval;

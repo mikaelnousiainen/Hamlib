@@ -18,10 +18,15 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "amplifier.h"
 #include "kpa.h"
+#include "hamlib/port.h"
+#include "hamlib/amp_state.h"
+#include "iofunc.h"
 
 struct kpa_fault_message
 {
@@ -90,7 +95,7 @@ int kpa_close(AMP *amp)
     return RIG_OK;
 }
 
-int kpa_flushbuffer(AMP *amp)
+static int kpa_flushbuffer(AMP *amp)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -360,7 +365,7 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
             return -RIG_EPROTO;
         }
 
-        rig_debug(RIG_DEBUG_VERBOSE, "%s freq range=%dKHz,%dKHz\n", __func__,
+        rig_debug(RIG_DEBUG_VERBOSE, "%s freq range=%dkHz,%dkHz\n", __func__,
                   int_value, int_value2);
 
         do
@@ -549,7 +554,7 @@ int kpa_get_powerstat(AMP *amp, powerstat_t *status)
 int kpa_set_powerstat(AMP *amp, powerstat_t status)
 {
     int retval;
-    char *cmd = NULL;
+    const char *cmd = NULL;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -557,7 +562,7 @@ int kpa_set_powerstat(AMP *amp, powerstat_t status)
 
     switch (status)
     {
-    case RIG_POWER_UNKNOWN: break;
+    //case RIG_POWER_UNKNOWN: break;
 
     case RIG_POWER_OFF: cmd = "^ON0;"; break;
 
@@ -567,17 +572,15 @@ int kpa_set_powerstat(AMP *amp, powerstat_t status)
 
     case RIG_POWER_STANDBY: cmd = "^OS0;"; break;
 
-
     default:
         rig_debug(RIG_DEBUG_ERR, "%s invalid status=%d\n", __func__, status);
+        return -RIG_EINVAL;
 
     }
 
     retval = kpa_transaction(amp, cmd, NULL, 0);
 
-    if (retval != RIG_OK) { return retval; }
-
-    return RIG_OK;
+    return retval;
 }
 
 int kpa_reset(AMP *amp, amp_reset_t reset)

@@ -19,13 +19,13 @@
  *
  */
 
+#include "hamlib/config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
 #include <unistd.h>  /* UNIX standard function definitions */
 
 #include "hamlib/rig.h"
-#include "serial.h"
 #include "iofunc.h"
 #include "misc.h"
 #include "num_stdio.h"
@@ -861,8 +861,9 @@ static int netrigctl_open(RIG *rig)
 
                 for (i = 0; p != NULL && i < RIG_SETTING_MAX; ++i)
                 {
-                    int level;
-                    sscanf(p, "%d", &level);
+                    int idx, level;
+                    sscanf(p, "%d", &idx);
+                    level = rig_idx2setting(idx);
 
                     rig->caps->parm_gran[i].step.s = 0;
 

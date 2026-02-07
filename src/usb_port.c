@@ -31,20 +31,19 @@
  * doc todo: deal with defined(HAVE_LIBUSB)... quashing the doc process.
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
-
-
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
-#include <sys/types.h>
+#include <strings.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
+#include "hamlib/port.h"
 
-#ifdef HAVE_LIBUSB_H
-#  include <libusb.h>
-#elif defined HAVE_LIBUSB_1_0_LIBUSB_H
-#  include <libusb-1.0/libusb.h>
+// LIBUSB_CFLAGS set by pkg-config should set the include path appropriately.
+#ifdef HAVE_LIBUSB
+#include <libusb.h>
 #endif
 
 #include "usb_port.h"
@@ -52,7 +51,7 @@
 /*
  * Compile only if libusb is available
  */
-#if defined(HAVE_LIBUSB) && (defined(HAVE_LIBUSB_H) || defined(HAVE_LIBUSB_1_0_LIBUSB_H))
+#if defined(HAVE_LIBUSB)
 
 /**
  * \brief Find and open USB device
@@ -223,7 +222,7 @@ int usb_port_open(hamlib_port_t *port)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    /* init default libusb-1.0 library contexte, if needed */
+    /* init default libusb-1.0 library context, if needed */
     r = libusb_init(NULL);
 
     if (r < 0)
@@ -423,6 +422,6 @@ int usb_port_close(hamlib_port_t *port)
 }
 //! @endcond
 
-#endif  /* defined(HAVE_LIBUSB) && defined(HAVE_LIBUSB_H) */
+#endif  /* defined(HAVE_LIBUSB) */
 
 /** @} */

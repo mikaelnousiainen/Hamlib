@@ -6,6 +6,7 @@
  *            (C) Stephane Fillod 2008-2010
  *            (C) Terry Embry 2008-2010
  *            (C) David Fannin (kk6df at arrl.net)
+ *            (C) Jeremy Miller KO4SSD 2025 (ko4ssd at ko4ssd.com)
  *
  * This shared library provides an API for communicating
  * via serial interface to any newer Yaesu radio using the
@@ -34,9 +35,9 @@
 #include "hamlib/rig.h"
 #include "iofunc.h"
 #include "misc.h"
+#include "cache.h"
 #include "cal.h"
 #include "newcat.h"
-#include "serial.h"
 
 /* global variables */
 static const char cat_term = ';';             /* Yaesu command terminator */
@@ -70,8 +71,226 @@ typedef enum nc_rigid_e
     NC_RIGID_FTDX101D        = 681,
     NC_RIGID_FTDX101MP       = 682,
     NC_RIGID_FT710           = 800,
+    NC_RIGID_FTX1            = 840,
 } nc_rigid_t;
 
+
+/*
+ * Frequency band boundaries for repeater offset commands.
+ * These values define the valid frequency ranges for each amateur band.
+ * Used by newcat_set_rptr_offs() and newcat_get_rptr_offs().
+ */
+#define BAND_10M_LOW     28000000   /* 10 meter band lower edge (Hz) */
+#define BAND_10M_HIGH    29700000   /* 10 meter band upper edge (Hz) */
+#define BAND_6M_LOW      50000000   /* 6 meter band lower edge (Hz) */
+#define BAND_6M_HIGH     54000000   /* 6 meter band upper edge (Hz) */
+#define BAND_2M_LOW     144000000   /* 2 meter band lower edge (Hz) */
+#define BAND_2M_HIGH    148000000   /* 2 meter band upper edge (Hz) */
+#define BAND_70CM_LOW   430000000   /* 70 cm band lower edge (Hz) */
+#define BAND_70CM_HIGH  450000000   /* 70 cm band upper edge (Hz) */
+
+/*
+ * Repeater offset step sizes (Hz)
+ */
+#define RPTR_OFFS_STEP_100K   100000   /* 100 kHz step (FT-450) */
+#define RPTR_OFFS_STEP_1K       1000   /* 1 kHz step (most rigs) */
+
+/*
+ * Band identifiers for the rptr_offs_cmd_entry band field.
+ * Allows a single entry to specify which band(s) the command applies to.
+ */
+typedef enum {
+    RPTR_BAND_ALL_HF = 0,      /* Command applies to all HF (FT-450 style) */
+    RPTR_BAND_10M,             /* 10 meter band only */
+    RPTR_BAND_6M,              /* 6 meter band only */
+    RPTR_BAND_2M,              /* 2 meter band only */
+    RPTR_BAND_70CM,            /* 70 cm band only */
+} rptr_band_t;
+
+/*
+ * Maximum length for EX command strings (e.g., "EX010318")
+ * 8 characters + null terminator
+ */
+#define RPTR_CMD_MAXLEN 16
+
+/*
+ * Entry in the repeater offset command lookup table.
+ * Each entry maps a rig model + frequency band to the appropriate EX command.
+ *
+ * USAGE: To add a new rig, add entries for each supported band.
+ *
+ * Example for a new rig "FT-NEW" supporting 10m and 6m:
+ *   { NC_RIGID_FTNEW, RPTR_BAND_10M,  "EX123", RPTR_OFFS_STEP_1K },
+ *   { NC_RIGID_FTNEW, RPTR_BAND_6M,   "EX124", RPTR_OFFS_STEP_1K },
+ */
+typedef struct {
+    nc_rigid_t rig_id;          /* Rig model ID from nc_rigid_t enum */
+    rptr_band_t band;           /* Which band this entry applies to */
+    const char *cmd;            /* EX command string (e.g., "EX057") */
+    int step;                   /* Offset step size in Hz */
+} rptr_offs_cmd_entry_t;
+
+/*
+ * Repeater offset command lookup table.
+ *
+ * This table replaces the massive if/else chains in newcat_set_rptr_offs()
+ * and newcat_get_rptr_offs(). Each entry defines the EX command for a
+ * specific rig model and frequency band combination.
+ *
+ * The table is searched sequentially; entries are ordered by rig ID and
+ * then by band for clarity.
+ *
+ * MAINTENANCE NOTE: When adding a new rig model:
+ * 1. Add entries for each supported band (typically 10m and 6m for HF rigs)
+ * 2. Use the appropriate EX command from the rig's CAT documentation
+ * 3. Set step = RPTR_OFFS_STEP_1K for most rigs, RPTR_OFFS_STEP_100K for FT-450
+ */
+static const rptr_offs_cmd_entry_t rptr_offs_cmd_table[] = {
+    /* FT-450: Single command for all HF, 100 kHz step */
+    { NC_RIGID_FT450,    RPTR_BAND_ALL_HF, "EX050", RPTR_OFFS_STEP_100K },
+    { NC_RIGID_FT450D,   RPTR_BAND_ALL_HF, "EX050", RPTR_OFFS_STEP_100K },
+
+    /* FT-950: Separate commands for 10m and 6m */
+    { NC_RIGID_FT950,    RPTR_BAND_10M,    "EX057", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT950,    RPTR_BAND_6M,     "EX058", RPTR_OFFS_STEP_1K },
+
+    /* FT-891: Uses EX09xx format */
+    { NC_RIGID_FT891,    RPTR_BAND_10M,    "EX0904", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT891,    RPTR_BAND_6M,     "EX0905", RPTR_OFFS_STEP_1K },
+
+    /* FT-991/FT-991A: Supports 10m, 6m, 2m, and 70cm */
+    { NC_RIGID_FT991,    RPTR_BAND_10M,    "EX080", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT991,    RPTR_BAND_6M,     "EX081", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT991,    RPTR_BAND_2M,     "EX082", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT991,    RPTR_BAND_70CM,   "EX083", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT991A,   RPTR_BAND_10M,    "EX080", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT991A,   RPTR_BAND_6M,     "EX081", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT991A,   RPTR_BAND_2M,     "EX082", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT991A,   RPTR_BAND_70CM,   "EX083", RPTR_OFFS_STEP_1K },
+
+    /* FT-2000/FT-2000D */
+    { NC_RIGID_FT2000,   RPTR_BAND_10M,    "EX076", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT2000,   RPTR_BAND_6M,     "EX077", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT2000D,  RPTR_BAND_10M,    "EX076", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT2000D,  RPTR_BAND_6M,     "EX077", RPTR_OFFS_STEP_1K },
+
+    /* FT-710: Uses EX0103xx format */
+    { NC_RIGID_FT710,    RPTR_BAND_10M,    "EX010318", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FT710,    RPTR_BAND_6M,     "EX010319", RPTR_OFFS_STEP_1K },
+
+    /* FTDX-1200 */
+    { NC_RIGID_FTDX1200, RPTR_BAND_10M,    "EX087", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FTDX1200, RPTR_BAND_6M,     "EX088", RPTR_OFFS_STEP_1K },
+
+    /* FTDX-3000/FTDX-3000DM */
+    { NC_RIGID_FTDX3000, RPTR_BAND_10M,    "EX086", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FTDX3000, RPTR_BAND_6M,     "EX087", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FTDX3000DM, RPTR_BAND_10M,  "EX086", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FTDX3000DM, RPTR_BAND_6M,   "EX087", RPTR_OFFS_STEP_1K },
+
+    /* FTDX-5000 */
+    { NC_RIGID_FTDX5000, RPTR_BAND_10M,    "EX081", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FTDX5000, RPTR_BAND_6M,     "EX082", RPTR_OFFS_STEP_1K },
+
+    /* FTDX-101D/FTDX-101MP: Uses EX0103xx format */
+    { NC_RIGID_FTDX101D, RPTR_BAND_10M,    "EX010315", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FTDX101D, RPTR_BAND_6M,     "EX010316", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FTDX101MP, RPTR_BAND_10M,   "EX010315", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FTDX101MP, RPTR_BAND_6M,    "EX010316", RPTR_OFFS_STEP_1K },
+
+    /* FTDX-10: Uses EX0103xx format (different from FTDX-101) */
+    { NC_RIGID_FTDX10,   RPTR_BAND_10M,    "EX010317", RPTR_OFFS_STEP_1K },
+    { NC_RIGID_FTDX10,   RPTR_BAND_6M,     "EX010318", RPTR_OFFS_STEP_1K },
+
+    /* Sentinel entry - marks end of table */
+    { NC_RIGID_NONE,     RPTR_BAND_ALL_HF, NULL,       0 }
+};
+
+/*
+ * Get the number of entries in the rptr_offs_cmd_table (excluding sentinel).
+ */
+#define RPTR_OFFS_CMD_TABLE_SIZE \
+    (sizeof(rptr_offs_cmd_table) / sizeof(rptr_offs_cmd_table[0]) - 1)
+
+/*
+ * ANTIVOX command lookup table.
+ * Maps rig model ID to the command string for ANTIVOX control.
+ *
+ * NOTE: FT-991 uses EX145 for SET but EX147 for GET (different menu items).
+ * The get_cmd field is NULL if same as set_cmd.
+ */
+typedef struct {
+    nc_rigid_t rig_id;          /* Rig model ID from nc_rigid_t enum */
+    const char *set_cmd;        /* Command for setting ANTIVOX */
+    const char *get_cmd;        /* Command for getting ANTIVOX (NULL = same as set_cmd) */
+} antivox_cmd_entry_t;
+
+static const antivox_cmd_entry_t antivox_cmd_table[] = {
+    /* FTDX-101D/101MP, FTDX-10, FT-710: Use dedicated AV command */
+    { NC_RIGID_FTDX101D,  "AV",     NULL },
+    { NC_RIGID_FTDX101MP, "AV",     NULL },
+    { NC_RIGID_FTDX10,    "AV",     NULL },
+    { NC_RIGID_FT710,     "AV",     NULL },
+
+    /* FTDX-5000: EX176 */
+    { NC_RIGID_FTDX5000,  "EX176",  NULL },
+
+    /* FTDX-3000/3000DM, FTDX-1200: EX183 */
+    { NC_RIGID_FTDX3000,  "EX183",  NULL },
+    { NC_RIGID_FTDX3000DM,"EX183",  NULL },
+    { NC_RIGID_FTDX1200,  "EX183",  NULL },
+
+    /* FT-991/991A: EX145 for set, EX147 for get (different menu items) */
+    { NC_RIGID_FT991,     "EX145",  "EX147" },
+    { NC_RIGID_FT991A,    "EX145",  "EX147" },
+
+    /* FT-891: EX1619 */
+    { NC_RIGID_FT891,     "EX1619", NULL },
+
+    /* FT-950: EX117 */
+    { NC_RIGID_FT950,     "EX117",  NULL },
+
+    /* FT-2000/2000D: EX042 */
+    { NC_RIGID_FT2000,    "EX042",  NULL },
+    { NC_RIGID_FT2000D,   "EX042",  NULL },
+
+    /* Sentinel entry - marks end of table */
+    { NC_RIGID_NONE,      NULL,     NULL }
+};
+
+/*
+ * lookup_antivox_cmd - Find the ANTIVOX command for a given rig model.
+ *
+ * Parameters:
+ *   rig_id   - Rig model ID from nc_rigid_t enum
+ *   is_get   - 1 for get command, 0 for set command
+ *   cmd      - Output: command string (e.g., "AV", "EX176")
+ *
+ * Returns:
+ *   RIG_OK if found, -RIG_ENAVAIL if rig not in table
+ */
+static int lookup_antivox_cmd(nc_rigid_t rig_id, int is_get, const char **cmd)
+{
+    int i;
+
+    for (i = 0; antivox_cmd_table[i].set_cmd != NULL; i++)
+    {
+        if (antivox_cmd_table[i].rig_id == rig_id)
+        {
+            if (is_get && antivox_cmd_table[i].get_cmd != NULL)
+            {
+                *cmd = antivox_cmd_table[i].get_cmd;
+            }
+            else
+            {
+                *cmd = antivox_cmd_table[i].set_cmd;
+            }
+            return RIG_OK;
+        }
+    }
+
+    return -RIG_ENAVAIL;
+}
 
 /*
  * The following table defines which commands are valid for any given
@@ -94,6 +313,7 @@ typedef struct _yaesu_newcat_commands
     ncboolean           ftdx10;
     ncboolean           ft101mp;
     ncboolean           ft710;
+    ncboolean           ftx1;
     ncboolean           ft9000Old;
 } yaesu_newcat_commands_t;
 
@@ -224,13 +444,14 @@ static ncboolean is_ftdx3000dm;
 static ncboolean is_ftdx101d;
 static ncboolean is_ftdx101mp;
 static ncboolean is_ftdx10;
+static ncboolean is_ftx1;
 static ncboolean is_ftdx9000Old;
 
 /*
- * Even thought this table does make a handy reference, it could be depreciated as it is not really needed.
+ * Even though this table does make a handy reference, it could be deprecated as it is not really needed.
  * All of the CAT commands used in the newcat interface are available on the FT-950, FT-2000, FT-5000, and FT-9000.
  * There are 5 CAT commands used in the newcat interface that are not available on the FT-450.
- * Thesec CAT commands are XT -TX Clarifier ON/OFF, AN - Antenna select, PL - Speech Proc Level,
+ * These CAT commands are XT -TX Clarifier ON/OFF, AN - Antenna select, PL - Speech Proc Level,
  * PR - Speech Proc ON/OFF, and BC - Auto Notch filter ON/OFF.
  * The FT-450 returns -RIG_ENVAIL for these unavailable CAT commands.
  *
@@ -244,24 +465,24 @@ static ncboolean is_ftdx9000Old;
  */
 static const yaesu_newcat_commands_t valid_commands[] =
 {
-    /* Command FT-450 FT-950 FT-891 FT-991  FT-2000 FT-9000 FT-5000 FT-1200 FT-3000 FTDX101D FTDX10 FTDX101MP FT710 FT9000Old*/
-    {"AB",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
-    {"AC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
-    {"AG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    /* Command FT-450 FT-950 FT-891 FT-991  FT-2000 FT-9000 FT-5000 FT-1200 FT-3000 FTDX101D FTDX10 FTDX101MP FT710 FTX1 FT9000Old*/
+    {"AB",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE,  TRUE  },
+    {"AC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE,  TRUE  },
+    {"AG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE,  TRUE  },
     {"AI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"AM",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"AN",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    FALSE, TRUE,     FALSE, TRUE },
-    {"AO",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
-    {"BA",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,   TRUE,   TRUE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"AO",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, TRUE },
+    {"BA",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,   TRUE,   TRUE,  TRUE,    TRUE,  TRUE,     TRUE, TRUE },
     {"BC",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"BD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"BI",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
-    {"BM",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"BM",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, TRUE },
     {"BP",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"BS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"BU",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"BY",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
-    {"CF",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,    TRUE,  FALSE,   TRUE, FALSE },
+    {"CF",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,    TRUE,  FALSE,   TRUE, TRUE },
     {"CH",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"CN",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"CO",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
@@ -271,7 +492,7 @@ static const yaesu_newcat_commands_t valid_commands[] =
     {"DN",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"DP",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE, TRUE },
     {"DS",     TRUE,  FALSE, FALSE, FALSE,  TRUE,   TRUE,   TRUE,   FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE, TRUE },
-    {"DT",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"DT",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,    TRUE,  TRUE,     TRUE, TRUE },
     {"ED",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"EK",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   FALSE,  TRUE,   TRUE,   FALSE,   FALSE, TRUE,     FALSE, TRUE },
     {"EM",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  FALSE,    TRUE, FALSE },
@@ -281,7 +502,7 @@ static const yaesu_newcat_commands_t valid_commands[] =
     {"FA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"FB",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"FK",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   FALSE,  FALSE,  FALSE,  FALSE,   FALSE, FALSE,    FALSE, TRUE },
-    {"FN",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"FN",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, TRUE },
     {"FR",     FALSE, TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"FS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    FALSE,  TRUE,    FALSE, TRUE },
     {"FT",     TRUE,  TRUE,  FALSE, TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
@@ -297,7 +518,7 @@ static const yaesu_newcat_commands_t valid_commands[] =
     {"LK",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"LM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"MA",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
-    {"MB",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"MB",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, TRUE },
     {"MC",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"MD",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"MG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
@@ -305,10 +526,10 @@ static const yaesu_newcat_commands_t valid_commands[] =
     {"ML",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"MR",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"MS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
-    {"MT",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"MT",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, TRUE },
     {"MW",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"MX",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
-    {"NA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   FALSE,  TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"NA",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   FALSE,  TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE },
     {"NB",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"NL",     FALSE, TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"NR",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
@@ -342,13 +563,13 @@ static const yaesu_newcat_commands_t valid_commands[] =
     {"SH",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"SM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"SQ",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
-    {"SS",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"SS",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, TRUE },
     // ST command has two meanings Step or Split Status
     // If new rig is added that has ST ensure it means Split
     // Otherwise modify newcat_(set|get)_split
-    {"ST",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE },
+    {"ST",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, TRUE },
     {"SV",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
-    {"SY",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,     FALSE, FALSE},
+    {"SY",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,     FALSE, TRUE },
     {"TS",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"TX",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"UL",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
@@ -358,12 +579,12 @@ static const yaesu_newcat_commands_t valid_commands[] =
     {"VG",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"VM",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"VR",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,     FALSE, FALSE },
-    {"VS",     TRUE,  TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, FALSE  },
-    {"VT",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,     TRUE, FALSE  },
-    {"VV",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,     FALSE, FALSE },
+    {"VS",     TRUE,  TRUE,  FALSE, FALSE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
+    {"VT",     FALSE, FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,   FALSE,  TRUE,     TRUE, TRUE  },
+    {"VV",     TRUE,  FALSE, FALSE, FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,     FALSE, TRUE },
     {"VX",     TRUE,  TRUE,  TRUE,  TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
     {"XT",     FALSE, TRUE,  FALSE, TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,   TRUE,    TRUE,  TRUE,     FALSE, TRUE  },
-    {"ZI",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, FALSE  },
+    {"ZI",     FALSE, FALSE, TRUE,  TRUE,   FALSE,  FALSE,  FALSE,  FALSE,  FALSE,  TRUE,    TRUE,  TRUE,     TRUE, TRUE  },
 } ;
 
 int valid_commands_count = sizeof(valid_commands) / sizeof(
@@ -434,11 +655,15 @@ static int newcat_band_index(freq_t freq)
     // using < instead of <= for the moment
     // does anybody work LSB or RTTYR at the upper band edge?
     // what about band 13 -- what is it?
-    if (freq >= MHz(420) && freq < MHz(470)) { band = 16; }
+    if (freq >= MHz(420) && freq < MHz(470) && !is_ftx1) { band = 16; }
+    else if (freq >= MHz(420) && freq < MHz(470) && is_ftx1) { band = 14; }
+    else if (freq >= MHz(144) && freq < MHz(148) && is_ftx1) { band = 13; }
     else if (freq >= MHz(144) && freq < MHz(148)) { band = 15; }
     // band 14 is RX only
     // override band 15 with 14 if needed
+    else if (freq >= MHz(118) && freq < MHz(164) && is_ftx1) { band = 12; }
     else if (freq >= MHz(118) && freq < MHz(164)) { band = 14; }
+    else if (freq >= MHz(70) && freq < MHz(70.5) && is_ftx1) { band = 11; }
     else if (freq >= MHz(70) && freq < MHz(70.5)) { band = 17; }
     else if (freq >= MHz(50) && freq < MHz(55)) { band = 10; }
     else if (freq >= MHz(28) && freq < MHz(29.7)) { band = 9; }
@@ -518,6 +743,7 @@ int newcat_init(RIG *rig)
     is_ftdx101mp = newcat_is_rig(rig, RIG_MODEL_FTDX101MP);
     is_ftdx10 = newcat_is_rig(rig, RIG_MODEL_FTDX10);
     is_ft710 = newcat_is_rig(rig, RIG_MODEL_FT710);
+    is_ftx1 = newcat_is_rig(rig, RIG_MODEL_FTX1);
 
     RETURNFUNC(RIG_OK);
 }
@@ -859,7 +1085,7 @@ int newcat_60m_exception(RIG *rig, freq_t freq, mode_t mode)
     // some rigs need to skip freq/mode settings as 60M only operates in memory mode
     if (is_ft991 || is_ft897 || is_ft897d || is_ftdx5000 || is_ftdx10) { return 1; }
 
-    if (!is_ftdx10 && !is_ft710 && !is_ftdx101d && !is_ftdx101mp) { return 0; }
+    if (!is_ftdx10 && !is_ft710 && !is_ftdx101d && !is_ftdx101mp && !is_ftx1) { return 0; }
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: 60M exception ignoring freq/mode commands\n",
               __func__);
@@ -2184,251 +2410,184 @@ int newcat_get_rptr_shift(RIG *rig, vfo_t vfo, rptr_shift_t *rptr_shift)
 }
 
 
+/**
+ * freq_to_rptr_band - Convert a frequency to a band identifier
+ *
+ * @freq: Frequency in Hz
+ *
+ * Returns the rptr_band_t identifier for the given frequency, or -1 if
+ * the frequency is not within a supported repeater band.
+ */
+static int freq_to_rptr_band(freq_t freq)
+{
+    if (freq >= BAND_10M_LOW && freq <= BAND_10M_HIGH)
+    {
+        return RPTR_BAND_10M;
+    }
+    else if (freq >= BAND_6M_LOW && freq <= BAND_6M_HIGH)
+    {
+        return RPTR_BAND_6M;
+    }
+    else if (freq >= BAND_2M_LOW && freq <= BAND_2M_HIGH)
+    {
+        return RPTR_BAND_2M;
+    }
+    else if (freq >= BAND_70CM_LOW && freq <= BAND_70CM_HIGH)
+    {
+        return RPTR_BAND_70CM;
+    }
+
+    return -1;  /* Frequency not in a supported repeater band */
+}
+
+/**
+ * get_rig_id_from_priv - Get the numeric rig ID from private data
+ *
+ * @rig: Pointer to the RIG structure
+ *
+ * Returns the nc_rigid_t value for the current rig, or NC_RIGID_NONE if
+ * not available.
+ */
+static nc_rigid_t get_rig_id_from_priv(RIG *rig)
+{
+    struct newcat_priv_data *priv;
+
+    if (!rig || !STATE(rig)->priv)
+    {
+        return NC_RIGID_NONE;
+    }
+
+    priv = (struct newcat_priv_data *)STATE(rig)->priv;
+    return (nc_rigid_t)priv->rig_id;
+}
+
+/**
+ * lookup_rptr_offs_cmd - Look up the repeater offset command for a rig/band
+ *
+ * @rig_id: The nc_rigid_t identifier for the rig
+ * @freq:   Current frequency in Hz (used to determine band)
+ * @cmd:    Output buffer for the command string (must be RPTR_CMD_MAXLEN bytes)
+ * @step:   Output pointer for the step size in Hz
+ *
+ * Returns:
+ *   RIG_OK on success (cmd and step are populated)
+ *   -RIG_EINVAL if the frequency is not in a valid repeater band for this rig
+ *   -RIG_ENAVAIL if the rig does not support repeater offset commands
+ */
+static int lookup_rptr_offs_cmd(nc_rigid_t rig_id, freq_t freq,
+                                 char *cmd, int *step)
+{
+    int band;
+    size_t i;
+
+    /* Determine which band the frequency is in */
+    band = freq_to_rptr_band(freq);
+
+    /* Search the lookup table for a matching entry */
+    for (i = 0; i < RPTR_OFFS_CMD_TABLE_SIZE; i++)
+    {
+        const rptr_offs_cmd_entry_t *entry = &rptr_offs_cmd_table[i];
+
+        if (entry->rig_id != rig_id)
+        {
+            continue;  /* Not for this rig */
+        }
+
+        /*
+         * Check if this entry matches the band:
+         * - RPTR_BAND_ALL_HF matches any frequency (for FT-450 which uses
+         *   a single command for all bands)
+         * - Otherwise, entry->band must match the frequency's band
+         */
+        if (entry->band == RPTR_BAND_ALL_HF || entry->band == band)
+        {
+            /* Found a matching entry */
+            SNPRINTF(cmd, RPTR_CMD_MAXLEN, "%s", entry->cmd);
+            *step = entry->step;
+            return RIG_OK;
+        }
+    }
+
+    /*
+     * No matching entry found. This could mean:
+     * 1. The rig doesn't support repeater offset commands (return -RIG_ENAVAIL)
+     * 2. The frequency is not in a valid band for this rig (return -RIG_EINVAL)
+     *
+     * Check if the rig has ANY entries in the table to distinguish these cases.
+     */
+    for (i = 0; i < RPTR_OFFS_CMD_TABLE_SIZE; i++)
+    {
+        if (rptr_offs_cmd_table[i].rig_id == rig_id)
+        {
+            /* Rig is in the table but frequency is not in a valid band */
+            return -RIG_EINVAL;
+        }
+    }
+
+    /* Rig is not in the table at all */
+    return -RIG_ENAVAIL;
+}
+
+
 int newcat_set_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t offs)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)STATE(rig)->priv;
     int err;
-    char command[32];
+    char command[RPTR_CMD_MAXLEN];
+    int step;
     freq_t freq = 0;
 
     ENTERFUNC;
 
-    err = newcat_get_freq(rig, vfo, &freq); // Need to get freq to determine band
+    /* Get the current frequency to determine which band we're on */
+    err = newcat_get_freq(rig, vfo, &freq);
 
     if (err < 0)
     {
         RETURNFUNC(err);
     }
 
-    if (is_ft450)
+    /*
+     * Use the lookup table to get the appropriate EX command and step size.
+     * This replaces ~200 lines of if/else chains and 24 strcpy() calls.
+     */
+    err = lookup_rptr_offs_cmd(get_rig_id_from_priv(rig), freq, command, &step);
+
+    if (err != RIG_OK)
     {
-        strcpy(command, "EX050");
-
-        // Step size is 100 kHz
-        offs /= 100000;
-
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%03li%c", command, offs,
-                 cat_term);
+        RETURNFUNC(err);
     }
-    else if (is_ft2000)
+
+    /* Convert offset from Hz to the step units expected by the rig */
+    offs /= step;
+
+    /*
+     * Build the command string.
+     * FT-450 uses 3-digit format, all others use 4-digit format.
+     * The format is determined by the step size (100kHz = 3 digits, 1kHz = 4 digits).
+     */
+    if (step == RPTR_OFFS_STEP_100K)
     {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            strcpy(command, "EX076");
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            strcpy(command, "EX077");
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            RETURNFUNC(-RIG_EINVAL);
-        }
-
-        // Step size is 1 kHz
-        offs /= 1000;
-
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c", command, offs,
-                 cat_term);
-    }
-    else if (is_ft950)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            strcpy(command, "EX057");
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            strcpy(command, "EX058");
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            RETURNFUNC(-RIG_EINVAL);
-        }
-
-        // Step size is 1 kHz
-        offs /= 1000;
-
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c", command, offs,
-                 cat_term);
-    }
-    else if (is_ft891)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            strcpy(command, "EX0904");
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            strcpy(command, "EX0905");
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            RETURNFUNC(-RIG_EINVAL);
-        }
-
-        // Step size is 1 kHz
-        offs /= 1000;
-
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c", command, offs,
-                 cat_term);
-    }
-    else if (is_ft991)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            strcpy(command, "EX080");
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            strcpy(command, "EX081");
-        }
-        else if (freq >= 144000000 && freq <= 148000000)
-        {
-            strcpy(command, "EX082");
-        }
-        else if (freq >= 430000000 && freq <= 450000000)
-        {
-            strcpy(command, "EX083");
-        }
-        else
-        {
-            // only valid on 10m to 70cm bands
-            RETURNFUNC(-RIG_EINVAL);
-        }
-
-        // Step size is 1 kHz
-        offs /= 1000;
-
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c", command, offs,
-                 cat_term);
-    }
-    else if (is_ft710)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            strcpy(command, "EX010318");
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            strcpy(command, "EX010319");
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            RETURNFUNC(-RIG_EINVAL);
-        }
-
-        // Step size is 1 kHz
-        offs /= 1000;
-
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c", command, offs,
-                 cat_term);
-    }
-    else if (is_ftdx1200)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            strcpy(command, "EX087");
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            strcpy(command, "EX088");
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            RETURNFUNC(-RIG_EINVAL);
-        }
-
-        // Step size is 1 kHz
-        offs /= 1000;
-
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c", command, offs,
-                 cat_term);
-    }
-    else if (is_ftdx3000 || is_ftdx3000dm)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            strcpy(command, "EX086");
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            strcpy(command, "EX087");
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            RETURNFUNC(-RIG_EINVAL);
-        }
-
-        // Step size is 1 kHz
-        offs /= 1000;
-
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c", command, offs,
-                 cat_term);
-    }
-    else if (is_ftdx5000)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            strcpy(command, "EX081");
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            strcpy(command, "EX082");
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            RETURNFUNC(-RIG_EINVAL);
-        }
-
-        // Step size is 1 kHz
-        offs /= 1000;
-
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c", command, offs,
-                 cat_term);
-    }
-    else if (is_ftdx101d || is_ftdx101mp || is_ftdx10)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            strcpy(command, "EX010315");
-
-            if (is_ftdx10) { strcpy(command, "EX010317"); }
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            strcpy(command, "EX010316");
-
-            if (is_ftdx10) { strcpy(command, "EX010318"); }
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            RETURNFUNC(-RIG_EINVAL);
-        }
-
-        // Step size is 1 kHz
-        offs /= 1000;
-
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c", command, offs,
-                 cat_term);
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%03li%c",
+                 command, offs, cat_term);
     }
     else
     {
-        RETURNFUNC(-RIG_ENAVAIL);
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%04li%c",
+                 command, offs, cat_term);
     }
 
     RETURNFUNC(newcat_set_cmd(rig));
 }
 
 
+/*
+ * newcat_get_rptr_offs - Get repeater offset
+ *
+ * Uses lookup_rptr_offs_cmd() to find the appropriate EX command for the
+ * current rig and frequency band. Returns offset of 0 if frequency is not
+ * in a supported repeater band.
+ */
 int newcat_get_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t *offs)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)STATE(rig)->priv;
@@ -2436,227 +2595,31 @@ int newcat_get_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t *offs)
     int ret_data_len;
     char *retoffs;
     freq_t freq = 0;
-    int step = 0;
+    char command[RPTR_CMD_MAXLEN];
+    int step;
 
     ENTERFUNC;
 
-    err = newcat_get_freq(rig, vfo, &freq); // Need to get freq to determine band
-
+    /* Get current frequency to determine which band we're on */
+    err = newcat_get_freq(rig, vfo, &freq);
     if (err < 0)
     {
         RETURNFUNC(err);
     }
 
-    if (is_ft450)
+    /* Look up the EX command and step size for this rig/band combination */
+    err = lookup_rptr_offs_cmd(get_rig_id_from_priv(rig), freq, command, &step);
+    if (err != RIG_OK)
     {
-        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX050%c", cat_term);
-
-        // Step size is 100 kHz
-        step = 100000;
+        /* Not on a supported band - return 0 offset (not an error) */
+        *offs = 0;
+        RETURNFUNC(RIG_OK);
     }
-    else if (is_ft2000)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX076%c", cat_term);
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX077%c", cat_term);
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            *offs = 0;
-            RETURNFUNC(RIG_OK);
-        }
 
-        // Step size is 1 kHz
-        step = 1000;
-    }
-    else if (is_ft950)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX057%c", cat_term);
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX058%c", cat_term);
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            *offs = 0;
-            RETURNFUNC(RIG_OK);
-        }
-
-        // Step size is 1 kHz
-        step = 1000;
-    }
-    else if (is_ft891)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX0904%c", cat_term);
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX0905%c", cat_term);
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            *offs = 0;
-            RETURNFUNC(RIG_OK);
-        }
-
-        // Step size is 1 kHz
-        step = 1000;
-    }
-    else if (is_ft991)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX080%c", cat_term);
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX081%c", cat_term);
-        }
-        else if (freq >= 144000000 && freq <= 148000000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX082%c", cat_term);
-        }
-        else if (freq >= 430000000 && freq <= 450000000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX083%c", cat_term);
-        }
-        else
-        {
-            // only valid on 10m to 70cm bands
-            *offs = 0;
-            RETURNFUNC(RIG_OK);
-        }
-
-        // Step size is 1 kHz
-        step = 1000;
-    }
-    else if (is_ft710)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX010318%c", cat_term);
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX010319%c", cat_term);
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            *offs = 0;
-            RETURNFUNC(RIG_OK);
-        }
-
-        // Step size is 1 kHz
-        step = 1000;
-    }
-    else if (is_ftdx1200)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX087%c", cat_term);
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX088%c", cat_term);
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            *offs = 0;
-            RETURNFUNC(RIG_OK);
-        }
-
-        // Step size is 1 kHz
-        step = 1000;
-    }
-    else if (is_ftdx3000 || is_ftdx3000dm)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX086%c", cat_term);
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX087%c", cat_term);
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            *offs = 0;
-            RETURNFUNC(RIG_OK);
-        }
-
-        // Step size is 1 kHz
-        step = 1000;
-    }
-    else if (is_ftdx5000)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX081%c", cat_term);
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX082%c", cat_term);
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            *offs = 0;
-            RETURNFUNC(RIG_OK);
-        }
-
-        // Step size is 1 kHz
-        step = 1000;
-    }
-    else if (is_ftdx101d || is_ftdx101mp || is_ftdx10)
-    {
-        if (freq >= 28000000 && freq <= 29700000)
-        {
-            char *cmd = "EX010315%c";
-
-            if (is_ftdx10) { cmd = "EX010317%c"; }
-
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), cmd, cat_term);
-        }
-        else if (freq >= 50000000 && freq <= 54000000)
-        {
-            char *cmd = "EX010316%c";
-
-            if (is_ftdx10) { cmd = "EX010318%c"; }
-
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), cmd, cat_term);
-        }
-        else
-        {
-            // only valid on 10m and 6m bands
-            *offs = 0;
-            RETURNFUNC(RIG_OK);
-        }
-
-        // Step size is 1 kHz
-        step = 1000;
-    }
-    else
-    {
-        RETURNFUNC(-RIG_ENAVAIL);
-    }
+    /* Build query command (same as set command, radio returns current value) */
+    SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%c", command, cat_term);
 
     err = newcat_get_cmd(rig);
-
     if (err != RIG_OK)
     {
         RETURNFUNC(err);
@@ -2664,11 +2627,12 @@ int newcat_get_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t *offs)
 
     ret_data_len = strlen(priv->ret_data);
 
-    /* skip command */
+    /* skip command prefix, point to numeric offset value */
     retoffs = priv->ret_data + strlen(priv->cmd_str) - 1;
-    /* chop term */
+    /* chop terminator */
     priv->ret_data[ret_data_len - 1] = '\0';
 
+    /* Convert from step units back to Hz */
     *offs = atol(retoffs) * step;
 
     RETURNFUNC(RIG_OK);
@@ -2785,7 +2749,7 @@ int newcat_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t tx_vfo)
         vfo = RIG_VFO_A;
         tx_vfo = RIG_SPLIT_ON == split ? RIG_VFO_B : RIG_VFO_A;
     }
-    else if (is_ftdx101d || is_ftdx101mp)
+    else if (is_ftdx101d || is_ftdx101mp || is_ftx1)
     {
         // FTDX101(D/MP) always use Sub VFO for transmit when in split mode
         vfo = RIG_VFO_MAIN;
@@ -3020,7 +2984,7 @@ int newcat_get_rit(RIG *rig, vfo_t vfo, shortfreq_t *rit)
 
     case 41: // FT-991 V2-01 seems to randomly give 13 extra bytes
     case 28: offset = 14; break;
-
+    case 30: offset = 14; break;
     default: offset = 0;
     }
 
@@ -3134,7 +3098,7 @@ int newcat_get_xit(RIG *rig, vfo_t vfo, shortfreq_t *xit)
     switch (strlen(priv->ret_data))
     {
     case 27: offset = 13; break;
-
+    case 30: offset = 14; break;
     case 41: // FT-991 V2-01 seems to randomly give 13 extra bytes
     case 28: offset = 14; break;
 
@@ -3847,7 +3811,7 @@ int newcat_get_powerstat(RIG *rig, powerstat_t *status)
         }
     }
 
-    // Yeasu rigs in powered-off state require the PS command to be sent between 1 and 2 seconds after dummy data
+    // Yaesu rigs in powered-off state require the PS command to be sent between 1 and 2 seconds after dummy data
     hl_usleep(1100000);
     // Discard any unsolicited data
     rig_flush(rp);
@@ -4410,9 +4374,9 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         case RIG_METER_VDD:  SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), format, 5);
             break;
 
+        default:
             rig_debug(RIG_DEBUG_ERR, "%s: unknown val.i=%d\n", __func__, val.i);
-
-        default: RETURNFUNC(-RIG_EINVAL);
+            RETURNFUNC(-RIG_EINVAL);
         }
 
         break;
@@ -4760,42 +4724,18 @@ int newcat_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         break;
 
     case RIG_LEVEL_ANTIVOX:
+    {
+        const char *cmd;
         fpf = (int)((val.f / level_info->step.f) + 0.5f);
 
-        if (is_ftdx101d || is_ftdx101mp || is_ftdx10 || is_ft710)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "AV%03d%c", fpf, cat_term);
-        }
-        else if (is_ftdx5000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX176%03d%c", fpf, cat_term);
-        }
-        else if (is_ftdx3000 || is_ftdx3000dm || is_ftdx1200)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX183%03d%c", fpf, cat_term);
-        }
-        else if (is_ft991)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX145%03d%c", fpf, cat_term);
-        }
-        else if (is_ft891)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX1619%03d%c", fpf, cat_term);
-        }
-        else if (is_ft950)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX117%03d%c", fpf, cat_term);
-        }
-        else if (is_ft2000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX042%03d%c", fpf, cat_term);
-        }
-        else
+        if (lookup_antivox_cmd(get_rig_id_from_priv(rig), 0, &cmd) != RIG_OK)
         {
             RETURNFUNC(-RIG_EINVAL);
         }
 
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%03d%c", cmd, fpf, cat_term);
         break;
+    }
 
     case RIG_LEVEL_NOTCHF:
         if (!newcat_valid_command(rig, "BP"))
@@ -5429,40 +5369,17 @@ int newcat_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         break;
 
     case RIG_LEVEL_ANTIVOX:
-        if (is_ftdx101d || is_ftdx101mp || is_ftdx10 || is_ft710)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "AV%c", cat_term);
-        }
-        else if (is_ftdx5000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX176%c", cat_term);
-        }
-        else if (is_ftdx3000 || is_ftdx3000dm || is_ftdx1200)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX183%c", cat_term);
-        }
-        else if (is_ft991)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX147%c", cat_term);
-        }
-        else if (is_ft891)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX1619%c", cat_term);
-        }
-        else if (is_ft950)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX117%c", cat_term);
-        }
-        else if (is_ft2000)
-        {
-            SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "EX042%c", cat_term);
-        }
-        else
+    {
+        const char *cmd;
+
+        if (lookup_antivox_cmd(get_rig_id_from_priv(rig), 1, &cmd) != RIG_OK)
         {
             RETURNFUNC(-RIG_ENAVAIL);
         }
 
+        SNPRINTF(priv->cmd_str, sizeof(priv->cmd_str), "%s%c", cmd, cat_term);
         break;
+    }
 
     case RIG_LEVEL_NOTCHF:
         if (!newcat_valid_command(rig, "BP"))
@@ -8166,7 +8083,7 @@ ncboolean newcat_valid_command(RIG *rig, char const *const command)
 
     if (!is_ft450 && !is_ft950 && !is_ft891 && !is_ft991 && !is_ft2000
             && !is_ftdx5000 && !is_ftdx9000 && !is_ftdx1200 && !is_ftdx3000 && !is_ftdx101d
-            && !is_ftdx101mp && !is_ftdx10 && !is_ft710)
+            && !is_ftdx101mp && !is_ftdx10 && !is_ft710 && !is_ftx1)
     {
         rig_debug(RIG_DEBUG_ERR, "%s: '%s' is unknown\n", __func__, caps->model_name);
         RETURNFUNC2(FALSE);
@@ -8254,6 +8171,10 @@ ncboolean newcat_valid_command(RIG *rig, char const *const command)
                 RETURNFUNC2(TRUE);
             }
             else if (is_ft710 && valid_commands[search_index].ft710)
+            {
+                RETURNFUNC2(TRUE);
+            }
+            else if (is_ftx1 && valid_commands[search_index].ftx1)
             {
                 RETURNFUNC2(TRUE);
             }
@@ -8574,7 +8495,7 @@ static int newcat_get_split(RIG *rig, split_t *split, vfo_t *tx_vfo)
         *split = RIG_SPLIT_ON;
 
         // These rigs have fixed RX and TX VFOs when using the ST split command
-        if (is_ftdx101d || is_ftdx101mp)
+        if (is_ftdx101d || is_ftdx101mp || is_ftx1)
         {
             *tx_vfo = RIG_VFO_SUB;
         }
@@ -9416,7 +9337,7 @@ int newcat_set_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
             else if (width <= 3000) { w = 18; }
             else if (width <= 3200) { w = 19; }
             else if (width <= 3500) { w = 20; }
-            else { w = 21; } // 4000Hz
+            else { w = 21; } // 4000 Hz
 
             break;
 
@@ -9445,7 +9366,7 @@ int newcat_set_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
             else if (width <= 3000) {  w = 20; }
             else if (width <= 3200) {  w = 21; }
             else if (width <= 3500) {  w = 22; }
-            else { w = 23; } // 4000Hz
+            else { w = 23; } // 4000 Hz
 
             break;
 
@@ -9820,7 +9741,7 @@ static int get_roofing_filter(RIG *rig, vfo_t vfo,
               "%s: Expected a valid roofing filter but got %c from '%s'\n", __func__,
               roofing_filter_choice, priv->ret_data);
 
-    RETURNFUNC(RIG_EPROTO);
+    RETURNFUNC(-RIG_EPROTO);
 }
 
 int newcat_get_rx_bandwidth(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t *width)
@@ -11105,7 +11026,7 @@ int newcat_get_vfo_mode(RIG *rig, vfo_t vfo, vfo_t *vfo_mode)
     switch (strlen(priv->ret_data))
     {
     case 27: offset = 21; priv->width_frequency = 8; break;
-
+    case 30: offset = 21; priv->width_frequency = 8; break;
     case 41: // FT-991 V2-01 seems to randomly give 13 extra bytes
     case 28: offset = 22; priv->width_frequency = 9; break;
 

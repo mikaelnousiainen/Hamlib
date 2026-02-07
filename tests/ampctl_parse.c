@@ -1,8 +1,8 @@
 /*
  * ampctl_parse.c - (C) Stephane Fillod 2000-2010
  *                  (C) Nate Bargmann 2003,2007,2010,2011,2012,2013
- *                  (C) The Hamlib Group 2002,2006,2011
- *                  (C) Mikael Nousiainen OH3BHX 2024
+ *                  (C) The Hamlib Group 2002,2006,2011,2026
+ *                  (C) Mikael Nousiainen OH3BHX 2026
  * Derived from rotctl_parse.c by Michael Black 2019
  *
  * This program test/control an amplifier using Hamlib.
@@ -25,21 +25,22 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 // TODO: Add new features in dumpcaps_amp()
 // TODO: Finish Expert backend and test
 // TODO: Future features: add a separate command to switch antenna "mode", e.g. for RX only antennas, then there is no need to have the "option" for set/get ant
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <getopt.h>
 
 #ifdef HAVE_LIBREADLINE
 #  if defined(HAVE_READLINE_READLINE_H)
@@ -66,7 +67,7 @@ extern int read_history();
 /* no history */
 #endif                              /* HAVE_READLINE_HISTORY */
 
-#include <hamlib/amplifier.h>
+#include "hamlib/amplifier.h"
 #include "amplist.h"
 #include "iofunc.h"
 #include "misc.h"
@@ -77,11 +78,9 @@ extern int read_history();
 /* Hash table implementation See:  http://uthash.sourceforge.net/ */
 #include "uthash.h"
 
-#ifdef HAVE_PTHREAD
-#  include <pthread.h>
+#include <pthread.h>
 
 static pthread_mutex_t amp_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
 
 #define STR1(S) #S
 #define STR(S) STR1(S)
@@ -504,6 +503,9 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
     char *p5 = NULL;
     char *p6 = NULL;
 #endif
+    char arg_format[8];
+
+    SNPRINTF(arg_format, sizeof(arg_format), "%%%ds", MAXARGSZ);
 
     /* cmd, internal, ampctld */
     if (!(interactive && prompt && have_rl))
@@ -569,7 +571,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
                 /* command by name */
                 if (cmd == '\\')
                 {
-                    unsigned char cmd_name[MAXNAMSIZ], *pcmd = cmd_name;
+                    unsigned char cmd_name[MAXNAMSIZ + 1], *pcmd = cmd_name;
                     int c_len = MAXNAMSIZ;
 
                     if (scanfc(fin, "%c", pcmd) < 1)
@@ -730,7 +732,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
                     fprintf_flush(fout, "%s: ", cmd_entry->arg1);
                 }
 
-                if (scanfc(fin, "%s", arg1) < 1)
+                if (scanfc(fin, arg_format, arg1) < 1)
                 {
                     return -1;
                 }
@@ -770,7 +772,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
                     fprintf_flush(fout, "%s: ", cmd_entry->arg2);
                 }
 
-                if (scanfc(fin, "%s", arg2) < 1)
+                if (scanfc(fin, arg_format, arg2) < 1)
                 {
                     return -1;
                 }
@@ -810,7 +812,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
                     fprintf_flush(fout, "%s: ", cmd_entry->arg3);
                 }
 
-                if (scanfc(fin, "%s", arg3) < 1)
+                if (scanfc(fin, arg_format, arg3) < 1)
                 {
                     return -1;
                 }
@@ -850,7 +852,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
                     fprintf_flush(fout, "%s: ", cmd_entry->arg4);
                 }
 
-                if (scanfc(fin, "%s", arg4) < 1)
+                if (scanfc(fin, arg_format, arg4) < 1)
                 {
                     return -1;
                 }
@@ -1364,9 +1366,7 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
      * mutex locking needed because ampctld is multithreaded
      * and hamlib is not MT-safe
      */
-#ifdef HAVE_PTHREAD
     pthread_mutex_lock(&amp_mutex);
-#endif
 
     if (!prompt)
     {
@@ -1414,11 +1414,9 @@ int ampctl_parse(AMP *my_amp, FILE *fin, FILE *fout, char *argv[], int argc)
                                         "");
 #endif
 
-#ifdef HAVE_PTHREAD
     pthread_mutex_unlock(&amp_mutex);
-#endif
 
-    if (retcode == RIG_EIO) { return retcode; }
+    if (retcode == -RIG_EIO) { return retcode; }
 
     if (retcode != RIG_OK)
     {
@@ -1517,6 +1515,8 @@ void usage_amp(FILE *fout)
             "Commands and arguments read from standard input must be white space separated,\n"
             "comments are allowed, comments start with the # character and continue to the\n"
             "end of the line.\n");
+
+    fprintf(fout, "\nReport bugs to <hamlib-developer@lists.sourceforge.net>.\n");
 }
 
 
@@ -1526,7 +1526,7 @@ int print_conf_list(const struct confparams *cfp, rig_ptr_t data)
     int i;
     char buf[128] = "";
 
-    amp_get_conf(amp, cfp->token, buf);
+    amp_get_conf2(amp, cfp->token, buf, sizeof(buf));
     printf("%s: \"%s\"\n" "\tDefault: %s, Value: %s\n",
            cfp->name,
            cfp->tooltip,
@@ -1579,7 +1579,7 @@ static int hash_model_list(const struct amp_caps *caps, void *data)
     return 1;  /* !=0, we want them all ! */
 }
 
-void print_model_list()
+static void print_model_list()
 {
     struct mod_lst *s;
 
@@ -1607,7 +1607,7 @@ void list_models()
 
     if (status != RIG_OK)
     {
-        printf("amp_list_foreach: error = %s \n", rigerror(status));
+        fprintf(stderr, "amp_list_foreach: error = %s \n", rigerror2(status));
         exit(2);
     }
 
@@ -1633,7 +1633,7 @@ int set_conf(AMP *my_amp, char *conf_parms)
 
         if (!q)
         {
-            return RIG_EINVAL;
+            return -RIG_EINVAL;
         }
 
         *q++ = '\0';
@@ -1737,6 +1737,25 @@ declare_proto_amp(set_level)
     }
 
     level = amp_parse_level(arg1);
+
+    if (!strcmp(arg2, "?"))
+    {
+        const gran_t *gran = STATE(amp)->level_gran;
+        int idx = rig_setting2idx(level);
+
+        if (AMP_LEVEL_IS_FLOAT(level))
+        {
+            fprintf(fout, "(%f..%f/%f)%c", gran[idx].min.f,
+                    gran[idx].max.f, gran[idx].step.f, resp_sep);
+        }
+        else
+        {
+            fprintf(fout, "(%d..%d/%d)%c", gran[idx].min.i,
+                    gran[idx].max.i, gran[idx].step.i, resp_sep);
+        }
+
+        return RIG_OK;
+    }
 
     // some Java apps send comma in international setups so substitute period
     char *p = strchr(arg2, ',');
@@ -2565,313 +2584,3 @@ declare_proto_amp(send_cmd)
 
     return retval;
 }
-
-
-/* 'L' */
-/*
-declare_proto_amp(lonlat2loc)
-{
-    unsigned char loc[MAXARGSZ + 1];
-    double lat, lon;
-    int err, pair;
-
-    CHKSCN1ARG(sscanf(arg1, "%lf", &lon));
-    CHKSCN1ARG(sscanf(arg2, "%lf", &lat));
-    CHKSCN1ARG(sscanf(arg3, "%d", &pair));
-
-    pair /= 2;
-
-    err = longlat2locator(lon, lat, (char *)&loc, pair);
-
-    if (err != RIG_OK)
-    {
-        return err;
-    }
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg4);
-    }
-
-    fprintf(fout, "%s%c", loc, resp_sep);
-
-    return err;
-}
-*/
-
-
-/* 'l' */
-/*
-declare_proto_amp(loc2lonlat)
-{
-    unsigned char loc[MAXARGSZ + 1];
-    double lat, lon;
-    int status;
-
-    CHKSCN1ARG(sscanf(arg1, "%s", (char *)&loc));
-
-    status = locator2longlat(&lon, &lat, (const char *)loc);
-
-    if (status != RIG_OK)
-    {
-        return status;
-    }
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg2);
-    }
-
-    fprintf(fout, "%f%c", lon, resp_sep);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg3);
-    }
-
-    fprintf(fout, "%f%c", lat, resp_sep);
-
-    return status;
-}
-*/
-
-
-/* 'D' */
-/*
-declare_proto_amp(d_m_s2dec)
-{
-    int deg, min, sw;
-    double sec, dec_deg;
-
-    CHKSCN1ARG(sscanf(arg1, "%d", &deg));
-    CHKSCN1ARG(sscanf(arg2, "%d", &min));
-    CHKSCN1ARG(sscanf(arg3, "%lf", &sec));
-    CHKSCN1ARG(sscanf(arg4, "%d", &sw));
-
-    dec_deg = dms2dec(deg, min, sec, sw);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg5);
-    }
-
-    fprintf(fout, "%lf%c", dec_deg, resp_sep);
-
-    return RIG_OK;
-}
-*/
-
-
-/* 'd' */
-/*
-declare_proto_amp(dec2d_m_s)
-{
-    int deg, min, sw, err;
-    double sec, dec_deg;
-
-    CHKSCN1ARG(sscanf(arg1, "%lf", &dec_deg));
-
-    err = dec2dms(dec_deg, &deg, &min, &sec, &sw);
-
-    if (err != RIG_OK)
-    {
-        return err;
-    }
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg2);
-    }
-
-    fprintf(fout, "%d%c", deg, resp_sep);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg3);
-    }
-
-    fprintf(fout, "%d%c", min, resp_sep);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg4);
-    }
-
-    fprintf(fout, "%lf%c", sec, resp_sep);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg5);
-    }
-
-    fprintf(fout, "%d%c", sw, resp_sep);
-
-    return err;
-}
-*/
-
-
-/* 'E' */
-/*
-declare_proto_amp(d_mm2dec)
-{
-    int deg, sw;
-    double dec_deg, min;
-
-    CHKSCN1ARG(sscanf(arg1, "%d", &deg));
-    CHKSCN1ARG(sscanf(arg2, "%lf", &min));
-    CHKSCN1ARG(sscanf(arg3, "%d", &sw));
-
-    dec_deg = dmmm2dec(deg, min, sw);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg4);
-    }
-
-    fprintf(fout, "%lf%c", dec_deg, resp_sep);
-
-    return RIG_OK;
-}
-*/
-
-
-/* 'e' */
-/*
-declare_proto_amp(dec2d_mm)
-{
-    int deg, sw, err;
-    double min, dec_deg;
-
-    CHKSCN1ARG(sscanf(arg1, "%lf", &dec_deg));
-
-    err = dec2dmmm(dec_deg, &deg, &min, &sw);
-
-    if (err != RIG_OK)
-    {
-        return err;
-    }
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg2);
-    }
-
-    fprintf(fout, "%d%c", deg, resp_sep);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg3);
-    }
-
-    fprintf(fout, "%lf%c", min, resp_sep);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg4);
-    }
-
-    fprintf(fout, "%d%c", sw, resp_sep);
-
-    return err;
-}
-*/
-
-
-/* 'B' */
-/*
-declare_proto_amp(coord2qrb)
-{
-    double lon1, lat1, lon2, lat2, dist, az;
-    int err;
-
-    CHKSCN1ARG(sscanf(arg1, "%lf", &lon1));
-    CHKSCN1ARG(sscanf(arg2, "%lf", &lat1));
-    CHKSCN1ARG(sscanf(arg3, "%lf", &lon2));
-    CHKSCN1ARG(sscanf(arg4, "%lf", &lat2));
-
-    err = qrb(lon1, lat1, lon2, lat2, &dist, &az);
-
-    if (err != RIG_OK)
-    {
-        return err;
-    }
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg5);
-    }
-
-    fprintf(fout, "%lf%c", dist, resp_sep);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg6);
-    }
-
-    fprintf(fout, "%lf%c", az, resp_sep);
-
-    return err;
-}
-*/
-
-
-/* 'A' */
-/*
-declare_proto_amp(az_sp2az_lp)
-{
-    double az_sp, az_lp;
-
-    CHKSCN1ARG(sscanf(arg1, "%lf", &az_sp));
-
-    az_lp = azimuth_long_path(az_sp);
-
-    if (az_lp < 0)
-    {
-        return -RIG_EINVAL;
-    }
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg2);
-    }
-
-    fprintf(fout, "%lf%c", az_lp, resp_sep);
-
-    return RIG_OK;
-}
-*/
-
-
-/* 'a' */
-/*
-declare_proto_amp(dist_sp2dist_lp)
-{
-    double dist_sp, dist_lp;
-
-    CHKSCN1ARG(sscanf(arg1, "%lf", &dist_sp));
-
-    dist_lp = distance_long_path(dist_sp);
-
-    if ((interactive && prompt) || (interactive && !prompt && ext_resp))
-    {
-        fprintf(fout, "%s: ", cmd->arg2);
-    }
-
-    fprintf(fout, "%lf%c", dist_lp, resp_sep);
-
-    return RIG_OK;
-}
-*/
-
-
-/* '0x8c'--pause processing */
-/*
-declare_proto_amp(pause)
-{
-    unsigned seconds;
-    CHKSCN1ARG(sscanf(arg1, "%u", &seconds));
-    sleep(seconds);
-    return RIG_OK;
-}
-*/

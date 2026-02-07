@@ -28,7 +28,9 @@
 #include <ctype.h>   /* character class tests */
 
 #include "hamlib/rig.h"
-#include "serial.h"
+#include "hamlib/port.h"
+#include "hamlib/rig_state.h"
+#include "iofunc.h"
 #include "misc.h"
 
 #include "kenwood.h"
@@ -101,8 +103,8 @@ transaction:
         char buffer[50];
         const struct kenwood_priv_data *priv = STATE(rig)->priv;
 
-        if (RIG_OK != (retval = write_block(rp,
-                                            (unsigned char *) priv->verify_cmd, strlen(priv->verify_cmd))))
+        if (RIG_OK != (retval = write_block(rp, (unsigned char *)priv->verify_cmd,
+                                            priv->verify_cmd_len)))
         {
             return retval;
         }
@@ -152,7 +154,7 @@ static int get_ic10_if(RIG *rig, char *data)
 {
     const struct kenwood_priv_caps *priv = (struct kenwood_priv_caps *)
                                            rig->caps->priv;
-    int i, data_len, retval = RIG_EINVAL;
+    int i, data_len, retval = -RIG_EINVAL;
 
     rig_debug(RIG_DEBUG_TRACE, "%s: called\n", __func__);
 

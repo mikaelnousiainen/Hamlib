@@ -134,7 +134,7 @@
 #define S_NXDNVN 0x19		/* Set to NXDN_VN */
 #define S_NXDN_N 0x20		/* Set to NXDN-N */
 #define S_DCR	0x21		/* Set to DCR */
-#define S_DD	0x22		/* Set to DD  1200Mhz only? */
+#define S_DD	0x22		/* Set to DD  1200 MHz only? */
 
 #define S_R7000_SSB	0x05	/* Set to SSB on R-7000 */
 
@@ -232,10 +232,13 @@
 /*
  * Set AGC (S_FUNC_AGC) data
  */
-#define D_AGC_FAST	0x00
-#define D_AGC_MID	0x01
-#define D_AGC_SLOW	0x02
-#define D_AGC_SUPERFAST	0x03 /* IC746 pro */
+#define D_AGC_OFF	0x00
+#define D_AGC_SUPERFAST	0x01
+#define D_AGC_FAST	0x02
+#define D_AGC_SLOW	0x03
+#define D_AGC_USER	0x04
+#define D_AGC_MID	0x05
+#define D_AGC_AUTO	0x06
 
 /*
  * Set antenna (C_SET_ANT) subcommands

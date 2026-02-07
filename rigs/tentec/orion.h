@@ -335,8 +335,8 @@ RIG_MODEL(RIG_MODEL_TT565),
 	},
         /* mode/filter list, remember: order matters! */
 .filters =  {
-	/* 9MHz IF filters: 15kHz, 6kHz, 2.4kHz, 1.0kHz */
-	/* opt: 1.8kHz, 500Hz, 250Hz */
+	/* 9 MHz IF filters: 15 kHz, 6 kHz, 2.4 kHz, 1.0 kHz */
+	/* opt: 1.8 kHz, 500 Hz, 250 Hz */
 		{RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY, kHz(2.4)},
 		{RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY, 100},
 		{RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB|RIG_MODE_RTTY, kHz(6)},
@@ -354,25 +354,13 @@ RIG_MODEL(RIG_MODEL_TT565),
 .rig_close = tt565_close,
 
 .set_freq =  tt565_set_freq,
-#if defined(HAVE_PTHREAD) 
 .get_freq =  tt565_get_freq_cache,
-#else
-.get_freq =  tt565_get_freq,
-#endif
 .set_vfo =  tt565_set_vfo,
 .get_vfo =  tt565_get_vfo,
 .set_mode =  tt565_set_mode,
-#if defined(HAVE_PTHREAD) 
 .get_mode =  tt565_get_mode_cache,
-#else
-.get_mode =  tt565_get_mode,
-#endif
 .set_split_vfo =  tt565_set_split_vfo,
-#if defined(HAVE_PTHREAD) 
 .get_split_vfo =  tt565_get_split_vfo_cache,
-#else
-.get_split_vfo =  tt565_get_split_vfo,
-#endif
 .set_level =  tt565_set_level,
 .get_level =  tt565_get_level,
 .set_mem =  tt565_set_mem,
@@ -525,8 +513,8 @@ RIG_MODEL(RIG_MODEL_TT599),
 	},
         /* mode/filter list, remember: order matters! */
 .filters =  {
-	/*  15kHz, 6kHz, 2.4kHz, 1.0kHz */
-    /* 9MHz IF filters: 2.4K standard */
+	/*  15 kHz, 6 kHz, 2.4 kHz, 1.0 kHz */
+    /* 9 MHz IF filters: 2.4K standard */
     /* optional = 300, 600, 1.8k, 6k, 15k */
 		{RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB, kHz(2.4)},
 		{RIG_MODE_CW|RIG_MODE_CWR|RIG_MODE_SSB, 600},

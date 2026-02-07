@@ -32,7 +32,7 @@
 /* Forcing WINVER in MinGW yanks in getaddrinfo(), but locks out Win95/Win98 */
 /* #define WINVER 0x0501 */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
 #include <stdio.h>   /* Standard input/output definitions */
@@ -73,7 +73,9 @@
 #  endif
 #endif
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
+#include "hamlib/port.h"
+#include "hamlib/rig_state.h"
 #include "network.h"
 #include "misc.h"
 #include "asyncpipe.h"
@@ -123,9 +125,7 @@ typedef struct multicast_publisher_args_s
     int data_read_fd;
 #endif
 
-#ifdef HAVE_PTHREAD
     pthread_mutex_t write_lock;
-#endif
 } multicast_publisher_args;
 
 typedef struct multicast_publisher_priv_data_s
@@ -184,7 +184,7 @@ static void handle_error(enum rig_debug_level_e lvl, const char *msg)
 
 #define TRACE rig_debug(RIG_DEBUG_ERR, "TRACE %s(%d)\n", __func__,__LINE__);
 
-int network_init()
+static int network_init()
 {
     int retval = -RIG_EINTERNAL;
 #ifdef __MINGW32__
@@ -509,9 +509,9 @@ int network_close(hamlib_port_t *rp)
 }
 //! @endcond
 
-extern void sync_callback(int lock);
+//TODO See defn in rig.c
+//extern void sync_callback(int lock);
 
-#ifdef HAVE_PTHREAD
 //! @cond Doxygen_Suppress
 
 #define MULTICAST_DATA_PIPE_TIMEOUT_MILLIS 1000
@@ -830,7 +830,6 @@ static int multicast_publisher_write_packet_header(RIG *rig,
     return RIG_OK;
 }
 
-// cppcheck-suppress unusedFunction
 int network_publish_rig_poll_data(RIG *rig)
 {
     const struct rig_state *rs = STATE(rig);
@@ -854,7 +853,6 @@ int network_publish_rig_poll_data(RIG *rig)
     return result;
 }
 
-// cppcheck-suppress unusedFunction
 int network_publish_rig_transceive_data(RIG *rig)
 {
     const struct rig_state *rs = STATE(rig);
@@ -1000,7 +998,7 @@ static int multicast_publisher_read_packet(multicast_publisher_args
     return (RIG_OK);
 }
 
-void *multicast_publisher(void *arg)
+static void *multicast_publisher(void *arg)
 {
     unsigned char spectrum_data[HAMLIB_MAX_SPECTRUM_DATA];
     char snapshot_buffer[HAMLIB_MAX_SNAPSHOT_PACKET_SIZE];
@@ -1257,7 +1255,7 @@ int is_wireless()
 #include <unistd.h>
 #include <ifaddrs.h>
 
-int is_networked(char *ipv4, int ipv4_length)
+static int is_networked(char *ipv4, int ipv4_length)
 {
     struct ifaddrs *interfaces, *iface;
     char addr_str[INET_ADDRSTRLEN];
@@ -1345,10 +1343,10 @@ int is_wireless()
 #endif
 #endif
 
-void *multicast_receiver(void *arg)
+static void *multicast_receiver(void *arg)
 {
     char data[4096];
-    char ip4[INET6_ADDRSTRLEN];
+    char ip4[INET6_ADDRSTRLEN] = "";
 
     struct multicast_receiver_args_s *args = (struct multicast_receiver_args_s *)
             arg;
@@ -1953,5 +1951,4 @@ int network_multicast_receiver_stop(RIG *rig)
     RETURNFUNC(RIG_OK);
 }
 
-#endif
 /** @} */

@@ -31,10 +31,9 @@
  * @{
  */
 
-#include <hamlib/rig.h>
-#include <hamlib/config.h>
+#include "hamlib/rig.h"
+#include "hamlib/config.h"
 
-#include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
 #include <unistd.h>  /* UNIX standard function definitions */
 #include <fcntl.h>   /* File control definitions */
@@ -42,7 +41,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/port.h"
 #include "iofunc.h"
 #include "misc.h"
 
@@ -336,7 +335,7 @@ int HAMLIB_API port_open(hamlib_port_t *p)
         p->fd = status;
         break;
 
-#if defined(HAVE_LIBUSB_H) || defined (HAVE_LIBUSB_1_0_LIBUSB_H)
+#if defined(HAVE_LIBUSB)
 
     case RIG_PORT_USB:
         status = usb_port_open(p);
@@ -394,7 +393,7 @@ int HAMLIB_API port_close(hamlib_port_t *p, rig_port_t port_type)
             ret = ser_close(p);
             break;
 
-#if defined(HAVE_LIBUSB_H) || defined (HAVE_LIBUSB_1_0_LIBUSB_H)
+#if defined(HAVE_LIBUSB)
 
         case RIG_PORT_USB:
             ret = usb_port_close(p);
@@ -409,8 +408,8 @@ int HAMLIB_API port_close(hamlib_port_t *p, rig_port_t port_type)
         default:
             rig_debug(RIG_DEBUG_ERR, "%s(): Unknown port type %d\n",
                       __func__, port_type);
+            HL_FALLTHROUGH
 
-        /* fall through */
         case RIG_PORT_DEVICE:
             ret = close(p->fd);
         }
@@ -1476,7 +1475,7 @@ shortcut:
             return -RIG_EIO;
         }
 
-        // check to see if our string startis with \...if so we need more chars
+        // check to see if our string starts with \...if so we need more chars
         if (total_count == 0 && rxbuffer[total_count] == '\\') { rxmax = (rxmax - 1) * 5; }
 
         total_count += (int) rd_count;

@@ -24,7 +24,7 @@
 
 #include <stddef.h>
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include "hamlib/rig.h"
 #include "cal.h"
@@ -35,7 +35,7 @@
 #include <sys/time.h>
 #endif
 
-#define BACKEND_VER "20250107"
+#define BACKEND_VER "20250517"
 
 #define ICOM_IS_ID31 rig_is_model(rig, RIG_MODEL_ID31)
 #define ICOM_IS_ID51 rig_is_model(rig, RIG_MODEL_ID51)
@@ -157,7 +157,7 @@ struct cmdparams
 struct icom_spectrum_scope_caps
 {
     int spectrum_line_length; /*!< Number of bytes in a complete spectrum scope line */
-    int single_frame_data_length; /*!< Number of bytes of specrtum data in a single CI-V frame when the data split to multiple frames */
+    int single_frame_data_length; /*!< Number of bytes of spectrum data in a single CI-V frame when the data split to multiple frames */
     int data_level_min; /*!<  */
     int data_level_max;
     double signal_strength_min;
@@ -471,6 +471,7 @@ extern struct rig_caps ic7000_caps;
 extern struct rig_caps ic7100_caps;
 extern struct rig_caps ic7200_caps;
 extern struct rig_caps ic7300_caps;
+extern struct rig_caps ic7300mk2_caps;
 extern struct rig_caps ic781_caps;
 extern struct rig_caps ic820h_caps;
 extern struct rig_caps ic821h_caps;
@@ -511,6 +512,7 @@ extern struct rig_caps ic92d_caps;
 extern struct rig_caps id1_caps;
 extern struct rig_caps id31_caps;
 extern struct rig_caps id51_caps;
+extern struct rig_caps id52plus_caps;
 extern struct rig_caps id4100_caps;
 extern struct rig_caps id5100_caps;
 extern struct rig_caps ic2730_caps;
@@ -550,6 +552,7 @@ extern struct rig_caps icr30_caps;
 #define RIG_IS_IC728 (STATE(rig)->rig_model == RIG_MODEL_IC728)
 #define RIG_IS_IC729 (STATE(rig)->rig_model == RIG_MODEL_IC729)
 #define RIG_IS_IC7300 (STATE(rig)->rig_model == RIG_MODEL_IC7300)
+#define RIG_IS_IC7300MK2 (STATE(rig)->rig_model == RIG_MODEL_IC7300MK2)
 #define RIG_IS_IC731 (STATE(rig)->rig_model == RIG_MODEL_IC731)
 #define RIG_IS_IC735 (STATE(rig)->rig_model == RIG_MODEL_IC735)
 #define RIG_IS_IC736 (STATE(rig)->rig_model == RIG_MODEL_IC736)

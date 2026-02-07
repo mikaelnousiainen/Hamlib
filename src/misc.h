@@ -18,33 +18,29 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #ifndef _MISC_H
 #define _MISC_H 1
 
-#include <hamlib/rig.h>
-#include <hamlib/config.h>
+#include "hamlib/config.h"
+#include "hamlib/rig.h"
 
 
 /*
  */
-#ifdef HAVE_PTHREAD
 #include <pthread.h>
 #define set_transaction_active(rig) {pthread_mutex_lock(&STATE(rig)->mutex_set_transaction);STATE(rig)->transaction_active = 1;}
 #define set_transaction_inactive(rig) {STATE(rig)->transaction_active = 0;pthread_mutex_unlock(&STATE(rig)->mutex_set_transaction);}
-#else
-#define set_transaction_active(rig) {STATE(rig)->transaction_active = 1;}
-#define set_transaction_inactive(rig) {STATE(rig)->transaction_active = 0;}
-#endif
 
 __BEGIN_DECLS
 
-// a function to return just a string of spaces for indenting rig debug lines
-HAMLIB_EXPORT (const char *) spaces(int len);
+// a function to return just a string of stars for indenting rig debug lines
+HAMLIB_EXPORT (const char *) hl_stars(int len);
+
 /*
  * Do a hex dump of the unsigned char array.
  */
-
 void dump_hex(const unsigned char ptr[], size_t size);
 
 /*
@@ -123,7 +119,7 @@ extern HAMLIB_EXPORT(vfo_t) vfo_fixup2a(RIG *rig, vfo_t vfo, split_t split, cons
 
 extern HAMLIB_EXPORT(int) parse_hoststr(char *hoststr, int hoststr_len, char host[256], char port[6]);
 
-extern HAMLIB_EXPORT(uint32_t) CRC32_function(uint8_t *buf, uint32_t len);
+extern HAMLIB_EXPORT(uint32_t) CRC32_function(const uint8_t *buf, uint32_t len);
 
 extern HAMLIB_EXPORT(char *)date_strget(char *buf, int buflen, int localtime);
 
@@ -159,7 +155,7 @@ extern HAMLIB_EXPORT(char *)date_strget(char *buf, int buflen, int localtime);
 void errmsg(int err, char *s, const char *func, const char *file, int line);
 #define ERRMSG(err, s) errmsg(err,  s, __func__, __FILENAME__, __LINE__)
 #define ENTERFUNC {     ++STATE(rig)->depth;				\
-    rig_debug(RIG_DEBUG_VERBOSE, "%s%d:%s(%d):%s entered\n", spaces(STATE(rig)->depth), STATE(rig)->depth, __FILENAME__, __LINE__, __func__); \
+    rig_debug(RIG_DEBUG_VERBOSE, "%s%d:%s(%d):%s entered\n", hl_stars(STATE(rig)->depth), STATE(rig)->depth, __FILENAME__, __LINE__, __func__); \
                   }
 #define ENTERFUNC2 {    rig_debug(RIG_DEBUG_VERBOSE, "%s(%d):%s entered\n", __FILENAME__, __LINE__, __func__); \
                    }
@@ -167,7 +163,7 @@ void errmsg(int err, char *s, const char *func, const char *file, int line);
 // could be a function call 
 #define RETURNFUNC(rc) {do { \
             int rctmp = rc; \
-            rig_debug(RIG_DEBUG_VERBOSE, "%s%d:%s(%d):%s returning(%ld) %s\n", spaces(STATE(rig)->depth), STATE(rig)->depth, __FILENAME__, __LINE__, __func__, (long int) (rctmp), rctmp<0?rigerror2(rctmp):""); \
+            rig_debug(RIG_DEBUG_VERBOSE, "%s%d:%s(%d):%s returning(%ld) %s\n", hl_stars(STATE(rig)->depth), STATE(rig)->depth, __FILENAME__, __LINE__, __func__, (long int) (rctmp), rctmp<0?rigerror2(rctmp):""); \
             --STATE(rig)->depth;					\
             return (rctmp); \
             } while(0);}

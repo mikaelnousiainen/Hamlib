@@ -21,7 +21,7 @@
 
 #include <stdlib.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "icom.h"
 #include "icom_defs.h"
 #include "frame.h"
@@ -211,7 +211,7 @@ static const struct icom_priv_caps ic7100_priv_caps =
 };
 
 // if hour < 0 then only date will be set
-int ic7100_set_clock(RIG *rig, int year, int month, int day, int hour, int min,
+static int ic7100_set_clock(RIG *rig, int year, int month, int day, int hour, int min,
                      int sec, double msec, int utc_offset)
 {
     int cmd = 0x1a;
@@ -265,7 +265,7 @@ int ic7100_set_clock(RIG *rig, int year, int month, int day, int hour, int min,
     return retval;
 }
 
-int ic7100_get_clock(RIG *rig, int *year, int *month, int *day, int *hour,
+static int ic7100_get_clock(RIG *rig, int *year, int *month, int *day, int *hour,
                      int *min, int *sec, double *msec, int *utc_offset)
 {
     int cmd = 0x1a;

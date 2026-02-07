@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <string.h>  /* String function definitions */
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "kenwood.h"
 #include "th.h"
 #include "misc.h"
@@ -183,7 +183,7 @@ struct rig_caps tmv7_caps =
         RIG_FLT_END
     },
 
-    .str_cal = { 4, { {0, -60 }, {1, -30,}, {5, 0}, {7, 20}}}, /* rought guess */
+    .str_cal = { 4, { {0, -60 }, {1, -30,}, {5, 0}, {7, 20}}}, /* rough guess */
 
     .priv = (void *)& tmv7_priv_caps,
     .rig_init = kenwood_init,

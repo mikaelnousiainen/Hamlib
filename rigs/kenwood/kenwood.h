@@ -28,7 +28,7 @@
 #include "token.h"
 #include "idx_builtin.h"
 
-#define BACKEND_VER "20250107"
+#define BACKEND_VER "20250515"
 
 #define EOM_KEN ';'
 #define EOM_TH '\r'
@@ -155,6 +155,7 @@ struct kenwood_priv_data
     int trn_state;    /* AI state discovered at startup */
     unsigned fw_rev_uint; /* firmware revision as a number 1.07 -> 107 */
     char verify_cmd[4];   /* command used to verify set commands */
+    int verify_cmd_len;   /* length of above command - set when cmd built */
     int is_emulation;     /* flag for TS-2000 emulations */
     void *data;           /* model specific data */
     rmode_t curr_mode;    /* used for is_emulation to avoid get_mode on VFOB */
@@ -183,6 +184,8 @@ struct kenwood_priv_data
     int save_k2_ext_lvl; // so we can restore to original
     int save_k3_ext_lvl; // so we can restore to original -- for future use if needed
     int voice_bank; /* last voice bank send for use by stop_voice_mem */
+    short voice_mem_min, voice_mem_max; // Voice channel range
+    const char *voice_mem_start, *voice_mem_stop; // Commands to do the thing to do
     rmode_t last_mode_pc; // last mode memory for PC command
     int power_now,power_min,power_max;
 };

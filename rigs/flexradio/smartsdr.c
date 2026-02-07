@@ -22,8 +22,6 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <math.h>
-#include <errno.h>
 
 #include "hamlib/rig.h"
 #include "parallel.h"
@@ -45,6 +43,8 @@ static int smartsdr_set_mode(RIG *rig, vfo_t vfo, rmode_t mode,
                              pbwidth_t width);
 static int smartsdr_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode,
                              pbwidth_t *width);
+static int smartsdr_send_morse(RIG *rig, vfo_t vfo, const char *msg);
+static int smartsdr_stop_morse(RIG *rig, vfo_t vfo);
 //static int smartsdr_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val);
 
 struct smartsdr_priv_data
@@ -301,7 +301,6 @@ int smartsdr_cleanup(RIG *rig)
 }
 
 #if 0
-#if defined(HAVE_PTHREAD)
 typedef struct smartsdr_data_handler_args_s
 {
     RIG *rig;
@@ -369,7 +368,6 @@ static int smartsdr_data_handler_start(RIG *rig)
     XVTB
 
 }
-#endif
 #endif
 
 /* Example response to "sub slice 0"
@@ -619,3 +617,54 @@ int sdr1k_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     }
 }
 #endif
+
+int smartsdr_send_morse(RIG *rig, vfo_t vfo, const char *msg)
+{
+    ENTERFUNC;
+
+    int retval;
+    size_t msg_len = strlen(msg);
+    size_t buf_len = msg_len + 20;
+
+    char *newmsg = malloc(msg_len + 1);
+    if (!newmsg)
+        return -RIG_ENOMEM;
+
+    memcpy(newmsg, msg, msg_len + 1); // Copy including null terminator
+
+    for (size_t i = 0; newmsg[i] != '\0'; i++) {
+        if (newmsg[i] == ' ') {
+            newmsg[i] = 0x7f;
+        }
+    }
+
+    char *cmd = malloc(buf_len);
+    if (!cmd) {
+        free(newmsg);
+        return -RIG_ENOMEM;
+    }
+
+    snprintf(cmd, buf_len, "cwx send \"%s\"", newmsg);
+
+    free(newmsg);
+
+    retval = smartsdr_transaction(rig, cmd);
+
+    free(cmd);
+
+    RETURNFUNC(retval);
+}
+
+
+int smartsdr_stop_morse(RIG *rig, vfo_t vfo)
+{
+    int retval;
+    char cmd[64];
+    ENTERFUNC;
+
+    sprintf(cmd, "cwx clear");
+    retval = smartsdr_transaction(rig, cmd);
+
+    RETURNFUNC(retval);
+
+}

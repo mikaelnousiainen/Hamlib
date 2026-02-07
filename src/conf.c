@@ -30,14 +30,16 @@
  *
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
-#include <stdarg.h>
 #include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
+#include <strings.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
+#include "hamlib/port.h"
+#include "hamlib/rig_state.h"
 #include "token.h"
 
 
@@ -80,13 +82,13 @@ static const struct confparams frontend_cfg_params[] =
         "1", RIG_CONF_NUMERIC, { .n = { 0, 100, 1 } }
     },
     {
-        TOK_RANGE_SELECTED, "Selected range list", "Range list#",
-        "The tx/rx range list in use",
+        TOK_RANGE_SELECTED, "range_list_number", "Range list number",
+        "The tx/rx range list number in use",
         "0", RIG_CONF_NUMERIC, { .n = { 1, 5, 1 } }
     },
     {
-        TOK_RANGE_NAME, "Selected range list", "Range list name",
-        "The tx/rx range list name",
+        TOK_RANGE_NAME, "range_list_name", "Range list name",
+        "The tx/rx range list name in use",
         "Default", RIG_CONF_STRING
     },
     {
@@ -173,7 +175,7 @@ static const struct confparams frontend_cfg_params[] =
     {
         TOK_TWIDDLE_TIMEOUT, "twiddle_timeout", "Timeout(secs) to resume VFO polling when twiddling VFO",
         "For satellite ops when VFOB is twiddled will pause VFOB commands until timeout",
-        "Unset", RIG_CONF_COMBO, { .c = {{ "Unset", "ON", "OFF", NULL }} }
+        "0", RIG_CONF_NUMERIC, { .n = { 0, 100, 1 } }
     },
     {
         TOK_TWIDDLE_RIT, "twiddle_rit", "RIT twiddle",
@@ -1220,6 +1222,12 @@ static int frontend_get_conf2(RIG *rig, hamlib_token_t token, char *val,
         SNPRINTF(val, val_len, "%g", rs->lo_freq);
         break;
 
+    case TOK_RANGE_SELECTED:
+        return -RIG_ENAVAIL;
+
+    case TOK_RANGE_NAME:
+        return -RIG_ENAVAIL;
+
     case TOK_CACHE_TIMEOUT:
         SNPRINTF(val, val_len, "%d", rig_get_cache_timeout_ms(rig, HAMLIB_CACHE_ALL));
         break;
@@ -1256,8 +1264,20 @@ static int frontend_get_conf2(RIG *rig, hamlib_token_t token, char *val,
         SNPRINTF(val, val_len, "%d", rs->twiddle_rit);
         break;
 
+    case TOK_OFFSET_VFOA:
+        SNPRINTF(val, val_len, "%g", rs->offset_vfoa);
+        break;
+
+    case TOK_OFFSET_VFOB:
+        SNPRINTF(val, val_len, "%g", rs->offset_vfob);
+        break;
+
     case TOK_ASYNC:
         SNPRINTF(val, val_len, "%d", rs->async_data_enabled);
+        break;
+
+    case TOK_TUNER_CONTROL_PATHNAME:
+        SNPRINTF(val, val_len, "%s", rs->tuner_control_pathname);
         break;
 
     case TOK_TIMEOUT_RETRY:
@@ -1278,6 +1298,10 @@ static int frontend_get_conf2(RIG *rig, hamlib_token_t token, char *val,
 
     case TOK_MULTICAST_CMD_PORT:
         SNPRINTF(val, val_len, "%d", rs->multicast_cmd_port);
+        break;
+
+    case TOK_FREQ_SKIP:
+        SNPRINTF(val, val_len, "%d", rs->freq_skip);
         break;
 
     default:
@@ -1386,6 +1410,10 @@ const struct confparams *HAMLIB_API rig_confparam_lookup(RIG *rig,
 
         return NULL;
     }
+    if (!name) {
+        rig_debug(RIG_DEBUG_ERR, "%s: name is NULL\n", __func__);
+        return NULL;
+    }
 
     /* 0 returned for invalid format */
     token = strtol(name, NULL, 0);
@@ -1471,7 +1499,7 @@ int HAMLIB_API rig_set_conf(RIG *rig, hamlib_token_t token, const char *val)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    if (!rig || !rig->caps)
+    if (!rig || !rig->caps || !val)
     {
         return -RIG_EINVAL;
     }

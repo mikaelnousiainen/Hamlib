@@ -2,6 +2,7 @@
  * hamlib - (C) Frank Singleton 2000 (vk3fcs@ix.netcom.com)
  *
  * yaesu.c - (C) Stephane Fillod 2001-2010
+ *           (C) Jeremy Miller KO4SSD 2025 (ko4ssd at ko4ssd.com)
  *
  * This shared library provides an API for communicating
  * via serial interface to a Yaesu rig
@@ -112,6 +113,7 @@ DECLARE_INITRIG_BACKEND(yaesu)
     rig_register(&vx1700_caps);
     rig_register(&ftdx1200_caps);
     rig_register(&ft991_caps);
+    rig_register(&ftx1_caps);
     rig_register(&ft891_caps);
     rig_register(&ft847uni_caps);
     rig_register(&ftdx101d_caps);
@@ -122,8 +124,6 @@ DECLARE_INITRIG_BACKEND(yaesu)
     rig_register(&mchfqrp_caps);
     rig_register(&ft650_caps);
     rig_register(&ft710_caps);
-    rig_register(&q900_caps);
-    rig_register(&pmr171_caps);
 
     return RIG_OK;
 }

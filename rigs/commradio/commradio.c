@@ -3,13 +3,12 @@
  * idk, copyright and GPL here
  */
 
+#include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
-#include <hamlib/rig.h>
-#include <register.h>
-#include <serial.h>
+#include "hamlib/rig.h"
+#include "register.h"
+#include "iofunc.h"
 
 #include "misc.h"
 
@@ -179,7 +178,7 @@ int commradio_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         }
     }
     // CTX-10 returns 11 02 30 00 00 00 01 if we try to go out of its
-    // general-coverage frequency range 150kHz - 30MHz. I'm not sure why Hamlib
+    // general-coverage frequency range 150 kHz - 30 MHz. I'm not sure why Hamlib
     // even tries to do this, since its defined in the caps...
     else
     {
@@ -227,12 +226,3 @@ DECLARE_INITRIG_BACKEND(commradio)
 
     return (RIG_OK);
 }
-
-/*
- * For some reason, I can't get this to even link without this function.
- */
-DECLARE_PROBERIG_BACKEND(commradio)
-{
-    return (RIG_MODEL_NONE);
-}
-

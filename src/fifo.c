@@ -1,17 +1,39 @@
-#include <hamlib/rig.h>
+/*
+ *  Hamlib Interface - FIFO routines
+ *  Copyright (c) 2023-2025 by the Hamlib group
+ *
+ *
+ *   This library is free software; you can redistribute it and/or
+ *   modify it under the terms of the GNU Lesser General Public
+ *   License as published by the Free Software Foundation; either
+ *   version 2.1 of the License, or (at your option) any later version.
+ *
+ *   This library is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *   Lesser General Public License for more details.
+ *
+ *   You should have received a copy of the GNU Lesser General Public
+ *   License along with this library; if not, write to the Free Software
+ *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ *
+ */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+
+#include "hamlib/config.h"
+
 #include <stdio.h>
 #include <ctype.h>
+
+#include "hamlib/rig.h"
 #include "fifo.h"
-#include "config.h"
 
 void initFIFO(FIFO_RIG *fifo)
 {
     fifo->head = 0;
     fifo->tail = 0;
-#ifdef _PTHREAD_H
     static pthread_mutex_t t = PTHREAD_MUTEX_INITIALIZER;
     fifo->mutex = t;
-#endif
 }
 
 void resetFIFO(FIFO_RIG *fifo)
@@ -23,11 +45,9 @@ void resetFIFO(FIFO_RIG *fifo)
 
 // returns RIG_OK if added
 // return -RIG error if overflow
-int push(FIFO_RIG *fifo, const char *msg)
+int hl_push(FIFO_RIG *fifo, const char *msg)
 {
-#ifdef _PTHREAD_H
     pthread_mutex_lock(&fifo->mutex);
-#endif
     int len = strlen(msg);
 
     for (int i = 0; i < len; ++i)
@@ -57,13 +77,11 @@ int push(FIFO_RIG *fifo, const char *msg)
         fifo->tail = (fifo->tail + 1) % HAMLIB_FIFO_SIZE;
     }
 
-#ifdef _PTHREAD_H
     pthread_mutex_unlock(&fifo->mutex);
-#endif
     return RIG_OK;
 }
 
-int peek(FIFO_RIG *fifo)
+int hl_peek(FIFO_RIG *fifo)
 {
     if (fifo == NULL) { return -1; }
 
@@ -73,9 +91,7 @@ int peek(FIFO_RIG *fifo)
 
     if (fifo->tail == fifo->head) { return -1; }
 
-#ifdef _PTHREAD_H
     pthread_mutex_lock(&fifo->mutex);
-#endif
     char c = fifo->data[fifo->head];
 
 #if 0
@@ -89,19 +105,15 @@ int peek(FIFO_RIG *fifo)
                   fifo->tail);
 
 #endif
-#ifdef _PTHREAD_H
     pthread_mutex_unlock(&fifo->mutex);
-#endif
     return c;
 }
 
-int pop(FIFO_RIG *fifo)
+int hl_pop(FIFO_RIG *fifo)
 {
     if (fifo->tail == fifo->head) { return -1; }
 
-#ifdef _PTHREAD_H
     pthread_mutex_lock(&fifo->mutex);
-#endif
     char c = fifo->data[fifo->head];
 #if 0
 
@@ -115,9 +127,7 @@ int pop(FIFO_RIG *fifo)
 
 #endif
     fifo->head = (fifo->head + 1) % HAMLIB_FIFO_SIZE;
-#ifdef _PTHREAD_H
     pthread_mutex_unlock(&fifo->mutex);
-#endif
     return c;
 }
 
@@ -130,12 +140,12 @@ int main()
     const char *str = "Hello, World!\n";
 
     // Pushing the string onto the FIFO
-    push(&fifo, str);
+    hl_push(&fifo, str);
 
     // Popping and printing one character at a time
     int c;
 
-    while ((c = pop(&fifo)) != -1)
+    while ((c = hl_pop(&fifo)) != -1)
     {
         printf("%c", c);
     }

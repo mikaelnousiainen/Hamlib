@@ -26,17 +26,15 @@
  * doc todo: Let's explain what's going on here!
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/types.h>
 
-#include <register.h>
+#include "register.h"
 
-#include <hamlib/rig.h>
-#include "misc.h"
+#include "hamlib/rig.h"
 
 //! @cond Doxygen_Suppress
 #ifndef PATH_MAX
@@ -60,6 +58,7 @@
  */
 DEFINE_INITRIG_BACKEND(dummy);
 DEFINE_INITRIG_BACKEND(yaesu);
+DEFINE_INITRIG_BACKEND(guohetec);
 DEFINE_INITRIG_BACKEND(kenwood);
 DEFINE_INITRIG_BACKEND(icom);
 DEFINE_INITRIG_BACKEND(icmarine);
@@ -119,6 +118,7 @@ static struct
 {
     { RIG_DUMMY, RIG_BACKEND_DUMMY, RIG_FUNCNAMA(dummy) },
     { RIG_YAESU, RIG_BACKEND_YAESU, RIG_FUNCNAM(yaesu) },
+    { RIG_GUOHETEC, RIG_BACKEND_GUOHETEC, RIG_FUNCNAM(guohetec) },
     { RIG_KENWOOD, RIG_BACKEND_KENWOOD, RIG_FUNCNAM(kenwood) },
     { RIG_ICOM, RIG_BACKEND_ICOM, RIG_FUNCNAM(icom) },
     { RIG_ICMARINE, RIG_BACKEND_ICMARINE, RIG_FUNCNAMA(icmarine) },
@@ -149,11 +149,11 @@ static struct
     { RIG_BARRETT, RIG_BACKEND_BARRETT, RIG_FUNCNAMA(barrett) },
     { RIG_ELAD, RIG_BACKEND_ELAD, RIG_FUNCNAMA(elad) },
     { RIG_CODAN, RIG_BACKEND_CODAN, RIG_FUNCNAMA(codan) },
-    { RIG_GOMSPACE, RIG_BACKEND_GOMSPACE, RIG_FUNCNAM(gomspace) },
+    { RIG_GOMSPACE, RIG_BACKEND_GOMSPACE, RIG_FUNCNAMA(gomspace) },
     { RIG_MDS, RIG_BACKEND_MDS, RIG_FUNCNAMA(mds) },
     { RIG_ANYTONE, RIG_BACKEND_ANYTONE, RIG_FUNCNAMA(anytone) },
     { RIG_MOTOROLA, RIG_BACKEND_MOTOROLA, RIG_FUNCNAMA(motorola) },
-    { RIG_COMMRADIO, RIG_BACKEND_COMMRADIO, RIG_FUNCNAM(commradio) },
+    { RIG_COMMRADIO, RIG_BACKEND_COMMRADIO, RIG_FUNCNAMA(commradio) },
     { 0, NULL }, /* end */
 };
 

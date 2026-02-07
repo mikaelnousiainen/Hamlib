@@ -23,6 +23,8 @@
 #include <string.h>
 #include "misc.h"
 #include "gemini.h"
+#include "hamlib/port.h"
+#include "hamlib/amp_state.h"
 
 /*
  * Initialize data structures
@@ -124,7 +126,7 @@ const char *gemini_get_info(AMP *amp)
     return rc->model_name;
 }
 
-int gemini_status_parse(AMP *amp)
+static int gemini_status_parse(AMP *amp)
 {
     int retval, n = 0;
     char *p;
@@ -194,7 +196,7 @@ int gemini_get_freq(AMP *amp, freq_t *freq)
 int gemini_set_freq(AMP *amp, freq_t freq)
 {
     int retval;
-    char *cmd;
+    const char *cmd;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -258,7 +260,7 @@ int gemini_get_level(AMP *amp, setting_t level, value_t *val)
 
 int gemini_set_level(AMP *amp, setting_t level, value_t val)
 {
-    char *cmd = "?";
+    const char *cmd = "?";
     int retval;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -330,7 +332,7 @@ int gemini_get_powerstat(AMP *amp, powerstat_t *status)
 int gemini_set_powerstat(AMP *amp, powerstat_t status)
 {
     int retval;
-    char *cmd = NULL;
+    const char *cmd = NULL;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
@@ -338,7 +340,7 @@ int gemini_set_powerstat(AMP *amp, powerstat_t status)
 
     switch (status)
     {
-    case RIG_POWER_UNKNOWN: break;
+    //case RIG_POWER_UNKNOWN: break;
 
     case RIG_POWER_OFF: cmd = "R0\n"; break;
 
@@ -348,17 +350,15 @@ int gemini_set_powerstat(AMP *amp, powerstat_t status)
 
     case RIG_POWER_STANDBY: cmd = "R0\n"; break;
 
-
     default:
         rig_debug(RIG_DEBUG_ERR, "%s invalid status=%d\n", __func__, status);
+        return -RIG_EINVAL;
 
     }
 
     retval = gemini_transaction(amp, cmd, NULL, 0);
 
-    if (retval != RIG_OK) { return retval; }
-
-    return RIG_OK;
+    return retval;
 }
 
 int gemini_reset(AMP *amp, amp_reset_t reset)

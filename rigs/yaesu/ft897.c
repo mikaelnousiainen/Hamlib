@@ -56,7 +56,7 @@
  *      - high swr flag
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
 #include <string.h>     /* String function definitions */
@@ -66,7 +66,7 @@
 #endif
 
 #include "hamlib/rig.h"
-#include "serial.h"
+#include "iofunc.h"
 #include "yaesu.h"
 #include "ft897.h"
 #include "ft817.h" /* We use functions from the 817 code */
@@ -594,7 +594,7 @@ static inline long timediff(const struct timeval *tv1,
     return ((tv.tv_sec * 1000L) + (tv.tv_usec / 1000L));
 }
 
-static int check_cache_timeout(struct timeval *tv)
+static int check_cache_timeout(const struct timeval *tv)
 {
     struct timeval curr;
     long t;
@@ -1472,7 +1472,7 @@ int ft897_set_rptr_shift(RIG *rig, vfo_t vfo, rptr_shift_t shift)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
-    rig_debug(RIG_DEBUG_VERBOSE, "ft897: set repeter shift = %i\n", shift);
+    rig_debug(RIG_DEBUG_VERBOSE, "ft897: set repeater shift = %i\n", shift);
 
     switch (shift)
     {
@@ -1495,7 +1495,7 @@ int ft897_set_rptr_offs(RIG *rig, vfo_t vfo, shortfreq_t offs)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s: called\n", __func__);
 
-    rig_debug(RIG_DEBUG_VERBOSE, "ft897: set repeter offs = %li\n", offs);
+    rig_debug(RIG_DEBUG_VERBOSE, "ft897: set repeater offs = %li\n", offs);
 
     /* fill in the offset freq */
     to_bcd_be(data, offs / 10, 8);

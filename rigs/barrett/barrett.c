@@ -19,12 +19,13 @@
  *
  */
 
+#include "hamlib/config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <hamlib/rig.h>
-#include "serial.h"
+#include "hamlib/rig.h"
+#include "iofunc.h"
 #include "misc.h"
 #include "register.h"
 

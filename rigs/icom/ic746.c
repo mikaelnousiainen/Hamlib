@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>  /* String function definitions */
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "idx_builtin.h"
 
 #include "icom.h"
@@ -348,19 +348,19 @@ struct rig_caps ic746_caps =
 #define S_MEM_BEEP      0x506   /* Button confirmation */
 #define S_MEM_SQL_CTL       0x508   /* RF/SQL ctl set 0=auto; 1 = sql; 2 = RF+SQL */
 #define S_MEM_QSPLT     0x511   /* enable quick split mode */
-/* values -9.999 MHz to + 9.999 Mhz */
+/* values -9.999 MHz to + 9.999 MHz */
 #define S_MEM_SPLT_OFST     0x512   /* default split offset 4 bytes little endian last byte sign*/
 #define S_MEM_SPLT_LOCK     0x513   /* split lock set */
-/* values 0.000 MHz to + 9.999 Mhz */
+/* values 0.000 MHz to + 9.999 MHz */
 #define S_MEM_HF_DUP_OFST   0x514   /* default HF band duplex offset 3 byte little endian */
-#define S_MEM_6M_DUP_OFST   0x515   /* default 50 mHz duplex offset  3 byte little endian */
+#define S_MEM_6M_DUP_OFST   0x515   /* default 50 MHz duplex offset  3 byte little endian */
 #define S_MEM_2M_DUP_OFST   0x516   /* default 144 MHz duplex offset  3 byte little endian */
 #define S_MEM_AUTO_RPTR     0x518   /* auto repeater set 0=OFF; 1=ON-1; 2=ON-2 */
 #define S_MEM_LANG      0x523   /* 0=English 1=Japanese for voice announcer */
-#define S_MEM_TRCV      0x536   /* CI-V trancieve mode */
+#define S_MEM_TRCV      0x536   /* CI-V transceive mode */
 #define S_MEM_CMP_LVL       0x538   /* speech compressor level 0-10 */
 #define S_MEM_SBASS     0x539   /* SSB TX tone bass level */
-#define S_MEM_RTTY_FL_PB    0x562   /* 0=250 Hz, 1=300' 2 = 350, 3 = 500, 4 = 1 KHz */
+#define S_MEM_RTTY_FL_PB    0x562   /* 0=250 Hz, 1=300' 2 = 350, 3 = 500, 4 = 1 kHz */
 #define S_MEM_RTTY_TWNPK    0x563   /* rtty twin peak filter off/on */
 #define S_MEM_SCN_SPD       0x570   /* 0 = low; 1 = high */
 #define S_MEM_NB_LVL        0x572   /* NB level 0-255 */
@@ -609,7 +609,7 @@ struct rig_caps ic746pro_caps =
  */
 static int ic746pro_set_ext_parm(RIG *rig, hamlib_token_t token, value_t val)
 {
-    unsigned char epbuf[MAXFRAMELEN], ackbuf[MAXFRAMELEN];
+    unsigned char epbuf[MAXFRAMELEN] = "", ackbuf[MAXFRAMELEN];
     int ack_len, ep_len, val_len;
     int ep_cmd = C_CTL_MEM;
     int ep_sc;             /* Subcommand in $1A $05xx */

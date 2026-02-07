@@ -32,19 +32,17 @@
  * \brief Event handling
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/types.h>
 #include <errno.h>
 
-#ifdef HAVE_PTHREAD
-#  include <pthread.h>
-#endif
+#include <pthread.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
+#include "hamlib/rig_state.h"
 #include "event.h"
 #include "misc.h"
 #include "cache.h"
@@ -52,7 +50,6 @@
 
 #define CHECK_RIG_ARG(r) (!(r) || !(r)->caps || !STATE(r)->comm_state)
 
-#ifdef HAVE_PTHREAD
 typedef struct rig_poll_routine_args_s
 {
     RIG *rig;
@@ -64,7 +61,7 @@ typedef struct rig_poll_routine_priv_data_s
     rig_poll_routine_args args;
 } rig_poll_routine_priv_data;
 
-void *rig_poll_routine(void *arg)
+static void *rig_poll_routine(void *arg)
 {
     rig_poll_routine_args *args = (rig_poll_routine_args *)arg;
     RIG *rig = args->rig;
@@ -362,8 +359,6 @@ int rig_poll_routine_stop(RIG *rig)
     RETURNFUNC(RIG_OK);
 }
 
-#endif
-
 /**
  * \brief set the callback for freq events
  * \param rig   The rig handle
@@ -577,7 +572,7 @@ int HAMLIB_API rig_set_spectrum_callback(RIG *rig, spectrum_cb_t cb,
  * \sa rig_get_trn()
  *
  * \deprecated This functionality has never worked correctly and it is now disabled in favor of new async data handling capabilities.
- * The command will always return RIG_EDEPRECATED until the command will be removed eventually.
+ * The command will always return -RIG_EDEPRECATED until the command will be removed eventually.
  */
 int HAMLIB_API rig_set_trn(RIG *rig, int trn)
 {
@@ -601,7 +596,7 @@ int HAMLIB_API rig_set_trn(RIG *rig, int trn)
  * \sa rig_set_trn()
  *
  * \deprecated This functionality has never worked correctly and it is now disabled in favor of new async data handling capabilities.
- * The command will always return RIG_EDEPRECATED until the command will be removed eventually.
+ * The command will always return -RIG_EDEPRECATED until the command will be removed eventually.
  */
 int HAMLIB_API rig_get_trn(RIG *rig, int *trn)
 {
@@ -609,7 +604,6 @@ int HAMLIB_API rig_get_trn(RIG *rig, int *trn)
     RETURNFUNC(-RIG_EDEPRECATED);
 }
 
-#if defined(HAVE_PTHREAD)
 int rig_fire_freq_event(RIG *rig, vfo_t vfo, freq_t freq)
 {
     ENTERFUNC;
@@ -648,9 +642,7 @@ int rig_fire_freq_event(RIG *rig, vfo_t vfo, freq_t freq)
 
     RETURNFUNC(0);
 }
-#endif
 
-#if defined(HAVE_PTHREAD)
 int rig_fire_mode_event(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 {
     ENTERFUNC;
@@ -676,10 +668,8 @@ int rig_fire_mode_event(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 
     RETURNFUNC(0);
 }
-#endif
 
 
-#if defined(HAVE_PTHREAD)
 int rig_fire_vfo_event(RIG *rig, vfo_t vfo)
 {
     struct rig_cache *cachep = CACHE(rig);
@@ -699,10 +689,8 @@ int rig_fire_vfo_event(RIG *rig, vfo_t vfo)
 
     RETURNFUNC(0);
 }
-#endif
 
 
-#if defined(HAVE_PTHREAD)
 int rig_fire_ptt_event(RIG *rig, vfo_t vfo, ptt_t ptt)
 {
     struct rig_cache *cachep = CACHE(rig);
@@ -723,10 +711,8 @@ int rig_fire_ptt_event(RIG *rig, vfo_t vfo, ptt_t ptt)
 
     RETURNFUNC(0);
 }
-#endif
 
 
-#if defined(HAVE_PTHREAD)
 int rig_fire_dcd_event(RIG *rig, vfo_t vfo, dcd_t dcd)
 {
     ENTERFUNC;
@@ -743,10 +729,8 @@ int rig_fire_dcd_event(RIG *rig, vfo_t vfo, dcd_t dcd)
 
     RETURNFUNC(0);
 }
-#endif
 
 
-#if defined(HAVE_PTHREAD)
 int rig_fire_pltune_event(RIG *rig, vfo_t vfo, freq_t *freq, rmode_t *mode,
                           pbwidth_t *width)
 {
@@ -764,10 +748,8 @@ int rig_fire_pltune_event(RIG *rig, vfo_t vfo, freq_t *freq, rmode_t *mode,
 
     RETURNFUNC(RIG_OK);
 }
-#endif
 
 
-#if defined(HAVE_PTHREAD)
 static int print_spectrum_line(char *str, size_t length,
                                struct rig_spectrum_line *line)
 {
@@ -825,10 +807,8 @@ static int print_spectrum_line(char *str, size_t length,
 
     return c;
 }
-#endif
 
 
-#if defined(HAVE_PTHREAD)
 int rig_fire_spectrum_event(RIG *rig, struct rig_spectrum_line *line)
 {
     ENTERFUNC;
@@ -850,6 +830,5 @@ int rig_fire_spectrum_event(RIG *rig, struct rig_spectrum_line *line)
 
     RETURNFUNC(RIG_OK);
 }
-#endif
 
 /** @} */

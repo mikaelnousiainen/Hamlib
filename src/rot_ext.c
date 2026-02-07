@@ -38,13 +38,13 @@
  * rotator" of Hamlib.
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdio.h>   /* Standard input/output definitions */
 #include <string.h>  /* String function definitions */
 
-#include <hamlib/rig.h>
-#include <hamlib/rotator.h>
+#include "hamlib/rig.h"
+#include "hamlib/rotator.h"
 
 #include "token.h"
 
@@ -87,7 +87,7 @@ static int rot_has_ext_token(ROT *rot, hamlib_token_t token)
  * value** which means an abnormal end.
  *
  * \retval RIG_OK All extension functions elements successfully processed.
- * \retval RIG_EINVAL \a rot or \a cfunc is NULL or inconsistent.
+ * \retval -RIG_EINVAL \a rot or \a cfunc is NULL or inconsistent.
  */
 int HAMLIB_API rot_ext_func_foreach(ROT *rot,
                                     int (*cfunc)(ROT *,
@@ -143,7 +143,7 @@ int HAMLIB_API rot_ext_func_foreach(ROT *rot,
  * **negative value** which means an abnormal end.
  *
  * \retval RIG_OK All extension levels elements successfully processed.
- * \retval RIG_EINVAL \a rot or \a cfunc is NULL or inconsistent.
+ * \retval -RIG_EINVAL \a rot or \a cfunc is NULL or inconsistent.
  */
 int HAMLIB_API rot_ext_level_foreach(ROT *rot,
                                      int (*cfunc)(ROT *,
@@ -199,7 +199,7 @@ int HAMLIB_API rot_ext_level_foreach(ROT *rot,
  * **negative value** which means an abnormal end.
  *
  * \retval RIG_OK All extension parameters elements successfully processed.
- * \retval RIG_EINVAL \a rot or \a cfunc is NULL or inconsistent.
+ * \retval -RIG_EINVAL \a rot or \a cfunc is NULL or inconsistent.
  */
 int HAMLIB_API rot_ext_parm_foreach(ROT *rot,
                                     int (*cfunc)(ROT *,
@@ -362,7 +362,7 @@ const struct confparams *HAMLIB_API rot_ext_lookup_tok(ROT *rot,
  * \note As this function calls rot_ext_lookup(), it can be considered a
  * higher level API.
  *
- * \return The token ID or RIG_CONF_END if there is a lookup failure.
+ * \return The token ID or #RIG_CONF_END if there is a lookup failure.
  *
  * \sa rot_ext_lookup()
  */

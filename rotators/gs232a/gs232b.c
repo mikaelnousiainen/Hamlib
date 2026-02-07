@@ -29,6 +29,8 @@
 #include <math.h>
 
 #include "hamlib/rotator.h"
+#include "hamlib/port.h"
+#include "hamlib/rot_state.h"
 #include "serial.h"
 #include "misc.h"
 #include "idx_builtin.h"
@@ -46,7 +48,7 @@
  * cmdstr - Command to be sent to the rig.
  * data - Buffer for reply string.  Can be NULL, indicating that no reply is
  *        is needed, but answer will still be read.
- * data_len - in: Size of buffer. It is the caller's responsibily to provide
+ * data_len - in: Size of buffer. It is the caller's responsibility to provide
  *            a large enough buffer for all possible replies for a command.
  *
  * returns:
@@ -292,10 +294,10 @@ static int gs232b_rot_set_level(ROT *rot, setting_t level, value_t val)
 
     switch (level)
     {
-        int retval;
 
     case ROT_LEVEL_SPEED:
     {
+        int retval;
         int speed = val.i;
 
         if (speed < 1)
@@ -308,7 +310,7 @@ static int gs232b_rot_set_level(ROT *rot, setting_t level, value_t val)
         }
 
         /* between 1 (slowest) and 4 (fastest) */
-        SNPRINTF(cmdstr, sizeof(cmdstr), "X%u" EOM, speed);
+        SNPRINTF(cmdstr, sizeof(cmdstr), "X%d" EOM, speed);
         retval = gs232b_transaction(rot, cmdstr, NULL, 0, 1);
 
         if (retval != RIG_OK)

@@ -22,16 +22,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
-#include "config.h"
+#include "hamlib/config.h"
 
 #ifdef HAVE_DLFCN_H
 #  include <dlfcn.h>
 #endif
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 
 #include "winradio.h"
 #include "linradio/wrg313api.h"

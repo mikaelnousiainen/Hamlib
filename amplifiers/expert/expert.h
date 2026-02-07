@@ -27,9 +27,8 @@
 #ifndef _AMP_EXPERT_H
 #define _AMP_EXPERT_H 1
 
-#include <hamlib/amplifier.h>
-#include <iofunc.h>
-#include <serial.h>
+#include "hamlib/amplifier.h"
+#include "iofunc.h"
 
 #define EXPERTBUFSZ 128
 

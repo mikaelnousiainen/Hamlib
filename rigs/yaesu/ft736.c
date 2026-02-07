@@ -24,10 +24,9 @@
 #include <stdlib.h>
 
 #include "hamlib/rig.h"
-#include "serial.h"
+#include "iofunc.h"
 #include "misc.h"
 #include "yaesu.h"
-#include "tones.h"
 #include "cache.h"
 
 #define FT736_MODES (RIG_MODE_CW|RIG_MODE_SSB|RIG_MODE_FM|RIG_MODE_FMN|RIG_MODE_CWN)

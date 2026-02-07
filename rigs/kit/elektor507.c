@@ -19,7 +19,7 @@
  *
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -29,7 +29,7 @@
 
 #ifdef _WIN32
 #define USE_FTDI_DLL
-#elif defined(HAVE_LIBUSB) && (defined(HAVE_LIBUSB_H) || defined(HAVE_LIBUSB_1_0_LIBUSB_H))
+#elif defined(HAVE_LIBUSB)
 #define USE_LIBUSB
 #endif
 
@@ -148,13 +148,8 @@ struct elektor507_extra_priv_data
 #elif defined(USE_LIBUSB)
 
 
-#include <errno.h>
-
-#ifdef HAVE_LIBUSB_H
+// LIBUSB_CFLAGS set by pkg-config should set the include path appropriately.
 # include <libusb.h>
-#elif defined HAVE_LIBUSB_1_0_LIBUSB_H
-# include <libusb-1.0/libusb.h>
-#endif
 
 
 #define USB_VID_FTDI        0x0403  /* Future Technology Devices International */
@@ -549,7 +544,7 @@ int elektor507_ftdi_write_data(RIG *rig, void *FTOutBuf,
  * Original article:
  * http://www.elektor.com/magazines/2007/may/software-defined-radio.91527.lynkx
  *
- * Author (Burkhard Kainka) page, in german:
+ * Author (Burkhard Kainka) page, in German:
  * http://www.b-kainka.de/sdrusb.html
  */
 
@@ -837,7 +832,7 @@ static void find_P_Q_DIV1N(struct elektor507_priv_data *priv, freq_t freq)
      * P:8..2055, best 16..1023 (because of Pump)
 
        For stable operation:
-       + REF/Qtotal must not fall below 250kHz (
+       + REF/Qtotal must not fall below 250 kHz (
        + P*(REF/Qtotal) must not be above 400 MHz or below 100 MHz
       */
 #if 1
@@ -886,7 +881,7 @@ static void find_P_Q_DIV1N(struct elektor507_priv_data *priv, freq_t freq)
      * P:8..2055, best 16..1023 (because of Pump)
 
        For stable operation:
-       + REF/Qtotal must not fall below 250kHz (
+       + REF/Qtotal must not fall below 250 kHz (
        + P*(REF/Qtotal) must not be above 400 MHz or below 100 MHz
       */
 #if 1
@@ -978,7 +973,7 @@ static void find_P_Q_DIV1N(
     double newdelta, delta = fabs((priv->P * (Ref / priv->Q) / priv->Div1N) -
                                   freq4);
 
-    /* For stable operation: Ref/Qtotal must not fall below 250kHz */
+    /* For stable operation: Ref/Qtotal must not fall below 250 kHz */
     /* Qmax = (int) ( Ref / 250000); */
     for (Qtotal = 2; Qtotal <= Qmax; Qtotal++)
     {

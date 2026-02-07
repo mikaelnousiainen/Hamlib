@@ -1,7 +1,7 @@
 /*
  *  Hamlib Interface - amplifier func/level/parm
  *  Copyright (c) 2000-2010 by Stephane Fillod
- *  Copyright (c) 2020-2024 by Mikael Nousiainen
+ *  Copyright (c) 2026 by Mikael Nousiainen OH3BHX
  *
  *
  *   This library is free software; you can redistribute it and/or
@@ -33,16 +33,17 @@
  *
  * \author Stephane Fillod
  * \date 2000-2010
- * \author Mikael Nousiainen
- * \date 2020-2024
+ * \author Mikael Nousiainen OH3BHX
+ * \date 2026
  *
  * This Hamlib interface is a frontend implementing wrapper functions.
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
-#include <hamlib/rig.h>
-#include <hamlib/amplifier.h>
+#include "hamlib/rig.h"
+#include "hamlib/amplifier.h"
+#include "hamlib/amp_state.h"
 
 #define CHECK_AMP_ARG(a) (!(a) || !(a)->caps || !(a)->state.comm_state)
 

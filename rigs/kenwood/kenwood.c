@@ -30,6 +30,8 @@
 #include <ctype.h>
 
 #include "hamlib/rig.h"
+#include "hamlib/port.h"
+#include "hamlib/rig_state.h"
 #include "serial.h"
 #include "register.h"
 #include "cal.h"
@@ -231,7 +233,13 @@ struct confparams kenwood_cfg_params[] =
     { RIG_CONF_END, NULL, }
 };
 
-int remove_nonprint(char *s)
+// This function removes non-printable characters from a buffer. This was
+// implemented to work around a problem reported with the uSDX transceiver
+// [1], which emulates the Kenwood TS-480 but apparently generates garbage
+// on the serial port in some situations.
+//
+// [1]: https://github.com/Hamlib/Hamlib/issues/1652
+static int remove_nonprint(char *s)
 {
     int i, j = 0;
     if (s == NULL) return 0;
@@ -258,7 +266,7 @@ int remove_nonprint(char *s)
  *        indicating that only a reply is needed (nothing will be sent).
  * data:    Buffer for reply string.  Can be NULL, indicating that no reply
  *        is needed and will return with RIG_OK after command was sent.
- * datasize: Size of buffer. It is the caller's responsibily to provide
+ * datasize: Size of buffer. It is the caller's responsibility to provide
  *         a large enough buffer for all possible replies for a command.
  *
  * returns:
@@ -278,6 +286,7 @@ int kenwood_transaction(RIG *rig, const char *cmdstr, char *data,
     int retval = -RIG_EINTERNAL;
     char *cmd;
     int len;
+    int resp_len;  // Response length
     int retry_read = 0;
     struct kenwood_priv_data *priv = STATE(rig)->priv;
     struct kenwood_priv_caps *caps = kenwood_caps(rig);
@@ -392,6 +401,7 @@ transaction_write:
         skip |= strncmp(cmdstr, "RD", 2) == 0;
         skip |= strncmp(cmdstr, "KYW", 3) == 0;
         skip |= strncmp(cmdstr, "KY ", 3) == 0;
+        skip |= strncmp(cmdstr, "KY0", 3) == 0;
         skip |= strncmp(cmdstr, "KY2", 3) == 0;
         skip |= strncmp(cmdstr, "PS1", 3) == 0;
         skip |= strncmp(cmdstr, "PS0", 3) == 0;
@@ -400,7 +410,8 @@ transaction_write:
         if (skip)
         {
             // most command we give them a little time -- but not KY
-            if (strncmp(cmdstr, "KY ", 3) != 0 && strncmp(cmdstr, "KY2", 3) != 0)
+            if (strncmp(cmdstr, "KY", 2) != 0 || (cmdstr[2] != ' ' && cmdstr[2] != '0'
+						&& cmdstr[2] != '2'))
             {
                 hl_usleep(200 * 1000);    // give little settle time for these commands
             }
@@ -422,8 +433,8 @@ transaction_write:
         /* no reply expected so we need to write a command that always
            gives a reply so we can read any error replies from the actual
            command being sent without blocking */
-        if (RIG_OK != (retval = write_block(rp,
-                                            (unsigned char *) priv->verify_cmd, strlen(priv->verify_cmd))))
+        if (RIG_OK != (retval = write_block(rp, (unsigned char *)priv->verify_cmd,
+                                            priv->verify_cmd_len)))
         {
             goto transaction_quit;
         }
@@ -434,16 +445,14 @@ transaction_read:
     // this len/expected stuff is confusing -- logic in some places includes the semicolon
     // so we add 1 to our read_string length to cover these cases
     // eventually we should be able to get rid of this but requires testing all Kenwood rigs
-    len = min(datasize ? datasize + 1 : strlen(priv->verify_cmd) + 48,
+    len = min(datasize ? datasize + 1 : priv->verify_cmd_len + 48,
               KENWOOD_MAX_BUF_LEN);
     retval = read_string(rp, (unsigned char *) buffer, len,
                          cmdtrm_str, strlen(cmdtrm_str), 0, 1);
     rig_debug(RIG_DEBUG_TRACE, "%s: read_string len=%d '%s'\n", __func__,
               (int)strlen(buffer), buffer);
 
-    // this fixes the case when some corrupt data is returned
-    // let's us be a little more robust about funky serial data
-    remove_nonprint(buffer);
+    resp_len = retval;
 
     if (retval < 0)
     {
@@ -477,10 +486,19 @@ transaction_read:
         goto transaction_quit;
     }
 
-    /* Check that command termination is correct */
-    if (strchr(cmdtrm_str, buffer[strlen(buffer) - 1]) == NULL)
+    // This fixes the case when some corrupt data is returned; it lets us be a
+    // little more robust about funky serial data. If the terminator is
+    // printable(usually ';'), then there should be no nonprintables in the
+    // message; if it isn't (usually '\r') then don't touch the message.
+    if (isprint(caps->cmdtrm))
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: Command is not correctly terminated '%s'\n",
+        resp_len = remove_nonprint(buffer);
+    }
+
+    /* Check that command termination is correct */
+    if (resp_len < 1 || strchr(cmdtrm_str, buffer[resp_len - 1]) == NULL)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: Response is not correctly terminated '%s'\n",
                   __func__, buffer);
 
         if (retry_read++ < rp->retry)
@@ -492,7 +510,7 @@ transaction_read:
         goto transaction_quit;
     }
 
-    if (strlen(buffer) == 2)
+    if (resp_len == 2)
     {
         switch (buffer[0])
         {
@@ -543,12 +561,13 @@ transaction_read:
         case '?':
 
             /* The ? response is an ambiguous response, but for get commands it seems to
-             * indicate that the rig rejected the command because the state of the rig is not valid for the command
-             * or that the command parameter is invalid. Retrying the command does not fix the issue,
-             * as the error is caused by the an invalid combination of rig state.
+             * indicate that the rig rejected the command because the state of the rig is
+             * not valid for the command or that the command parameter is invalid.
+             * Retrying the command does not fix the issue, as the error is caused by
+             * the invalid combination of command and rig state.
              *
              * For example, the following cases have been observed:
-             * - NL (NB level) and RL (NR level) commands fail if NB / NR are not enabled on TS-590SG
+             * - NL(NB level) and RL(NR level) commands fail if NB/NR are not enabled on TS-590SG
              * - SH and SL (filter width) fail in CW mode on TS-590SG
              * - GT (AGC) fails in FM mode on TS-590SG
              *
@@ -632,7 +651,7 @@ transaction_read:
         {
             /* move the result excluding the command terminator into the
                caller buffer */
-            len = min(datasize, retval) - 1;
+            len = min(datasize, resp_len) - 1;
             strncpy(data, buffer, len);
             data[len] = '\0';
         }
@@ -664,19 +683,13 @@ transaction_read:
              * the decoder for callback. That way we don't ignore any
              * commands.
              */
-            // if we got FA or FB unexpectedly then perhaps RIG_TRN is enabled and we just need to handle it
-            if (strncmp(buffer, "FA", 2) == 0)
+            // If we got FA or FB unexpectedly then perhaps RIG_TRN is enabled
+            //    and we just need to handle it
+            if (buffer[0] == 'F' && (buffer[1] == 'A' || buffer[1] == 'B'))
             {
                 freq_t freq;
-                sscanf(buffer, "FA%lg", &freq);
-                rig_set_cache_freq(rig, RIG_VFO_A, freq);
-                goto transaction_read;
-            }
-            else if (strncmp(buffer, "FB", 2) == 0)
-            {
-                freq_t freq;
-                sscanf(buffer, "FB%lg", &freq);
-                rig_set_cache_freq(rig, RIG_VFO_B, freq);
+                sscanf(buffer + 2, "%lg", &freq);
+                rig_set_cache_freq(rig, buffer[1] == 'A' ? RIG_VFO_A : RIG_VFO_B, freq);
                 goto transaction_read;
             }
 
@@ -694,9 +707,9 @@ transaction_read:
         }
     }
 
-    retval = RIG_OK;
-    rig_debug(RIG_DEBUG_TRACE, "%s: returning RIG_OK, retval=%d\n", __func__,
+    rig_debug(RIG_DEBUG_TRACE, "%s: returning RIG_OK, retval was %d\n", __func__,
               retval);
+    retval = RIG_OK;
 
 transaction_quit:
 
@@ -719,7 +732,7 @@ transaction_quit:
  *
  * Parameters:
  *  cmd     Same as kenwood_transaction() cmdstr
- *  buf     Same as kenwwod_transaction() data
+ *  buf     Same as kenwood_transaction() data
  *  buf_size  Same as kenwood_transaction() datasize
  *  expected  Value of expected string length
  *
@@ -768,7 +781,7 @@ int kenwood_safe_transaction(RIG *rig, const char *cmd, char *buf,
         if (checklen && length != expected) /* worth retrying as some rigs
                                    occasionally send short results */
         {
-            // QRPLABS can't seem top decide if they give 37 or 38 bytes for IF command
+            // QRPLABS can't seem to decide if they give 37 or 38 bytes for IF command
             if (strncmp(cmd, "IF", 2) == 0 && rig->caps->rig_model == RIG_MODEL_QRPLABS) { break; }
 
             struct kenwood_priv_data *priv = STATE(rig)->priv;
@@ -827,25 +840,25 @@ int kenwood_init(RIG *rig)
 {
     struct kenwood_priv_data *priv;
     struct kenwood_priv_caps *caps = kenwood_caps(rig);
+    struct rig_state *rs = STATE(rig);
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called, version %s/%s\n", __func__,
               BACKEND_VER, rig->caps->version);
 
-    STATE(rig)->priv = calloc(1, sizeof(struct kenwood_priv_data));
+    rs->priv = calloc(1, sizeof(struct kenwood_priv_data));
 
-    if (STATE(rig)->priv == NULL)
+    if (rs->priv == NULL)
     {
         RETURNFUNC2(-RIG_ENOMEM);
     }
 
-    priv = STATE(rig)->priv;
-
-    memset(priv, 0x00, sizeof(struct kenwood_priv_data));
+    priv = rs->priv;
 
     if (RIG_IS_XG3)
     {
         priv->verify_cmd[0] = caps->cmdtrm;
         priv->verify_cmd[1] = '\0';
+        priv->verify_cmd_len = 1;
     }
     else
     {
@@ -853,6 +866,7 @@ int kenwood_init(RIG *rig)
         priv->verify_cmd[1] = 'D';
         priv->verify_cmd[2] = caps->cmdtrm;
         priv->verify_cmd[3] = '\0';
+        priv->verify_cmd_len = 3;
     }
 
     priv->split = RIG_SPLIT_OFF;
@@ -892,6 +906,47 @@ int kenwood_init(RIG *rig)
     if (rig->caps->rig_model == RIG_MODEL_SDRUNO)
     {
         kenwood_mode_table[8] = RIG_MODE_PKTUSB;
+    }
+
+    /* Set up voice memory parameters */
+    priv->voice_mem_max = -1;
+    for (int i = 0; i < HAMLIB_CHANLSTSIZ && !RIG_IS_CHAN_END(rs->chan_list[i]); i++)
+    {
+        if (rs->chan_list[i].type == RIG_MTYPE_VOICE)
+        {
+            priv->voice_mem_min = rs->chan_list[i].startc;
+            priv->voice_mem_max = rs->chan_list[i].endc;
+        }
+        /* Do morse mem here */
+    }
+    if (priv->voice_mem_max > 0)
+    {
+        if (RIG_IS_TS890S || RIG_IS_TS990S)
+        {
+            /* The PB01 command displays the 'Voice Message List', and we don't turn it off;
+               turning it off also cancels the message(stupid firmware!), so it has to be on
+               for the duration.
+               Maybe someday there'll be a better way, but for now, if it bothers you just hit
+               the ESC button(bottom left)
+             */
+            priv->voice_mem_start = "PB01;PB1%d5";
+            priv->voice_mem_stop = "PB1%d0";
+        }
+        else if (RIG_IS_K3 || RIG_IS_K3S || RIG_IS_KX3)
+        {
+            //priv->voice_mem_start = NULL;
+            priv->voice_mem_stop = "SWT37";
+        }
+        else if (RIG_IS_K4)
+        {
+            priv->voice_mem_start = "DAMP%d00000";
+            priv->voice_mem_stop = "DA0";
+        }
+        else
+        {
+            priv->voice_mem_start = "PB%d";
+            priv->voice_mem_stop = "PB0";
+        }
     }
 
     RETURNFUNC2(RIG_OK);
@@ -1038,6 +1093,7 @@ int kenwood_open(RIG *rig)
         priv->verify_cmd[1] = 'A';
         priv->verify_cmd[2] = caps->cmdtrm;
         priv->verify_cmd[3] = '\0';
+        priv->verify_cmd_len = 3;
         strcpy(id, "ID019");      /* fake a TS-2000 */
     }
     else
@@ -1421,7 +1477,7 @@ int kenwood_set_vfo(RIG *rig, vfo_t vfo)
             break;
 
         default:
-            rig_debug(RIG_DEBUG_ERR, "%s: unhandled VFO=%s, deafaulting to VFOA\n",
+            rig_debug(RIG_DEBUG_ERR, "%s: unhandled VFO=%s, defaulting to VFOA\n",
                       __func__, rig_strvfo(priv->tx_vfo));
 
         }
@@ -1911,7 +1967,7 @@ int kenwood_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
         if (RIG_OK != err) { RETURNFUNC2(err); }
     }
 
-    // Malchite is so slow we don't do the get_freq
+    // Malachite is so slow we don't do the get_freq
     // And when we have detected Doppler operations we just set the freq all the time
     // This should provide stable timing for set_ptt operation so relay delays are consistent
     if (!RIG_IS_MALACHITE && STATE(rig)->doppler == 0)
@@ -2258,7 +2314,7 @@ int kenwood_set_rit(RIG *rig, vfo_t vfo, shortfreq_t rit)
     {
         SNPRINTF(buf, sizeof(buf), "R%c", (rit > 0) ? 'U' : 'D');
         diff = labs(((curr_rit - rit) + (curr_rit - rit) >= 0 ? 5 : -5) /
-                    10); // round to nearest 10Hz
+                    10); // round to nearest 10 Hz
         rig_debug(RIG_DEBUG_TRACE, "%s: rit=%ld, curr_rit=%ld, diff=%d\n", __func__,
                   rit, curr_rit, diff);
         rig_debug(RIG_DEBUG_TRACE, "%s: rit change loop=%d\n", __func__, diff);
@@ -2283,7 +2339,7 @@ int kenwood_set_rit_new(RIG *rig, vfo_t vfo, shortfreq_t rit)
     char rdbuf[10];
 
     ENTERFUNC;
-    if (abs(rit) > 9999) { RETURNFUNC(-RIG_EINVAL); }
+    if (labs(rit) > 9999) { RETURNFUNC(-RIG_EINVAL); }
     retval = kenwood_get_rit_new(rig, vfo, &oldrit);
     if (retval != RIG_OK) { RETURNFUNC(retval); }
     if (rit == oldrit)  // if the new value is the same
@@ -5573,6 +5629,14 @@ int kenwood_send_morse(RIG *rig, vfo_t vfo, const char *msg)
             SNPRINTF(morsebuf, sizeof(morsebuf), "KY %s", m2);
             break;
 
+        case RIG_MODEL_TS590S:
+        //??case RIG_MODEL_TS590SG:
+            /* The command must consist of 28 bytes right aligned.
+             * See https://github.com/Hamlib/Hamlib/issues/1634
+             */
+            SNPRINTF(morsebuf, sizeof(morsebuf), "KY %24s", m2);
+            break;
+
         case RIG_MODEL_TS890S:
             SNPRINTF(morsebuf, sizeof morsebuf, "KY2%s", m2);
             break;
@@ -5585,12 +5649,7 @@ int kenwood_send_morse(RIG *rig, vfo_t vfo, const char *msg)
                 SNPRINTF(morsebuf, sizeof morsebuf, "KY2%s", m2);
                 break;
             }
-            /* FALL THROUGH */
-
-          case RIG_MODEL_TS590S:
-            /* the command must consist of 28 bytes right aligned */
-              SNPRINTF(morsebuf, sizeof(morsebuf), "KY %24s", m2);
-	            break;
+            HL_FALLTHROUGH
 
         default:
             /* the command must consist of 28 bytes 0x20 padded */
@@ -5627,43 +5686,19 @@ int kenwood_stop_morse(RIG *rig, vfo_t vfo)
  */
 int kenwood_send_voice_mem(RIG *rig, vfo_t vfo, int bank)
 {
-    char cmd[16];
+    char cmd[32];
     struct kenwood_priv_data *priv = STATE(rig)->priv;
     ENTERFUNC;
 
-#if 0 // don't really need to turn on the list
-    SNPRINTF(cmd, sizeof(cmd), "PB01");
-    kenwood_transaction(rig, cmd, NULL, 0);
-#endif
-
-    if ((bank < 1 || bank > 3) &&
-            (rig->caps->rig_model == RIG_MODEL_TS2000
-             || rig->caps->rig_model == RIG_MODEL_TS480))
+    if (bank < priv->voice_mem_min || bank > priv->voice_mem_max)
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: TS2000/TS480 channel is from 1 to 3\n", __func__);
+        rig_debug(RIG_DEBUG_ERR, "%s: Voice channels from %d to %d, %d out of range\n", __func__,
+                  (int)priv->voice_mem_min, (int)priv->voice_mem_max, bank);
         RETURNFUNC(-RIG_EINVAL);
     }
 
-    // some rigs have 5 channels -- newew ones  have 10 channels
-    if ((bank  < 1 || bank > 5)
-            && (rig->caps->rig_model == RIG_MODEL_TS590SG
-                || rig->caps->rig_model == RIG_MODEL_TS590S))
-    {
-        rig_debug(RIG_DEBUG_ERR, "%s: TS590S/SG channel is from 1 to 5\n", __func__);
-        RETURNFUNC(-RIG_EINVAL);
-    }
-
-    if (rig->caps->rig_model == RIG_MODEL_TS2000
-            || (rig->caps->rig_model == RIG_MODEL_TS480
-                || (rig->caps->rig_model == RIG_MODEL_TS590SG
-                    || rig->caps->rig_model == RIG_MODEL_TS590S)))
-    {
-        SNPRINTF(cmd, sizeof(cmd), "PB%d", bank);
-    }
-    else
-    {
-        SNPRINTF(cmd, sizeof(cmd), "PB1%d1", bank);
-    }
+    if (!priv->voice_mem_start) { RETURNFUNC(-RIG_EINTERNAL); }
+    SNPRINTF(cmd, sizeof(cmd), priv->voice_mem_start, bank);
 
     priv->voice_bank = bank;
     RETURNFUNC(kenwood_transaction(rig, cmd, NULL, 0));
@@ -5671,21 +5706,14 @@ int kenwood_send_voice_mem(RIG *rig, vfo_t vfo, int bank)
 
 int kenwood_stop_voice_mem(RIG *rig, vfo_t vfo)
 {
-    char cmd[16];
-    struct kenwood_priv_data *priv = STATE(rig)->priv;
+    char cmd[32];
+    const struct kenwood_priv_data *priv = STATE(rig)->priv;
     ENTERFUNC;
 
-    if (rig->caps->rig_model == RIG_MODEL_TS2000
-            || (rig->caps->rig_model == RIG_MODEL_TS480
-                || (rig->caps->rig_model == RIG_MODEL_TS590SG
-                    || rig->caps->rig_model == RIG_MODEL_TS590S)))
-    {
-        SNPRINTF(cmd, sizeof(cmd), "PB0");
-    }
-    else
-    {
-        SNPRINTF(cmd, sizeof(cmd), "PB1%d0", priv->voice_bank);
-    }
+    if (!priv->voice_mem_stop) { RETURNFUNC(-RIG_EINTERNAL); }
+
+    // priv->voice_bank may be unused
+    SNPRINTF(cmd, sizeof(cmd), priv->voice_mem_stop, priv->voice_bank);
 
     RETURNFUNC(kenwood_transaction(rig, cmd, NULL, 0));
 }

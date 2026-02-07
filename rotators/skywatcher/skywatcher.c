@@ -21,8 +21,10 @@
 
 #include <stdlib.h>
 #include "skywatcher.h"
+#include "hamlib/port.h"
+#include "hamlib/rot_state.h"
 #include "register.h"
-#include "serial.h"
+#include "iofunc.h"
 
 #define SKYWATCHER_ERROR_CODES_LENGTH 9
 #define ERROR_CHECK(x)           \
@@ -58,22 +60,25 @@ static int skywatcher_cmd(ROT *rot, const char *cmd, char *response,
     rig_flush(port);
     size_t cmd_len = strlen(cmd);
     ERROR_CHECK(write_block(port, (unsigned char *) cmd, cmd_len));
-    // echo from the device
+    // Some firmwares echo the commands and some don't, so this may be the echo
+    // of the command sent above or the response
     int code = read_string(port, (unsigned char *) response, response_len, "\r", 1,
                            0, 1);
 
     if (code < 0)
     {
-        return -code;
+        return code;
     }
 
-    // the actual response
-    code = read_string(port, (unsigned char *) response, response_len, "\r", 1, 0,
+    // If we got echo from the device, then get the actual response
+    if (response[0] == ':') {
+        code = read_string(port, (unsigned char *) response, response_len, "\r", 1, 0,
                        1);
 
-    if (code < 0)
-    {
-        return -code;
+        if (code < 0)
+        {
+            return code;
+        }
     }
 
     // nullify last \r
@@ -93,7 +98,7 @@ static int skywatcher_cmd(ROT *rot, const char *cmd, char *response,
             rig_debug(RIG_DEBUG_ERR, "Error response: '%s'\n", response);
         }
 
-        return RIG_EPROTO;
+        return -RIG_EPROTO;
     }
 
     // remove leading '='
@@ -204,7 +209,7 @@ int skywatcher_set_motor_position(ROT *rot, int motor_index, float angle)
         if (status & 0b10)
         {
             rig_debug(RIG_DEBUG_ERR, "%s: motor is blocked\n", __func__);
-            return RIG_EPROTO;
+            return -RIG_EPROTO;
         }
 
         if (status & 0b1)
@@ -221,7 +226,7 @@ int skywatcher_set_motor_position(ROT *rot, int motor_index, float angle)
 
     if (!stopped)
     {
-        return RIG_EPROTO;
+        return -RIG_EPROTO;
     }
 
     SNPRINTF(req, sizeof(req), ":G%d00\r", motor_index);
@@ -289,7 +294,7 @@ const struct rot_caps skywatcher_rot_caps =
     ROT_MODEL(ROT_MODEL_SKYWATCHER),
     .model_name =     "Sky-Watcher",
     .mfg_name =       "Sky-Watcher",
-    .version =        "20240825.0",
+    .version =        "20251221.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rot_type =       ROT_TYPE_AZEL,

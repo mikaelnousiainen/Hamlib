@@ -23,11 +23,6 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 /**
- * \addtogroup rig
- * @{
- */
-
-/**
  * \file src/rig.c
  * \brief Ham Radio Control Libraries interface
  * \author Stephane Fillod
@@ -50,20 +45,24 @@
  * \example ../tests/testrig.c
  */
 
-#include "hamlib/rig.h"
+/**
+ * \addtogroup rig
+ * @{
+ */
+
 #include "hamlib/config.h"
+#include "hamlib/rig.h"
+#include "hamlib/port.h"
+#include "hamlib/rig_state.h"
 #include "fifo.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <errno.h>
-#include "mutex.h"
 
-#include <hamlib/rig.h>
+#include "mutex.h"
 #include "serial.h"
 #include "parallel.h"
 #include "network.h"
@@ -76,18 +75,21 @@
 #include "cache.h"
 
 /**
- * \brief Hamlib release number
- *
- * The version number has the format x.y.z
+ * \brief Hamlib short license name
  */
+const char *hamlib_license = "LGPL";
+
 /*
  * Careful: The hamlib 1.2 ABI implicitly specifies a size of 21 bytes for
  * the hamlib_version string.  Changing the size provokes a warning from the
  * dynamic loader.
+ *
+ * TODO: Remove and replace by hamlib_version2 for Hamlib 5.
  */
-const char *hamlib_license = "LGPL";
+
 //! @cond Doxygen_Suppress
 const char hamlib_version[21] = "Hamlib " PACKAGE_VERSION;
+
 #if INTPTR_MAX == INT128_MAX
 #define ARCHBITS "128-bit"
 #elif INTPTR_MAX == INT64_MAX
@@ -95,14 +97,26 @@ const char hamlib_version[21] = "Hamlib " PACKAGE_VERSION;
 #else
 #define ARCHBITS "32-bit"
 #endif
-const char *hamlib_version2 = "Hamlib " PACKAGE_VERSION " " HAMLIBDATETIME " "
-                              ARCHBITS;
+//! @endcond
+
+/**
+ * \brief Hamlib version string.
+ *
+ * The version number has the format x.y.z where:
+ * - *x* is a major version that indicates API/ABI changes from prior major versions
+ * - *y* is a minor version that indicates new device support
+ * - *z* is a point version that indicates bug fixes only
+ * - `PACKAGE_VERSION` is set in `configure.ac`.
+ * - `HAMLIBDATETIME` is generated at build time.
+ * - `ARCHBITS` is derived from tests of the build platform.
+ */
+const char *hamlib_version2 = "Hamlib " PACKAGE_VERSION " " HAMLIBDATETIME " " ARCHBITS;
+
 HAMLIB_EXPORT_VAR(int) cookie_use;
 HAMLIB_EXPORT_VAR(int) skip_init;
 HAMLIB_EXPORT_VAR(int) lock_mode; // for use by rigctld
 HAMLIB_EXPORT_VAR(powerstat_t)
 rig_powerstat; // for use by both rigctld and rigctl
-//! @endcond
 
 struct rig_caps caps_test;
 
@@ -112,9 +126,10 @@ struct rig_caps caps_test;
 const char *hamlib_copyright2 =
     "Copyright (C) 2000-2012 Stephane Fillod\n"
     "Copyright (C) 2000-2003 Frank Singleton\n"
-    "Copyright (C) 2014-2020 Michael Black W9MDB\n"
+    "Copyright (C) 2014-2025 Michael Black W9MDB\n"
     "This is free software; see the source for copying conditions.  There is NO\n"
     "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.";
+
 //! @cond Doxygen_Suppress
 const char hamlib_copyright[231] = /* hamlib 1.2 ABI specifies 231 bytes */
     "Copyright (C) 2000-2012 Stephane Fillod\n"
@@ -124,8 +139,7 @@ const char hamlib_copyright[231] = /* hamlib 1.2 ABI specifies 231 bytes */
 //! @endcond
 
 
-#ifndef DOC_HIDDEN
-
+//! @cond Doxygen_Suppress
 #if defined(WIN32) && !defined(__CYGWIN__)
 #  define DEFAULT_SERIAL_PORT "\\\\.\\COM1"
 #elif BSD
@@ -171,15 +185,24 @@ const char hamlib_copyright[231] = /* hamlib 1.2 ABI specifies 231 bytes */
 
 #define ICOM_EXCEPTIONS (rig->caps->rig_model == RIG_MODEL_IC9700 || rig->caps->rig_model == RIG_MODEL_IC9100 || rig->caps->rig_model == RIG_MODEL_IC910)
 
+// If the OS/library supports it, use a recursive mutex for the main lock.
+// This eliminates depth races, and guards against multiple app threads, too.
+// Set define to 0 to use depth-based locking. It should be deduced from the
+//   environment, but I can't find a fine-grained enough parameter. Should be
+//   OK on any POSIX-2017 or later system.
+#define USE_RECURSIVE_MUTEX 1
+#if USE_RECURSIVE_MUTEX
+#define LOCK(n) rig_lock(rig,n)
+#else
 // The LOCK macro is for the primary thread calling the rig functions
 // For a separate thread use rig_lock directly
 // The purpose here is to avoid deadlock during recursion
 // Any other thread should grab the mutex itself via rig_lock
 #define LOCK(n) if (STATE(rig)->depth == 1) { rig_debug(RIG_DEBUG_CACHE, "%s: %s\n", n?"lock":"unlock", __func__);  rig_lock(rig,n); }
+#endif
 
 MUTEX(morse_mutex);
 
-#ifdef HAVE_PTHREAD
 // returns true if mutex is busy
 int MUTEX_CHECK(pthread_mutex_t *m)
 {
@@ -192,9 +215,6 @@ int MUTEX_CHECK(pthread_mutex_t *m)
 
     return trylock == EBUSY;
 }
-#else
-#define MUTEX_CHECK(var) 0
-#endif
 
 
 /*
@@ -206,11 +226,25 @@ struct opened_rig_l
     struct opened_rig_l *next;
 };
 static struct opened_rig_l *opened_rig_list = { NULL };
+//! @endcond
 
 
-/*
- * Careful, the order must be the same as their RIG_E* counterpart!
- * TODO: localise the messages..
+/* My intention was to add this to the internal documentation, but Daxygen
+ * up through version 1.14 resolutely refuses to include it without doing
+ * project-wide settings like ENABLE_STATIC=yes and HIDE_UNDOC_MEMBERS=yes.
+ *
+ * Perhaps one day.  Sigh...
+ */
+//! @cond hl_static
+/**
+ * @brief Plain text descriptions of Hamlib error codes.
+ *
+ * @ingroup lib_internal
+ *
+ * @note Careful, the order must be the same as their RIG_E* counterpart in
+ * rig_errcode_e and this structure must be kept in sync with rig_errcode_e!
+ *
+ * @todo Localise the messages.
  */
 static const char *const rigerror_table[] =
 {
@@ -238,11 +272,19 @@ static const char *const rigerror_table[] =
     "Limit exceeded",
     "Access denied"
 };
+//! @endcond
 
-
+/**
+ * @brief Convenience macro calculating `rigerror_table` size.
+ *
+ * @ingroup lib_internal
+ *
+ * Used to ensure access beyond the end of `rigerror_table` does
+ * not occur.
+ * */
 #define ERROR_TBL_SZ (sizeof(rigerror_table)/sizeof(char *))
 
-#if defined(HAVE_PTHREAD)
+//! @cond Doxygen_Suppress
 typedef struct async_data_handler_args_s
 {
     RIG *rig;
@@ -256,10 +298,8 @@ typedef struct async_data_handler_priv_data_s
 
 static int async_data_handler_start(RIG *rig);
 static int async_data_handler_stop(RIG *rig);
-void *async_data_handler(void *arg);
-#endif
+static void *async_data_handler(void *arg);
 
-#if defined(HAVE_PTHREAD)
 typedef struct morse_data_handler_args_s
 {
     RIG *rig;
@@ -269,15 +309,13 @@ typedef struct morse_data_handler_priv_data_s
 {
     pthread_t thread_id;
     morse_data_handler_args args;
-    volatile FIFO_RIG fifo_morse;
     int keyspd;
 } morse_data_handler_priv_data;
 
 static int morse_data_handler_start(RIG *rig);
 static int morse_data_handler_stop(RIG *rig);
 int morse_data_handler_set_keyspd(RIG *rig, int keyspd);
-void *morse_data_handler(void *arg);
-#endif
+static void *morse_data_handler(void *arg);
 
 /*
  * track which rig is opened (with rig_open)
@@ -330,6 +368,7 @@ static int remove_opened_rig(const RIG *rig)
 
     return (-RIG_EINVAL); /* Not found in list ! */
 }
+//! @endcond
 
 
 /**
@@ -366,8 +405,6 @@ int foreach_opened_rig(int (*cfunc)(RIG *, rig_ptr_t), rig_ptr_t data)
     return (RIG_OK);
 }
 
-#endif /* !DOC_HIDDEN */
-
 
 char debugmsgsave[DEBUGMSGSAVE_SIZE] = "";
 char debugmsgsave2[DEBUGMSGSAVE_SIZE] = ""; // deprecated
@@ -375,9 +412,20 @@ char debugmsgsave3[DEBUGMSGSAVE_SIZE] = ""; // deprecated
 
 MUTEX(mutex_debugmsgsave);
 
+
+/**
+ * @brief Handle stack trace messages.
+ * 
+ * @ingroup lib_internal
+ *
+ * Maintains an array of debug messages to build a stack trace of up to 20
+ * lines.
+ *
+ * @sa rigerror()
+ */
 void add2debugmsgsave(const char *s)
 {
-    char *p;
+    const char *p;
     char stmp[DEBUGMSGSAVE_SIZE];
     int i, nlines;
     int maxmsg = DEBUGMSGSAVE_SIZE / 2;
@@ -427,16 +475,19 @@ void add2debugmsgsave(const char *s)
     MUTEX_UNLOCK(mutex_debugmsgsave);
 }
 
+
 /**
- * \brief get string describing the error code
- * \param errnum    The error code
- * \return the appropriate description string, otherwise a NULL pointer
- * if the error code is unknown.
+ * \brief Get the string describing the passed error code.
  *
- * Returns a string describing the error code passed in the argument \a
- * errnum.
+ * Simple version of rigerror() as it only outputs a short predefined string.
  *
- * \todo support gettext/localization
+ * \param errnum The error code defined in #rig_errcode_e, e.g. RIG_OK.
+ *
+ * \return The matched description string from `rigerror_table`, otherwise
+ * `"ERR_OUT_OF_RANGE"` if `errnum` exceeds the number of strings defined in
+ * `rigerror_table`.
+ *
+ * \todo Support gettext/localization
  */
 const char *HAMLIB_API rigerror2(int errnum) // returns single-line message
 {
@@ -453,6 +504,19 @@ const char *HAMLIB_API rigerror2(int errnum) // returns single-line message
     return msg;
 }
 
+
+/**
+ * @brief Add error message to debug output.
+ *
+ * \param errnum The error code defined in #rig_errcode_e, e.g. RIG_OK.
+ *
+ * @return Pointer to the complete debug output otherwise `"ERR_OUT_OF_RANGE"`
+ * if `errnum` exceeds the number of strings defined in `rigerror_table`.
+ *
+ * @sa add2debugmsgsave()
+ *
+ * \todo Support gettext/localization
+ */
 const char *HAMLIB_API rigerror(int errnum)
 {
     errnum = abs(errnum);
@@ -516,6 +580,27 @@ static int rig_check_rig_caps()
     return (rc);
 }
 
+/* Final cleanup of rig structure
+ *
+ * Release all allocations for this rig, including the rig_struct
+ * Clear them to catch use-after-free errors
+ */
+static void vaporize(RIG *rig)
+{
+    if (CACHE(rig))
+    {
+        free(CACHE(rig));
+        CACHE(rig) = NULL;
+    }
+
+    /* Other buffers go here, as they are converted
+     *  to pointers/calloc - WIP
+     */
+
+    free(rig);
+    return;
+}
+
 /**
  * \brief Allocate a new #RIG handle.
  * \param rig_model The rig model for this new handle
@@ -536,6 +621,7 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
     hamlib_port_t *rp, *pttp, *dcdp;
     struct rig_cache *cachep;
     int i;
+    size_t needed;
 
     if (rig_test_2038(NULL))
     {
@@ -585,7 +671,9 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
      * okay, we've found it. Allocate some memory and set it to zeros,
      * and especially  the callbacks
      */
-    rig = calloc(1, sizeof(RIG));
+    needed = sizeof(RIG);
+    rig_debug(RIG_DEBUG_TRACE, "Requesting %zu bytes for rig_struct\n", needed);
+    rig = calloc(1, needed);
 
     if (rig == NULL)
     {
@@ -605,9 +693,7 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
      * TODO: read the Preferences here!
      */
     rs = STATE(rig);
-#if defined(HAVE_PTHREAD)
     pthread_mutex_init(&rs->mutex_set_transaction, NULL);
-#endif
 
     //TODO Allocate and link ports
     // For now, use the embedded ones
@@ -615,15 +701,24 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
     pttp = PTTPORT(rig);
     dcdp = DCDPORT(rig);
 
-    //TODO Ditto for cache
+    // Allocate space for cached data
+    needed = sizeof(struct rig_cache);
+    rig_debug(RIG_DEBUG_TRACE, "Requesting %zu bytes for rig_cache\n", needed);
+    CACHE(rig) = calloc(1, needed);
+    if (!CACHE(rig))
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s:Cache calloc failed\n", __func__);
+        vaporize(rig);
+        return NULL;
+    }
     cachep = CACHE(rig);
 
     rs->rig_model = caps->rig_model;
     rs->priv = NULL;
     rs->async_data_enabled = 0;
-    rs->depth = 1;
+    //    rs->depth = 1;
     rs->comm_state = 0;
-    rs->comm_status = RIG_COMM_STATUS_CONNECTING;
+    rs->comm_status = RIG_COMM_STATUS_DISCONNECTED;
     rs->tuner_control_pathname = DEFAULT_TUNER_CONTROL_PATHNAME;
     strncpy(rs->client_version, "Hamlib", sizeof(rs->client_version));
 
@@ -635,9 +730,7 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
               rs->comm_state);
 #endif
     rp->type.rig = caps->port_type; /* default from caps */
-#if defined(HAVE_PTHREAD)
     rp->asyncio = 0;
-#endif
 
     switch (caps->port_type)
     {
@@ -891,8 +984,20 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
     // we have to copy rs to rig->state_deprecated for DLL backwards compatibility
     memcpy(&rig->state_deprecated, rs, sizeof(rig->state_deprecated));
 
+    // Set up lock for any API entry point
+    // If available, use a recursive mutex. Else, fall back on the
+    //   depth count.
+    pthread_mutexattr_t api_attr;
+    pthread_mutexattr_init(&api_attr);
+#if USE_RECURSIVE_MUTEX
+    pthread_mutexattr_settype(&api_attr, PTHREAD_MUTEX_RECURSIVE);
+    HAMLIB_TRACE;
+#endif
+    pthread_mutex_init(&rs->api_mutex, &api_attr);
+    pthread_mutexattr_destroy(&api_attr);
+
     /*
-     * let the backend a chance to setup his private data
+     * Give the backend a chance to setup his private data
      * This must be done only once defaults are setup,
      * so the backend init can override rig_state.
      */
@@ -906,7 +1011,7 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
                       "%s: backend_init failed!\n",
                       __func__);
             /* cleanup and exit */
-            free(rig);
+            vaporize(rig);
             return (NULL);
         }
     }
@@ -926,8 +1031,8 @@ RIG *HAMLIB_API rig_init(rig_model_t rig_model)
  * a negative value if an error occurred (in which case, cause is
  * set appropriately).
  *
- * \retval RIG_EINVAL   \a rig is NULL or inconsistent.
- * \retval RIG_ENIMPL   port type communication is not implemented yet.
+ * \retval -RIG_EINVAL   \a rig is NULL or inconsistent.
+ * \retval -RIG_ENIMPL   port type communication is not implemented yet.
  *
  * \sa rig_init(), rig_close()
  */
@@ -935,9 +1040,7 @@ int HAMLIB_API rig_open(RIG *rig)
 {
     struct rig_caps *caps;
     struct rig_state *rs;
-    hamlib_port_t *rp = RIGPORT(rig);
-    hamlib_port_t *pttp = PTTPORT(rig);
-    hamlib_port_t *dcdp = DCDPORT(rig);
+    hamlib_port_t *rp, *pttp, *dcdp;
     int status = RIG_OK;
     value_t parm_value;
     //unsigned int net1, net2, net3, net4, net5, net6, net7, net8, port;
@@ -953,6 +1056,9 @@ int HAMLIB_API rig_open(RIG *rig)
 
     caps = rig->caps;
     rs = STATE(rig);
+    rp = RIGPORT(rig);
+    pttp = PTTPORT(rig);
+    dcdp = DCDPORT(rig);
     rp->rig = rig;
     rs->rigport_deprecated.rig = rig;
 
@@ -1396,22 +1502,6 @@ int HAMLIB_API rig_open(RIG *rig)
         RETURNFUNC2(status);
     }
 
-#if defined(HAVE_PTHREAD)
-
-    if (!skip_init)
-    {
-        status = async_data_handler_start(rig);
-
-        if (status < 0)
-        {
-            port_close(rp, rp->type.rig);
-            rs->comm_status = RIG_COMM_STATUS_ERROR;
-            RETURNFUNC2(status);
-        }
-    }
-
-#endif
-
     rs->comm_state = 1;
     rig_debug(RIG_DEBUG_VERBOSE, "%s: %p rs->comm_state==1?=%d\n", __func__,
               &rs->comm_state,
@@ -1462,15 +1552,6 @@ int HAMLIB_API rig_open(RIG *rig)
         if (status != RIG_OK)
         {
             remove_opened_rig(rig);
-#if defined(HAVE_PTHREAD)
-
-            if (!skip_init)
-            {
-                async_data_handler_stop(rig);
-                morse_data_handler_stop(rig);
-            }
-
-#endif
             port_close(rp, rp->type.rig);
             memcpy(&rs->rigport_deprecated, rp, sizeof(hamlib_port_t_deprecated));
             rs->comm_state = 0;
@@ -1512,9 +1593,20 @@ int HAMLIB_API rig_open(RIG *rig)
         }
     }
 
-    if (skip_init) { RETURNFUNC2(RIG_OK); }
+    if (skip_init)
+    {
+        add_opened_rig(rig);
+        RETURNFUNC2(RIG_OK);
+    }
 
-#if defined(HAVE_PTHREAD)
+    status = async_data_handler_start(rig);
+
+    if (status < 0)
+    {
+        port_close(rp, rp->type.rig);
+        rs->comm_status = RIG_COMM_STATUS_ERROR;
+        RETURNFUNC2(status);
+    }
 
     // Some models don't support CW so don't need morse handler
     if (rig->caps->send_morse)
@@ -1529,8 +1621,6 @@ int HAMLIB_API rig_open(RIG *rig)
             RETURNFUNC2(status);
         }
     }
-
-#endif
 
     if (rs->auto_disable_screensaver)
     {
@@ -1551,9 +1641,11 @@ int HAMLIB_API rig_open(RIG *rig)
 
         if (ICOM_EXCEPTIONS) { myvfo = RIG_VFO_MAIN_A; }
 
+        if ((STATE(rig)->vfo_list & RIG_VFO_VFO) == RIG_VFO_VFO) { myvfo = RIG_VFO_VFO; }
+
         retval = rig_get_freq(rig, myvfo, &freq);
 
-        if (retval == RIG_OK && rig->caps->rig_model != RIG_MODEL_F6K)
+        if (retval == RIG_OK && rig->caps->rig_model != RIG_MODEL_F6K && ((STATE(rig)->vfo_list & RIG_VFO_VFO) == RIG_VFO_VFO))
         {
             split_t split = RIG_SPLIT_OFF;
             vfo_t tx_vfo = RIG_VFO_NONE;
@@ -1601,7 +1693,6 @@ int HAMLIB_API rig_open(RIG *rig)
     rig_flush_force(rp, 1);
     rs->timeout = timesave;
 
-#if defined(HAVE_PTHREAD)
     enum multicast_item_e items = RIG_MULTICAST_POLL | RIG_MULTICAST_TRANSCEIVE
                                   | RIG_MULTICAST_SPECTRUM;
     retval = network_multicast_publisher_start(rig, rs->multicast_data_addr,
@@ -1635,8 +1726,6 @@ int HAMLIB_API rig_open(RIG *rig)
         // we will consider this non-fatal for now
     }
 
-#endif
-
     rs->comm_status = RIG_COMM_STATUS_OK;
 
     add_opened_rig(rig);
@@ -1661,9 +1750,7 @@ int HAMLIB_API rig_open(RIG *rig)
 int HAMLIB_API rig_close(RIG *rig)
 {
     const struct rig_caps *caps;
-    hamlib_port_t *rp = RIGPORT(rig);
-    hamlib_port_t *pttp = PTTPORT(rig);
-    hamlib_port_t *dcdp = DCDPORT(rig);
+    hamlib_port_t *rp, *pttp, *dcdp;
     struct rig_state *rs;
 
     if (!rig || !rig->caps)
@@ -1677,6 +1764,9 @@ int HAMLIB_API rig_close(RIG *rig)
 
     caps = rig->caps;
     rs = STATE(rig);
+    rp = RIGPORT(rig);
+    pttp = PTTPORT(rig);
+    dcdp = DCDPORT(rig);
 
     if (!rs->comm_state)
     {
@@ -1687,8 +1777,6 @@ int HAMLIB_API rig_close(RIG *rig)
 
     rs->comm_status = RIG_COMM_STATUS_DISCONNECTED;
 
-#if defined(HAVE_PTHREAD)
-
     if (!skip_init)
     {
         morse_data_handler_stop(rig);
@@ -1697,8 +1785,6 @@ int HAMLIB_API rig_close(RIG *rig)
         network_multicast_receiver_stop(rig);
         network_multicast_publisher_stop(rig);
     }
-
-#endif
 
     // Let the backend say 73 to the rig.
     // and ignore the return code.
@@ -1858,9 +1944,10 @@ int HAMLIB_API rig_cleanup(RIG *rig)
         rig->caps->rig_cleanup(rig);
     }
 
-    //TODO Release and null any allocated port structures
+    //pthread_mutex_destroy(&STATE(rig)->api_mutex);
 
-    free(rig);
+    /* Release all buffers, and the rig_struct itself */
+    vaporize(rig);
 
     return (RIG_OK);
 }
@@ -1871,7 +1958,6 @@ int HAMLIB_API rig_cleanup(RIG *rig)
  * \param seconds    The timeout to set to
  *
  * timeout seconds to stop rigctld when VFO is manually changed
- * turns on/off the radio.
  *
  * \return RIG_OK if the operation has been successful, otherwise
  * a negative value if an error occurred (in which case, cause is
@@ -2087,7 +2173,6 @@ int rig_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 
     if (rs->tx_vfo == vfo && curr_band != last_band)
     {
-        struct rig_cache *cachep = CACHE(rig);
         rig_debug(RIG_DEBUG_VERBOSE, "%s: band changing to %s\n", __func__,
                   rig_get_band_str(rig, curr_band, 0));
         band_changing = 1;
@@ -2494,14 +2579,6 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 
     rig_debug(RIG_DEBUG_CACHE, "%s: depth=%d\n", __func__, rs->depth);
 
-    if (rs->depth == 1)
-    {
-        rig_debug(RIG_DEBUG_CACHE, "%s: %s\n", 1 ? "lock" : "unlock", __func__);
-//        rig_lock(rig, 1);
-    }
-
-
-
     // there are some rigs that can't get VFOA freq while VFOB is transmitting
     // so we'll return the cached VFOA freq for them
     // should we use the cached ptt maybe? No -- we have to be 100% sure we're in PTT to ignore this request
@@ -2789,6 +2866,7 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     if (locked_mode)
     {
         ELAPSED2;
+        LOCK(0);
         RETURNFUNC(RIG_OK);
     }
 
@@ -2797,6 +2875,7 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s PTT on so set_mode ignored\n", __func__);
         ELAPSED2;
+        LOCK(0);
         RETURNFUNC(RIG_OK);
     }
 
@@ -2805,6 +2884,7 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     if (caps->set_mode == NULL)
     {
         ELAPSED2;
+        LOCK(0);
         RETURNFUNC(-RIG_ENAVAIL);
     }
 
@@ -2934,7 +3014,7 @@ int HAMLIB_API rig_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     RETURNFUNC(retcode);
 }
 
-/*
+/**
  * \brief get the mode of the target VFO
  * \param rig   The rig handle
  * \param vfo   The target VFO
@@ -3504,6 +3584,7 @@ int HAMLIB_API rig_get_vfo(RIG *rig, vfo_t *vfo)
             {
                 rig->caps->get_vfo = NULL;
                 *vfo = RIG_VFO_A;
+                LOCK(0);
                 RETURNFUNC(RIG_OK);
             }
 
@@ -3569,8 +3650,8 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
         {
             ptt = RIG_PTT_ON;
         }
+        HL_FALLTHROUGH
 
-    /* fall through */
     case RIG_PTT_RIG_MICDATA:
         if (caps->set_ptt == NULL)
         {
@@ -3724,6 +3805,7 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
                           __func__,
                           pttp->pathname);
                 ELAPSED2;
+                LOCK(0);
                 RETURNFUNC(-RIG_EIO);
             }
 
@@ -3735,6 +3817,7 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
             if (RIG_OK != retcode)
             {
                 ELAPSED2;
+                LOCK(0);
                 RETURNFUNC(retcode);
             }
         }
@@ -3774,6 +3857,7 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
                           __func__,
                           pttp->pathname);
                 ELAPSED2;
+                LOCK(0);
                 RETURNFUNC(-RIG_EIO);
             }
 
@@ -3786,6 +3870,7 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
             {
                 rig_debug(RIG_DEBUG_ERR, "%s: ser_set_dtr retcode=%d\n", __func__, retcode);
                 ELAPSED2;
+                LOCK(0);
                 RETURNFUNC(retcode);
             }
         }
@@ -3825,6 +3910,7 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
         rig_debug(RIG_DEBUG_WARN, "%s: unknown PTT type=%d\n", __func__,
                   pttp->type.ptt);
         ELAPSED2;
+        LOCK(0);
         RETURNFUNC(-RIG_EINVAL);
     }
 
@@ -3849,7 +3935,7 @@ int HAMLIB_API rig_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
     if (rs->post_ptt_delay > 0) { hl_usleep(rs->post_ptt_delay * 1000); }
 
     ELAPSED2;
-
+    LOCK(0);
     RETURNFUNC(retcode);
 }
 
@@ -4666,7 +4752,7 @@ int HAMLIB_API rig_set_split_freq(RIG *rig, vfo_t vfo, freq_t tx_freq)
     const struct rig_state *rs;
     struct rig_cache *cachep;
     int retcode, rc2;
-    vfo_t curr_vfo, tx_vfo = RIG_VFO_CURR;
+    vfo_t curr_vfo, tx_vfo;
     freq_t tfreq = 0;
 
     if (CHECK_RIG_ARG(rig))
@@ -6860,8 +6946,8 @@ int HAMLIB_API rig_set_powerstat(RIG *rig, powerstat_t status)
  * \param rig   The rig handle
  * \param status    The location where to store the current status
  *
- *  Retrieve the status of the radio. See RIG_POWER_ON, RIG_POWER_OFF and
- *  RIG_POWER_STANDBY defines for the \a status.
+ *  Retrieve the status of the radio. See #RIG_POWER_ON, #RIG_POWER_OFF and
+ *  #RIG_POWER_STANDBY defines for the \a status.
  *
  * \return RIG_OK if the operation has been successful, otherwise
  * a negative value if an error occurred (in which case, cause is
@@ -7400,7 +7486,7 @@ int HAMLIB_API rig_send_morse(RIG *rig, vfo_t vfo, const char *msg)
 {
     const struct rig_caps *caps;
     struct rig_state *rs;
-    int retcode = RIG_EINTERNAL, rc2;
+    int retcode = -RIG_EINTERNAL, rc2;
     vfo_t curr_vfo;
 
     if (CHECK_RIG_ARG(rig))
@@ -7448,9 +7534,10 @@ int HAMLIB_API rig_send_morse(RIG *rig, vfo_t vfo, const char *msg)
         LOCK(1);
         retcode = caps->send_morse(rig, vfo, msg);
         LOCK(0);
+#else
+        retcode = hl_push(rs->fifo_morse, msg);
 #endif
-        push(rs->fifo_morse, msg);
-        RETURNFUNC(RIG_OK);
+        RETURNFUNC(retcode);
     }
 
     if (!caps->set_vfo)
@@ -7517,14 +7604,18 @@ int HAMLIB_API rig_stop_morse(RIG *rig, vfo_t vfo)
 
     resetFIFO(rs->fifo_morse); // clear out the CW queue
 
+    LOCK(1);
     if (vfo == RIG_VFO_CURR
             || vfo == rs->current_vfo)
     {
-        RETURNFUNC(caps->stop_morse(rig, vfo));
+        retcode = caps->stop_morse(rig, vfo);
+        LOCK(0); 
+        RETURNFUNC(retcode);
     }
 
     if (!caps->set_vfo)
     {
+        LOCK(0);
         RETURNFUNC(-RIG_ENAVAIL);
     }
 
@@ -7534,6 +7625,7 @@ int HAMLIB_API rig_stop_morse(RIG *rig, vfo_t vfo)
 
     if (retcode != RIG_OK)
     {
+        LOCK(0);
         RETURNFUNC(retcode);
     }
 
@@ -7548,6 +7640,7 @@ int HAMLIB_API rig_stop_morse(RIG *rig, vfo_t vfo)
         retcode = rc2;
     }
 
+    LOCK(0);
     RETURNFUNC(retcode);
 }
 
@@ -7617,14 +7710,18 @@ int HAMLIB_API rig_wait_morse(RIG *rig, vfo_t vfo)
 
     caps = rig->caps;
 
+    LOCK(1);
     if (vfo == RIG_VFO_CURR
             || vfo == STATE(rig)->current_vfo)
     {
-        RETURNFUNC(wait_morse_ptt(rig, vfo));
+        retcode = wait_morse_ptt(rig, vfo);
+        LOCK(0);
+        RETURNFUNC(retcode);
     }
 
     if (!caps->set_vfo)
     {
+        LOCK(0);
         RETURNFUNC(-RIG_ENAVAIL);
     }
 
@@ -7634,6 +7731,7 @@ int HAMLIB_API rig_wait_morse(RIG *rig, vfo_t vfo)
 
     if (retcode != RIG_OK)
     {
+        LOCK(0);
         RETURNFUNC(retcode);
     }
 
@@ -7648,6 +7746,7 @@ int HAMLIB_API rig_wait_morse(RIG *rig, vfo_t vfo)
         retcode = rc2;
     }
 
+    LOCK(0);
     RETURNFUNC(retcode);
 }
 
@@ -7998,7 +8097,7 @@ int HAMLIB_API rig_get_rig_info(RIG *rig, char *response, int max_response_len)
         rig_debug(RIG_DEBUG_ERR, "%s(%d): response len exceeded max %d chars\n",
                   __FILE__, __LINE__, max_response_len);
         ELAPSED2;
-        RETURNFUNC2(RIG_EINTERNAL);
+        RETURNFUNC2(-RIG_EINTERNAL);
     }
 
     ELAPSED2;
@@ -8335,13 +8434,12 @@ int HAMLIB_API rig_cookie(RIG *rig, enum cookie_e cookie_cmd, char *cookie,
     return ret;
 }
 
-#if defined(HAVE_PTHREAD)
+//TODO FIX THIS!!!! (presently unused)
+#if 0
 static pthread_mutex_t initializer = PTHREAD_MUTEX_INITIALIZER;
-#endif
 
 HAMLIB_EXPORT(void) sync_callback(int lock)
 {
-#if defined(HAVE_PTHREAD)
     pthread_mutex_t client_lock = initializer;
 
     if (lock)
@@ -8355,35 +8453,24 @@ HAMLIB_EXPORT(void) sync_callback(int lock)
         pthread_mutex_unlock(&client_lock);
     }
 
-#endif
 }
+#endif
 
 void rig_lock(RIG *rig, int lock)
 {
-#if defined(HAVE_PTHREAD)
 
     struct rig_state *rs = STATE(rig);
 
-    if (rs->multicast == NULL) { return; } // not initialized yet
-
-    if (!rs->multicast->mutex_initialized)
-    {
-        rs->multicast->mutex = initializer;
-        rs->multicast->mutex_initialized = 1;
-    }
-
     if (lock)
     {
-        pthread_mutex_lock(&rs->multicast->mutex);
+        pthread_mutex_lock(&rs->api_mutex);
         rig_debug(RIG_DEBUG_VERBOSE, "%s: client lock engaged\n", __func__);
     }
     else
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: client lock disengaged\n", __func__);
-        pthread_mutex_unlock(&rs->multicast->mutex);
+        pthread_mutex_unlock(&rs->api_mutex);
     }
-
-#endif
 
 }
 
@@ -8393,7 +8480,6 @@ void rig_lock(RIG *rig, int lock)
 
 #define MAX_FRAME_LENGTH 1024
 
-#if defined(HAVE_PTHREAD)
 static int async_data_handler_start(RIG *rig)
 {
     struct rig_state *rs = STATE(rig);
@@ -8435,9 +8521,7 @@ static int async_data_handler_start(RIG *rig)
 
     RETURNFUNC(RIG_OK);
 }
-#endif
 
-#if defined(HAVE_PTHREAD)
 static int morse_data_handler_start(RIG *rig)
 {
     struct rig_state *rs = STATE(rig);
@@ -8475,10 +8559,8 @@ static int morse_data_handler_start(RIG *rig)
 
     RETURNFUNC(RIG_OK);
 }
-#endif
 
 
-#if defined(HAVE_PTHREAD)
 static int async_data_handler_stop(RIG *rig)
 {
     struct rig_state *rs = STATE(rig);
@@ -8517,9 +8599,7 @@ static int async_data_handler_stop(RIG *rig)
 
     RETURNFUNC(RIG_OK);
 }
-#endif
 
-#if defined(HAVE_PTHREAD)
 static int morse_data_handler_stop(RIG *rig)
 {
     struct rig_state *rs = STATE(rig);
@@ -8537,7 +8617,7 @@ static int morse_data_handler_stop(RIG *rig)
     hl_usleep(100 * 1000);
 
     //HAMLIB_TRACE;
-    while (peek(rs->fifo_morse) >= 0)
+    while (hl_peek(rs->fifo_morse) >= 0)
     {
         HAMLIB_TRACE;
         rig_debug(RIG_DEBUG_TRACE, "%s: waiting for fifo queue to flush\n", __func__);
@@ -8573,10 +8653,8 @@ static int morse_data_handler_stop(RIG *rig)
 
     RETURNFUNC(RIG_OK);
 }
-#endif
 
-#if defined(HAVE_PTHREAD)
-void *async_data_handler(void *arg)
+static void *async_data_handler(void *arg)
 {
     struct async_data_handler_args_s *args = (struct async_data_handler_args_s *)
             arg;
@@ -8669,10 +8747,8 @@ again:
     pthread_exit(NULL);
     return NULL;
 }
-#endif
 
-#if defined(HAVE_PTHREAD)
-void *morse_data_handler(void *arg)
+static void *morse_data_handler(void *arg)
 {
     struct morse_data_handler_args_s *args =
         (struct morse_data_handler_args_s *) arg;
@@ -8698,21 +8774,21 @@ void *morse_data_handler(void *arg)
 
     c = calloc(1, qsize + 1);
 
-    while (rs->morse_data_handler_thread_run || (peek(rs->fifo_morse) >= 0))
+    while (rs->morse_data_handler_thread_run || (hl_peek(rs->fifo_morse) >= 0))
     {
         int n = 0;
         memset(c, 0, qsize);
 
         for (n = 0; n < qsize; n++)
         {
-            int d = peek(rs->fifo_morse);
+            int d = hl_peek(rs->fifo_morse);
 
             if (d < 0)
             {
                 break;
             }
 
-            d = pop(rs->fifo_morse);
+            d = hl_pop(rs->fifo_morse);
             c[n] = (char) d;
         }
 
@@ -8769,7 +8845,7 @@ void *morse_data_handler(void *arg)
                 int nloops = 10;
                 MUTEX_LOCK(morse_mutex); // wait until the write is idle
 
-		rig_lock(rig, 1);
+		        rig_lock(rig, 1);
                 do
                 {
                     result = rig->caps->send_morse(rig, RIG_VFO_CURR, c);
@@ -8814,7 +8890,6 @@ void *morse_data_handler(void *arg)
     pthread_exit(NULL);
     return NULL;
 }
-#endif
 
 
 HAMLIB_EXPORT(int) rig_password(RIG *rig, const char *key1)
@@ -8835,9 +8910,23 @@ extern int read_icom_frame(hamlib_port_t *p, const unsigned char rxbuffer[],
                            size_t rxbuffer_len);
 
 
-// Returns # of bytes read
-// reply_len should be max bytes expected + 1
-// if term is null then will read reply_len bytes exactly and reply will not be null terminated
+/**
+ * \brief Send verbatim data
+ *
+ * \a reply_len should be max bytes expected + 1
+ *
+ * If \a term is NULL then will read \a reply_len bytes exactly and reply will not be '\0' terminated.
+ * \param rig The rig handle
+ * \param send The buffer containing the data to be sent
+ * \param send_len The length of send buffer
+ * \param reply The buffer that will contain the data to be received
+ * \param reply_len The length of the reply buffer
+ * \param term The optional 1-char string that will terminate the read
+ *
+ * \return the number of bytes read if the operation has been successful, otherwise
+ * a negative value if an error occurred (in which case, cause is
+ * set appropriately).
+ */
 HAMLIB_EXPORT(int) rig_send_raw(RIG *rig, const unsigned char *send,
                                 int send_len, unsigned char *reply, int reply_len, unsigned char *term)
 {
@@ -8857,12 +8946,9 @@ HAMLIB_EXPORT(int) rig_send_raw(RIG *rig, const unsigned char *send,
 
     if (simulate)
     {
-        rig_debug(RIG_DEBUG_VERBOSE, "%s: simulating response for model %s\n",
-                  __func__, rig->caps->model_name);
-        memcpy(reply, send, send_len);
-        retval = send_len;
-        ELAPSED2;
-        RETURNFUNC(retval);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: simulating write for model %s\n",
+                    __func__, rig->caps->model_name);
+        retval = RIG_OK;
     }
     else
     {
@@ -8883,8 +8969,18 @@ HAMLIB_EXPORT(int) rig_send_raw(RIG *rig, const unsigned char *send,
         if (simulate)
         {
             // Simulate a response by copying the command
-            memcpy(buf, send, send_len);
-            nbytes = send_len + 1;
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: simulating response for model %s\n",
+                      __func__, rig->caps->model_name);
+
+            nbytes = send_len < reply_len ? send_len : reply_len;
+            for (int i = 0; i < nbytes; i++)
+            {
+                buf[i] = send[i];
+                if (term && memchr(term, send[i], 1)) {
+                    nbytes = i + 1;
+                    break;
+                }
+            }
         }
         else
         {
@@ -8992,7 +9088,6 @@ HAMLIB_EXPORT(int) rig_is_model(RIG *rig, rig_model_t model)
 }
 
 
-#if defined(HAVE_PTHREAD)
 int morse_data_handler_set_keyspd(RIG *rig, int keyspd)
 {
     struct rig_state *rs = STATE(rig);
@@ -9002,9 +9097,8 @@ int morse_data_handler_set_keyspd(RIG *rig, int keyspd)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: keyspd=%d\n", __func__, keyspd);
     return RIG_OK;
 }
-#endif
 
-/*
+/**
  * \brief Get the address of a Hamlib data structure
  * \param rig Pointer to main data anchor
  * \param idx enum for which pointer requested
@@ -9012,15 +9106,22 @@ int morse_data_handler_set_keyspd(RIG *rig, int keyspd)
  * Get the address of a structure without relying on changeable
  *   internal data organization.
  *
- * \retval The address of the enumed structure
+ * \retval The address of the enumed structure, NULL if error
  *
  * Note: This is meant for use by the HAMLIB_???PORT macros mostly. Only
  *  compatibility with them is supported.
  *
- * \sa amp_data_pointer, rot_data_pointer
+ * \sa amp_data_pointer(), rot_data_pointer()
  */
 HAMLIB_EXPORT(void *) rig_data_pointer(RIG *rig, rig_ptrx_t idx)
 {
+
+    if (!rig)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: missing rig\n", __func__);
+        return NULL;
+    }
+
     switch (idx)
     {
     case RIG_PTRX_RIGPORT:

@@ -32,7 +32,7 @@
  * \file serial.c
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdlib.h>
 #include <stdio.h>   /* Standard input/output definitions */
@@ -40,15 +40,10 @@
 #include <unistd.h>  /* UNIX standard function definitions */
 #include <fcntl.h>   /* File control definitions */
 #include <errno.h>   /* Error number definitions */
-#include <sys/types.h>
 #include <ctype.h>
 
 #ifdef HAVE_SYS_IOCTL_H
 #  include <sys/ioctl.h>
-#endif
-
-#ifdef HAVE_SYS_PARAM_H
-#  include <sys/param.h>
 #endif
 
 #ifdef HAVE_TERMIOS_H
@@ -63,7 +58,8 @@
 #  endif
 #endif
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
+#include "hamlib/port.h"
 
 //! @cond Doxygen_Suppress
 #if defined(WIN32) && !defined(HAVE_TERMIOS_H)
@@ -130,7 +126,7 @@ int is_uh_radio_fd(int fd)
 #include <windows.h>
 #include <strsafe.h>
 
-void WinErrorShow(LPCTSTR lpszFunction, DWORD dw)
+static void WinErrorShow(LPCTSTR lpszFunction, DWORD dw)
 {
     // Retrieve the system error message for the last-error code
 
@@ -145,6 +141,7 @@ void WinErrorShow(LPCTSTR lpszFunction, DWORD dw)
         NULL,
         dw,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+	// cppcheck-suppress uninitvar
         (LPTSTR) &lpMsgBuf,
         0, NULL);
 
@@ -172,7 +169,7 @@ enum serial_status
     SER_AVAILABLE
 };
 
-int check_com_port_in_use(const char *port)
+static int check_com_port_in_use(const char *port)
 {
     char device[1024];
     snprintf(device, sizeof(device), "\\\\.\\%s", port);
@@ -211,7 +208,7 @@ int check_com_port_in_use(const char *port)
 #endif
 
 /**
- * \brief Open serial port using STATE(rig) data
+ * \brief Open serial port using port data only
  * \param rp port data structure (must spec port id eg /dev/ttyS1)
  * \return RIG_OK or < 0 if error
  */
@@ -570,7 +567,6 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
                   "%s: unsupported rate specified: %d\n",
                   __func__,
                   rp->parm.serial.rate);
-        CLOSE(fd);
 
         return (-RIG_ECONF);
     }
@@ -617,10 +613,8 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
                   "%s: unsupported serial_data_bits specified: %d\n",
                   __func__,
                   rp->parm.serial.data_bits);
-        CLOSE(fd);
 
         return (-RIG_ECONF);
-        break;
     }
 
     /*
@@ -645,10 +639,8 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
                   "%s: unsupported serial_stop_bits specified: %d\n",
                   __func__,
                   rp->parm.serial.stop_bits);
-        CLOSE(fd);
 
         return (-RIG_ECONF);
-        break;
     }
 
     /*
@@ -691,10 +683,8 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
                   "%s: unsupported serial_parity specified: %d\n",
                   __func__,
                   rp->parm.serial.parity);
-        CLOSE(fd);
 
         return (-RIG_ECONF);
-        break;
     }
 
 
@@ -727,10 +717,8 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
                   "%s: unsupported flow_control specified: %d\n",
                   __func__,
                   rp->parm.serial.handshake);
-        CLOSE(fd);
 
         return (-RIG_ECONF);
-        break;
     }
 
     /*
@@ -772,7 +760,6 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
                   "%s: tcsetattr failed: %s\n",
                   __func__,
                   strerror(errno));
-        CLOSE(fd);
 
         return (-RIG_ECONF);      /* arg, so close! */
     }
@@ -787,7 +774,6 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
                   "%s: ioctl(TCSETA) failed: %s\n",
                   __func__,
                   strerror(errno));
-        CLOSE(fd);
 
         return (-RIG_ECONF);      /* arg, so close! */
     }
@@ -803,7 +789,6 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
                   "%s: ioctl(TIOCSETP) failed: %s\n",
                   __func__,
                   strerror(errno));
-        CLOSE(fd);
 
         return (-RIG_ECONF);      /* arg, so close! */
     }
@@ -892,7 +877,7 @@ int HAMLIB_API serial_flush(hamlib_port_t *p)
     {
         // we pass an empty stopset so read_string can determine
         // the appropriate stopset for async data
-        const char stopset[1];
+        const char stopset[1] = "";
         len = read_string(p, buf, sizeof(buf) - 1, stopset, 0, 1, 1);
 
         if (len > 0)

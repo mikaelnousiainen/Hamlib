@@ -6,7 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include <sys/time.h>
 #include "misc.h"
 
@@ -17,7 +17,7 @@
 
 int main(int argc, const char *argv[])
 {
-    RIG *my_rig;        /* handle to rig (nstance) */
+    RIG *my_rig;        /* handle to rig (instance) */
     int retcode;        /* generic return code from functions */
     rig_model_t myrig_model;
     unsigned i;

@@ -22,15 +22,15 @@
 
 #include <stdio.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "misc.h"
 
 #include "barrett.h"
 
 #define MAXCMDLEN 32
 
-//#define BARRETT4100 VFOS (RIG_VFO_A|RIG_VFO_MEM) // VFO_MEM eventually?
-#define BARRETT4100 VFOS (RIG_VFO_A)
+//#define BARRETT4100_VFOS (RIG_VFO_A|RIG_VFO_MEM) // VFO_MEM eventually?
+#define BARRETT4100_VFOS (RIG_VFO_A)
 
 #define BARRETT4100_MODES (RIG_MODE_CW | RIG_MODE_SSB)
 
@@ -134,7 +134,7 @@ static int barrett4100_close(RIG *rig)
         rig_debug(RIG_DEBUG_ERR, "%s(%d): result=%s\n", __func__, __LINE__, response);
     }
 
-    return rig_close(rig);
+    return retval;
 }
 
 int barrett4100_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
@@ -275,7 +275,7 @@ struct rig_caps barrett4100_caps =
     .transceive =       RIG_TRN_RIG,
     .rx_range_list1 = {{
             .startf = kHz(10), .endf = MHz(30), .modes = BARRETT4100_MODES,
-            .low_power = -1, .high_power = -1, BARRETT4100_MODES, RIG_ANT_1
+            .low_power = -1, .high_power = -1, BARRETT4100_VFOS, RIG_ANT_1
         },
         RIG_FRNG_END,
     },

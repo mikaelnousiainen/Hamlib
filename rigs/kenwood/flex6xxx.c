@@ -22,12 +22,13 @@
  *  the complete text of the GNU Lesser Public License version 2.1.
  *
  */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "kenwood.h"
 #include "bandplan.h"
 #include "misc.h"
@@ -321,7 +322,7 @@ static int powersdr_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode,
 
 static int flex6k_find_width(rmode_t mode, pbwidth_t width, int *ridx)
 {
-    int *w_a; // Width array, these are all ordered in descending order!
+    const int *w_a; // Width array, these are all ordered in descending order!
     int idx = 0;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -372,7 +373,7 @@ static int flex6k_find_width(rmode_t mode, pbwidth_t width, int *ridx)
 
 static int powersdr_find_width(rmode_t mode, pbwidth_t width, int *ridx)
 {
-    int *w_a; // Width array, these are all ordered in descending order!
+    const int *w_a; // Width array, these are all ordered in descending order!
     int idx = 0;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
@@ -546,7 +547,7 @@ static int powersdr_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     case RIG_VFO_A:
         if ((mode == RIG_MODE_PKTUSB || mode == RIG_MODE_PKTLSB) && width > 3000)
         {
-            // 150Hz on the low end should be enough
+            // 150 Hz on the low end should be enough
             // Set high to the width requested
             SNPRINTF(buf, sizeof(buf), "ZZFL00150;ZZFH%05d;", (int)width);
         }
@@ -576,7 +577,7 @@ static int powersdr_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
 /*
  * flex6k_get_ptt
  */
-int flex6k_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
+static int flex6k_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
 {
     const char *ptt_cmd;
     int err;
@@ -604,7 +605,7 @@ int flex6k_get_ptt(RIG *rig, vfo_t vfo, ptt_t *ptt)
     return RIG_OK;
 }
 
-int flex6k_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
+static int flex6k_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 {
     const char *ptt_cmd;
     char response[16] = "";
@@ -642,7 +643,7 @@ int flex6k_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 /*
  * powersdr_set_level
  */
-int powersdr_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
+static int powersdr_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 {
     char cmd[KENWOOD_MAX_BUF_LEN];
     int retval;
@@ -741,7 +742,7 @@ int powersdr_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 /*
  * flek6k_set_level
  */
-int flex6k_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
+static int flex6k_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 {
     char cmd[KENWOOD_MAX_BUF_LEN];
     int retval;
@@ -778,10 +779,10 @@ int flex6k_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 /*
  * flex6k_get_level
  */
-int flex6k_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
+static int flex6k_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 {
     char lvlbuf[KENWOOD_MAX_BUF_LEN];
-    char *cmd;
+    const char *cmd;
     int retval;
     int len, ans;
 
@@ -840,10 +841,10 @@ int flex6k_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 /*
  * powersdr_get_level
  */
-int powersdr_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
+static int powersdr_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 {
     char lvlbuf[KENWOOD_MAX_BUF_LEN];
-    char *cmd;
+    const char *cmd;
     int retval;
     int len, ans;
     rmode_t mode;
@@ -1143,7 +1144,7 @@ int powersdr_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
     return RIG_OK;
 }
 
-int powersdr_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
+static int powersdr_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 {
     char cmd[KENWOOD_MAX_BUF_LEN];
 
@@ -1174,10 +1175,10 @@ int powersdr_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
     return kenwood_transaction(rig, cmd, NULL, 0);
 }
 
-int powersdr_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
+static int powersdr_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 {
     char lvlbuf[KENWOOD_MAX_BUF_LEN];
-    char *cmd;
+    const char *cmd;
     int retval;
     int len, ans;
 
@@ -1234,7 +1235,7 @@ int powersdr_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
     return RIG_OK;
 }
 
-int powersdr_set_parm(RIG *rig, setting_t parm, value_t val)
+static int powersdr_set_parm(RIG *rig, setting_t parm, value_t val)
 {
     ENTERFUNC;
     char cmd[KENWOOD_MAX_BUF_LEN];
@@ -1263,7 +1264,7 @@ int powersdr_set_parm(RIG *rig, setting_t parm, value_t val)
     RETURNFUNC(retval);
 }
 
-int powersdr_get_parm(RIG *rig, setting_t parm, value_t *val)
+static int powersdr_get_parm(RIG *rig, setting_t parm, value_t *val)
 {
     char cmd[KENWOOD_MAX_BUF_LEN];
     char buf[KENWOOD_MAX_BUF_LEN];
@@ -1631,9 +1632,9 @@ struct rig_caps powersdr_caps =
 struct rig_caps thetis_caps =
 {
     RIG_MODEL(RIG_MODEL_THETIS),
-    .model_name =   "",
-    .mfg_name =     "Thetis",
-    .version =      "20231222.0",
+    .model_name =   "Thetis",
+    .mfg_name =     "TAPR",
+    .version =      "20231222.1",
     .copyright =        "LGPL",
     .status =       RIG_STATUS_STABLE,
     .rig_type =     RIG_TYPE_TRANSCEIVER,

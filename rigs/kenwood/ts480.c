@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <hamlib/rig.h>
+#include "hamlib/rig.h"
 #include "cal.h"
 #include "idx_builtin.h"
 #include "iofunc.h"
@@ -169,7 +169,7 @@ const struct confparams ts480_ext_levels[] =
  * kenwood_ts480_get_info
  * Assumes rig!=NULL
  */
-const char *
+static const char *
 kenwood_ts480_get_info(RIG *rig)
 {
     char firmbuf[50];
@@ -313,7 +313,7 @@ static int ts480_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
  * WARNING: The commands differ slightly from the general versions in kenwood.c
  * e.g.: "SQ"=>"SQ0" , "AG"=>"AG0"
  */
-int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
+static int kenwood_ts480_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
 {
     char levelbuf[16];
     int kenwood_val;
@@ -489,7 +489,7 @@ static int ts480_read_meters(RIG *rig, int *swr, int *comp, int *alc)
  * kenwood_ts480_get_level
  * Assumes rig!=NULL, val!=NULL
  */
-int
+static int
 kenwood_ts480_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
 {
     char ackbuf[50];
@@ -1204,7 +1204,7 @@ static struct kenwood_priv_caps ts480_priv_caps =
     .slope_filter_low = ts480_slope_filter_low,
 };
 
-int ts480_init(RIG *rig)
+static int ts480_init(RIG *rig)
 {
     struct kenwood_priv_data *priv;
     int retval;
@@ -1227,7 +1227,7 @@ int ts480_init(RIG *rig)
     RETURNFUNC(RIG_OK);
 }
 
-int qrplabs_open(RIG *rig)
+static int qrplabs_open(RIG *rig)
 {
     int retval;
     char buf[64];
@@ -1252,6 +1252,7 @@ int qrplabs_open(RIG *rig)
     RETURNFUNC(retval);
 }
 
+#if 0
 int qdx_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
 {
     const char *ptt_cmd;
@@ -1278,8 +1279,8 @@ int qdx_set_ptt(RIG *rig, vfo_t vfo, ptt_t ptt)
     RETURNFUNC(retval);
 }
 
-
-int qrplabs_get_clock(RIG *rig, int *year, int *month, int *day, int *hour,
+#endif
+static int qrplabs_get_clock(RIG *rig, int *year, int *month, int *day, int *hour,
                       int *min, int *sec, double *msec, int *utc_offset)
 {
     char tm_cmd[32];
@@ -1295,7 +1296,7 @@ int qrplabs_get_clock(RIG *rig, int *year, int *month, int *day, int *hour,
     return retval;
 }
 
-int qrplabs_set_clock(RIG *rig, int year, int month, int day, int hour, int min,
+static int qrplabs_set_clock(RIG *rig, int year, int month, int day, int hour, int min,
                       int sec, double msec, int utc_offset)
 {
     char tm_cmd[32];
@@ -1348,6 +1349,11 @@ struct rig_caps ts480_caps =
     .transceive = RIG_TRN_RIG,
     .agc_level_count = 3,
     .agc_levels = { RIG_AGC_OFF, RIG_AGC_FAST, RIG_AGC_SLOW },
+    .chan_list = {
+        { 1, 3, RIG_MTYPE_VOICE }, // Only if VGS-1 installed
+        { 1, 3, RIG_MTYPE_MORSE },
+        RIG_CHAN_END
+    },
 
     .rx_range_list1 = {
         {kHz(100),   Hz(59999999), TS480_ALL_MODES, -1, -1, TS480_VFO},
@@ -1951,7 +1957,7 @@ struct rig_caps qrplabs_qmx_caps =
     .dcd_type = RIG_DCD_RIG,
     .port_type = RIG_PORT_SERIAL,
     .serial_rate_min = 9600,
-    .serial_rate_max = 256000,
+    .serial_rate_max = 230400,
     .serial_data_bits = 8,
     .serial_stop_bits = 1,
     .serial_parity = RIG_PARITY_NONE,
@@ -2356,7 +2362,7 @@ const struct confparams malachite_cfg_parms[] =
     { RIG_CONF_END, NULL, }
 };
 
-int malachite_init(RIG *rig)
+static int malachite_init(RIG *rig)
 {
     struct kenwood_priv_data *priv;
     int retval;
@@ -2367,14 +2373,14 @@ int malachite_init(RIG *rig)
 
     priv = STATE(rig)->priv;
 
-    priv->no_id = 1;  // the Malchite doesn't like the ID; verify cmd
+    priv->no_id = 1;  // the Malachite doesn't like the ID; verify cmd
 
     if (retval != RIG_OK) { RETURNFUNC(retval); }
 
     RETURNFUNC(RIG_OK);
 }
 
-int malachite_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
+static int malachite_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
 {
     int post_write_delay_save = STATE(rig)->post_write_delay;
     STATE(rig)->post_write_delay = 0;
@@ -2383,7 +2389,7 @@ int malachite_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
     return retval;
 }
 
-int malachite_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
+static int malachite_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
 {
     int post_write_delay_save = STATE(rig)->post_write_delay;
     ENTERFUNC;
@@ -2393,7 +2399,7 @@ int malachite_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     RETURNFUNC(retval);
 }
 
-int malachite_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
+static int malachite_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
     int retval;
     struct rig_cache *cachep = CACHE(rig);
@@ -2446,7 +2452,7 @@ struct rig_caps malachite_caps =
     .serial_parity = RIG_PARITY_NONE,
     .serial_handshake = RIG_HANDSHAKE_NONE,
     .write_delay = 0,
-    // Malchite needs 125ms unless going from low to high band -- see malachite_set_freq
+    // Malachite needs 125ms unless going from low to high band -- see malachite_set_freq
     // Do not change this without checking the 300ms delay in malachite_set_freq
     .post_write_delay = 250,
     .timeout = 3000,

@@ -439,7 +439,7 @@ int dttsp_set_conf(RIG *rig, hamlib_token_t token, const char *val)
  * Assumes rig!=NULL, STATE(rig)->priv!=NULL
  *  and val points to a buffer big enough to hold the conf value.
  */
-int dttsp_get_conf2(RIG *rig, hamlib_token_t token, char *val, int val_len)
+static int dttsp_get_conf2(RIG *rig, hamlib_token_t token, char *val, int val_len)
 {
     struct dttsp_priv_data *priv;
     struct rig_state *rs;
@@ -462,7 +462,7 @@ int dttsp_get_conf2(RIG *rig, hamlib_token_t token, char *val, int val_len)
         /* if it's not for the dttsp backend, maybe it's for the tuner */
         if (priv->tuner)
         {
-            return rig_get_conf(priv->tuner, token, val);
+            return rig_get_conf2(priv->tuner, token, val, val_len);
         }
         else
         {

@@ -33,7 +33,7 @@
 #include <string.h>
 
 #include "hamlib/rig.h"
-#include "serial.h"
+#include "iofunc.h"
 #include "misc.h"
 #include "yaesu.h"
 #include "vx1700.h"
@@ -943,7 +943,7 @@ static int vx1700_set_ptt_gps_jack(ptt_t ptt)
      * FIXME
      *
      * We are using GPIO to manage PTT pin in GPS/Data jack.
-     * This highly binded to our specific device, so it makes
+     * This highly bound to our specific device, so it makes
      * no sense to put our code here.
      * On regular PC this should be managed in another way,
      * probably via DTR/RTS.

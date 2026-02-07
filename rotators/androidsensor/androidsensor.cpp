@@ -21,7 +21,7 @@
  *
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +30,7 @@
 #include <math.h>
 
 #include "hamlib/rotator.h"
+#include "hamlib/rot_state.h"
 #include "register.h"
 
 #include "androidsensor.h"
@@ -111,7 +112,7 @@ androidsensor_rot_cleanup(ROT *rot)
 
     delete priv->imu;
     free(ROTSTATE(rot)->priv);
-    ROTSTATE(rot) = NULL;
+    ROTSTATE(rot)->priv = NULL;
     return RIG_OK;
 }
 
@@ -142,7 +143,6 @@ const struct rot_caps androidsensor_rot_caps =
 
 /* ************************************************************************* */
 
-// cppcheck-suppress syntaxError
 DECLARE_INITROT_BACKEND(androidsensor)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);

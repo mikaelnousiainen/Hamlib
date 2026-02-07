@@ -19,7 +19,7 @@
  *
  */
 
-#include <hamlib/config.h>
+#include "hamlib/config.h"
 
 #include <string.h>  /* String function definitions */
 
@@ -28,12 +28,11 @@
 #endif
 
 #include "hamlib/rig.h"
-#include "serial.h"
+#include "iofunc.h"
 #include "misc.h"
 #include "icom.h"
 #include "icom_defs.h"
 #include "frame.h"
-#include "cache.h"
 
 /*
  * Build a CI-V frame.
@@ -130,7 +129,7 @@ int icom_frame_fix_preamble(int frame_len, unsigned char *frame)
  * return RIG_OK if transaction completed,
  * or a negative value otherwise indicating the error.
  */
-int icom_one_transaction(RIG *rig, unsigned char cmd, int subcmd,
+static int icom_one_transaction(RIG *rig, unsigned char cmd, int subcmd,
                          const unsigned char *payload, int payload_len, unsigned char *data,
                          int *data_len)
 {
@@ -349,8 +348,10 @@ again1:
             }
         }
 
+        // TODO: ability to read a frame within a frame?
+
         // first 2 bytes of everything are 0xfe so we won't test those
-        // this allows some corruptin of the 0xfe bytes which has been seen in the wild
+        // this allows some corruption of the 0xfe bytes which has been seen in the wild
         if (!echo_matches || memcmp(&buf[2], &sendbuf[2], frm_len - 2) != 0)
         {
             if (icom_is_async_frame(rig, retval, buf))
@@ -700,7 +701,7 @@ static int read_icom_frame_generic(hamlib_port_t *p,
     while ((read < rxbuffer_len) && (rxbuffer[read - 1] != FI)
             && (rxbuffer[read - 1] != COL));
 
-    // Check that we have a valid frame preamble (which might be just a single preable character)
+    // Check that we have a valid frame preamble (which might be just a single preamble character)
     // Or an error code
     if (rxbuffer[0] != PR && rxbuffer[0] != COL)
     {
@@ -894,15 +895,27 @@ void icom2rig_mode(RIG *rig, unsigned char md, int pd, rmode_t *mode,
     rig_debug(RIG_DEBUG_TRACE, "%s: mode=0x%02x, pd=%d\n", __func__, md, pd);
 
     // Some rigs return fixed with for FM mode
-    if ((RIG_IS_IC7300 || RIG_IS_IC9700) && (md == S_FM || md == S_WFM))
-    {
-        *mode = RIG_MODE_FM;
+    if (RIG_IS_IC7300 || RIG_IS_IC7300MK2 || RIG_IS_IC9700 || RIG_IS_IC705) {
+        if (md == S_FM) {
+            *mode = RIG_MODE_FM;
 
-        if (*width == 1) { *width = 15000; }
-        else if (*width == 2) { *width = 10000; }
-        else { *width = 7000; }
+            if (*width == 1) { *width = 15000; }
+            else if (*width == 2) { *width = 10000; }
+            else { *width = 7000; }
 
-        return;
+            return;
+        } else if (md == S_WFM) {
+           
+            // For IC-705, *width will always be 1
+            // At least this works for IC-705
+
+            *mode = RIG_MODE_WFM;
+            *width = 200000;
+
+            return;
+        }
+        // If not FM nor SFM mode,
+        // fall down this block for further processing
     }
 
     *width = RIG_PASSBAND_NORMAL;

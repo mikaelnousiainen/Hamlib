@@ -24,11 +24,12 @@
  *   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+#include <string.h>
 
 #include "hamlib/rig.h"
 #include "misc.h"
-#include "newcat.h"
 #include "bandplan.h"
+#include "idx_builtin.h"
 #include "newcat.h"
 #include "yaesu.h"
 #include "ft5000.h"
@@ -144,7 +145,7 @@ int ftdx3000_ext_tokens[] =
     TOK_BACKEND_NONE
 };
 
-int ft3000_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
+static int ft3000_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
 {
     char *cmd;
     int err;
@@ -154,20 +155,21 @@ int ft3000_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
 
     switch (ant)
     {
-    case 1:
+    case RIG_ANT_1:
         cmd = "AN01;"; // R3/1 ANT1/ANT3
         break;
 
-    case 2:
+    case RIG_ANT_2:
         cmd = "AN02;"; // RE/2 ANT2/ANT3
         break;
 
-    case 3:
+    case RIG_ANT_3:
         cmd = "AN03;"; // TRX ANT3
         break;
 
     default:
-        rig_debug(RIG_DEBUG_ERR, "%s: expected 1,2,3 got %u\n", __func__, ant);
+        rig_debug(RIG_DEBUG_ERR, "%s: expected one of %u,%u,%u got %u\n", __func__,
+                  RIG_ANT_1, RIG_ANT_2, RIG_ANT_3, ant);
         RETURNFUNC(-RIG_EINVAL);
     }
 
@@ -181,7 +183,7 @@ int ft3000_set_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t option)
     RETURNFUNC(RIG_OK);
 }
 
-int ft3000_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
+static int ft3000_get_ant(RIG *rig, vfo_t vfo, ant_t dummy, value_t *option,
                    ant_t *ant_curr, ant_t *ant_tx, ant_t *ant_rx)
 {
     struct newcat_priv_data *priv = (struct newcat_priv_data *)STATE(rig)->priv;

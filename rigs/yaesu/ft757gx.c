@@ -38,8 +38,8 @@
 #include <stdlib.h>
 #include <string.h>     /* String function definitions */
 
-#include <hamlib/rig.h>
-#include "serial.h"
+#include "hamlib/rig.h"
+#include "iofunc.h"
 #include "misc.h"
 #include "yaesu.h"
 #include "ft757gx.h"
@@ -508,7 +508,7 @@ static int ft757gx_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
         return RIG_OK;
     }
 
-    return RIG_ENAVAIL;
+    return -RIG_ENAVAIL;
 }
 
 /*
@@ -750,7 +750,7 @@ static int ft757_get_update_data(RIG *rig)
     rig_debug(RIG_DEBUG_VERBOSE, "%s called Timeout=%d ms, Retry=%d\n",
               __func__, rp->timeout, maxtries);
 
-    /* At least on one model, returns erraticaly a timeout. Increasing the timeout
+    /* At least on one model, returns erratically a timeout. Increasing the timeout
     does not fix things. So we restart the read from scratch, it works most of times. */
     for (nbtries = 0 ; nbtries < maxtries ; nbtries++)
     {

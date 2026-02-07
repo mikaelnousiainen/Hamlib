@@ -22,13 +22,14 @@
 
 /* Includes ------------------------------------------------------------------*/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
 #include "hamlib/rig.h"
-#include "serial.h"
+#include "iofunc.h"
 #include "misc.h"
 #include "register.h"
 
@@ -575,13 +576,6 @@ DECLARE_INITRIG_BACKEND(gomspace)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: _init called\n", __func__);
     rig_register(&GS100_caps);
     return (RIG_OK);
-}
-
-
-/* Probe RIG backend function */
-DECLARE_PROBERIG_BACKEND(gomspace)
-{
-    return (RIG_MODEL_GS100);
 }
 
 /*----------------------------------------------------------------------------*/

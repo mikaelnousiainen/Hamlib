@@ -25,10 +25,12 @@
 #include <math.h>
 #include <sys/time.h>
 
-#include <hamlib/rotator.h>
+#include "hamlib/rotator.h"
+#include "hamlib/port.h"
+#include "hamlib/rot_state.h"
 #include <num_stdio.h>
 
-#include "serial.h"
+#include "iofunc.h"
 #include "register.h"
 
 #include "meade.h"
@@ -85,7 +87,7 @@ struct meade_priv_data
  * cmdstr - Command to be sent to the rig.
  * data - Buffer for reply string.  Can be NULL, indicating that no reply is
  *        is needed, but answer will still be read.
- * data_len - in: Size of buffer. It is the caller's responsibily to provide
+ * data_len - in: Size of buffer. It is the caller's responsibility to provide
  *            a large enough buffer for all possible replies for a command.
  *
  * returns:
@@ -310,7 +312,7 @@ static int meade_set_position(ROT *rot, azimuth_t az, elevation_t el)
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: expected 110, got %s\n", __func__,
                   return_str);
-        return RIG_EINVAL;
+        return -RIG_EINVAL;
     }
 }
 
@@ -353,8 +355,8 @@ static int meade_get_position(ROT *rot, azimuth_t *az, elevation_t *el)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: az=%03d:%02d:%02d, el=%03d:%02d:%02d\n",
               __func__, az_degrees, az_minutes, az_seconds, el_degrees, el_minutes,
               el_seconds);
-    *az = dmmm2dec(az_degrees, az_minutes, az_seconds, az_seconds);
-    *el = dmmm2dec(el_degrees, el_minutes, el_seconds, el_seconds);
+    *az = dms2dec(az_degrees, az_minutes, az_seconds, 0);
+    *el = dms2dec(el_degrees, el_minutes, el_seconds, 0);
     return RIG_OK;
 }
 

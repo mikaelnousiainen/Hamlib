@@ -1,25 +1,40 @@
+/*
+ * simts890.c - Copyright 2019-2024 The Hamlib Group
+ *              Copyright 2024-2025 George Baltz 
+ *
+ * This program simulates the CAT actions of the Kenwood TS-890S
+ * transceiver. It takes commands over a pseudo-tty port, and responds
+ * as closely as possible in the same way as the real hardware.
+ *
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License along
+ *   with this program; if not, write to the Free Software Foundation, Inc.,
+ *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 //#define TRACE /* Full traffic trace if enabled */
 // can run this using rigctl/rigctld and socat pty devices
-// gcc -o simts890 -l hamlib simts890.c
 #define _XOPEN_SOURCE 700
 // since we are POSIX here we need this
-#if  0
-struct ip_mreq
-{
-    int dummy;
-};
-#endif
-
-#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #include <ctype.h>
 #include <time.h>
-//#include <hamlib/rig.h>
+
+//#include "hamlib/rig.h"
 
 /* Definitions */
 /* The TS-890S has some undocumented commands, left over from older
@@ -28,8 +43,6 @@ struct ip_mreq
  *   app is only using the latest-and-greatest, comment out the next define.
  */
 #define LEGACY
-// Size of command buffer
-#define BUFSIZE 256
 // Number of selectable bands
 #define NBANDS 11
 /* Type we're emulating - K=The Americas(default), E=Europe */
@@ -99,7 +112,7 @@ int tfset = 0;
 typedef struct kvfo
 {
     int freq;
-    int mode;
+    unsigned int mode;
     short band, vfo;  // Redundant, but useful for relative movement
 } *kvfop_t;
 
@@ -181,80 +194,18 @@ const int stepvalues[4][10] =   // Step sizes in Hz
 int stepsize[4] = { 1000, 500, 10000, 5000}; // Defaults by modeclass
 
 /* Function prototypes */
-int freq2band(int freq);
-kvfop_t newvfo(kvfop_t ovfo, int band);
-void swapvfos(kvfop_t *vfoset[]);
+static int freq2band(int freq);
+static kvfop_t newvfo(kvfop_t ovfo, int band);
+static void swapvfos(kvfop_t *vfoset[]);
 // Extracted from rig.h
 int hl_usleep(unsigned long usec);  // Until it's replaced
 
-#if defined(WIN32) || defined(_WIN32)
-int openPort(char *comport) // doesn't matter for using pts devices
-{
-    int fd;
-    fd = open(comport, O_RDWR);
+#include "sim.h"
 
-    if (fd < 0)
-    {
-        perror(comport);
-    }
-
-    return fd;
-}
-
-#else
-int openPort(char *comport) // doesn't matter for using pts devices
-{
-    int fd = posix_openpt(O_RDWR);
-    char *name = ptsname(fd);
-
-    if (name == NULL)
-    {
-        perror("pstname");
-        return -1;
-    }
-
-    printf("name=%s\n", name);
-
-    if (fd == -1 || grantpt(fd) == -1 || unlockpt(fd) == -1)
-    {
-        perror("posix_openpt");
-        return -1;
-    }
-
-    return fd;
-}
-#endif
-
-int
-getmyline(int fd, char *buf)
-{
-    char c;
-    int i = 0;
-    memset(buf, 0, BUFSIZE);
-    int retval;
-
-    while ((retval = read(fd, &c, 1)) > 0)
-    {
-        buf[i++] = c;
-
-        if (c == ';') { return strlen(buf); }
-    }
-
-    if (retval != 0)
-    {
-        perror("read failed:");
-        close(fd);
-        fd = openPort("");
-    }
-
-    if (strlen(buf) == 0) { hl_usleep(10 * 1000); }
-
-    return strlen(buf);
-}
 
 int main(int argc, char *argv[])
 {
-    char buf[256];
+    char buf[BUFSIZE];
     char *pbuf;
     int fd = openPort(argv[1]);
     int cmd_err = 0;
@@ -411,24 +362,6 @@ int main(int argc, char *argv[])
         {
             sscanf(buf, "RA%d", &ra);
         }
-        else if (strcmp(buf, "RG;") == 0)
-        {
-            hl_usleep(mysleep * 000);
-            pbuf = "RG255;";
-            OUTPUT(pbuf);
-        }
-        else if (strcmp(buf, "MG;") == 0)
-        {
-            hl_usleep(mysleep * 1000);
-            pbuf = "MG050;";
-            OUTPUT(pbuf);
-        }
-        else if (strcmp(buf, "AG;") == 0)
-        {
-            hl_usleep(mysleep * 1000);
-            pbuf = "AG100;";
-            OUTPUT(pbuf);
-        }
         else if (strcmp(buf, "FV;") == 0)
         {
             hl_usleep(mysleep * 1000);
@@ -497,12 +430,12 @@ int main(int argc, char *argv[])
             {
                 // [SSB|CW/FSK/PSK|FM|AM] Mode Frequency Step Size (Multi/Channel Control)
                 int class = buf[6] - '1';
-                int i, tmpstep = -1;
+                int tmpstep = -1;
 
                 if (buf[7] == ';')
                 {
                     // Read
-                    for (i = 0; i < 10 && stepvalues[class][i] != 0; i++)
+                    for (int i = 0; i < 10 && stepvalues[class][i] != 0; i++)
                     {
                         if (stepsize[class] == stepvalues[class][i])
                         {
@@ -522,7 +455,7 @@ int main(int argc, char *argv[])
                     tmpstep = atoi(buf + 8);
 
                     if (tmpstep < 0 || tmpstep > 9 || stepvalues[class][tmpstep] == 0)
-                    {cmd_err = 1; continue;}
+                        {cmd_err = 1; continue;}
 
                     stepsize[class] = stepvalues[class][tmpstep];
                 }
@@ -582,7 +515,8 @@ int main(int argc, char *argv[])
         else if (strncmp(buf, "SF", 2) == 0)
         {
             // Sets and Reads the VFO (Frequency and Mode)
-            int tmpvfo, tmpfreq, tmpmode, newband;
+            int tmpvfo, tmpfreq, newband;
+            unsigned int tmpmode;
             kvfop_t ovfo, nvfo;
 
             if (sscanf(buf, SFformat, &tmpvfo, &tmpfreq, &tmpmode) != 3 || tmpvfo < 0
@@ -593,7 +527,7 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            //printf("tmpvfo=%d, tmpfreq=%d, tmpmode=%d\n", tmpvfo, tmpfreq, tmpmode);
+            //printf("tmpvfo=%d, tmpfreq=%d, tmpmode=%u\n", tmpvfo, tmpfreq, tmpmode);
             ovfo = *vfoAB[tmpvfo];
             newband = freq2band(tmpfreq);
 
@@ -1245,10 +1179,10 @@ int main(int argc, char *argv[])
             case '0': // Get/Set Local clock
             {
                 time_t t;
-                struct tm *localtm;
 
                 if (buf[3] == ';')
                 {
+                    const struct tm *localtm;
                     t = time(NULL);
                     localtm = localtime(&t);
                     strftime(&buf[3], BUFSIZ - 3, "%y%m%d%H%M%S;", localtm);
@@ -1352,7 +1286,7 @@ int main(int argc, char *argv[])
             case 'G': // Audio Scope Attenuator
             case 'H': // Audio Scope Span
             case 'I': // Oscilloscope Level
-            case 'J': // Oscilloscpoe Sweep Time
+            case 'J': // Oscilloscope Sweep Time
             case 'K': // Bandscope Shift Position
             case 'L': // Bandscope Receive Circuit State
             case 'M': // Bandscope Scope Range Lower/Upper Frequency Limit
@@ -1420,7 +1354,7 @@ int main(int argc, char *argv[])
             switch (buf[2])
             {
             case '0': // Frequency Marker Function
-            case '1': // Frequency Marker List Regiatration
+            case '1': // Frequency Marker List Registration
             case '2': // Total Number Registered of Frequency Marker List
             case '3': // Frequency Marker List Readout
             case '4': // Frequency Marker List Delete
@@ -1468,7 +1402,7 @@ int main(int argc, char *argv[])
             switch (buf[2])
             {
             case '0': // Memory Channel Configuration
-            case '1': // Memort Channel (Direct Write)
+            case '1': // Memory Channel (Direct Write)
             case '2': // Memory Channel (Channel Name)
             case '3': // Memory Channel (Scan Lockout)
             case '4': // Memory Channel (Channel Copy)
@@ -1530,7 +1464,7 @@ int main(int argc, char *argv[])
  *
  * Returns band # or negative if invalid input
  */
-int freq2band(int freq)
+static int freq2band(int freq)
 {
     int i, retval = -1;  // Assume the worst
 
@@ -1554,7 +1488,7 @@ int freq2band(int freq)
  *        new band
  * Return: new vfo pointer
  */
-kvfop_t newvfo(kvfop_t ovfo, int band)
+static kvfop_t newvfo(kvfop_t ovfo, int band)
 {
     int vfonum, slot;
 
@@ -1567,7 +1501,7 @@ kvfop_t newvfo(kvfop_t ovfo, int band)
 /* Reverse the function of vfoA and vfoB
  * No status returned
  */
-void swapvfos(kvfop_t *vfoset[])
+static void swapvfos(kvfop_t *vfoset[])
 {
     kvfop_t *temp;
 

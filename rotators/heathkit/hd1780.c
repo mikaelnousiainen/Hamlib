@@ -32,7 +32,9 @@
 #include <string.h>             /* String function definitions */
 
 #include "hamlib/rotator.h"
-#include "serial.h"
+#include "hamlib/port.h"
+#include "hamlib/rot_state.h"
+#include "iofunc.h"
 #include "register.h"
 
 #include "hd1780.h"
