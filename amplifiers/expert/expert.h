@@ -2,7 +2,7 @@
  * Hamlib backend library for the Expert amplifier set.
  *
  *  Copyright (c) 2023 by Michael Black W9MDB
- *  Copyright (c) 2024 by Mikael Nousiainen OH3BHX
+ *  Copyright (c) 2026 by Mikael Nousiainen OH3BHX
  *
  * This shared library provides an API for communicating
  * via serial interface to Expert amplifiers.

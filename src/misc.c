@@ -2598,9 +2598,9 @@ amp_op_t HAMLIB_API amp_parse_amp_op(const char *s)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    for (i = 0 ; vfo_op_str[i].str[0] != '\0'; i++)
+    for (i = 0 ; amp_op_str[i].str[0] != '\0'; i++)
     {
-        if (!strcmp(s, vfo_op_str[i].str))
+        if (!strcmp(s, amp_op_str[i].str))
         {
             return amp_op_str[i].amp_op;
         }

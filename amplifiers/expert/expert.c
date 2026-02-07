@@ -1,7 +1,7 @@
 /*
  *  Hamlib Expert amplifier backend - low level communication routines
  *  Copyright (c) 2023 by Michael Black W9MDB
- *  Copyright (c) 2025 by Mikael Nousiainen OH3BHX
+ *  Copyright (c) 2026 by Mikael Nousiainen OH3BHX
  *
  *   This library is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU Lesser General Public
