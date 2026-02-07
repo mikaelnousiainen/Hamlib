@@ -1,7 +1,8 @@
-/*
+/**
  * dumpcaps_amp.c - Copyright (C) 2000-2012 Stephane Fillod
- * This programs dumps the capabilities of a backend rig.
+ *                  (C) Mikael Nousiainen OH3BHX 2026
  *
+ * This programs dumps the capabilities of a backend amplifier.
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -318,6 +319,9 @@ int dumpcaps_amp(AMP *amp, FILE *fout)
     fprintf(fout, "Extra parameters:\n");
     amp_ext_parm_foreach(amp, print_ext, fout);
 
+    amp_sprintf_amp_op(prntbuf, sizeof(prntbuf), caps->amp_ops);
+    fprintf(fout, "Amp Ops: %s\n", prntbuf);
+
     label1 = caps->range_list1->label;
     label1 = label1 == NULL ? "TBD" : label1;
     fprintf(fout, "TX ranges #1 for %s:\n", label1);
@@ -424,6 +428,8 @@ int dumpcaps_amp(AMP *amp, FILE *fout)
     fprintf(fout, "Can get Level:\t%c\n", caps->get_level != NULL ? 'Y' : 'N');
     fprintf(fout, "Can set Param:\t%c\n", caps->set_parm != NULL ? 'Y' : 'N');
     fprintf(fout, "Can get Param:\t%c\n", caps->get_parm != NULL ? 'Y' : 'N');
+
+    fprintf(fout, "Can perform Amp Ops:\t%c\n", caps->amp_op != NULL ? 'Y' : 'N');
 
     fprintf(fout, "Can set Frequency:\t%c\n", caps->set_freq != NULL ? 'Y' : 'N');
     fprintf(fout, "Can get Frequency:\t%c\n", caps->get_freq != NULL ? 'Y' : 'N');
