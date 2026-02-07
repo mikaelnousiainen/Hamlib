@@ -2,7 +2,7 @@
  * rigctl_parse.c - (C) Stephane Fillod 2000-2011
  *                  (C) Nate Bargmann 2003,2006,2008,2010,2011,2012,2013
  *                  (C) Terry Embry 2008-2009
- *                  (C) The Hamlib Group 2002,2006,2007,2008,2009,2010,2011
+ *                  (C) The Hamlib Group 2002,2006,2007,2008,2009,2010,2011,2026
  *
  * This program tests/controls a radio using Hamlib.
  * It takes commands in interactive mode as well as
@@ -24,6 +24,7 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #include "hamlib/config.h"
 
@@ -713,9 +714,14 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
     char arg3[MAXARGSZ + 1], *p3 = NULL;
     vfo_t vfo = RIG_VFO_CURR;
     char client_version[32];
+    char name_format[8];
+    char arg_format[8];
 
     rig_debug(RIG_DEBUG_TRACE, "%s: called, interactive=%d\n", __func__,
               interactive);
+
+    SNPRINTF(name_format, sizeof(name_format), "%%%ds", MAXNAMSIZ - 1);
+    SNPRINTF(arg_format, sizeof(arg_format), "%%%ds", MAXARGSZ - 1);
 
     /* cmd, internal, rigctld */
     if (!(interactive && prompt && have_rl))
@@ -810,7 +816,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                 /* command by name */
                 if (cmd == '\\')
                 {
-                    char cmd_name[MAXNAMSIZ], *pcmd = cmd_name;
+                    char cmd_name[MAXNAMSIZ + 1], *pcmd = cmd_name;
 
                     if (scanfc(fin, "%c", pcmd) < 1)
                     {
@@ -818,7 +824,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                         return (RIGCTL_PARSE_ERROR);
                     }
 
-                    retcode = fscanf(fin, "%s", ++pcmd);
+                    retcode = fscanf(fin, name_format, ++pcmd); // Get the rest of the command
 
                     if (retcode == 0 || retcode == EOF) { rig_debug(RIG_DEBUG_WARN, "%s: unable to scan %c\n", __func__, *(pcmd - 1)); }
 
@@ -944,7 +950,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                     fprintf_flush(fout, "VFO: ");
                 }
 
-                if (scanfc(fin, "%s", arg1) < 1)
+                if (scanfc(fin, arg_format, arg1) < 1)
                 {
                     rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#7?\n", __func__);
                     return (RIGCTL_PARSE_ERROR);
@@ -1051,7 +1057,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                     fprintf_flush(fout, "%s: ", cmd_entry->arg1);
                 }
 
-                if (scanfc(fin, "%s", arg1) < 1)
+                if (scanfc(fin, arg_format, arg1) < 1)
                 {
                     rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#8?\n", __func__);
                     return (RIGCTL_PARSE_ERROR);
@@ -1101,7 +1107,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                     fprintf_flush(fout, "%s: ", cmd_entry->arg2);
                 }
 
-                if (scanfc(fin, "%s", arg2) < 1)
+                if (scanfc(fin, arg_format, arg2) < 1)
                 {
                     rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#9?\n", __func__);
                     return (RIGCTL_PARSE_ERROR);
@@ -1150,7 +1156,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
                     fprintf_flush(fout, "%s: ", cmd_entry->arg3);
                 }
 
-                if (scanfc(fin, "%s", arg3) < 1)
+                if (scanfc(fin, arg_format, arg3) < 1)
                 {
                     rig_debug(RIG_DEBUG_WARN, "%s: nothing to scan#10?\n", __func__);
                     return (RIGCTL_PARSE_ERROR);
@@ -4089,7 +4095,7 @@ declare_proto_rig(set_channel)
     const chan_t *chan_list;
     channel_t chan;
     int status;
-    char s[16];
+    char s[HAMLIB_MAXCHANDESC];
 
     ENTERFUNC2;
 
@@ -4143,7 +4149,7 @@ declare_proto_rig(set_channel)
             fprintf_flush(fout, "vfo (VFOA,MEM,etc...): ");
         }
 
-        CHKSCN1ARG(scanfc(fin, "%s", s));
+        CHKSCN1ARG(scanfc(fin, "%10s", s));
         chan.vfo = rig_parse_vfo(s);
     }
 
@@ -4176,7 +4182,7 @@ declare_proto_rig(set_channel)
             fprintf_flush(fout, "mode (FM,LSB,etc...): ");
         }
 
-        CHKSCN1ARG(scanfc(fin, "%s", s));
+        CHKSCN1ARG(scanfc(fin, "%10s", s));
         chan.mode = rig_parse_mode(s);
     }
 
@@ -4207,7 +4213,7 @@ declare_proto_rig(set_channel)
             fprintf_flush(fout, "tx mode (FM,LSB,etc...): ");
         }
 
-        CHKSCN1ARG(scanfc(fin, "%s", s));
+        CHKSCN1ARG(scanfc(fin, "%10s", s));
         chan.tx_mode = rig_parse_mode(s);
     }
 
@@ -4239,7 +4245,7 @@ declare_proto_rig(set_channel)
             fprintf_flush(fout, "tx vfo (VFOA,MEM,etc...): ");
         }
 
-        CHKSCN1ARG(scanfc(fin, "%s", s));
+        CHKSCN1ARG(scanfc(fin, "%10s", s));
         chan.tx_vfo = rig_parse_vfo(s);
     }
 
@@ -4250,7 +4256,7 @@ declare_proto_rig(set_channel)
             fprintf_flush(fout, "rptr shift (+-0): ");
         }
 
-        CHKSCN1ARG(scanfc(fin, "%s", s));
+        CHKSCN1ARG(scanfc(fin, "%12s", s));
         chan.rptr_shift = rig_parse_rptr_shift(s);
     }
 
@@ -4381,7 +4387,7 @@ declare_proto_rig(set_channel)
             fprintf_flush(fout, "channel desc: ");
         }
 
-        CHKSCN1ARG(scanfc(fin, "%s", s));
+        CHKSCN1ARG(scanfc(fin, "%31s", s));
         strcpy(chan.channel_desc, s);
     }
 
