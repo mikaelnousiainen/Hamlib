@@ -252,6 +252,21 @@ struct expert_priv_data
     expert_status_response status_response;
     char fault[128];
     char warning[128];
+
+    int cache_timeout_ms;
+    struct timespec status_cache_time;
+    expert_status_response cached_status;
+};
+
+static const struct confparams expert_cfg_params[] =
+{
+    {
+        TOK_CFG_STATUS_CACHE_TIMEOUT, "status_cache_timeout",
+        "Status cache timeout",
+        "Status cache timeout in milliseconds",
+        "40", RIG_CONF_NUMERIC, { .n = { 0, 10000, 1 } }
+    },
+    { RIG_CONF_END, NULL, }
 };
 
 static int expert_flushbuffer(AMP *amp)
@@ -426,8 +441,10 @@ static int expert_transaction(AMP *amp, const unsigned char *cmd, unsigned char 
     return RIG_OK;
 }
 
-static int expert_read_status(AMP *amp, expert_status_response *status)
+static int expert_read_status(AMP *amp, expert_status_response *status,
+                              int use_cache)
 {
+    struct expert_priv_data *priv = amp->state.priv;
     unsigned char cmd = EXPERT_AMP_COMMAND_STATUS;
     unsigned char response[EXPERTBUFSZ];
     int result;
@@ -435,7 +452,21 @@ static int expert_read_status(AMP *amp, expert_status_response *status)
     int expected_length = 67 + 5;
     uint16_t checksum = 0;
 
-    // TODO: cache status for configurable time, e.g. 100ms?
+    if (use_cache && priv->cache_timeout_ms > 0)
+    {
+        double elapsed = elapsed_ms(&priv->status_cache_time,
+                                    HAMLIB_ELAPSED_GET);
+
+        if (elapsed < priv->cache_timeout_ms)
+        {
+            rig_debug(RIG_DEBUG_TRACE,
+                      "%s: using cached status (%.0f ms old)\n",
+                      __func__, elapsed);
+            memcpy(status, &priv->cached_status,
+                   sizeof(expert_status_response));
+            return RIG_OK;
+        }
+    }
 
     result = expert_transaction(amp, &cmd, 1, response, &response_length);
     if (result != RIG_OK)
@@ -466,6 +497,9 @@ static int expert_read_status(AMP *amp, expert_status_response *status)
         return -RIG_EPROTO;
     }
 
+    memcpy(&priv->cached_status, status, sizeof(expert_status_response));
+    elapsed_ms(&priv->status_cache_time, HAMLIB_ELAPSED_SET);
+
     return RIG_OK;
 }
 
@@ -486,9 +520,62 @@ int expert_init(AMP *amp)
         return -RIG_ENOMEM;
     }
 
+    struct expert_priv_data *priv = AMPSTATE(amp)->priv;
+    priv->cache_timeout_ms = EXPERT_CACHE_TIMEOUT_DEFAULT;
+
     AMPPORT(amp)->type.rig = RIG_PORT_SERIAL;
 
     return RIG_OK;
+}
+
+static int expert_set_conf(AMP *amp, hamlib_token_t token, const char *val)
+{
+    struct expert_priv_data *priv = amp->state.priv;
+
+    switch (token)
+    {
+    case TOK_CFG_STATUS_CACHE_TIMEOUT:
+    {
+        char *end;
+        long value = strtol(val, &end, 10);
+
+        if (end == val || value < 0 || value > 10000)
+        {
+            return -RIG_EINVAL;
+        }
+
+        priv->cache_timeout_ms = (int)value;
+        break;
+    }
+
+    default:
+        return -RIG_EINVAL;
+    }
+
+    return RIG_OK;
+}
+
+static int expert_get_conf2(AMP *amp, hamlib_token_t token, char *val,
+                            int val_len)
+{
+    struct expert_priv_data *priv = amp->state.priv;
+
+    switch (token)
+    {
+    case TOK_CFG_STATUS_CACHE_TIMEOUT:
+        SNPRINTF(val, val_len, "%d", priv->cache_timeout_ms);
+        break;
+
+    default:
+        return -RIG_EINVAL;
+    }
+
+    return RIG_OK;
+}
+
+static int expert_get_conf(AMP *amp, hamlib_token_t token, char *val)
+{
+    return expert_get_conf2(amp, token, val, 128);
 }
 
 int expert_open(AMP *amp)
@@ -498,7 +585,7 @@ int expert_open(AMP *amp)
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    result = expert_read_status(amp, &priv->status_response);
+    result = expert_read_status(amp, &priv->status_response, 0);
     if (result == RIG_OK)
     {
         memcpy(priv->id, priv->status_response.id, 3);
@@ -566,7 +653,7 @@ int expert_get_status(AMP *amp, amp_status_t *status)
         return -RIG_EINVAL;
     }
 
-    result = expert_read_status(amp, status_response);
+    result = expert_read_status(amp, status_response, 1);
     if (result != RIG_OK)
     {
         return result;
@@ -613,13 +700,13 @@ int expert_get_freq(AMP *amp, freq_t *freq)
         return -RIG_EINVAL;
     }
 
-    result = expert_read_status(amp, status_response);
+    result = expert_read_status(amp, status_response, 1);
     if (result != RIG_OK)
     {
         return result;
     }
 
-    nargs = sscanf(status_response->selected_band, "%02d", &band);
+    nargs = sscanf(status_response->selected_band, "%2d", &band);
 
     if (nargs != 1)
     {
@@ -689,7 +776,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
         return -RIG_EINVAL;
     }
 
-    result = expert_read_status(amp, status_response);
+    result = expert_read_status(amp, status_response, 1);
     if (result != RIG_OK)
     {
         return result;
@@ -699,7 +786,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
     {
     case AMP_LEVEL_SWR: {
         float swr;
-        nargs = sscanf(status_response->swr_ant, "%02f", &swr);
+        nargs = sscanf(status_response->swr_ant, "%5f", &swr);
 
         if (nargs != 1)
         {
@@ -714,7 +801,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
 
     case AMP_LEVEL_SWR_TUNER: {
         float swr;
-        nargs = sscanf(status_response->swr_atu, "%02f", &swr);
+        nargs = sscanf(status_response->swr_atu, "%5f", &swr);
 
         if (nargs != 1)
         {
@@ -730,7 +817,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
     case AMP_LEVEL_PWR_FWD:
     case AMP_LEVEL_PWR_PEAK: {
         int power;
-        nargs = sscanf(status_response->output_power, "%04d", &power);
+        nargs = sscanf(status_response->output_power, "%4d", &power);
 
         if (nargs != 1)
         {
@@ -768,7 +855,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
 
     case AMP_LEVEL_VD_METER: {
         float voltage;
-        nargs = sscanf(status_response->supply_voltage, "%04f", &voltage);
+        nargs = sscanf(status_response->supply_voltage, "%4f", &voltage);
 
         if (nargs != 1)
         {
@@ -782,7 +869,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
     }
     case AMP_LEVEL_ID_METER: {
         float current;
-        nargs = sscanf(status_response->supply_current, "%04f", &current);
+        nargs = sscanf(status_response->supply_current, "%4f", &current);
 
         if (nargs != 1)
         {
@@ -796,7 +883,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
     }
     case AMP_LEVEL_TEMP_METER: {
         int temp;
-        nargs = sscanf(status_response->temperature_upper_heatsink, "%03d", &temp);
+        nargs = sscanf(status_response->temperature_upper_heatsink, "%3d", &temp);
 
         if (nargs != 1)
         {
@@ -805,7 +892,7 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
             return -RIG_EPROTO;
         }
 
-        val->i = temp;
+        val->f = (float)temp;
         break;
     }
 
@@ -871,7 +958,7 @@ int expert_set_level(AMP *amp, setting_t level, value_t val)
     }
 
 change_again:
-    result = expert_read_status(amp, status_response);
+    result = expert_read_status(amp, status_response, 0);
     if (result != RIG_OK)
     {
         return result;
@@ -944,7 +1031,7 @@ int expert_get_func(AMP *amp, setting_t func, int *status)
         return -RIG_EINVAL;
     }
 
-    result = expert_read_status(amp, status_response);
+    result = expert_read_status(amp, status_response, 1);
     if (result != RIG_OK)
     {
         return result;
@@ -977,7 +1064,7 @@ int expert_get_powerstat(AMP *amp, powerstat_t *status)
         return -RIG_EINVAL;
     }
 
-    result = expert_read_status(amp, status_response);
+    result = expert_read_status(amp, status_response, 1);
     if (result != RIG_OK)
     {
         return result;
@@ -1023,7 +1110,7 @@ int expert_set_powerstat(AMP *amp, powerstat_t status)
     }
 
 retry:
-    result = expert_read_status(amp, status_response);
+    result = expert_read_status(amp, status_response, 0);
 
     if (result == RIG_OK)
     {
@@ -1181,7 +1268,7 @@ int expert_get_input(AMP *amp, ant_t *input)
     expert_status_response *status_response = &priv->status_response;
     int result;
 
-    result = expert_read_status(amp, status_response);
+    result = expert_read_status(amp, status_response, 0);
     if (result != RIG_OK)
     {
         return result;
@@ -1234,7 +1321,7 @@ int expert_set_input(AMP *amp, ant_t input)
     }
 
 change_again:
-    result = expert_read_status(amp, status_response);
+    result = expert_read_status(amp, status_response, 0);
     if (result != RIG_OK)
     {
         return result;
@@ -1275,7 +1362,7 @@ int expert_get_ant(AMP *amp, ant_t *ant)
     expert_status_response *status_response = &priv->status_response;
     int result;
 
-    result = expert_read_status(amp, status_response);
+    result = expert_read_status(amp, status_response, 0);
     if (result != RIG_OK)
     {
         return result;
@@ -1317,7 +1404,7 @@ int expert_set_ant(AMP *amp, ant_t ant)
     }
 
 change_again:
-    result = expert_read_status(amp, status_response);
+    result = expert_read_status(amp, status_response, 0);
     if (result != RIG_OK)
     {
         return result;
@@ -1487,6 +1574,7 @@ const struct amp_caps expert_13k_fa_amp_caps =
     .retry = 2,
 
     .priv = &expert_13k_fa_priv_caps,
+    .cfgparams = expert_cfg_params,
 
     .has_get_func = EXPERT_GET_FUNCS,
     .has_set_func = EXPERT_SET_FUNCS,
@@ -1512,6 +1600,9 @@ const struct amp_caps expert_13k_fa_amp_caps =
     .amp_open = expert_open,
     .amp_close = expert_close,
     .amp_cleanup = expert_cleanup,
+    .set_conf = expert_set_conf,
+    .get_conf = expert_get_conf,
+    .get_conf2 = expert_get_conf2,
     .reset = expert_reset,
     .get_info = expert_get_info,
     .get_status = expert_get_status,
@@ -1564,6 +1655,7 @@ const struct amp_caps expert_15k_fa_amp_caps =
     .retry = 2,
 
     .priv = &expert_15k_fa_priv_caps,
+    .cfgparams = expert_cfg_params,
 
     .has_get_func = EXPERT_GET_FUNCS,
     .has_set_func = EXPERT_SET_FUNCS,
@@ -1589,6 +1681,9 @@ const struct amp_caps expert_15k_fa_amp_caps =
     .amp_open = expert_open,
     .amp_close = expert_close,
     .amp_cleanup = expert_cleanup,
+    .set_conf = expert_set_conf,
+    .get_conf = expert_get_conf,
+    .get_conf2 = expert_get_conf2,
     .reset = expert_reset,
     .get_info = expert_get_info,
     .get_status = expert_get_status,
@@ -1641,6 +1736,7 @@ const struct amp_caps expert_2k_fa_amp_caps =
     .retry = 2,
 
     .priv = &expert_2k_fa_priv_caps,
+    .cfgparams = expert_cfg_params,
 
     .has_get_func = EXPERT_GET_FUNCS,
     .has_set_func = EXPERT_SET_FUNCS,
@@ -1666,6 +1762,9 @@ const struct amp_caps expert_2k_fa_amp_caps =
     .amp_open = expert_open,
     .amp_close = expert_close,
     .amp_cleanup = expert_cleanup,
+    .set_conf = expert_set_conf,
+    .get_conf = expert_get_conf,
+    .get_conf2 = expert_get_conf2,
     .reset = expert_reset,
     .get_info = expert_get_info,
     .get_status = expert_get_status,

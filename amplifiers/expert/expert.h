@@ -32,6 +32,11 @@
 
 #define EXPERTBUFSZ 128
 
+#define TOKEN_BACKEND(t) (t)
+
+#define TOK_CFG_STATUS_CACHE_TIMEOUT TOKEN_BACKEND(1)
+#define EXPERT_CACHE_TIMEOUT_DEFAULT 40
+
 extern const struct amp_caps expert_13k_fa_amp_caps;
 extern const struct amp_caps expert_15k_fa_amp_caps;
 extern const struct amp_caps expert_2k_fa_amp_caps;
