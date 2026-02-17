@@ -27,10 +27,6 @@
  */
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 
-// TODO: Add new features in dumpcaps_amp()
-// TODO: Finish Expert backend and test
-// TODO: Future features: add a separate command to switch antenna "mode", e.g. for RX only antennas, then there is no need to have the "option" for set/get ant
-
 #include "hamlib/config.h"
 
 #include <stdint.h>
