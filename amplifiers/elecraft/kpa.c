@@ -486,7 +486,7 @@ int kpa_get_level(AMP *amp, setting_t level, value_t *val)
 
     default:
         rig_debug(RIG_DEBUG_ERR, "%s unknown level=%s\n", __func__,
-                  rig_strlevel(level));
+                  amp_strlevel(level));
 
     }
 

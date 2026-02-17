@@ -2,7 +2,7 @@
  * dumpcaps_amp.c - Copyright (C) 2000-2012 Stephane Fillod
  *                  (C) Mikael Nousiainen OH3BHX 2026
  *
- * This programs dumps the capabilities of a backend amplifier.
+ * This program dumps the capabilities of a backend amplifier.
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -172,7 +172,7 @@ int dumpcaps_amp(AMP *amp, FILE *fout)
     const struct amp_caps *caps;
     int backend_warnings = 0;
     static char prntbuf[1024];
-    char warnbuf[4096];
+    char warnbuf[4096] = "";
     char *label1, *label2, *label3, *label4, *label5;
     int status;
 
@@ -270,11 +270,10 @@ int dumpcaps_amp(AMP *amp, FILE *fout)
     }
     else
     {
-        strcpy(prntbuf, "None\n");
+        strcpy(prntbuf, "None");
     }
 
     fprintf(fout, "Status flags: %s\n", prntbuf);
-    amp_sprintf_level(prntbuf, sizeof(prntbuf), caps->has_get_level);
 
     amp_sprintf_func(prntbuf, sizeof(prntbuf), caps->has_get_func);
     fprintf(fout, "Get functions: %s\n", prntbuf);
@@ -340,7 +339,7 @@ int dumpcaps_amp(AMP *amp, FILE *fout)
     label4 = caps->range_list4->label;
     label4 = label4 == NULL ? "TBD" : label4;
     fprintf(fout, "TX ranges #4 for %s:\n", label4);
-    range_print(fout, caps->range_list5, 0);
+    range_print(fout, caps->range_list4, 0);
 
     label5 = caps->range_list5->label;
     label5 = label5 == NULL ? "TBD" : label5;

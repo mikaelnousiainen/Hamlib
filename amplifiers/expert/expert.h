@@ -42,16 +42,26 @@ extern const struct amp_caps expert_15k_fa_amp_caps;
 extern const struct amp_caps expert_2k_fa_amp_caps;
 
 int expert_init(AMP *amp);
+int expert_open(AMP *amp);
 int expert_close(AMP *amp);
+int expert_cleanup(AMP *amp);
 int expert_reset(AMP *amp, amp_reset_t reset);
-int expert_flush_buffer(AMP *amp);
 const char *expert_get_info(AMP *amp);
 int expert_get_freq(AMP *amp, freq_t *freq);
-int expert_set_freq(AMP *amp, freq_t freq);
+int expert_get_status(AMP *amp, amp_status_t *status);
 
 int expert_get_level(AMP *amp, setting_t level, value_t *val);
+int expert_set_level(AMP *amp, setting_t level, value_t val);
+int expert_get_func(AMP *amp, setting_t func, int *status);
 int expert_get_powerstat(AMP *amp, powerstat_t *status);
 int expert_set_powerstat(AMP *amp, powerstat_t status);
+
+int expert_get_input(AMP *amp, ant_t *input);
+int expert_set_input(AMP *amp, ant_t input);
+int expert_get_ant(AMP *amp, ant_t *ant);
+int expert_set_ant(AMP *amp, ant_t ant);
+int expert_amp_op(AMP *amp, amp_op_t op);
+int expert_set_parm(AMP *amp, setting_t parm, value_t val);
 
 #endif  /* _AMP_EXPERT_H */
 

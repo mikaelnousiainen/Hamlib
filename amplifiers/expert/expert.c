@@ -1327,7 +1327,7 @@ change_again:
         return result;
     }
 
-    ant_t current_input_value = RIG_ANT_N(status_response->input - 1);
+    ant_t current_input_value = RIG_ANT_N(status_response->input - '0' - 1);
 
     if (input != current_input_value)
     {

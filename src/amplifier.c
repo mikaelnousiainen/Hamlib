@@ -830,7 +830,7 @@ int HAMLIB_API amp_get_powerstat(AMP *amp, powerstat_t *status)
 
 
 /**
- * \brief Query status flags of the amplifiter.
+ * \brief Query status flags of the amplifier.
  *
  * \param amp The #AMP handle.
  * \param status The variable where the status flags will be stored.
@@ -864,7 +864,7 @@ int HAMLIB_API amp_get_status(AMP *amp, amp_status_t *status)
 
 /**
  * \brief check retrieval ability of amp operations
- * \param rig   The #AMP handle
+ * \param amp   The #AMP handle
  * \param op    The amp op
  *
  *  Checks if an amplifier is capable of executing an operation.
@@ -880,24 +880,20 @@ int HAMLIB_API amp_get_status(AMP *amp, amp_status_t *status)
  */
 amp_op_t HAMLIB_API amp_has_op(AMP *amp, amp_op_t op)
 {
-    int retcode;
-
     amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    if (CHECK_AMP_ARG(amp))
+    if (!amp || !amp->caps)
     {
-        return -RIG_EINVAL;
+        return 0;
     }
 
-    retcode = amp->state.amp_ops & op;
-
-    return retcode;
+    return (amp->state.amp_ops & op);
 }
 
 
 /**
  * \brief perform amplifier operations
- * \param rig   The #AMP handle
+ * \param amp   The #AMP handle
  * \param op    The amplifier operation to perform
  *
  *  Performs amplifier operation.
@@ -1002,7 +998,6 @@ int HAMLIB_API amp_get_input(AMP *amp, ant_t *input)
  * \brief set the antenna
  * \param amp   The amp handle
  * \param ant   The antenna to select
- * \param option An option that the ant command for the amp recognizes
  *
  *  Select the antenna connector.
  *

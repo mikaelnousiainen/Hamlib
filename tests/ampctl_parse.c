@@ -1719,7 +1719,7 @@ declare_proto_amp(set_level)
     if (!strcmp(arg1, "?"))
     {
         char s[SPRINTF_MAX_SIZE];
-        rig_sprintf_level(s, sizeof(s), AMPSTATE(amp)->has_set_level);
+        amp_sprintf_level(s, sizeof(s), AMPSTATE(amp)->has_set_level);
         fputs(s, fout);
 
         if (amp->caps->set_ext_level)
@@ -1736,7 +1736,7 @@ declare_proto_amp(set_level)
 
     if (!strcmp(arg2, "?"))
     {
-        const gran_t *gran = STATE(amp)->level_gran;
+        const gran_t *gran = AMPSTATE(amp)->level_gran;
         int idx = rig_setting2idx(level);
 
         if (AMP_LEVEL_IS_FLOAT(level))
@@ -1796,7 +1796,7 @@ declare_proto_amp(set_level)
         return (amp_set_ext_level(amp, cfp->token, val));
     }
 
-    if (RIG_LEVEL_IS_FLOAT(level))
+    if (AMP_LEVEL_IS_FLOAT(level))
     {
         CHKSCN1ARG(sscanf(arg2, "%f", &val.f));
     }
@@ -1856,8 +1856,6 @@ declare_proto_amp(get_level)
         {
             fprintf(fout, "%s: ", cmd->arg2);
         }
-
-        printf("cfp->type=%d\n", cfp->type);
 
         switch (cfp->type)
         {
@@ -2210,17 +2208,17 @@ declare_proto_amp(get_parm)
 
     if (AMP_PARM_IS_FLOAT(parm))
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: float\n", __func__);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: float\n", __func__);
         fprintf(fout, "%f%c", val.f, resp_sep);
     }
     else if (AMP_PARM_IS_STRING(parm))
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: string\n", __func__);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: string\n", __func__);
         fprintf(fout, "%s%c", val.s, resp_sep);
     }
     else
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: int\n", __func__);
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: int\n", __func__);
         fprintf(fout, "%d%c", val.i, resp_sep);
     }
 

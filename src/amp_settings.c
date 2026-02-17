@@ -109,7 +109,7 @@ int HAMLIB_API amp_get_level(AMP *amp, setting_t level, value_t *val)
 {
     amp_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
-    if (CHECK_AMP_ARG(amp))
+    if (CHECK_AMP_ARG(amp) || !val)
     {
         return -RIG_EINVAL;
     }

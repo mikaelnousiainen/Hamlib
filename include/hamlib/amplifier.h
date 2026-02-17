@@ -155,7 +155,7 @@ typedef enum amp_type_e
 /**
  * \brief Amplifier Level Settings.
  *
- * Various operating levels supported by an amplifiter.
+ * Various operating levels supported by an amplifier.
  *
  * \c STRING used in the \c ampctl and \c ampctld utilities.
  *
@@ -189,9 +189,7 @@ enum amp_level_e
 #define AMP_LEVEL_IS_STRING(l) ((l)&AMP_LEVEL_STRING_LIST)
 
 #define AMP_LEVEL_READONLY_LIST (AMP_LEVEL_SWR|AMP_LEVEL_SWR_TUNER|AMP_LEVEL_VD_METER|AMP_LEVEL_ID_METER|AMP_LEVEL_TEMP_METER|AMP_LEVEL_PWR_INPUT|AMP_LEVEL_PWR_FWD|AMP_LEVEL_PWR_REFLECTED|AMP_LEVEL_PWR_PEAK|AMP_LEVEL_FAULT|AMP_LEVEL_WARNING)
-#define AMP_LEVEL_SET(l) ((l)&~RIG_LEVEL_READONLY_LIST)
-//! @endcond
-
+#define AMP_LEVEL_SET(l) ((l)&~AMP_LEVEL_READONLY_LIST)
 //! @endcond
 
 //! @cond Doxygen_Suppress
@@ -213,11 +211,11 @@ enum amp_parm_e {
 //! @cond Doxygen_Suppress
 #define AMP_PARM_FLOAT_LIST  (AMP_PARM_BACKLIGHT)
 #define AMP_PARM_STRING_LIST  (AMP_PARM_NONE)
-#define AMP_PARM_IS_FLOAT(l) ((l)&AMP_LEVEL_FLOAT_LIST)
-#define AMP_PARM_IS_STRING(l) ((l)&AMP_LEVEL_STRING_LIST)
+#define AMP_PARM_IS_FLOAT(l) ((l)&AMP_PARM_FLOAT_LIST)
+#define AMP_PARM_IS_STRING(l) ((l)&AMP_PARM_STRING_LIST)
 
 #define AMP_PARM_READONLY_LIST (0)
-#define AMP_PARM_SET(l) ((l)&~RIG_PARM_READONLY_LIST)
+#define AMP_PARM_SET(l) ((l)&~AMP_PARM_READONLY_LIST)
 //! @endcond
 
 /* Basic amp type, can store some useful info about different amplifiers. Each
@@ -249,9 +247,9 @@ typedef enum {
     AMP_OP_BAND_UP =    (1 << 1),   /*!< \c BAND_UP -- Band UP */
     AMP_OP_BAND_DOWN =  (1 << 2),   /*!< \c BAND_DOWN -- Band DOWN */
     AMP_OP_L_NH_UP =    (1 << 3),   /*!< \c L_NH_UP -- Tune manually L (nH) UP */
-    AMP_OP_L_NH_DOWN =  (1 << 4),   /*!< \c L_NH_DOWNB -- Tune manually L (nH) DOWN */
-    AMP_OP_C_PF_UP =    (1 << 5),   /*!< \c L_NH_UP -- Tune manually C (pF) UP */
-    AMP_OP_C_PF_DOWN =  (1 << 6),   /*!< \c L_NH_DOWNB -- Tune manually C (pF) DOWN */
+    AMP_OP_L_NH_DOWN =  (1 << 4),   /*!< \c L_NH_DOWN -- Tune manually L (nH) DOWN */
+    AMP_OP_C_PF_UP =    (1 << 5),   /*!< \c C_PF_UP -- Tune manually C (pF) UP */
+    AMP_OP_C_PF_DOWN =  (1 << 6),   /*!< \c C_PF_DOWN -- Tune manually C (pF) DOWN */
 } amp_op_t;
 
 

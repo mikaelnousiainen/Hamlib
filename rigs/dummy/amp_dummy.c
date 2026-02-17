@@ -105,7 +105,7 @@ static const struct confparams dummy_cfg_params[] =
 {
     {
         TOK_CFG_AMP_MAGICCONF, "mcfg", "Magic conf", "Magic parameter, as an example",
-        "ROTATOR", RIG_CONF_STRING, { }
+        "AMPLIFIER", RIG_CONF_STRING, { }
     },
     { RIG_CONF_END, NULL, }
 };
@@ -130,6 +130,8 @@ static int dummy_amp_init(AMP *amp)
 
     if (!priv->ext_funcs)
     {
+        free(AMPSTATE(amp)->priv);
+        AMPSTATE(amp)->priv = NULL;
         return -RIG_ENOMEM;
     }
 
@@ -137,6 +139,9 @@ static int dummy_amp_init(AMP *amp)
 
     if (!priv->ext_levels)
     {
+        free(priv->ext_funcs);
+        free(AMPSTATE(amp)->priv);
+        AMPSTATE(amp)->priv = NULL;
         return -RIG_ENOMEM;
     }
 
@@ -144,6 +149,10 @@ static int dummy_amp_init(AMP *amp)
 
     if (!priv->ext_parms)
     {
+        free(priv->ext_levels);
+        free(priv->ext_funcs);
+        free(AMPSTATE(amp)->priv);
+        AMPSTATE(amp)->priv = NULL;
         return -RIG_ENOMEM;
     }
 
@@ -402,7 +411,7 @@ static int dummy_get_level(AMP *amp, setting_t level, value_t *val)
             return RIG_OK;
 
         case AMP_LEVEL_NH:
-            rig_debug(RIG_DEBUG_VERBOSE, "%s AMP_LEVEL_UH\n", __func__);
+            rig_debug(RIG_DEBUG_VERBOSE, "%s AMP_LEVEL_NH\n", __func__);
             val->i = flag == 0 ? 0 : 8370;
             return RIG_OK;
 
@@ -482,7 +491,7 @@ static int dummy_set_ext_level(AMP *amp, hamlib_token_t token, value_t val)
     switch (cfp->type)
     {
     case RIG_CONF_STRING:
-        strcpy(lstr, val.s);
+        SNPRINTF(lstr, sizeof(lstr), "%s", val.s);
         break;
 
     case RIG_CONF_COMBO:
@@ -680,7 +689,7 @@ static int dummy_set_parm(AMP *amp, setting_t parm, value_t val)
     }
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s %s\n", __func__,
-              rig_strparm(parm), pstr);
+              amp_strparm(parm), pstr);
 
     priv->parms[idx] = val;
 
@@ -704,7 +713,7 @@ static int dummy_get_parm(AMP *amp, setting_t parm, value_t *val)
     *val = priv->parms[idx];
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called %s\n", __func__,
-              rig_strparm(parm));
+              amp_strparm(parm));
 
     return RIG_OK;
 }
@@ -736,7 +745,7 @@ static int dummy_set_ext_parm(AMP *amp, hamlib_token_t token, value_t val)
     switch (cfp->type)
     {
     case RIG_CONF_STRING:
-        strcpy(lstr, val.s);
+        SNPRINTF(lstr, sizeof(lstr), "%s", val.s);
         break;
 
     case RIG_CONF_COMBO:
@@ -915,6 +924,14 @@ static int dummy_get_func(AMP *amp, setting_t func, int *status)
     return RIG_OK;
 }
 
+static int dummy_amp_op(AMP *amp, amp_op_t op)
+{
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s\n", __func__,
+              amp_strampop(op));
+
+    return RIG_OK;
+}
+
 /**
  * Dummy amplifier capabilities.
  */
@@ -947,6 +964,7 @@ const struct amp_caps dummy_amp_caps =
     .extparms =     dummy_ext_parms,
     .cfgparams =    dummy_cfg_params,
 
+    .amp_ops = DUMMY_AMP_AMP_OPS,
     .has_status = AMP_STATUS_PTT,
 
     .amp_init =     dummy_amp_init,
@@ -985,6 +1003,7 @@ const struct amp_caps dummy_amp_caps =
     .set_powerstat = dummy_amp_set_powerstat,
     .get_powerstat = dummy_amp_get_powerstat,
 
+    .amp_op =   dummy_amp_op,
     .reset =    dummy_amp_reset,
 
     .range_list1 = {
