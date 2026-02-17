@@ -836,13 +836,13 @@ int expert_get_level(AMP *amp, setting_t level, value_t *val)
         switch (power_level)
         {
             case EXPERT_POWER_LEVEL_LOW:
-                val->f = (1.0f / 3.0f);
+                val->f = 1.0f;
                 break;
             case EXPERT_POWER_LEVEL_MID:
-                val->f = (2.0f / 3.0f);
+                val->f = 2.0f;
                 break;
             case EXPERT_POWER_LEVEL_HIGH:
-                val->f = 1.0f;
+                val->f = 3.0f;
                 break;
             default:
                 rig_debug(RIG_DEBUG_ERR, "%s: error parsing power level: '%c'\n",
@@ -970,11 +970,11 @@ change_again:
         char current_power_level = status_response->power_level;
         char new_power_level;
 
-        if (val.f < (1.0f / 3.0f))
+        if (val.f <= 1.0f)
         {
             new_power_level = EXPERT_POWER_LEVEL_LOW;
         }
-        else if (val.f < (2.0f / 3.0f))
+        else if (val.f <= 2.0f)
         {
             new_power_level = EXPERT_POWER_LEVEL_MID;
         }
