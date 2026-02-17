@@ -489,7 +489,6 @@ struct icom_addr
 #define TOK_FILTER_USB TOKEN_BACKEND(6)
 #define TOK_FILTER_CW TOKEN_BACKEND(7)
 #define TOK_FILTER_FM TOKEN_BACKEND(8)
-#define TOK_RETRY_COLLISIONS TOKEN_BACKEND(9)
 
 const struct confparams icom_cfg_params[] =
 {
@@ -527,10 +526,6 @@ const struct confparams icom_cfg_params[] =
     {
         TOK_FILTER_FM, "filter_fm", "Filter to use FM", "Filter to use for FM/PKTFM when setting mode",
         "1", RIG_CONF_NUMERIC, {.n = {0, 3, 1}}
-    },
-    {
-        TOK_RETRY_COLLISIONS, "retry_collisions", "Retry collisions", "Retry commands when CI-V collisions occur",
-        "1", RIG_CONF_CHECKBUTTON
     },
     {RIG_CONF_END, NULL,}
 };
@@ -771,7 +766,6 @@ int icom_init(RIG *rig)
     priv->re_civ_addr = priv_caps->re_civ_addr;
     priv->civ_731_mode = priv_caps->civ_731_mode;
     priv->no_xchg = priv_caps->no_xchg;
-    priv->retry_collisions = 1;
     priv->serial_USB_echo_off = -1; // unknown at this point
     priv->x25cmdfails = 1;
     priv->x26cmdfails = 1;
@@ -5381,10 +5375,7 @@ int icom_set_conf(RIG *rig, hamlib_token_t token, const char *val)
         if (priv->filter_fm > 3) { priv->filter_fm = 3; }
 
         if (priv->filter_fm < 1) { priv->filter_fm = 1; }
-        break;
 
-    case TOK_RETRY_COLLISIONS:
-        priv->retry_collisions = atoi(val) ? 1 : 0;
         break;
 
     default:
@@ -9213,22 +9204,6 @@ static int icom_parse_spectrum_frame(RIG *rig, size_t length,
     RETURNFUNC(RIG_OK);
 }
 
-int icom_is_potentially_async_frame(RIG *rig, size_t frame_length,
-        const unsigned char *frame)
-{
-    if (frame_length < ACKFRMLEN)
-    {
-        return 0;
-    }
-
-    /* Antenna controller updates are not CI-V transceive data,
-     * but handled the same way as they are pushed by the rig.
-     * They can be used as commands too, however, so Hamlib has to
-     * check whether the frame is an expected response to a command.
-     */
-    return (frame[4] == C_CTL_PTT && (frame[5] == S_PTT || frame[5] == S_RD_TX_FREQ));
-}
-
 int icom_is_async_frame(RIG *rig, size_t frame_length,
                         const unsigned char *frame)
 {
@@ -9317,11 +9292,6 @@ int icom_process_async_frame(RIG *rig, size_t frame_length,
             icom_parse_spectrum_frame(rig, frame_length - (6 + 1), frame + 6);
         }
 
-        break;
-
-    case C_CTL_PTT:
-        // Icom rigs output PTT status (0x1C 0x00) and transmit frequency (0x1C 0x03) when
-        // antenna controller status updates (0x1C 0x04) are enabled. Hamlib can simply ignore this data for now.
         break;
 
     default:
