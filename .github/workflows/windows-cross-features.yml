@@ -40,13 +40,21 @@ jobs:
         LIBUSB_CFLAGS="-I$PWD/libusb-w64/include/libusb-1.0"
         LIBUSB_LIBS="-lusb-1.0"
     - name: make
-      run: make -j $(nproc) V=0 --no-print-directory
+      run: |
+        set -o pipefail
+        make -j $(nproc) V=0 --no-print-directory 2>&1 | tee build.log
     - name: Build test suite executables
       run: |
-        make -C tests rigstreamtest.exe V=0 --no-print-directory
+        set -o pipefail
+        make -C tests rigstreamtest.exe V=0 --no-print-directory 2>&1 | tee -a build.log
         # checkprogs builds every acutest suite listed in test/Makefile.am,
         # so new suites are covered here without workflow changes.
-        make -C test checkprogs V=0 --no-print-directory
+        make -C test checkprogs V=0 --no-print-directory 2>&1 | tee -a build.log
+    - name: Collect build warnings
+      if: always() && github.event_name == 'pull_request'
+      uses: ./.github/actions/collect-warnings
+      with:
+        name: mingw-features
     - name: Run test suites under Wine
       run: |
         export WINEPREFIX=$HOME/.wineprefix WINEDEBUG=-all

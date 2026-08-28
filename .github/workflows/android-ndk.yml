@@ -50,7 +50,15 @@ jobs:
         --without-libusb
 
     - name: make
-      run: make -j $(nproc) V=0 --no-print-directory
+      run: |
+        set -o pipefail
+        make -j $(nproc) V=0 --no-print-directory 2>&1 | tee build.log
+
+    - name: Collect build warnings
+      if: always() && github.event_name == 'pull_request'
+      uses: ./.github/actions/collect-warnings
+      with:
+        name: android-${{ matrix.target.tag }}
 
     - name: make install DESTDIR
       run: |
