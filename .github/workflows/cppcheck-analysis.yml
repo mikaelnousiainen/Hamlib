@@ -1,0 +1,83 @@
+name: cppcheck analysis for code scanning
+
+on:
+  pull_request:
+    branches: [ master ]
+  schedule:
+    # Weekly full-tree scan to keep the code-scanning baseline current.
+    - cron: '17 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  cppcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    # Findings aid review only; analysis problems must never block a PR.
+    continue-on-error: true
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - name: Install cppcheck
+      run: |
+        sudo apt update
+        sudo apt install -y cppcheck
+    - name: Select scan targets
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          # PR: scan only the C files touched by the PR, plus the .c
+          # files sharing a directory with any touched header.
+          git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD \
+            -- '*.c' '*.h' > changed.txt
+          : > targets.txt
+          while read -r f; do
+            [ -e "$f" ] || continue
+            case "$f" in
+              *.c) echo "$f" >> targets.txt ;;
+              *.h) find "$(dirname "$f")" -maxdepth 1 -name '*.c' \
+                     >> targets.txt ;;
+            esac
+          done < changed.txt
+          sort -u targets.txt -o targets.txt
+        else
+          printf '%s\n' src rigs rotators amplifiers tests > targets.txt
+        fi
+        echo "Scan targets:"
+        cat targets.txt
+    - name: Run cppcheck
+      run: |
+        if [ ! -s targets.txt ]; then
+          echo "No C files affected; writing empty result"
+          printf '%s' '<?xml version="1.0"?><results version="2"><cppcheck version="none"/><errors/></results>' > cppcheck.xml
+          exit 0
+        fi
+        # Project-wide suppressions can be listed in
+        # .github/cppcheck-suppressions.txt (one "id[:file[:line]]"
+        # entry per line) to mute known noisy findings.
+        SUPPRESS=""
+        if [ -f .github/cppcheck-suppressions.txt ]; then
+          SUPPRESS="--suppressions-list=.github/cppcheck-suppressions.txt"
+        fi
+        # shellcheck disable=SC2046,SC2086
+        cppcheck --enable=warning,performance,portability \
+          --inline-suppr --std=c11 --library=posix \
+          --suppress=missingInclude --suppress=missingIncludeSystem \
+          --suppress=unknownMacro $SUPPRESS \
+          -I include -I src -I lib \
+          --max-configs=4 -j "$(nproc)" \
+          --xml --xml-version=2 \
+          $(cat targets.txt) 2> cppcheck.xml
+    - name: Convert cppcheck XML to SARIF
+      run: python3 .github/scripts/cppcheck-xml2sarif.py cppcheck.xml cppcheck.sarif
+    - name: Upload SARIF to code scanning
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: cppcheck.sarif
+        category: cppcheck

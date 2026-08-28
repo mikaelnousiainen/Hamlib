@@ -1,0 +1,112 @@
+name: PR checks for assisting reviews
+
+on:
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+jobs:
+  # Fast diff-based checks: caps .version bumps, new-model wiring,
+  # astyle formatting.  Informational only — findings are posted to the
+  # PR by the "CI warnings report" workflow and must never block a PR.
+  mechanical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - name: Install astyle
+      run: |
+        sudo apt update
+        sudo apt install -y astyle
+    - name: Run mechanical checks
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      run: |
+        mkdir -p report-out
+        python3 .github/scripts/check-caps-version.py "$BASE_SHA" HEAD \
+          > report-out/10-caps-version.md
+        python3 .github/scripts/check-model-completeness.py "$BASE_SHA" HEAD \
+          > report-out/20-model-completeness.md
+        sh .github/scripts/astyle-report.sh "$BASE_SHA" HEAD \
+          > report-out/30-astyle.md
+        cat report-out/*.md >> "$GITHUB_STEP_SUMMARY"
+    - name: Upload report artifact
+      uses: actions/upload-artifact@v4.6.2
+      with:
+        name: report-mechanical-checks
+        path: report-out/
+        retention-days: 30
+        overwrite: true
+
+  # Builds both the PR and its merge base, then compares rigctl/rotctl/
+  # ampctl --dump-caps output for every model and the libhamlib ABI
+  # (abidiff).  The merge-base build is cached per merge-base commit.
+  baseline-compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - name: Install abigail-tools
+      run: |
+        sudo apt update
+        sudo apt install -y abigail-tools
+    - name: Determine merge base
+      id: mb
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      run: echo "sha=$(git merge-base "$BASE_SHA" HEAD)" >> "$GITHUB_OUTPUT"
+    - name: Restore cached baseline build results
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: baseline-out
+        key: pr-baseline-v1-${{ steps.mb.outputs.sha }}
+    - name: Build merge base and capture baseline
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        git worktree add ../hamlib-baseline "${{ steps.mb.outputs.sha }}"
+        cd ../hamlib-baseline
+        ./bootstrap
+        ./configure --enable-silent-rules --without-cxx-binding
+        make -j "$(nproc)" V=0 --no-print-directory
+        cd "$GITHUB_WORKSPACE"
+        mkdir -p baseline-out/lib baseline-out/include
+        sh .github/scripts/dumpcaps-all.sh ../hamlib-baseline \
+          baseline-out/caps
+        cp -a ../hamlib-baseline/src/.libs/libhamlib.so.*.*.* \
+          baseline-out/lib/
+        cp -a ../hamlib-baseline/include/hamlib baseline-out/include/
+    - name: Build PR tree
+      run: |
+        ./bootstrap
+        ./configure --enable-silent-rules --without-cxx-binding
+        make -j "$(nproc)" V=0 --no-print-directory
+    - name: Dump PR caps
+      run: sh .github/scripts/dumpcaps-all.sh . pr-caps
+    - name: Compare against baseline
+      run: |
+        mkdir -p report-out
+        sh .github/scripts/baseline-report.sh \
+          baseline-out/caps pr-caps \
+          "$(ls baseline-out/lib/libhamlib.so.*.*.* | head -n 1)" \
+          "$(ls src/.libs/libhamlib.so.*.*.* | head -n 1)" \
+          baseline-out/include/hamlib include/hamlib \
+          > report-out/40-baseline-compare.md
+        cat report-out/40-baseline-compare.md >> "$GITHUB_STEP_SUMMARY"
+    - name: Upload report artifact
+      uses: actions/upload-artifact@v4.6.2
+      with:
+        name: report-baseline-compare
+        path: report-out/
+        retention-days: 30
+        overwrite: true

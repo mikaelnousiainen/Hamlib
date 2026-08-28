@@ -1,0 +1,68 @@
+name: GCC analysis (fanalyzer, ASan/UBSan)
+
+on:
+  push:
+    branches: [ master, feature/* ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+# Both jobs aid review only and must never block a PR: analyzer
+# findings feed the "CI warnings report" comment, and sanitizer
+# failures surface in the job log and annotations.
+jobs:
+  gcc-fanalyzer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    continue-on-error: true
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: bootstrap
+      run: ./bootstrap
+    - name: configure
+      run: >-
+        ./configure --enable-silent-rules --without-cxx-binding
+        CFLAGS="-g -O2 -fanalyzer"
+    - name: make
+      run: |
+        set -o pipefail
+        make -j "$(nproc)" V=0 --no-print-directory 2>&1 | tee build.log
+    - name: Collect analyzer warnings
+      if: always() && github.event_name == 'pull_request'
+      uses: ./.github/actions/collect-warnings
+      with:
+        name: gcc-fanalyzer
+        only-pattern: '\[-Wanalyzer'
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    continue-on-error: true
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: Raise kernel socket buffer ceiling for network test suites
+      run: sudo sysctl -w net.core.wmem_max=8388608 net.core.rmem_max=8388608
+    - name: bootstrap
+      run: ./bootstrap
+    # Language bindings are disabled: an ASan-built libhamlib cannot be
+    # loaded into the Python/Perl/Lua interpreters, which start before
+    # the ASan runtime.
+    - name: configure
+      run: >-
+        ./configure --enable-silent-rules --without-cxx-binding
+        CFLAGS="-g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer"
+        LDFLAGS="-fsanitize=address,undefined"
+    - name: make
+      run: make -j "$(nproc)" V=0 --no-print-directory
+    - name: make check (ASan + UBSan)
+      env:
+        ASAN_OPTIONS: detect_leaks=0
+        UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+      run: make check V=0 --no-print-directory
+    - name: Dump test logs on failure
+      if: failure()
+      run: find . -name test-suite.log -print -exec cat {} \;
