@@ -1,0 +1,35 @@
+name: Collect build warnings
+description: >-
+  Extract compiler warnings from a build log and upload them as an
+  artifact for the "CI warnings report" workflow to post on the PR.
+inputs:
+  name:
+    description: Unique job slug used in the artifact name and the PR report
+    required: true
+  log-file:
+    description: Build log file to scan
+    required: false
+    default: build.log
+  only-pattern:
+    description: Optional awk regex; keep only warning lines matching it
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Extract warnings from build log
+      shell: bash
+      env:
+        LOG_FILE: ${{ inputs.log-file }}
+        ONLY_PATTERN: ${{ inputs.only-pattern }}
+      run: |
+        sh .github/scripts/extract-warnings.sh "$LOG_FILE" \
+          warnings-out/warnings.txt "$ONLY_PATTERN"
+        echo "Collected $(wc -l < warnings-out/warnings.txt | tr -d ' ') unique warning line(s)"
+    - name: Upload warnings artifact
+      uses: actions/upload-artifact@v4.6.2
+      with:
+        name: warnings-${{ inputs.name }}
+        path: warnings-out/
+        retention-days: 30
+        overwrite: true

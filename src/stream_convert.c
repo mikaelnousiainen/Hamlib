@@ -131,7 +131,8 @@ static void convert_s8_to_s16(const void *src, void *dst, size_t n)
 
     for (size_t i = 0; i < n; i++)
     {
-        d[i] = (int16_t)s[i] << 8;
+        /* Multiply instead of <<: shifting negative values is UB. */
+        d[i] = (int16_t)(s[i] * 256);
     }
 }
 
@@ -143,7 +144,7 @@ static void convert_u8_to_s16(const void *src, void *dst, size_t n)
 
     for (size_t i = 0; i < n; i++)
     {
-        d[i] = (int16_t)((int)s[i] - 128) << 8;
+        d[i] = (int16_t)(((int)s[i] - 128) * 256);
     }
 }
 
@@ -203,7 +204,7 @@ static void convert_cu8_to_cs16(const void *src, void *dst, size_t n)
 
     for (size_t i = 0; i < 2 * n; i++)
     {
-        d[i] = (int16_t)((int)s[i] - 128) << 8;
+        d[i] = (int16_t)(((int)s[i] - 128) * 256);
     }
 }
 
@@ -215,7 +216,8 @@ static void convert_cs8_to_cs16(const void *src, void *dst, size_t n)
 
     for (size_t i = 0; i < 2 * n; i++)
     {
-        d[i] = (int16_t)s[i] << 8;
+        /* Multiply instead of <<: shifting negative values is UB. */
+        d[i] = (int16_t)(s[i] * 256);
     }
 }
 

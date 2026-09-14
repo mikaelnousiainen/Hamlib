@@ -1,0 +1,87 @@
+name: GCC analysis (fanalyzer, ASan/UBSan)
+
+on:
+  push:
+    branches: [ master, feature/* ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+# Both jobs aid review only and must never block a PR: analyzer
+# findings feed the "CI warnings report" comment, and sanitizer
+# failures surface in the job log and annotations.
+jobs:
+  # -fanalyzer is far too slow for a whole-tree build (exponential
+  # state explosion on some files, notably the security/ crypto code),
+  # so only the C files changed by the PR are analyzed, standalone,
+  # with a per-file timeout.  See fanalyzer-changed.sh.
+  gcc-fanalyzer:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - name: bootstrap
+      run: ./bootstrap
+    # configure only generates include/hamlib/config.h for the
+    # standalone compilations; nothing is built with make here.
+    - name: configure
+      run: ./configure --enable-silent-rules --without-cxx-binding
+    - name: Analyze changed C files with -fanalyzer
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      run: sh .github/scripts/fanalyzer-changed.sh "$BASE_SHA" HEAD
+    - name: Collect analyzer warnings
+      if: always()
+      uses: ./.github/actions/collect-warnings
+      with:
+        name: gcc-fanalyzer
+        only-pattern: '\[-Wanalyzer'
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    continue-on-error: true
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: Raise kernel socket buffer ceiling for network test suites
+      run: sudo sysctl -w net.core.wmem_max=8388608 net.core.rmem_max=8388608
+    - name: bootstrap
+      run: ./bootstrap
+    # Language bindings are disabled: an ASan-built libhamlib cannot be
+    # loaded into the Python/Perl/Lua interpreters, which start before
+    # the ASan runtime.
+    #
+    # This is a VPATH (out-of-tree) build on purpose: with an in-tree
+    # build, make check runs with tests/hamlib_tuner_control present in
+    # the current directory, which makes rig_set_func() divert every
+    # function call to that script (src/settings.c checks access() on a
+    # relative path) and spuriously fail testthd75emu.
+    - name: configure
+      run: |
+        mkdir build
+        cd build
+        ../configure --enable-silent-rules --without-cxx-binding \
+          CFLAGS="-g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer" \
+          LDFLAGS="-fsanitize=address,undefined"
+    - name: make
+      run: make -C build -j "$(nproc)" V=0 --no-print-directory
+    - name: make check (ASan + UBSan)
+      env:
+        # detect_odr_violation=1: several test binaries link a backend
+        # convenience library and also libhamlib.so, so identical
+        # globals are legitimately registered twice; level 1 still
+        # reports ODR violations where the definitions differ in size.
+        ASAN_OPTIONS: detect_leaks=1:detect_odr_violation=1
+        UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+      run: make -C build check V=0 --no-print-directory
+    - name: Dump test logs on failure
+      if: failure()
+      run: find . -name test-suite.log -print -exec cat {} \;

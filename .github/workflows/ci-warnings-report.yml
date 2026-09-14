@@ -1,0 +1,52 @@
+name: CI warnings report
+
+# Aggregates the warnings-* and report-* artifacts uploaded by the build
+# workflows for a PR head commit and maintains a single sticky comment on
+# the PR.  Runs via workflow_run so it works for fork PRs (which have a
+# read-only token): this workflow runs in the base repository with write
+# permissions and must therefore NEVER check out or execute PR code —
+# artifact contents are handled strictly as text.
+
+on:
+  workflow_run:
+    # post-warning-report.py parses this list to know which workflows
+    # to wait for, so it only needs maintaining here.
+    workflows:
+      - "Ubuntu latest C/C++ (features)"
+      - "Ubuntu latest C/C++ (no features)"
+      - "MacOS latest C/C++ (features)"
+      - "MacOS latest C/C++ (no features)"
+      - "Windows latest C/C++ (features)"
+      - "Windows latest C/C++ (no features)"
+      - "Windows mingw-w64 cross C/C++ (features)"
+      - "Windows mingw-w64 cross C/C++ (no features)"
+      - "Android NDK cross-compile"
+      - "GCC analysis (fanalyzer, ASan/UBSan)"
+      - "PR checks for assisting reviews"
+    types: [ completed ]
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+jobs:
+  report:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The comment is rebuilt from all runs for the head SHA on every
+    # invocation, so when several build workflows finish close together
+    # only the newest queued invocation needs to run.
+    concurrency:
+      group: ci-warnings-report-${{ github.event.workflow_run.head_sha }}
+      cancel-in-progress: true
+
+    steps:
+    # Checks out the base repository's default branch (scripts only).
+    - uses: actions/checkout@v6
+    - name: Aggregate warnings and update the PR comment
+      env:
+        GH_TOKEN: ${{ github.token }}
+        HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      run: python3 .github/scripts/post-warning-report.py
