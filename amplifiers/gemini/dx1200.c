@@ -59,7 +59,7 @@ const struct amp_caps gemini_amp_caps =
     AMP_MODEL(AMP_MODEL_GEMINI_DX1200),
     .model_name =   "DX1200/HF-1K",
     .mfg_name =     "Gemini",
-    .version =      "20230318.0",
+    .version =      "20260828.0",
     .copyright =    "LGPL",
     .status =     RIG_STATUS_STABLE,
     .amp_type =     AMP_TYPE_OTHER,
@@ -73,6 +73,7 @@ const struct amp_caps gemini_amp_caps =
 
     .amp_open = NULL,
     .amp_init = gemini_init,
+    .amp_cleanup = gemini_cleanup,
     .amp_close = gemini_close,
     .reset = gemini_reset,
     .get_info = gemini_get_info,

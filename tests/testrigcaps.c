@@ -14,5 +14,6 @@ int main()
     if (rig == NULL) { return 1; }
 
     printf("Offsets are OK (i.e. have not changed)\n");
+    rig_cleanup(rig);
     return 0;
 }

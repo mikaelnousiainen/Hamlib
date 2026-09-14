@@ -56,6 +56,16 @@ int gemini_close(AMP *amp)
 {
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
+    return RIG_OK;
+}
+
+/* The priv struct is allocated in gemini_init, so it must be freed in
+ * amp_cleanup, not amp_close: cleanup runs even when the amp was never
+ * opened, and close may be followed by a re-open. */
+int gemini_cleanup(AMP *amp)
+{
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+
     if (AMPSTATE(amp)->priv) { free(AMPSTATE(amp)->priv); }
 
     AMPSTATE(amp)->priv = NULL;

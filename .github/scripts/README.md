@@ -54,8 +54,12 @@ in the sticky PR comment via `report-*` artifacts.
   noisy findings can be muted project-wide by listing suppressions in
   `.github/cppcheck-suppressions.txt` (one `id[:file[:line]]` per
   line).
-- `gcc-analysis.yml` runs a GCC `-fanalyzer` build (findings feed the
-  warnings comment) and an ASan+UBSan `make check` job.
+- `gcc-analysis.yml` runs GCC `-fanalyzer` over the C files changed by
+  the PR (`fanalyzer-changed.sh`; a whole-tree analyzer build is
+  infeasibly slow, so changed files are compiled standalone with a
+  per-file timeout) — findings feed the warnings comment — and an
+  ASan+UBSan `make check` job (VPATH build; see the workflow comments
+  for why).
 
 Scripts are POSIX sh / Python 3 stdlib only and can be run locally, e.g.:
 

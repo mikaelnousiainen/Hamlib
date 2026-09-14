@@ -54,6 +54,7 @@ struct gemini_priv_data
 
 int gemini_init(AMP *amp);
 int gemini_close(AMP *amp);
+int gemini_cleanup(AMP *amp);
 int gemini_reset(AMP *amp, amp_reset_t reset);
 int gemini_flush_buffer(AMP *amp);
 int gemini_transaction(AMP *amp, const char *cmd, char *response,

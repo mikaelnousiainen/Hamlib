@@ -177,5 +177,6 @@ int main(int argc, char *argv[])
 
     printf("All OK\n");
     rig_close(my_rig);
+    rig_cleanup(my_rig);
     return 0 ;
 };
