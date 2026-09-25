@@ -31,6 +31,7 @@ DIRECT_TESTS = \
 	testgeministatus \
 	testgs100 \
 	testguohetec \
+	testicomasync \
 	testicomfallback \
 	testicomts \
 	testpoll \
@@ -134,6 +135,7 @@ testgs100_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
 testguohetec_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
 testid5100_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
 testnewcatset_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
+testicomasync_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
 testicomfallback_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
 testelecraftvfo_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
 testts990s_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
@@ -187,6 +189,7 @@ testrigctlprotocol_LDADD = $(LDADD)
 testmodecompat_LDADD = $(top_builddir)/rigs/dummy/libhamlib-dummy.la $(LDADD)
 testicomts_LDADD = $(top_builddir)/rigs/icom/libhamlib-icom.la $(LDADD)
 testid5100_LDADD = $(NET_LIBS) $(PTHREAD_LIBS) $(top_builddir)/rigs/icom/libhamlib-icom.la $(LDADD)
+testicomasync_LDADD = $(PTHREAD_LIBS) $(LDADD)
 testicomfallback_LDADD = $(NET_LIBS) $(PTHREAD_LIBS) $(top_builddir)/rigs/icom/libhamlib-icom.la $(LDADD)
 testgeministatus_LDADD = $(PTHREAD_LIBS) $(top_builddir)/amplifiers/gemini/libhamlib-gemini.la $(LDADD)
 testgs100_LDADD = $(PTHREAD_LIBS) $(top_builddir)/rigs/gomspace/libhamlib-gomspace.la $(LDADD)

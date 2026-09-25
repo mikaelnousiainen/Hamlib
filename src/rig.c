@@ -1270,6 +1270,11 @@ int HAMLIB_API rig_open(RIG *rig)
         RETURNFUNC2(status);
     }
 
+    // port_open() has created the sync data pipes, but nothing moves the rig's replies into them until
+    // the async data handler starts, which is after the backend has opened the rig. Until then the
+    // backend's transactions must read the port itself, or they time out waiting on an empty pipe.
+    rp->asyncio = 0;
+
     switch (pttp->type.ptt)
     {
     case RIG_PTT_NONE:
@@ -1591,6 +1596,7 @@ int HAMLIB_API rig_open(RIG *rig)
         RETURNFUNC2(RIG_OK);
     }
 
+    rp->asyncio = rs->async_data_enabled;
     status = async_data_handler_start(rig);
 
     if (status < 0)
