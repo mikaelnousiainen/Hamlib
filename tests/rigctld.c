@@ -1174,8 +1174,13 @@ int main(int argc, char *argv[])
         if (retcode == -1)
         {
             int errno_stored = errno;
-            rig_debug(RIG_DEBUG_ERR, "%s: select() failed: %s\n", __func__,
-                      strerror(errno_stored));
+
+            // A signal, such as the one that stops rigctld, interrupts select(): not an error
+            if (errno_stored != EINTR)
+            {
+                rig_debug(RIG_DEBUG_ERR, "%s: select() failed: %s\n", __func__,
+                          strerror(errno_stored));
+            }
 
             if (ctrl_c)
             {

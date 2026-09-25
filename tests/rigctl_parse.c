@@ -2988,7 +2988,7 @@ declare_proto_rig(set_ptt)
         RETURNFUNC2(-RIG_EINVAL);
     }
 
-    rig_debug(RIG_DEBUG_ERR, "%s: ptt=%d\n", __func__, ptt);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: ptt=%d\n", __func__, ptt);
     RETURNFUNC2(rig_set_ptt(rig, vfo, ptt));
 }
 
@@ -4286,7 +4286,7 @@ declare_proto_rig(get_parm)
     }
     else
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: int\n", __func__);
+        rig_debug(RIG_DEBUG_TRACE, "%s: int\n", __func__);
         fprintf(fout, "%d%c", val.i, resp_sep);
     }
 

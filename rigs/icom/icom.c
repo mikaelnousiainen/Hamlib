@@ -8692,7 +8692,7 @@ int icom_get_ant(RIG *rig, vfo_t vfo, ant_t ant, value_t *option,
         RETURNFUNC2(-RIG_ERJCTED);
     }
 
-    rig_debug(RIG_DEBUG_ERR, "%s: ackbuf= 0x%02x 0x%02x 0x%02x\n", __func__,
+    rig_debug(RIG_DEBUG_TRACE, "%s: ackbuf= 0x%02x 0x%02x 0x%02x\n", __func__,
               ackbuf[0], ackbuf[1], ackbuf[2]);
 
     *ant_curr = *ant_tx = *ant_rx = rig_idx2setting(ackbuf[1]);
