@@ -62,6 +62,7 @@
 
 static int rig_debug_level = RIG_DEBUG_TRACE;
 static int rig_debug_time_stamp = 0;
+static int rig_debug_level_prefix = 0;
 FILE *rig_debug_stream;
 static vprintf_cb_t rig_vprintf_cb;
 static rig_ptr_t rig_vprintf_arg;
@@ -195,6 +196,78 @@ void HAMLIB_API rig_set_debug_time_stamp(int flag)
 
 
 /**
+ * \brief Enable or disable the level prefix on debugging output.
+ *
+ * \param flag `TRUE` or `FALSE`.
+ *
+ * With the flag set, each debugging message written to the debug stream starts
+ * with its level as an sd-daemon(3) priority prefix, before any time stamp:
+ * `<2>` for RIG_DEBUG_BUG, `<3>` for RIG_DEBUG_ERR, `<4>` for RIG_DEBUG_WARN,
+ * `<5>` for RIG_DEBUG_NONE, `<6>` for RIG_DEBUG_VERBOSE and `<7>` for
+ * RIG_DEBUG_TRACE and RIG_DEBUG_CACHE.  journald reads the prefix when a
+ * daemon runs under systemd, and a program running a daemon can tell its
+ * errors from its tracing.
+ *
+ * Messages passed to a callback set with rig_set_debug_callback() get no
+ * prefix, as the callback receives the level itself.
+ */
+void HAMLIB_API rig_set_debug_level_prefix(int flag)
+{
+    rig_debug_level_prefix = flag;
+}
+
+
+/* The sd-daemon(3) priority of a debug level */
+static int debug_level_priority(enum rig_debug_level_e debug_level)
+{
+    switch (debug_level)
+    {
+    case RIG_DEBUG_BUG:
+        return 2; /* LOG_CRIT */
+
+    case RIG_DEBUG_ERR:
+        return 3; /* LOG_ERR */
+
+    case RIG_DEBUG_WARN:
+        return 4; /* LOG_WARNING */
+
+    case RIG_DEBUG_NONE:
+        return 5; /* LOG_NOTICE: printed at every debug level */
+
+    case RIG_DEBUG_VERBOSE:
+        return 6; /* LOG_INFO */
+
+    default:
+        return 7; /* LOG_DEBUG */
+    }
+}
+
+
+/**
+ * \brief Print an error message to `stderr`, whatever the debug level.
+ *
+ * \param fmt Formatted character string to print.
+ *
+ * For a program's own error messages, printed as before; with the level
+ * prefix enabled (rig_set_debug_level_prefix()) they start with `<3>`, the
+ * priority of RIG_DEBUG_ERR.
+ */
+void HAMLIB_API rig_print_error(const char *fmt, ...)
+{
+    va_list ap;
+
+    if (rig_debug_level_prefix)
+    {
+        fprintf(stderr, "<%d>", debug_level_priority(RIG_DEBUG_ERR));
+    }
+
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+}
+
+
+/**
  * \brief Print debugging messages through `stderr` by default.
  *
  * \param debug_level Debug level from none to most output.
@@ -262,6 +335,11 @@ void HAMLIB_API rig_debug(enum rig_debug_level_e debug_level,
         if (!rig_debug_stream)
         {
             rig_debug_stream = stderr;
+        }
+
+        if (rig_debug_level_prefix)
+        {
+            fprintf(rig_debug_stream, "<%d>", debug_level_priority(debug_level));
         }
 
         if (rig_debug_time_stamp)

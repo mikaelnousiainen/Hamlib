@@ -756,9 +756,9 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, const char *argv[],
 
                 if (EOF == retcode)
                 {
-                    fprintf(stderr,
-                            "Invalid arg for command '%s'\n",
-                            cmd_entry->name);
+                    rig_print_error(
+                        "Invalid arg for command '%s'\n",
+                        cmd_entry->name);
                     return 1;
                 }
                 else if (retcode < 0)
@@ -791,9 +791,9 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, const char *argv[],
 
                 if (EOF == retcode)
                 {
-                    fprintf(stderr,
-                            "Invalid arg for command '%s'\n",
-                            cmd_entry->name);
+                    rig_print_error(
+                        "Invalid arg for command '%s'\n",
+                        cmd_entry->name);
                     return 1;
                 }
                 else if (retcode < 0)
@@ -831,9 +831,9 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, const char *argv[],
 
                 if (EOF == retcode)
                 {
-                    fprintf(stderr,
-                            "Invalid arg for command '%s'\n",
-                            cmd_entry->name);
+                    rig_print_error(
+                        "Invalid arg for command '%s'\n",
+                        cmd_entry->name);
                     return 1;
                 }
                 else if (retcode < 0)
@@ -871,9 +871,9 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, const char *argv[],
 
                 if (EOF == retcode)
                 {
-                    fprintf(stderr,
-                            "Invalid arg for command '%s'\n",
-                            cmd_entry->name);
+                    rig_print_error(
+                        "Invalid arg for command '%s'\n",
+                        cmd_entry->name);
                     return 1;
                 }
                 else if (retcode < 0)
@@ -911,9 +911,9 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, const char *argv[],
 
                 if (EOF == retcode)
                 {
-                    fprintf(stderr,
-                            "Invalid arg for command '%s'\n",
-                            cmd_entry->name);
+                    rig_print_error(
+                        "Invalid arg for command '%s'\n",
+                        cmd_entry->name);
                     return 1;
                 }
                 else if (retcode < 0)
@@ -1054,8 +1054,8 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, const char *argv[],
             {
                 if (!(isalnum((int)cmd_name[j]) || cmd_name[j] == '_'))
                 {
-                    fprintf(stderr,
-                            "Valid multiple character command names contain alphanumeric characters plus '_'\n");
+                    rig_print_error(
+                        "Valid multiple character command names contain alphanumeric characters plus '_'\n");
                     return 0;
                 }
             }
@@ -1070,7 +1070,7 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, const char *argv[],
         /* Multiple characters but no leading '\' */
         else
         {
-            fprintf(stderr, "Precede multiple character command names with '\\'\n");
+            rig_print_error("Precede multiple character command names with '\\'\n");
             return 0;
         }
 
@@ -1080,11 +1080,11 @@ int rotctl_parse(ROT *my_rot, FILE *fin, FILE *fout, const char *argv[],
         {
             if (cmd == '\0')
             {
-                fprintf(stderr, "Command '%s' not found!\n", parsed_input[0]);
+                rig_print_error("Command '%s' not found!\n", parsed_input[0]);
             }
             else
             {
-                fprintf(stderr, "Command '%c' not found!\n", cmd);
+                rig_print_error("Command '%c' not found!\n", cmd);
             }
 
             return 0;
@@ -1660,7 +1660,7 @@ void list_models()
 
     if (status != RIG_OK)
     {
-        fprintf(stderr, "rot_list_foreach: error = %s \n", rigerror2(status));
+        rig_print_error("rot_list_foreach: error = %s \n", rigerror2(status));
         exit(2);
     }
 

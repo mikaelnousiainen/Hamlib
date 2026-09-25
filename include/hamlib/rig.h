@@ -3953,24 +3953,32 @@ rig_get_debug(enum rig_debug_level_e *debug_level);
 extern HAMLIB_EXPORT(void)
 rig_set_debug_time_stamp(int flag);
 
+extern HAMLIB_EXPORT(void)
+rig_set_debug_level_prefix(int flag);
+
 #define rig_set_debug_level(level) rig_set_debug(level)
 
 extern HAMLIB_EXPORT(int)
 rig_need_debug(enum rig_debug_level_e debug_level);
 
 #if defined(__MINGW_PRINTF_FORMAT)
-#define HAMLIB_ATTRIBUTE_FORMAT_PRINTF \
-    __attribute__((__format__(__MINGW_PRINTF_FORMAT, 2, 3)))
+#define HAMLIB_ATTRIBUTE_FORMAT_PRINTF_AT(fmt, args) \
+    __attribute__((__format__(__MINGW_PRINTF_FORMAT, fmt, args)))
 #elif defined(__GNUC__) || defined(__clang__)
-#define HAMLIB_ATTRIBUTE_FORMAT_PRINTF \
-    __attribute__((__format__(__printf__, 2, 3)))
+#define HAMLIB_ATTRIBUTE_FORMAT_PRINTF_AT(fmt, args) \
+    __attribute__((__format__(__printf__, fmt, args)))
 #else
-#define HAMLIB_ATTRIBUTE_FORMAT_PRINTF
+#define HAMLIB_ATTRIBUTE_FORMAT_PRINTF_AT(fmt, args)
 #endif
+
+#define HAMLIB_ATTRIBUTE_FORMAT_PRINTF HAMLIB_ATTRIBUTE_FORMAT_PRINTF_AT(2, 3)
 
 extern HAMLIB_EXPORT(void)
 rig_debug(enum rig_debug_level_e debug_level,
           const char *fmt, ...) HAMLIB_ATTRIBUTE_FORMAT_PRINTF;
+
+extern HAMLIB_EXPORT(void)
+rig_print_error(const char *fmt, ...) HAMLIB_ATTRIBUTE_FORMAT_PRINTF_AT(1, 2);
 
 
 extern HAMLIB_EXPORT(void)add2debugmsgsave(const char *s);

@@ -99,6 +99,7 @@ static struct option long_options[] =
     {"show-conf",       0, 0, 'L'},
     {"dump-caps",       0, 0, 'u'},
     {"debug-time-stamps", 0, 0, 'Z'},
+    {"debug-level-prefix", 0, 0, 1001},
     {"verbose",         0, 0, 'v'},
     {"help",            0, 0, 'h'},
     {"version",         0, 0, 'V'},
@@ -216,7 +217,7 @@ int main(int argc, char *argv[])
         case 's':
             if (sscanf(optarg, "%d%1s", &serial_rate, dummy) != 1)
             {
-                fprintf(stderr, "Invalid baud rate of %s\n", optarg);
+                rig_print_error("Invalid baud rate of %s\n", optarg);
                 exit(1);
             }
 
@@ -267,6 +268,10 @@ int main(int argc, char *argv[])
             rig_set_debug_time_stamp(1);
             break;
 
+        case 1001:
+            rig_set_debug_level_prefix(1);
+            break;
+
         default:
             /* unknown getopt option */
             short_usage(stderr);
@@ -282,11 +287,11 @@ int main(int argc, char *argv[])
 
     if (!my_amp)
     {
-        fprintf(stderr,
-                "Unknown amp num %d, or initialization error.\n",
-                my_model);
+        rig_print_error(
+            "Unknown amp num %d, or initialization error.\n",
+            my_model);
 
-        fprintf(stderr, "Please check with --list option.\n");
+        rig_print_error("Please check with --list option.\n");
         exit(2);
     }
 
@@ -311,7 +316,7 @@ int main(int argc, char *argv[])
 
         if (retcode != RIG_OK)
         {
-            fprintf(stderr, "Config parameter error: %s\n", rigerror(retcode));
+            rig_print_error("Config parameter error: %s\n", rigerror(retcode));
             exit(2);
         }
 
@@ -352,7 +357,7 @@ int main(int argc, char *argv[])
 
     if (retcode != RIG_OK)
     {
-        fprintf(stderr, "amp_open: error = %s \n", rigerror(retcode));
+        rig_print_error("amp_open: error = %s \n", rigerror(retcode));
         exit(2);
     }
 
@@ -383,7 +388,7 @@ int main(int argc, char *argv[])
 
     if (WSAStartup(MAKEWORD(1, 1), &wsadata) == SOCKET_ERROR)
     {
-        fprintf(stderr, "WSAStartup socket error\n");
+        rig_print_error("WSAStartup socket error\n");
         exit(1);
     }
 
@@ -411,7 +416,7 @@ int main(int argc, char *argv[])
 
     if (retcode != 0)
     {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(retcode));
+        rig_print_error("getaddrinfo: %s\n", gai_strerror(retcode));
         exit(2);
     }
 
@@ -697,6 +702,7 @@ static void usage(FILE *fout)
         "  -u, --dump-caps               dump capabilities and exit\n"
         "  -v, --verbose                 set verbose mode, cumulative (-v to -vvvvv)\n"
         "  -Z, --debug-time-stamps       enable time stamps for debug messages\n"
+        "      --debug-level-prefix      start each debug message with its level, as <3>\n"
         "  -h, --help                    display this help and exit\n"
         "  -V, --version                 output version information and exit\n\n",
         portno);

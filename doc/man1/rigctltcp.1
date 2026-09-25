@@ -456,6 +456,24 @@ Use only in combination with the
 .B \-v
 option as it generates no output on its own.
 .
+.TP
+.B \-\-debug\-level\-prefix
+Start each debug message with its level, as an sd-daemon(3) priority:
+.B <2>
+for bugs,
+.B <3>
+for errors,
+.B <4>
+for warnings,
+.B <6>
+for verbose and
+.B <7>
+for trace messages.
+The program's own error messages start with
+.BR <3> .
+journald reads the prefix when the program runs under systemd, and a program
+that runs this one can tell its errors from its tracing.
+.
 .
 .TP
 .BR \-A ", " \-\-password = \fIPASSWORD\fP

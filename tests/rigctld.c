@@ -110,6 +110,7 @@ static struct option long_options[] =
     {"twiddle_rit",     1, 0, 'w'},
     {"uplink",          1, 0, 'x'},
     {"debug-time-stamps", 0, 0, 'Z'},
+    {"debug-level-prefix", 0, 0, 1008},
 #if RIGCTLD_PASSWORDS
     {"password",        1, 0, 'A'},
 #endif
@@ -365,10 +366,10 @@ int main(int argc, char *argv[])
             if (stream_metadata_interval < RIGCTLD_METADATA_INTERVAL_MIN
                     || stream_metadata_interval > RIGCTLD_METADATA_INTERVAL_MAX)
             {
-                fprintf(stderr,
-                        "metadata interval must be %d-%d ms\n",
-                        RIGCTLD_METADATA_INTERVAL_MIN,
-                        RIGCTLD_METADATA_INTERVAL_MAX);
+                rig_print_error(
+                    "metadata interval must be %d-%d ms\n",
+                    RIGCTLD_METADATA_INTERVAL_MIN,
+                    RIGCTLD_METADATA_INTERVAL_MAX);
                 exit(1);
             }
 
@@ -379,8 +380,8 @@ int main(int argc, char *argv[])
 
             if (stream_multicast_ttl < 1 || stream_multicast_ttl > 255)
             {
-                fprintf(stderr,
-                        "multicast TTL must be 1-255\n");
+                rig_print_error(
+                    "multicast TTL must be 1-255\n");
                 exit(1);
             }
 
@@ -391,7 +392,7 @@ int main(int argc, char *argv[])
 
             if (stream_time_stale_coarse < 0)
             {
-                fprintf(stderr, "stream-time-stale-coarse must be >= 0\n");
+                rig_print_error("stream-time-stale-coarse must be >= 0\n");
                 exit(1);
             }
 
@@ -402,8 +403,8 @@ int main(int argc, char *argv[])
 
             if (stream_time_stale_invalidate < 0)
             {
-                fprintf(stderr,
-                        "stream-time-stale-invalidate must be >= 0\n");
+                rig_print_error(
+                    "stream-time-stale-invalidate must be >= 0\n");
                 exit(1);
             }
 
@@ -414,8 +415,8 @@ int main(int argc, char *argv[])
 
             if (stream_metadata_refresh < 0)
             {
-                fprintf(stderr,
-                        "stream-metadata-refresh must be >= 0 (0 = every packet)\n");
+                rig_print_error(
+                    "stream-metadata-refresh must be >= 0 (0 = every packet)\n");
                 exit(1);
             }
 
@@ -426,7 +427,7 @@ int main(int argc, char *argv[])
 
             if (stream_transport_buffer_ms < 0)
             {
-                fprintf(stderr, "stream-transport-buffer-ms must be >= 0\n");
+                rig_print_error("stream-transport-buffer-ms must be >= 0\n");
                 exit(1);
             }
 
@@ -437,7 +438,7 @@ int main(int argc, char *argv[])
 
             if (stream_transport_buffer_bytes < 0)
             {
-                fprintf(stderr, "stream-transport-buffer-bytes must be >= 0 (0 = derive)\n");
+                rig_print_error("stream-transport-buffer-bytes must be >= 0 (0 = derive)\n");
                 exit(1);
             }
 
@@ -448,8 +449,8 @@ int main(int argc, char *argv[])
 
             if (stream_source_id < -1 || stream_source_id > 65535)
             {
-                fprintf(stderr,
-                        "stream-source-id must be -1-65535 (-1 = derive, 0 = unset)\n");
+                rig_print_error(
+                    "stream-source-id must be -1-65535 (-1 = derive, 0 = unset)\n");
                 exit(1);
             }
 
@@ -461,8 +462,8 @@ int main(int argc, char *argv[])
             if (stream_keepalive_timeout < RIGCTLD_SUBSCRIBE_TIMEOUT_MIN
                     || stream_keepalive_timeout > RIGCTLD_SUBSCRIBE_TIMEOUT_MAX)
             {
-                fprintf(stderr, "stream-keepalive-timeout must be %d-%d seconds\n",
-                        RIGCTLD_SUBSCRIBE_TIMEOUT_MIN, RIGCTLD_SUBSCRIBE_TIMEOUT_MAX);
+                rig_print_error("stream-keepalive-timeout must be %d-%d seconds\n",
+                                RIGCTLD_SUBSCRIBE_TIMEOUT_MIN, RIGCTLD_SUBSCRIBE_TIMEOUT_MAX);
                 exit(1);
             }
 
@@ -582,7 +583,7 @@ int main(int argc, char *argv[])
         case 's':
             if (sscanf(optarg, "%d%1s", &serial_rate, dummy) != 1)
             {
-                fprintf(stderr, "Invalid baud rate of %s\n", optarg);
+                rig_print_error("Invalid baud rate of %s\n", optarg);
                 exit(1);
             }
 
@@ -666,6 +667,10 @@ int main(int argc, char *argv[])
             rig_set_debug_time_stamp(1);
             break;
 
+        case 1008:
+            rig_set_debug_level_prefix(1);
+            break;
+
         default:
             /* unknown getopt option */
             short_usage(stderr);
@@ -699,11 +704,11 @@ int main(int argc, char *argv[])
 
     if (!my_rig)
     {
-        fprintf(stderr,
-                "Unknown rig num %u, or initialization error.\n",
-                my_model);
+        rig_print_error(
+            "Unknown rig num %u, or initialization error.\n",
+            my_model);
 
-        fprintf(stderr, "Please check with --list option.\n");
+        rig_print_error("Please check with --list option.\n");
         exit(2);
     }
 
@@ -730,7 +735,7 @@ int main(int argc, char *argv[])
 
         if (retcode != RIG_OK)
         {
-            fprintf(stderr, "Config parameter error: %s\n", rigerror(retcode));
+            rig_print_error("Config parameter error: %s\n", rigerror(retcode));
             exit(2);
         }
 
@@ -832,8 +837,8 @@ int main(int argc, char *argv[])
 
     if (retcode != RIG_OK)
     {
-        fprintf(stderr, "rig_open: error = %s %s %s \n", rigerror(retcode), rig_file,
-                strerror(errno));
+        rig_print_error("rig_open: error = %s %s %s \n", rigerror(retcode), rig_file,
+                        strerror(errno));
         // continue even if opening the rig fails, because it may be powered off
     }
 
@@ -918,7 +923,7 @@ int main(int argc, char *argv[])
 
     if (WSAStartup(MAKEWORD(1, 1), &wsadata) == SOCKET_ERROR)
     {
-        fprintf(stderr, "WSAStartup socket error\n");
+        rig_print_error("WSAStartup socket error\n");
         exit(1);
     }
 
@@ -951,7 +956,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(retcode));
+        rig_print_error("getaddrinfo: %s\n", gai_strerror(retcode));
         exit(1);
     }
 
@@ -1641,6 +1646,7 @@ static void usage(FILE *fout)
             "  -w, --twiddle_rit=SECONDS     suppress VFOB getfreq so RIT can be twiddled\n"
             "  -x, --uplink=OPTION           set uplink get_freq ignore, option 1=Sub, 2=Main\n"
             "  -Z, --debug-time-stamps       enable time stamps for debug messages\n"
+            "      --debug-level-prefix      start each debug message with its level, as <3>\n"
 #if RIGCTLD_PASSWORDS
             "  -A, --password=PASSWORD       set password for rigctld access (NOT IMPLEMENTED)\n"
 #endif
