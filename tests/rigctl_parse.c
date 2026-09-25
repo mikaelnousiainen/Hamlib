@@ -1720,11 +1720,11 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
         {
             if (cmd == 0)
             {
-                fprintf(stderr, "Command '%s' not found!\n", command);
+                rig_print_error("Command '%s' not found!\n", command);
             }
             else if (cmd != ' ')
             {
-                fprintf(stderr, "Command '%c' not found!\n", cmd);
+                rig_print_error("Command '%c' not found!\n", cmd);
             }
 
             return (RIG_OK);
@@ -1759,7 +1759,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
 
                 if (EOF == retcode)
                 {
-                    fprintf(stderr, "Invalid arg for command '%s'\n",
+                    rig_print_error("Invalid arg for command '%s'\n",
                             cmd_entry->name);
                 }
                 else if (retcode < 0)
@@ -1825,7 +1825,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
 
                 if (EOF == retcode)
                 {
-                    fprintf(stderr, "Invalid arg for command '%s'\n",
+                    rig_print_error("Invalid arg for command '%s'\n",
                             cmd_entry->name);
                     return (RIGCTL_PARSE_END);
                 }
@@ -1868,7 +1868,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
 
                 if (EOF == retcode)
                 {
-                    fprintf(stderr, "Invalid arg for command '%s'\n",
+                    rig_print_error("Invalid arg for command '%s'\n",
                             cmd_entry->name);
                     return (1);
                 }
@@ -1921,7 +1921,7 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
 
                 if (EOF == retcode)
                 {
-                    fprintf(stderr, "Invalid arg for command '%s'\n",
+                    rig_print_error("Invalid arg for command '%s'\n",
                             cmd_entry->name);
                     return (RIGCTL_PARSE_END);
                 }
@@ -1971,9 +1971,9 @@ int rigctl_parse(RIG *my_rig, FILE *fin, FILE *fout, char *argv[], int argc,
 
                 if (EOF == retcode)
                 {
-                    fprintf(stderr,
-                            "Invalid arg for command '%s'\n",
-                            cmd_entry->name);
+                    rig_print_error(
+                        "Invalid arg for command '%s'\n",
+                        cmd_entry->name);
                     return (RIGCTL_PARSE_END);
                 }
                 else if (retcode < 0)
@@ -2120,8 +2120,8 @@ readline_repeat:
             {
                 if (!(isalnum((int)cmd_name[j]) || cmd_name[j] == '_'))
                 {
-                    fprintf(stderr,
-                            "Valid multiple character command names contain alphanumeric characters plus '_'\n");
+                    rig_print_error(
+                        "Valid multiple character command names contain alphanumeric characters plus '_'\n");
                     free(rp_hist_buf);
                     return (RIG_OK);
                 }
@@ -2138,7 +2138,7 @@ readline_repeat:
         /* Multiple characters but no leading '\' */
         else
         {
-            fprintf(stderr, "Precede multiple character command names with '\\'\n");
+            rig_print_error("Precede multiple character command names with '\\'\n");
             free(rp_hist_buf);
             return (RIG_OK);
         }
@@ -2149,11 +2149,11 @@ readline_repeat:
         {
             if (cmd == '\0')
             {
-                fprintf(stderr, "Command '%s' not found!\n", parsed_input[0]);
+                rig_print_error("Command '%s' not found!\n", parsed_input[0]);
             }
             else
             {
-                fprintf(stderr, "Command '%c' not found!\n", cmd);
+                rig_print_error("Command '%c' not found!\n", cmd);
             }
 
             free(rp_hist_buf);
@@ -3010,7 +3010,7 @@ void list_models()
 
     if (status != RIG_OK)
     {
-        fprintf(stderr, "rig_list_foreach: error = %s \n", rigerror2(status));
+        rig_print_error("rig_list_foreach: error = %s \n", rigerror2(status));
         exit(2);
     }
 

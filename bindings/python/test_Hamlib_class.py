@@ -56,6 +56,7 @@ class TestClass:
 'rig_caps',
 'rig_get_debug',
 'rig_set_debug',
+'rig_set_debug_level_prefix',
 'rig_set_debug_time_stamp',
 'rig_spectrum_avg_mode',
 'rig_spectrum_line',
