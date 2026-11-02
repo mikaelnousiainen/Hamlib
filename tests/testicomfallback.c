@@ -30,6 +30,7 @@
 extern struct rig_caps ic7100_caps;
 extern struct rig_caps ic7300_caps;
 extern struct rig_caps ic785x_caps;
+extern struct rig_caps ic7410_caps;
 
 static int close_test_socket(int fd)
 {
@@ -202,6 +203,12 @@ static const unsigned char response_frequency[] =
     0xfe, 0xfe, 0xe0, 0x88, 0x03, 0x00, 0x40, 0x07, 0x14, 0x00,
     0xfd
 };
+/* An earlier command's late NAK, then the filter width */
+static const unsigned char response_nak_then_filter[] =
+{
+    0xfe, 0xfe, 0xe0, 0x88, 0xfa, 0xfd,
+    0xfe, 0xfe, 0xe0, 0x88, 0x1a, 0x03, 0x14, 0xfd
+};
 static const unsigned char response_malformed[] = { 0x00, 0xfd };
 static const unsigned char response_keyer_straight[] =
 {
@@ -255,6 +262,151 @@ static const struct exchange old_mode_exchanges[] =
 
 static const struct exchange new_mode_exchanges[] =
 {
+    {
+        request_x26_ic7100, sizeof(request_x26_ic7100),
+        response_x26, sizeof(response_x26)
+    },
+    {
+        request_filter, sizeof(request_filter),
+        response_filter, sizeof(response_filter)
+    }
+};
+
+/* The mode read twice, a late NAK arriving before the first filter width */
+/* The IC-7410's caps do not say it has 1A 03. Asked once more after a late NAK,
+ * it answers, and it is asked at the next read too */
+static const unsigned char request_mode_ic7410[] =
+{
+    0xfe, 0xfe, 0x80, 0xe0, 0x04, 0xfd
+};
+static const unsigned char response_mode_ic7410[] =
+{
+    0xfe, 0xfe, 0xe0, 0x80, 0x04, 0x01, 0x01, 0xfd
+};
+static const unsigned char request_filter_ic7410[] =
+{
+    0xfe, 0xfe, 0x80, 0xe0, 0x1a, 0x03, 0xfd
+};
+static const unsigned char response_filter_ic7410[] =
+{
+    0xfe, 0xfe, 0xe0, 0x80, 0x1a, 0x03, 0x14, 0xfd
+};
+static const unsigned char response_nak_ic7410[] =
+{
+    0xfe, 0xfe, 0xe0, 0x80, 0xfa, 0xfd
+};
+static const unsigned char response_nak_then_filter_ic7410[] =
+{
+    0xfe, 0xfe, 0xe0, 0x80, 0xfa, 0xfd,
+    0xfe, 0xfe, 0xe0, 0x80, 0x1a, 0x03, 0x14, 0xfd
+};
+static const unsigned char request_data_mode_ic7410[] =
+{
+    0xfe, 0xfe, 0x80, 0xe0, 0x1a, 0x06, 0xfd
+};
+static const unsigned char response_data_mode_ic7410[] =
+{
+    0xfe, 0xfe, 0xe0, 0x80, 0x1a, 0x06, 0x00, 0x00, 0xfd
+};
+static const struct exchange unflagged_late_nak_exchanges[] =
+{
+    {
+        request_mode_ic7410, sizeof(request_mode_ic7410),
+        response_mode_ic7410, sizeof(response_mode_ic7410)
+    },
+    {
+        request_filter_ic7410, sizeof(request_filter_ic7410),
+        response_nak_then_filter_ic7410, sizeof(response_nak_then_filter_ic7410)
+    },
+    {
+        request_filter_ic7410, sizeof(request_filter_ic7410),
+        response_filter_ic7410, sizeof(response_filter_ic7410)
+    },
+    {
+        request_data_mode_ic7410, sizeof(request_data_mode_ic7410),
+        response_data_mode_ic7410, sizeof(response_data_mode_ic7410)
+    },
+    {
+        request_mode_ic7410, sizeof(request_mode_ic7410),
+        response_mode_ic7410, sizeof(response_mode_ic7410)
+    },
+    {
+        request_filter_ic7410, sizeof(request_filter_ic7410),
+        response_filter_ic7410, sizeof(response_filter_ic7410)
+    },
+    {
+        request_data_mode_ic7410, sizeof(request_data_mode_ic7410),
+        response_data_mode_ic7410, sizeof(response_data_mode_ic7410)
+    }
+};
+/* Rejecting it both times marks it as lacking the command: not asked again */
+static const struct exchange unflagged_no_filter_exchanges[] =
+{
+    {
+        request_mode_ic7410, sizeof(request_mode_ic7410),
+        response_mode_ic7410, sizeof(response_mode_ic7410)
+    },
+    {
+        request_filter_ic7410, sizeof(request_filter_ic7410),
+        response_nak_ic7410, sizeof(response_nak_ic7410)
+    },
+    {
+        request_filter_ic7410, sizeof(request_filter_ic7410),
+        response_nak_ic7410, sizeof(response_nak_ic7410)
+    },
+    {
+        request_data_mode_ic7410, sizeof(request_data_mode_ic7410),
+        response_data_mode_ic7410, sizeof(response_data_mode_ic7410)
+    },
+    {
+        request_mode_ic7410, sizeof(request_mode_ic7410),
+        response_mode_ic7410, sizeof(response_mode_ic7410)
+    },
+    {
+        request_data_mode_ic7410, sizeof(request_data_mode_ic7410),
+        response_data_mode_ic7410, sizeof(response_data_mode_ic7410)
+    }
+};
+/* A rig whose caps say it has 1A 03 takes a late NAK for that read alone and
+ * asks again at the next, which the reply to the first read must not disturb */
+static const struct exchange late_nak_filter_exchanges[] =
+{
+    {
+        request_x26_ic7100, sizeof(request_x26_ic7100),
+        response_x26, sizeof(response_x26)
+    },
+    {
+        request_filter, sizeof(request_filter),
+        response_nak_then_filter, sizeof(response_nak_then_filter)
+    },
+    {
+        request_x26_ic7100, sizeof(request_x26_ic7100),
+        response_x26, sizeof(response_x26)
+    },
+    {
+        request_filter, sizeof(request_filter),
+        response_filter, sizeof(response_filter)
+    }
+};
+/* Nor does it stop asking after rejections, as in a mode without the command */
+static const struct exchange rejected_filter_exchanges[] =
+{
+    {
+        request_x26_ic7100, sizeof(request_x26_ic7100),
+        response_x26, sizeof(response_x26)
+    },
+    {
+        request_filter, sizeof(request_filter),
+        response_nak_ic7100, sizeof(response_nak_ic7100)
+    },
+    {
+        request_x26_ic7100, sizeof(request_x26_ic7100),
+        response_x26, sizeof(response_x26)
+    },
+    {
+        request_filter, sizeof(request_filter),
+        response_nak_ic7100, sizeof(response_nak_ic7100)
+    },
     {
         request_x26_ic7100, sizeof(request_x26_ic7100),
         response_x26, sizeof(response_x26)
@@ -415,10 +567,12 @@ static void release_rig(RIG *rig, int fd)
     rig_cleanup(rig);
 }
 
+/* Reads the mode mode_reads times; a width other than 0 must be read too */
 static int run_mode_case(const char *name, rig_model_t model,
                          const struct exchange *exchanges,
-                         size_t exchange_count, int expected_retval,
-                         rmode_t expected_mode)
+                         size_t exchange_count, int mode_reads,
+                         int expected_retval, rmode_t expected_mode,
+                         pbwidth_t expected_width)
 {
     int sockets[2];
     pthread_t thread;
@@ -433,7 +587,9 @@ static int run_mode_case(const char *name, rig_model_t model,
     RIG *rig;
     rmode_t mode = RIG_MODE_NONE;
     pbwidth_t width = 0;
-    int retval;
+    int retval = RIG_OK;
+    int failures = 0;
+    int i;
 
     if (open_test_connection(sockets) != 0)
     {
@@ -460,21 +616,36 @@ static int run_mode_case(const char *name, rig_model_t model,
         return 1;
     }
 
-    retval = rig_get_mode(rig, RIG_VFO_CURR, &mode, &width);
+    /* Each read goes to the rig */
+    rig_set_cache_timeout_ms(rig, HAMLIB_CACHE_ALL, 0);
+
+    for (i = 0; i < mode_reads; i++)
+    {
+        retval = rig_get_mode(rig, RIG_VFO_CURR, &mode, &width);
+
+        if (retval != expected_retval
+                || (retval == RIG_OK && (mode != expected_mode
+                                         || (i == mode_reads - 1 && expected_width != 0
+                                             && width != expected_width))))
+        {
+            fprintf(stderr, "%s: read %d expected %d/%s/%ld, got %d/%s/%ld\n", name,
+                    i + 1, expected_retval, rig_strrmode(expected_mode),
+                    (long) expected_width, retval, rig_strrmode(mode), (long) width);
+            failures++;
+        }
+    }
+
     release_rig(rig, sockets[0]);
     pthread_join(thread, NULL);
     close_test_socket(sockets[1]);
 
-    if (test.status != 0 || retval != expected_retval
-            || (retval == RIG_OK && mode != expected_mode))
+    if (test.status != 0)
     {
-        fprintf(stderr, "%s: expected %d/%s, got %d/%s\n", name,
-                expected_retval, rig_strrmode(expected_mode), retval,
-                rig_strrmode(mode));
-        return 1;
+        fprintf(stderr, "%s: the rig was not sent the commands expected\n", name);
+        failures++;
     }
 
-    return 0;
+    return failures;
 }
 
 static int run_frequency_case(const char *name,
@@ -614,22 +785,39 @@ int main(void)
     rig_register(&ic7100_caps);
     rig_register(&ic7300_caps);
     rig_register(&ic785x_caps);
+    rig_register(&ic7410_caps);
 
     if (run_mode_case("optional 0x26 NAK", RIG_MODEL_IC7100,
-                      old_mode_exchanges, ARRAY_SIZE(old_mode_exchanges),
-                      RIG_OK, RIG_MODE_PKTUSB) != 0
+                      old_mode_exchanges, ARRAY_SIZE(old_mode_exchanges), 1,
+                      RIG_OK, RIG_MODE_PKTUSB, 0) != 0
             || run_mode_case("supported 0x26", RIG_MODEL_IC7100,
                              new_mode_exchanges,
-                             ARRAY_SIZE(new_mode_exchanges), RIG_OK,
-                             RIG_MODE_USB) != 0
+                             ARRAY_SIZE(new_mode_exchanges), 1, RIG_OK,
+                             RIG_MODE_USB, 0) != 0
+            || run_mode_case("late NAK before the first 0x1a 0x03 reply",
+                             RIG_MODEL_IC7100, late_nak_filter_exchanges,
+                             ARRAY_SIZE(late_nak_filter_exchanges), 2, RIG_OK,
+                             RIG_MODE_USB, 1000) != 0
+            || run_mode_case("rejected 0x1a 0x03 keeps being asked",
+                             RIG_MODEL_IC7100, rejected_filter_exchanges,
+                             ARRAY_SIZE(rejected_filter_exchanges), 3, RIG_OK,
+                             RIG_MODE_USB, 1000) != 0
+            || run_mode_case("no 1A 03 in caps: late NAK, asked once more",
+                             RIG_MODEL_IC7410, unflagged_late_nak_exchanges,
+                             ARRAY_SIZE(unflagged_late_nak_exchanges), 2, RIG_OK,
+                             RIG_MODE_USB, 1000) != 0
+            || run_mode_case("no 1A 03 in caps: rejected twice, not asked again",
+                             RIG_MODEL_IC7410, unflagged_no_filter_exchanges,
+                             ARRAY_SIZE(unflagged_no_filter_exchanges), 2, RIG_OK,
+                             RIG_MODE_USB, 0) != 0
             || run_mode_case("malformed 0x26 reply", RIG_MODEL_IC7100,
                              malformed_mode_exchanges,
-                             ARRAY_SIZE(malformed_mode_exchanges),
-                             -RIG_EPROTO, RIG_MODE_NONE) != 0
+                             ARRAY_SIZE(malformed_mode_exchanges), 1,
+                             -RIG_EPROTO, RIG_MODE_NONE, 0) != 0
             || run_mode_case("required 0x26 NAK", RIG_MODEL_IC7300,
                              required_mode_exchanges,
-                             ARRAY_SIZE(required_mode_exchanges),
-                             -RIG_ERJCTED, RIG_MODE_NONE) != 0)
+                             ARRAY_SIZE(required_mode_exchanges), 1,
+                             -RIG_ERJCTED, RIG_MODE_NONE, 0) != 0)
     {
         status = 1;
     }
