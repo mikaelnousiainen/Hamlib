@@ -3674,9 +3674,12 @@ int HAMLIB_API rig_get_vfo(RIG *rig, vfo_t *vfo)
         }
         else
         {
+            // An Icom that does not answer the read is assumed on VFO A, for this call only: the
+            // capabilities are shared by every rig of the model and are never changed at run time,
+            // so the next read asks the rig again (a rig in standby refuses the read, and answers
+            // it once it is switched on)
             if (RIG_ICOM == RIG_BACKEND_NUM(rig->caps->rig_model))
             {
-                rig->caps->get_vfo = NULL;
                 *vfo = RIG_VFO_A;
                 LOCK(0);
                 RETURNFUNC(RIG_OK);
