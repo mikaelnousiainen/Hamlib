@@ -2813,13 +2813,15 @@ int HAMLIB_API rig_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     if (retcode == RIG_OK)
     {
         rig_cache_show(rig, __func__, __LINE__);
-    }
-
-    rig_set_cache_freq(rig, vfo, *freq);
-
-    if (retcode == RIG_OK)
-    {
+        rig_set_cache_freq(rig, vfo, *freq);
         rig_cache_show(rig, __func__, __LINE__);
+    }
+    else
+    {
+        /* A failed read leaves no fresh frequency behind: *freq still holds the cached value
+         * loaded before asking the rig, and storing it again would make the next reads answer
+         * RIG_OK from the cache while the rig answers nothing (or rejects every read) */
+        rig_set_cache_freq(rig, vfo, 0);
     }
 
     // we only want to look for band change on main vfo for now

@@ -1,6 +1,12 @@
 check_PROGRAMS += testbandmetadata
 TESTS += testbandmetadata
 
+check_PROGRAMS += testcachefreq
+TESTS += testcachefreq
+testcachefreq_LDADD = $(PTHREAD_LIBS) \
+	$(top_builddir)/rigs/dummy/libhamlib-dummy.la \
+	$(LDADD)
+
 check_PROGRAMS += testcachemode
 TESTS += testcachemode
 testcachemode_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
