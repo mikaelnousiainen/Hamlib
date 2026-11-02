@@ -1380,6 +1380,7 @@ static int g90_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     unsigned char ackbuf[MAXFRAMELEN];
     int ack_len = sizeof(ackbuf), retval;
     int want_on, state;
+    unsigned char att_state;
 
     if (level != RIG_LEVEL_ATT)
     {
@@ -1402,8 +1403,17 @@ static int g90_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
         return RIG_OK;
     }
 
-    retval = icom_transaction(rig, C_CTL_ATT, want_on ? 0x01 : 0x00, NULL, 0,
-                              ackbuf, &ack_len);
+    /*
+     * The G90 does not behave like an Icom here: it answers a set with its
+     * state, "11 0c" for on, not with an ACK, and that state differs from the
+     * 0x01 it was sent.  The reply loop only takes a data reply that repeats
+     * the subcommand sent, so 0x01 must go as data with no subcommand, or the
+     * reply is passed over and every set times out.  On the wire the bytes are
+     * the same either way.
+     */
+    att_state = want_on ? 0x01 : 0x00;
+    retval = icom_transaction(rig, C_CTL_ATT, -1, &att_state, 1, ackbuf,
+                              &ack_len);
 
     if (retval != RIG_OK)
     {
