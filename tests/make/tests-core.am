@@ -1,3 +1,6 @@
+check_PROGRAMS += testbandfreq
+TESTS += testbandfreq
+
 check_PROGRAMS += testbandmetadata
 TESTS += testbandmetadata
 
