@@ -2131,6 +2131,131 @@ static void chan_vfo(channel_t *chan, vfo_t vfo)
     strcpy(chan->channel_desc, rig_strvfo(vfo));
 }
 
+/*
+ * The bands BAND_UP and BAND_DOWN step through, in order: each band as the
+ * union of the IARU regions' allocations, and the frequency a first visit
+ * lands on, the lowest one every region allocates
+ */
+static const struct
+{
+    freq_t low, high, first;
+} dummy_bands[NB_BANDS] =
+{
+    { kHz(1800),  kHz(2000),  kHz(1810) },      /* 160 m */
+    { kHz(3500),  kHz(4000),  kHz(3500) },      /* 80 m */
+    { kHz(5250),  kHz(5450),  kHz(5351.5) },    /* 60 m */
+    { kHz(7000),  kHz(7300),  kHz(7000) },      /* 40 m */
+    { kHz(10100), kHz(10150), kHz(10100) },     /* 30 m */
+    { kHz(14000), kHz(14350), kHz(14000) },     /* 20 m */
+    { kHz(18068), kHz(18168), kHz(18068) },     /* 17 m */
+    { kHz(21000), kHz(21450), kHz(21000) },     /* 15 m */
+    { kHz(24890), kHz(24990), kHz(24890) },     /* 12 m */
+    { kHz(28000), kHz(29700), kHz(28000) },     /* 10 m */
+    { MHz(50),    MHz(54),    MHz(50) },        /* 6 m */
+    { MHz(144),   MHz(148),   MHz(144) },       /* 2 m */
+    { MHz(420),   MHz(450),   MHz(430) },       /* 70 cm */
+};
+
+/* The band freq is in, or -1 when it is outside every band */
+static int dummy_band_of(freq_t freq)
+{
+    for (int band = 0; band < NB_BANDS; band++)
+    {
+        if (freq >= dummy_bands[band].low && freq <= dummy_bands[band].high)
+        {
+            return band;
+        }
+    }
+
+    return -1;
+}
+
+/*
+ * The band BAND_UP (up) or BAND_DOWN goes to from freq, in band: the next
+ * band, or, from outside every band, the first band above or below freq;
+ * either way wrapping from 70 cm to 160 m and from 160 m to 70 cm
+ */
+static int dummy_next_band(int band, freq_t freq, int up)
+{
+    if (band >= 0)
+    {
+        return (band + (up ? 1 : NB_BANDS - 1)) % NB_BANDS;
+    }
+
+    if (up)
+    {
+        for (band = 0; band < NB_BANDS; band++)
+        {
+            if (dummy_bands[band].low > freq) { return band; }
+        }
+
+        return 0;
+    }
+
+    for (band = NB_BANDS - 1; band >= 0; band--)
+    {
+        if (dummy_bands[band].high < freq) { return band; }
+    }
+
+    return NB_BANDS - 1;
+}
+
+/*
+ * Steps the VFO to the next band up or down. The band stack keeps what the
+ * VFO is tuned to for the band it leaves, and gives back what a VFO was tuned
+ * to when it last left the band it goes to; a band not left before is tuned
+ * to its first frequency, the mode unchanged. The memory is refused: the
+ * dummy rig neither reads nor sets a memory channel's mode, which the band
+ * stack keeps.
+ */
+static int dummy_band_step(RIG *rig, vfo_t vfo, int up)
+{
+    struct dummy_priv_data *priv = (struct dummy_priv_data *)STATE(rig)->priv;
+    const struct dummy_band_stack *next;
+    freq_t freq;
+    rmode_t mode = RIG_MODE_NONE;
+    pbwidth_t width = RIG_PASSBAND_NORMAL;
+    int band;
+    int ret;
+
+    if ((vfo == RIG_VFO_CURR ? priv->curr_vfo : vfo) == RIG_VFO_MEM)
+    {
+        return -RIG_EVFO;
+    }
+
+    ret = dummy_get_freq(rig, vfo, &freq);
+
+    if (ret != RIG_OK) { return ret; }
+
+    ret = dummy_get_mode(rig, vfo, &mode, &width);
+
+    if (ret != RIG_OK) { return ret; }
+
+    band = dummy_band_of(freq);
+
+    if (band >= 0)
+    {
+        priv->band_stack[band].stored = 1;
+        priv->band_stack[band].freq = freq;
+        priv->band_stack[band].mode = mode;
+        priv->band_stack[band].width = width;
+    }
+
+    band = dummy_next_band(band, freq, up);
+    next = &priv->band_stack[band];
+
+    if (!next->stored)
+    {
+        return dummy_set_freq(rig, vfo, dummy_bands[band].first);
+    }
+
+    ret = dummy_set_freq(rig, vfo, next->freq);
+
+    if (ret != RIG_OK) { return ret; }
+
+    return dummy_set_mode(rig, vfo, next->mode, next->width);
+}
+
 static int dummy_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
 {
     struct dummy_priv_data *priv = (struct dummy_priv_data *)STATE(rig)->priv;
@@ -2274,7 +2399,7 @@ static int dummy_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
 
     case RIG_OP_BAND_UP:
     case RIG_OP_BAND_DOWN:
-        RETURNFUNC(-RIG_ENIMPL);
+        RETURNFUNC(dummy_band_step(rig, vfo, op == RIG_OP_BAND_UP));
 
     case RIG_OP_UP:
         ret = dummy_get_freq(rig, vfo, &freq);
