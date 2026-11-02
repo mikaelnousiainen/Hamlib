@@ -4,6 +4,12 @@ testelecraftvfo_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
 testelecraftvfo_LDADD = $(NET_LIBS) $(PTHREAD_LIBS) \
 	$(top_builddir)/rigs/kenwood/libhamlib-kenwood.la $(LDADD)
 
+check_PROGRAMS += testkenwoodmorse
+TESTS += testkenwoodmorse
+testkenwoodmorse_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
+testkenwoodmorse_LDADD = $(PTHREAD_LIBS) \
+	$(top_builddir)/rigs/kenwood/libhamlib-kenwood.la $(LDADD)
+
 check_PROGRAMS += testthd75emu
 TESTS += testthd75emu
 
