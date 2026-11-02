@@ -50,6 +50,7 @@ testlibusb
 testloc
 testloc.sh
 testmW2power
+testmorsestop
 testnetrigctl
 testnetrigctl.sh
 testrig
