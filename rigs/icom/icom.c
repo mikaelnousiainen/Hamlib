@@ -1779,7 +1779,9 @@ int icom_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
             retval = icom_transaction(rig, C_RD_FREQ, -1, NULL, 0, freqbuf, &freq_len);
             HAMLIB_TRACE;
 
-            if (freqbuf[4] == C_RD_FREQ) { break; }
+            // read once more unless this was the reply to the frequency read
+            // (freqbuf holds the reply from its command byte on)
+            if (retval == RIG_OK && freqbuf[0] == C_RD_FREQ) { break; }
         }
 
         int retval2 = set_vfo_curr(
