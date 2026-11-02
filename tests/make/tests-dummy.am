@@ -3,6 +3,8 @@ TESTS += testdummyparm
 
 check_PROGRAMS += testdummyvfoop
 TESTS += testdummyvfoop
+check_PROGRAMS += testdummytovfo
+TESTS += testdummytovfo
 
 $(top_builddir)/rigs/dummy/libhamlib-dummy.la:
 	$(MAKE) -C $(top_builddir)/rigs/dummy/ libhamlib-dummy.la

@@ -2301,7 +2301,7 @@ static int dummy_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
         }
         else
         {
-            copy_chan(&priv->mem[curr->channel_num], curr);
+            copy_chan(curr, &priv->mem[curr->channel_num]);
             chan_vfo(curr, priv->curr_vfo);
         }
 
