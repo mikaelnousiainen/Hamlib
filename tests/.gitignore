@@ -27,6 +27,7 @@ rotctld
 test-suite.log
 test2038
 test2038.sh
+testbandfreq
 testbandmetadata
 testbcd
 testbcd.sh
