@@ -3538,7 +3538,7 @@ declare_proto_rig(set_ptt)
         RETURNFUNC2(-RIG_EINVAL);
     }
 
-    rig_debug(RIG_DEBUG_ERR, "%s: ptt=%d\n", __func__, ptt);
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: ptt=%d\n", __func__, ptt);
     RETURNFUNC2(rig_set_ptt(rig, vfo, ptt));
 }
 
@@ -4832,18 +4832,18 @@ declare_proto_rig(get_parm)
     }
     else if (RIG_PARM_IS_FLOAT(parm))
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: float\n", __func__);
+        rig_debug(RIG_DEBUG_TRACE, "%s: float\n", __func__);
         PRINT_PROTOCOL_DECIMAL("%f", val.f);
         fputc(resp_sep, fout);
     }
     else if (RIG_PARM_IS_STRING(parm))
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: string\n", __func__);
+        rig_debug(RIG_DEBUG_TRACE, "%s: string\n", __func__);
         fprintf(fout, "%s%c", val.s, resp_sep);
     }
     else
     {
-        rig_debug(RIG_DEBUG_ERR, "%s: int\n", __func__);
+        rig_debug(RIG_DEBUG_TRACE, "%s: int\n", __func__);
         fprintf(fout, "%d%c", val.i, resp_sep);
     }
 
