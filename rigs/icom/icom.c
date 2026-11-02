@@ -8423,24 +8423,36 @@ int icom_get_powerstat(RIG *rig, powerstat_t *status)
         rp->retry = 0;
         rp->timeout_retry = 0;
 
+        // These rigs cannot report their power status, so it is inferred from a frequency read
+        // asked of the rig itself: the cached frequency is dropped first, so the answer is never a
+        // cache hit. An answer means on; NG means standby, where the rig keeps CI-V alive and
+        // refuses the read; no answer says nothing about power and is returned as the error it is.
+        rig_set_cache_freq(rig, RIG_VFO_A, 0);
         retval = rig_get_freq(rig, RIG_VFO_A, &freq);
-
-        if (retval != RIG_OK)
-        {
-            rig_debug(RIG_DEBUG_WARN, "%s: get freq failed, assuming power is off\n",
-                      __func__);
-        }
 
         HAMLIB_TRACE;
 
         rp->retry = retry_save;
         rp->timeout_retry = timeout_retry_save;
 
-        // Assume power is OFF if get_freq fails
-        *status = retval == RIG_OK ? RIG_POWER_ON : RIG_POWER_OFF;
+        if (retval == RIG_OK)
+        {
+            *status = RIG_POWER_ON;
+        }
+        else if (retval == -RIG_ERJCTED)
+        {
+            rig_debug(RIG_DEBUG_VERBOSE, "%s: frequency read refused, the rig is in standby\n",
+                      __func__);
+            *status = RIG_POWER_OFF;
+            retval = RIG_OK;
+        }
+        else
+        {
+            rig_debug(RIG_DEBUG_WARN, "%s: frequency read failed, power status unknown: %s\n",
+                      __func__, rigerror2(retval));
+            RETURNFUNC(retval);
+        }
 
-        // Modify rig_state powerstat directly to reflect power ON/OFF status, but return the result of rig_get_freq,
-        // because the error could indicate other connectivity issues too
         STATE(rig)->powerstat = *status;
         RETURNFUNC(retval);
     }
