@@ -20,6 +20,9 @@ testicomasync_LDADD = $(PTHREAD_LIBS) $(LDADD)
 check_PROGRAMS += testicomasyncopen
 TESTS += testicomasyncopen
 
+check_PROGRAMS += testicomasyncstart
+TESTS += testicomasyncstart
+
 check_PROGRAMS += testicomfallback
 TESTS += testicomfallback
 testicomfallback_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/rigs/icom

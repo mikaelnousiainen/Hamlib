@@ -8547,8 +8547,6 @@ int rig_async_data_handler_start(RIG *rig,
         RETURNFUNC(RIG_OK);
     }
 
-    sleep(2);  // give other things a chance to finish opening up the rig
-
     status = port_prepare_async(RIGPORT(rig));
 
     if (status < 0)
