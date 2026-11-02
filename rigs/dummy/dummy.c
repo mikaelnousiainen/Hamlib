@@ -1523,6 +1523,45 @@ static int dummy_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
         }
 
         break;
+
+    case RIG_LEVEL_SWR:
+        if (priv->static_data)
+        {
+            curr->levels[idx].f = 1.3f;
+        }
+        else
+        {
+            curr->levels[idx].f = 1.2f + (float)(time(NULL) % 32) / 140.0f + (float)(
+                                      rand() % 7) / 100.0f;
+        }
+
+        break;
+
+    case RIG_LEVEL_ALC:
+        if (priv->static_data)
+        {
+            curr->levels[idx].f = 0.4f;
+        }
+        else
+        {
+            curr->levels[idx].f = 0.2f + (float)(time(NULL) % 32) / 80.0f + (float)(
+                                      rand() % 10) / 100.0f;
+        }
+
+        break;
+
+    case RIG_LEVEL_TEMP_METER:
+        if (priv->static_data)
+        {
+            curr->levels[idx].f = 38.0f;
+        }
+        else
+        {
+            curr->levels[idx].f = 33.0f + (float)(time(NULL) % 320) / 32.0f + (float)(
+                                      rand() % 10) / 20.0f;
+        }
+
+        break;
     }
 
     memcpy(val, &curr->levels[idx], RIG_LEVEL_IS_FLOAT(level)
@@ -2616,7 +2655,7 @@ struct rig_caps dummy_caps =
     RIG_MODEL(RIG_MODEL_DUMMY),
     .model_name =     "Dummy",
     .mfg_name =       "Hamlib",
-    .version =        "20240709.0",
+    .version =        "20261024.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,
@@ -2864,7 +2903,7 @@ struct rig_caps dummy_no_vfo_caps =
     RIG_MODEL(RIG_MODEL_DUMMY_NOVFO),
     .model_name =     "Dummy No VFO",
     .mfg_name =       "Hamlib",
-    .version =        "20240409.0",
+    .version =        "20261024.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .rig_type =       RIG_TYPE_OTHER,
