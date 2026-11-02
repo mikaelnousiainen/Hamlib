@@ -48,6 +48,8 @@ TEST_LIST =
 #else
 
 #include <errno.h>
+#include <poll.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -187,6 +189,9 @@ static int start_rigctld(struct rigctld_proc *proc, const char *const *args)
         _exit(127);
     }
 
+    /* A send to a connection that has gone must fail, not end the test with rigctld
+     * still running */
+    signal(SIGPIPE, SIG_IGN);
     return 0;
 }
 
@@ -310,6 +315,215 @@ static void expect_reply(int sock, const char *what, const char *expected)
 
 
 /*
+ * An emulated IC-7610 over TCP: answers the CI-V commands the backend sends while
+ * opening the rig and reading its frequency, while it is answering. Stopped, it
+ * closes its sockets, as a port that has gone away.
+ */
+#define CIV_RIG 0x98
+#define CIV_CONTROLLER 0xe0
+#define RIG_FREQ "14074000"
+
+struct fake_rig
+{
+    int listener;
+    int port;
+    int answering;
+    int stop;
+    pthread_t thread;
+};
+
+
+static void fake_rig_reply(int sock, const unsigned char *payload, size_t len)
+{
+    unsigned char frame[32] = { 0xfe, 0xfe, CIV_CONTROLLER, CIV_RIG };
+
+    memcpy(frame + 4, payload, len);
+    frame[4 + len] = 0xfd;
+    send(sock, frame, 5 + len, 0);
+}
+
+
+static void fake_rig_answer(int sock, const unsigned char *command, size_t len)
+{
+    /* 14.074000 MHz as five BCD bytes, least significant first */
+    static const unsigned char freq[5] = { 0x00, 0x40, 0x07, 0x14, 0x00 };
+    unsigned char reply[16];
+    unsigned char cmd = command[0];
+    unsigned char sub = len > 1 ? command[1] : 0;
+
+    switch (cmd)
+    {
+    case 0x03:
+        reply[0] = cmd;
+        memcpy(reply + 1, freq, sizeof(freq));
+        fake_rig_reply(sock, reply, 1 + sizeof(freq));
+        break;
+
+    case 0x25:
+        reply[0] = cmd;
+        reply[1] = sub;
+        memcpy(reply + 2, freq, sizeof(freq));
+        fake_rig_reply(sock, reply, 2 + sizeof(freq));
+        break;
+
+    case 0x07:
+        reply[0] = cmd;
+        reply[1] = sub;
+        reply[2] = 0;
+        fake_rig_reply(sock, reply, 3);
+        break;
+
+    case 0x14:
+        reply[0] = cmd;
+        reply[1] = sub;
+        reply[2] = 0;
+        reply[3] = 0;
+        fake_rig_reply(sock, reply, 4);
+        break;
+
+    default:
+        reply[0] = 0xfb;
+        fake_rig_reply(sock, reply, 1);
+        break;
+    }
+}
+
+
+static void *fake_rig_run(void *arg)
+{
+    struct fake_rig *rig = arg;
+    unsigned char pending[1024];
+    size_t have = 0;
+    int client = -1;
+
+    while (!__atomic_load_n(&rig->stop, __ATOMIC_RELAXED))
+    {
+        struct pollfd fds[2] = { { rig->listener, POLLIN, 0 }, { client, POLLIN, 0 } };
+        unsigned char *start;
+        ssize_t got;
+
+        if (poll(fds, client >= 0 ? 2 : 1, 50) <= 0)
+        {
+            continue;
+        }
+
+        if (fds[0].revents & POLLIN)
+        {
+            if (client >= 0)
+            {
+                close(client);
+            }
+
+            client = accept(rig->listener, NULL, NULL);
+            have = 0;
+            continue;
+        }
+
+        if (client < 0 || !(fds[1].revents & (POLLIN | POLLHUP)))
+        {
+            continue;
+        }
+
+        got = recv(client, pending + have, sizeof(pending) - have, 0);
+
+        if (got <= 0)
+        {
+            close(client);
+            client = -1;
+            continue;
+        }
+
+        have += (size_t)got;
+
+        /* Whole frames addressed to the rig: fe fe <rig> <controller> ... fd */
+        while ((start = memchr(pending, 0xfe, have)) != NULL)
+        {
+            size_t skip = (size_t)(start - pending);
+            unsigned char *end = memchr(start, 0xfd, have - skip);
+
+            if (end == NULL)
+            {
+                break;
+            }
+
+            if (end - start >= 5 && start[1] == 0xfe && start[2] == CIV_RIG
+                    && start[3] == CIV_CONTROLLER
+                    && __atomic_load_n(&rig->answering, __ATOMIC_RELAXED))
+            {
+                fake_rig_answer(client, start + 4, (size_t)(end - start) - 4);
+            }
+
+            have -= (size_t)(end - pending) + 1;
+            memmove(pending, end + 1, have);
+        }
+
+        if (have == sizeof(pending))
+        {
+            have = 0;
+        }
+    }
+
+    if (client >= 0)
+    {
+        close(client);
+    }
+
+    return NULL;
+}
+
+
+static int fake_rig_start(struct fake_rig *rig, int answering)
+{
+    struct sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+
+    memset(rig, 0, sizeof(*rig));
+    rig->answering = answering;
+    rig->listener = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (rig->listener < 0)
+    {
+        return -1;
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+    if (bind(rig->listener, (struct sockaddr *)&addr, sizeof(addr)) != 0
+            || listen(rig->listener, 4) != 0
+            || getsockname(rig->listener, (struct sockaddr *)&addr, &len) != 0
+            || pthread_create(&rig->thread, NULL, fake_rig_run, rig) != 0)
+    {
+        close(rig->listener);
+        rig->listener = -1;
+        return -1;
+    }
+
+    rig->port = ntohs(addr.sin_port);
+    return 0;
+}
+
+
+static void fake_rig_set_answering(struct fake_rig *rig, int answering)
+{
+    __atomic_store_n(&rig->answering, answering, __ATOMIC_RELAXED);
+}
+
+
+static void fake_rig_stop(struct fake_rig *rig)
+{
+    if (rig->listener >= 0)
+    {
+        __atomic_store_n(&rig->stop, 1, __ATOMIC_RELAXED);
+        pthread_join(rig->thread, NULL);
+        close(rig->listener);
+        rig->listener = -1;
+    }
+}
+
+
+/*
  * rigctld keeps each client's VFO mode with its connection, and the rig's state,
  * shared by every client, holds that of the connection whose command runs. A
  * command waiting for the daemon's lock must not have its connection's mode
@@ -370,9 +584,70 @@ void test_chk_vfo_answers_each_clients_own_mode(void)
 }
 
 
+/*
+ * A rig that stops answering must not cost a client its connection: a timeout is
+ * returned like any other error, and the same connection is served once the rig is
+ * back. When the port goes away every read is answered with an error, while a
+ * command answered from Hamlib's own state does not need the rig.
+ */
+void test_client_stays_connected_when_rig_does_not_answer(void)
+{
+    struct fake_rig rig;
+    struct rigctld_proc proc;
+    char rig_path[32];
+    char reply[128];
+    const char *args[] = { "-m", "3078", "-r", rig_path, "-C", "cache_timeout=0", NULL };
+    int sock, i;
+
+    TEST_ASSERT(fake_rig_start(&rig, 1) == 0);
+    snprintf(rig_path, sizeof(rig_path), "127.0.0.1:%d", rig.port);
+
+    if (start_rigctld(&proc, args) != 0 || (sock = open_first_client(&proc)) < 0)
+    {
+        TEST_CHECK_(0, "could not start rigctld");
+        stop_rigctld(&proc);
+        fake_rig_stop(&rig);
+        return;
+    }
+
+
+    send_command(sock, "f\n");
+    expect_reply(sock, "read with the rig answering", RIG_FREQ);
+
+    /* The cable is pulled, for longer than rigctld once took to give up reopening
+     * the rig and drop the client */
+    fake_rig_set_answering(&rig, 0);
+    send_command(sock, "f\n");
+    expect_reply(sock, "read with the rig silent", "RPRT -5");
+    sleep(6);
+    fake_rig_set_answering(&rig, 1);
+    sleep(1);
+    send_command(sock, "f\n");
+    expect_reply(sock, "read after the rig came back", RIG_FREQ);
+
+    /* The port goes away and the rig cannot be reopened */
+    fake_rig_stop(&rig);
+
+    for (i = 0; i < 5; i++)
+    {
+        send_command(sock, "f\n");
+        read_reply(sock, reply, sizeof(reply));
+        TEST_CHECK_(strncmp(reply, "RPRT -", 6) == 0,
+                    "read %d with the port gone: got '%s'", i + 1, reply);
+    }
+
+    send_command(sock, "\\chk_vfo\n");
+    expect_reply(sock, "chk_vfo with the port gone", "0");
+
+    close(sock);
+    stop_rigctld(&proc);
+}
+
+
 TEST_LIST =
 {
     { "chk_vfo_answers_each_clients_own_mode", test_chk_vfo_answers_each_clients_own_mode },
+    { "client_stays_connected_when_rig_does_not_answer", test_client_stays_connected_when_rig_does_not_answer },
     { NULL, NULL }
 };
 

@@ -1094,7 +1094,16 @@ static int rigctl_dispatch_ready(RIG *rig, const struct test_table *cmd_entry,
 
     *open_retcode = RIG_OK;
 
-    if (!preauth_command && rs->comm_state == 0)
+    // A rig that is not open is opened again before a command that needs it; those answered from
+    // Hamlib's own state run without it, so that a client can connect and set itself up while the
+    // rig does not answer
+    if (!preauth_command && rs->comm_state == 0
+            && cmd_entry->cmd != '1' // dump_caps
+            && cmd_entry->cmd != '3' // dump_conf
+            && cmd_entry->cmd != 0x8f // dump_state
+            && cmd_entry->cmd != 0xf0 // chk_vfo
+            && cmd_entry->cmd != 0xa5 // client_version
+            && cmd_entry->cmd != 0xf2) // set_vfo_opt
     {
         rig_debug(RIG_DEBUG_WARN, "%s: %p rig not open...trying to reopen\n",
                   __func__, &rs->comm_state);
@@ -2717,15 +2726,6 @@ readline_repeat:
         }
     }
 
-
-    if (retcode == -RIG_EIO && open_retcode == RIG_OK)
-    {
-        rig_debug(RIG_DEBUG_ERR, "%s: RIG_EIO?\n", __func__);
-
-        if (lock_held) { sync_cb(0); }
-
-        return (retcode);
-    }
 
     if (retcode != RIG_OK)
     {
