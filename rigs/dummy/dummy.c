@@ -2279,26 +2279,24 @@ static int dummy_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
     case RIG_OP_UP:
         ret = dummy_get_freq(rig, vfo, &freq);
 
-        if (!ret) { break; }
+        if (ret != RIG_OK) { RETURNFUNC(ret); }
 
         ret = dummy_get_ts(rig, vfo, &ts);
 
-        if (!ret) { break; }
+        if (ret != RIG_OK) { RETURNFUNC(ret); }
 
-        dummy_set_freq(rig, vfo, freq + ts);  /* up */
-        break;
+        RETURNFUNC(dummy_set_freq(rig, vfo, freq + ts));  /* up */
 
     case RIG_OP_DOWN:
         ret = dummy_get_freq(rig, vfo, &freq);
 
-        if (!ret) { break; }
+        if (ret != RIG_OK) { RETURNFUNC(ret); }
 
         ret = dummy_get_ts(rig, vfo, &ts);
 
-        if (!ret) { break; }
+        if (ret != RIG_OK) { RETURNFUNC(ret); }
 
-        dummy_set_freq(rig, vfo, freq - ts);  /* down */
-        break;
+        RETURNFUNC(dummy_set_freq(rig, vfo, freq - ts));  /* down */
 
     default:
         break;
