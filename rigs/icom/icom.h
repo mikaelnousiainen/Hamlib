@@ -338,6 +338,7 @@ struct icom_priv_data
     int  net_auto_reconnect;   /*!< Re-establish a lost session in the background */
     const void *net_model;   /*!< Per-model icom_network_model descriptor */
     int g90_af_quirk;        /*!< Opt-in G90 AF reply encoding workaround */
+    int vfo_probe;           /*!< Find the selected VFO A or B on open and power-on (vfo_probe) */
 };
 
 extern const struct ts_sc_list r8500_ts_sc_list[];

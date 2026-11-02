@@ -163,6 +163,7 @@ EXTRA_DIST = \
 	testctlbounds.sh \
 	testctld.pl \
 	testctlptt.sh \
+	testicomvfoprobe.sh \
 	testroutingaccess.sh \
 	testrotctld.pl \
 	make/README.md
@@ -175,6 +176,7 @@ check_SCRIPTS = \
 	testcaps.sh \
 	testctlbounds.sh \
 	testctlptt.sh \
+	testicomvfoprobe.sh \
 	testroutingaccess.sh \
 	$(GENERATED_TEST_WRAPPERS)
 
