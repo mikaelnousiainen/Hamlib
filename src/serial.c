@@ -708,7 +708,7 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
     case RIG_HANDSHAKE_NONE:
         rig_debug(RIG_DEBUG_TRACE, "%s: Handshake=None\n", __func__);
         options.c_cflag &= ~CRTSCTS;
-        options.c_iflag &= ~IXON;
+        options.c_iflag &= ~(IXON | IXOFF);
         break;
 
     case RIG_HANDSHAKE_XONXOFF:
@@ -720,7 +720,7 @@ int HAMLIB_API serial_setup(hamlib_port_t *rp)
     case RIG_HANDSHAKE_HARDWARE:
         rig_debug(RIG_DEBUG_TRACE, "%s: Handshake=Hardware\n", __func__);
         options.c_cflag |= CRTSCTS;     /* Enable Hardware handshaking */
-        options.c_iflag &= ~IXON;
+        options.c_iflag &= ~(IXON | IXOFF);
         break;
 
     default:
@@ -1057,10 +1057,17 @@ int ser_close(hamlib_port_t *p)
         term_backup = term_backup->next;
     }
 
-    // Restore backup termios
+    // Restore backup termios, but with XON/XOFF off: the port keeps these settings until it is
+    // opened again, and a USB serial bridge applies them as it is opened, before the program that
+    // opened it sets its own. Armed with XON/XOFF in that moment, a CP210x bridge can be held by a
+    // 0x13 byte in what the rig sends, and stay held after XON/XOFF is switched off, so that
+    // nothing more is sent to the rig.
     if (term_backup)
     {
         rig_debug(RIG_DEBUG_VERBOSE, "%s: restoring options\n", __func__);
+#if defined(HAVE_TERMIOS_H) || defined(HAVE_TERMIO_H)
+        term_backup->options.c_iflag &= ~(IXON | IXOFF);
+#endif
 #if defined(HAVE_TERMIOS_H)
 
         if (tcsetattr(p->fd, TCSANOW, &term_backup->options) == -1)
