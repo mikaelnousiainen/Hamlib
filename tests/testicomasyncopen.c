@@ -13,6 +13,14 @@
  * read before the read's timeout, so a transaction that waited for its reply
  * from one frame to the next would wait for ever; it must time out instead,
  * and the rig still open.
+ *
+ * The third time the rig streams scope data and acknowledges the first
+ * command, the USB echo check's read of the frequency, instead of answering
+ * it. The check takes a reply one data byte long for the echo of its command
+ * and reads the frame after it, here a scope frame much longer than the reply
+ * it expects; that read must stay within its buffer. An overflow there need
+ * not make the open fail, so this case is meant to be run built with
+ * AddressSanitizer too.
  */
 
 #if defined(_WIN32) || defined(WIN32)
@@ -51,6 +59,14 @@ int main(void)
 #define SCOPE_FRAME_INTERVAL_MS 16
 #define SCOPE_FRAME_DATA_LEN 50
 #define SCOPE_FRAME_SEQUENCE_MAX 0x15
+
+/* What the emulated rig does with the first command it is sent */
+enum first_command
+{
+    FIRST_COMMAND_ANSWERED,
+    FIRST_COMMAND_MISSED,
+    FIRST_COMMAND_ACKNOWLEDGED,
+};
 
 /* The emulated rig opens in about two seconds, three with a command missed */
 #define OPEN_TIME_LIMIT_S 20
@@ -163,16 +179,14 @@ static long now_ms(void)
     return ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
 }
 
-/* Reads CI-V frames from the controller and answers them; with stream_scope
- * set, also sends a scope frame every SCOPE_FRAME_INTERVAL_MS, whether or not
- * the controller is reading, and misses the first command, which it never
- * answers. */
-static int emulate(int fd, int stream_scope)
+/* Reads CI-V frames from the controller and answers them, the first as
+ * first_command says; with stream_scope set, also sends a scope frame every
+ * SCOPE_FRAME_INTERVAL_MS, whether or not the controller is reading. */
+static int emulate(int fd, int stream_scope, enum first_command first_command)
 {
     unsigned char frame[CIV_FRAME_MAX];
     struct pollfd pfd;
     long next_scope_frame = now_ms();
-    int answering = !stream_scope;
     int len = 0;
 
     pfd.fd = fd;
@@ -218,12 +232,18 @@ static int emulate(int fd, int stream_scope)
 
         if (c == CIV_END)
         {
-            if (answering)
+            if (first_command == FIRST_COMMAND_ANSWERED)
             {
                 answer(fd, frame, len);
             }
+            else if (first_command == FIRST_COMMAND_ACKNOWLEDGED)
+            {
+                static const unsigned char ok = CIV_OK;
 
-            answering = 1;
+                reply(fd, &ok, 1);
+            }
+
+            first_command = FIRST_COMMAND_ANSWERED;
             len = 0;
         }
     }
@@ -259,7 +279,8 @@ static void give_up(int sig)
 }
 
 /* Opens an emulated IC-7610 with async data enabled and reads its frequency */
-static int open_emulated_rig(int stream_scope)
+static int open_emulated_rig(int stream_scope, enum first_command first_command,
+                             const char *description)
 {
     const char *slave_name;
     freq_t freq = 0;
@@ -300,7 +321,7 @@ static int open_emulated_rig(int stream_scope)
     if (emulator == 0)
     {
         close(guard);
-        _exit(emulate(master, stream_scope));
+        _exit(emulate(master, stream_scope, first_command));
     }
 
     close(master);
@@ -320,9 +341,7 @@ static int open_emulated_rig(int stream_scope)
     alarm(OPEN_TIME_LIMIT_S);
     status = rig_open(rig);
     alarm(0);
-    failures += expect(status == RIG_OK, stream_scope
-                       ? "open IC-7610 emulator streaming scope data with async data enabled"
-                       : "open IC-7610 emulator with async data enabled");
+    failures += expect(status == RIG_OK, description);
     close(guard);
 
     if (status == RIG_OK)
@@ -350,8 +369,12 @@ int main(void)
     rig_set_debug_level(RIG_DEBUG_NONE);
     rig_load_backend("icom");
 
-    failures += open_emulated_rig(0);
-    failures += open_emulated_rig(1);
+    failures += open_emulated_rig(0, FIRST_COMMAND_ANSWERED,
+                                  "open IC-7610 emulator with async data enabled");
+    failures += open_emulated_rig(1, FIRST_COMMAND_MISSED,
+                                  "open IC-7610 emulator streaming scope data with async data enabled");
+    failures += open_emulated_rig(1, FIRST_COMMAND_ACKNOWLEDGED,
+                                  "open IC-7610 emulator streaming scope data that acknowledges the USB echo check");
 
     return failures == 0 ? 0 : 1;
 }
