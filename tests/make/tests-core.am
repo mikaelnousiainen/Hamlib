@@ -34,6 +34,11 @@ check_PROGRAMS += testfrontendconf
 TESTS += testfrontendconf
 testfrontendconf_LDADD = $(top_builddir)/rigs/dummy/libhamlib-dummy.la $(LDADD)
 
+check_PROGRAMS += testgpioopen
+TESTS += testgpioopen
+testgpioopen_CPPFLAGS = -DGPIO_SYSFS_PATH='"$(abs_builddir)/testgpioopen.sysfs"' $(AM_CPPFLAGS)
+testgpioopen_SOURCES = testgpioopen.c $(top_srcdir)/src/gpio.c
+
 check_PROGRAMS += testmodecompat
 TESTS += testmodecompat
 testmodecompat_LDADD = $(top_builddir)/rigs/dummy/libhamlib-dummy.la $(LDADD)
