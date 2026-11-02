@@ -38,5 +38,9 @@ check_PROGRAMS += testmodecompat
 TESTS += testmodecompat
 testmodecompat_LDADD = $(top_builddir)/rigs/dummy/libhamlib-dummy.la $(LDADD)
 
+check_PROGRAMS += testmorselock
+TESTS += testmorselock
+testmorselock_LDADD = $(top_builddir)/rigs/dummy/libhamlib-dummy.la $(LDADD)
+
 check_PROGRAMS += testpoll
 TESTS += testpoll
