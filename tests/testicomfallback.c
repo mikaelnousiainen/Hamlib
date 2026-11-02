@@ -220,6 +220,18 @@ static const unsigned char response_keyer_invalid[] =
     0xfe, 0xfe, 0xe0, 0x8e, 0x1a, 0x05, 0x02, 0x54, 0x03, 0xfd
 };
 
+static const unsigned char request_set_keyer_straight[] =
+{
+    0xfe, 0xfe, 0x8e, 0xe0, 0x1a, 0x05, 0x02, 0x54, 0x00, 0xfd
+};
+static const unsigned char request_set_keyer_paddle[] =
+{
+    0xfe, 0xfe, 0x8e, 0xe0, 0x1a, 0x05, 0x02, 0x54, 0x02, 0xfd
+};
+static const unsigned char response_ack_ic785x[] =
+{
+    0xfe, 0xfe, 0xe0, 0x8e, 0xfb, 0xfd
+};
 #define KEYER_EXCHANGES(name, response) \
     static const struct exchange name[] = \
     { \
@@ -232,6 +244,23 @@ KEYER_EXCHANGES(keyer_bug_exchanges, response_keyer_bug);
 KEYER_EXCHANGES(keyer_paddle_exchanges, response_keyer_paddle);
 KEYER_EXCHANGES(keyer_invalid_exchanges, response_keyer_invalid);
 KEYER_EXCHANGES(keyer_rejected_exchanges, response_nak_ic785x);
+
+/* A keyer type is set as rigctld passes it, the digit of its number as a
+ * string, and sent to the rig as that number */
+static const struct exchange set_keyer_straight_exchanges[] =
+{
+    {
+        request_set_keyer_straight, sizeof(request_set_keyer_straight),
+        response_ack_ic785x, sizeof(response_ack_ic785x)
+    }
+};
+static const struct exchange set_keyer_paddle_exchanges[] =
+{
+    {
+        request_set_keyer_paddle, sizeof(request_set_keyer_paddle),
+        response_ack_ic785x, sizeof(response_ack_ic785x)
+    }
+};
 
 static const struct exchange old_mode_exchanges[] =
 {
@@ -596,6 +625,65 @@ static int run_parm_case(const char *name, const struct exchange *exchanges,
     return 0;
 }
 
+static int run_set_parm_case(const char *name, const struct exchange *exchanges,
+                             size_t exchange_count, const char *keyer_type,
+                             int expected_retval)
+{
+    int sockets[2];
+    pthread_t thread;
+    struct peer_case test =
+    {
+        .name = name,
+        .exchanges = exchanges,
+        .exchange_count = exchange_count,
+        .fd = -1,
+        .status = -1
+    };
+    RIG *rig;
+    value_t value;
+    int retval;
+
+    if (open_test_connection(sockets) != 0)
+    {
+        fprintf(stderr, "%s: test socket setup failed\n", name);
+        return 1;
+    }
+
+    test.fd = sockets[1];
+
+    if (pthread_create(&thread, NULL, run_peer, &test) != 0)
+    {
+        close_test_socket(sockets[0]);
+        close_test_socket(sockets[1]);
+        return 1;
+    }
+
+    rig = prepare_rig(RIG_MODEL_IC785x, sockets[0]);
+
+    if (rig == NULL)
+    {
+        close_test_socket(sockets[0]);
+        close_test_socket(sockets[1]);
+        pthread_join(thread, NULL);
+        return 1;
+    }
+
+    value.cs = keyer_type;
+    retval = rig_set_parm(rig, RIG_PARM_KEYERTYPE, value);
+    release_rig(rig, sockets[0]);
+    pthread_join(thread, NULL);
+    close_test_socket(sockets[1]);
+
+    if (test.status != 0 || retval != expected_retval)
+    {
+        fprintf(stderr, "%s: expected %d, got %d\n", name, expected_retval,
+                retval);
+        return 1;
+    }
+
+    return 0;
+}
+
 int main(void)
 {
     int status = 0;
@@ -655,6 +743,19 @@ int main(void)
                               -RIG_EPROTO, NULL) != 0
              || run_parm_case("rejected KEYERTYPE", keyer_rejected_exchanges,
                               -RIG_ERJCTED, NULL) != 0)
+    {
+        status = 1;
+    }
+    else if (run_set_parm_case("set KEYERTYPE straight",
+                               set_keyer_straight_exchanges,
+                               ARRAY_SIZE(set_keyer_straight_exchanges), "0",
+                               RIG_OK) != 0
+             || run_set_parm_case("set KEYERTYPE paddle",
+                                  set_keyer_paddle_exchanges,
+                                  ARRAY_SIZE(set_keyer_paddle_exchanges), "2",
+                                  RIG_OK) != 0
+             || run_set_parm_case("set invalid KEYERTYPE", NULL, 0, "3",
+                                  -RIG_EINVAL) != 0)
     {
         status = 1;
     }

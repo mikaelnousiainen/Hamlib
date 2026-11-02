@@ -7668,6 +7668,32 @@ int icom_set_parm(RIG *rig, setting_t parm, value_t val)
     {
         if (extcmds[i].cmdparamtype == CMD_PARAM_TYPE_PARM && extcmds[i].id.s == parm)
         {
+            if (parm == RIG_PARM_KEYERTYPE)
+            {
+                /* A keyer type comes as the digit of its number, as rigctld
+                 * passes it, and is sent to the rig as that number */
+                static const char *keyer_types[] = { "0", "1", "2" };
+                int keyer_type = -1;
+
+                for (int k = 0; val.cs != NULL
+                        && k < (int)(sizeof(keyer_types) / sizeof(keyer_types[0])); k++)
+                {
+                    if (strcmp(val.cs, keyer_types[k]) == 0)
+                    {
+                        keyer_type = k;
+                    }
+                }
+
+                if (keyer_type < 0)
+                {
+                    rig_debug(RIG_DEBUG_ERR, "%s: invalid keyer type %s\n", __func__,
+                              val.cs != NULL ? val.cs : "(null)");
+                    RETURNFUNC(-RIG_EINVAL);
+                }
+
+                val.i = keyer_type;
+            }
+
             RETURNFUNC(icom_set_cmd(rig, RIG_VFO_NONE, (struct cmdparams *)&extcmds[i],
                                     val));
         }
