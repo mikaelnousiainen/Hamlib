@@ -202,6 +202,13 @@ static const unsigned char response_frequency[] =
     0xfe, 0xfe, 0xe0, 0x88, 0x03, 0x00, 0x40, 0x07, 0x14, 0x00,
     0xfd
 };
+/* An earlier command's late ACK, then the frequency */
+static const unsigned char response_ack_then_frequency[] =
+{
+    0xfe, 0xfe, 0xe0, 0x88, 0xfb, 0xfd,
+    0xfe, 0xfe, 0xe0, 0x88, 0x03, 0x00, 0x40, 0x07, 0x14, 0x00,
+    0xfd
+};
 static const unsigned char response_malformed[] = { 0x00, 0xfd };
 static const unsigned char response_keyer_straight[] =
 {
@@ -290,6 +297,18 @@ static const struct exchange old_frequency_exchanges[] =
     {
         request_frequency, sizeof(request_frequency),
         response_frequency, sizeof(response_frequency)
+    }
+};
+
+static const struct exchange late_ack_frequency_exchanges[] =
+{
+    {
+        request_x25, sizeof(request_x25),
+        response_nak_ic7100, sizeof(response_nak_ic7100)
+    },
+    {
+        request_frequency, sizeof(request_frequency),
+        response_ack_then_frequency, sizeof(response_ack_then_frequency)
     },
     {
         request_frequency, sizeof(request_frequency),
@@ -635,6 +654,10 @@ int main(void)
     }
     else if (run_frequency_case("optional 0x25 NAK", old_frequency_exchanges,
                                 ARRAY_SIZE(old_frequency_exchanges), RIG_OK) != 0
+             || run_frequency_case("late ACK before the 0x03 reply",
+                                   late_ack_frequency_exchanges,
+                                   ARRAY_SIZE(late_ack_frequency_exchanges),
+                                   RIG_OK) != 0
              || run_frequency_case("supported 0x25", new_frequency_exchanges,
                                    ARRAY_SIZE(new_frequency_exchanges),
                                    RIG_OK) != 0
