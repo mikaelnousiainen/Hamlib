@@ -12,6 +12,14 @@ testg90rit_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
 testg90rit_LDADD = $(NET_LIBS) $(PTHREAD_LIBS) \
 	$(top_builddir)/rigs/icom/libhamlib-icom.la $(LDADD)
 
+check_PROGRAMS += testicomasync
+TESTS += testicomasync
+testicomasync_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
+testicomasync_LDADD = $(PTHREAD_LIBS) $(LDADD)
+
+check_PROGRAMS += testicomasyncopen
+TESTS += testicomasyncopen
+
 check_PROGRAMS += testicomfallback
 TESTS += testicomfallback
 testicomfallback_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/rigs/icom
