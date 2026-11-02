@@ -30,6 +30,7 @@
 extern struct rig_caps ic7100_caps;
 extern struct rig_caps ic7300_caps;
 extern struct rig_caps ic785x_caps;
+extern struct rig_caps g90_caps;
 
 static int close_test_socket(int fd)
 {
@@ -596,6 +597,95 @@ static int run_parm_case(const char *name, const struct exchange *exchanges,
     return 0;
 }
 
+/* The Xiegu G90 answers setting its attenuator, 11 01, with its state, 11 0c
+ * for on, rather than with an ACK */
+static const unsigned char request_g90_att[] =
+{
+    0xfe, 0xfe, 0x88, 0xe0, 0x11, 0xfd
+};
+static const unsigned char request_g90_att_on[] =
+{
+    0xfe, 0xfe, 0x88, 0xe0, 0x11, 0x01, 0xfd
+};
+static const unsigned char response_g90_att_off[] =
+{
+    0xfe, 0xfe, 0xe0, 0x88, 0x11, 0x00, 0xfd
+};
+static const unsigned char response_g90_att_on[] =
+{
+    0xfe, 0xfe, 0xe0, 0x88, 0x11, 0x0c, 0xfd
+};
+
+static const struct exchange g90_att_on_exchanges[] =
+{
+    {
+        request_g90_att, sizeof(request_g90_att),
+        response_g90_att_off, sizeof(response_g90_att_off)
+    },
+    {
+        request_g90_att_on, sizeof(request_g90_att_on),
+        response_g90_att_on, sizeof(response_g90_att_on)
+    }
+};
+
+static int run_g90_att_case(const char *name,
+                            const struct exchange *exchanges,
+                            size_t exchange_count)
+{
+    int sockets[2];
+    pthread_t thread;
+    struct peer_case test =
+    {
+        .name = name,
+        .exchanges = exchanges,
+        .exchange_count = exchange_count,
+        .fd = -1,
+        .status = -1
+    };
+    RIG *rig;
+    value_t att;
+    int retval;
+
+    if (open_test_connection(sockets) != 0)
+    {
+        fprintf(stderr, "%s: test socket setup failed\n", name);
+        return 1;
+    }
+
+    test.fd = sockets[1];
+
+    if (pthread_create(&thread, NULL, run_peer, &test) != 0)
+    {
+        close_test_socket(sockets[0]);
+        close_test_socket(sockets[1]);
+        return 1;
+    }
+
+    rig = prepare_rig(RIG_MODEL_G90, sockets[0]);
+
+    if (rig == NULL)
+    {
+        close_test_socket(sockets[0]);
+        close_test_socket(sockets[1]);
+        pthread_join(thread, NULL);
+        return 1;
+    }
+
+    att.i = 12;
+    retval = rig_set_level(rig, RIG_VFO_CURR, RIG_LEVEL_ATT, att);
+    release_rig(rig, sockets[0]);
+    pthread_join(thread, NULL);
+    close_test_socket(sockets[1]);
+
+    if (test.status != 0 || retval != RIG_OK)
+    {
+        fprintf(stderr, "%s: expected 0, got %d\n", name, retval);
+        return 1;
+    }
+
+    return 0;
+}
+
 int main(void)
 {
     int status = 0;
@@ -614,6 +704,7 @@ int main(void)
     rig_register(&ic7100_caps);
     rig_register(&ic7300_caps);
     rig_register(&ic785x_caps);
+    rig_register(&g90_caps);
 
     if (run_mode_case("optional 0x26 NAK", RIG_MODEL_IC7100,
                       old_mode_exchanges, ARRAY_SIZE(old_mode_exchanges),
@@ -655,6 +746,13 @@ int main(void)
                               -RIG_EPROTO, NULL) != 0
              || run_parm_case("rejected KEYERTYPE", keyer_rejected_exchanges,
                               -RIG_ERJCTED, NULL) != 0)
+    {
+        status = 1;
+    }
+
+    if (run_g90_att_case("G90 attenuator answering with its state",
+                         g90_att_on_exchanges,
+                         ARRAY_SIZE(g90_att_on_exchanges)) != 0)
     {
         status = 1;
     }
