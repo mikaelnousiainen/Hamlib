@@ -510,6 +510,23 @@ static int dummy_get_conf(RIG *rig, hamlib_token_t token, char *val)
     RETURNFUNC(RIG_OK);
 }
 
+/*
+ * The current memory channel: the one the rig is on in memory mode, and the
+ * one a VFO goes to when the memory is selected; NULL if the channel number
+ * is out of range
+ */
+static channel_t *dummy_current_mem(struct dummy_priv_data *priv)
+{
+    int ch = priv->curr->channel_num;
+
+    if (ch < 0 || ch >= NB_CHAN)
+    {
+        return NULL;
+    }
+
+    return &priv->mem[ch];
+}
+
 static int dummy_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
 {
     struct dummy_priv_data *priv;
@@ -562,6 +579,19 @@ static int dummy_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     case RIG_VFO_SUB_B: priv->vfo_subb.freq = freq; break;
 
     case RIG_VFO_C: priv->vfo_c.freq = freq; break;
+
+    case RIG_VFO_MEM:
+    {
+        channel_t *chan = dummy_current_mem(priv);
+
+        if (chan == NULL)
+        {
+            RETURNFUNC(-RIG_EINVAL);
+        }
+
+        chan->freq = freq;
+        break;
+    }
     }
 
     if (rig->callbacks.freq_event)
@@ -618,6 +648,19 @@ static int dummy_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     case RIG_VFO_SUB_B:  *freq = priv->vfo_subb.freq; break;
 
     case RIG_VFO_C:  *freq = priv->vfo_c.freq; break;
+
+    case RIG_VFO_MEM:
+    {
+        const channel_t *chan = dummy_current_mem(priv);
+
+        if (chan == NULL)
+        {
+            RETURNFUNC(-RIG_EINVAL);
+        }
+
+        *freq = chan->freq;
+        break;
+    }
 
     default: RETURNFUNC(-RIG_EINVAL);
     }
