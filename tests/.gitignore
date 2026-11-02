@@ -42,6 +42,7 @@ testfreq
 testfreq.sh
 testftx1parsers
 testgeministatus
+testgpioopen
 testgrid
 testgrid.sh
 testgs100
