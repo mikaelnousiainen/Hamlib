@@ -7163,6 +7163,21 @@ vfo_op_t HAMLIB_API rig_has_vfo_op(RIG *rig, vfo_op_t op)
 }
 
 
+/*
+ * Every VFO operation but TUNE may change what the rig is tuned to: the
+ * frequency, mode and width of a VFO or of the memory, the current VFO, or
+ * split. Once the operation has been sent, whether the rig answered or not,
+ * nothing cached before it can be trusted, so the whole cache is reset.
+ */
+static void vfo_op_reset_cache(RIG *rig, vfo_op_t op)
+{
+    if (op != RIG_OP_TUNE)
+    {
+        rig_set_cache_freq(rig, RIG_VFO_ALL, (freq_t)0);
+    }
+}
+
+
 /**
  * \brief perform Memory/VFO operations
  * \param rig   The rig handle
@@ -7208,12 +7223,7 @@ int HAMLIB_API rig_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
             || vfo == rig_get_current_vfo_state(rig))
     {
         retcode = caps->vfo_op(rig, vfo, op);
-
-        if (retcode == RIG_OK
-                && (op == RIG_OP_TOGGLE || op == RIG_OP_XCHG))
-        {
-            rig_invalidate_cache_vfo(rig);
-        }
+        vfo_op_reset_cache(rig, op);
 
         ELAPSED2;
         RETURNFUNC(retcode);
@@ -7237,6 +7247,7 @@ int HAMLIB_API rig_vfo_op(RIG *rig, vfo_t vfo, vfo_op_t op)
     }
 
     retcode = caps->vfo_op(rig, vfo, op);
+    vfo_op_reset_cache(rig, op);
     /* try and revert even if we had an error above */
     HAMLIB_TRACE;
     rc2 = caps->set_vfo(rig, curr_vfo);
