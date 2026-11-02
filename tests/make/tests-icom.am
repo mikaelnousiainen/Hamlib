@@ -27,6 +27,9 @@ testicomfallback_CFLAGS = $(AM_CFLAGS) $(PTHREAD_CFLAGS)
 testicomfallback_LDADD = $(NET_LIBS) $(PTHREAD_LIBS) \
 	$(top_builddir)/rigs/icom/libhamlib-icom.la $(LDADD)
 
+check_PROGRAMS += testicomreplymatch
+TESTS += testicomreplymatch
+
 check_PROGRAMS += testicomts
 TESTS += testicomts
 testicomts_CPPFLAGS = $(AM_CPPFLAGS) -I$(top_srcdir)/rigs/icom
