@@ -293,6 +293,7 @@ typedef struct morse_data_handler_priv_data_s
     pthread_t thread_id;
     morse_data_handler_args args;
     int keyspd;
+    int ended;  /* the handler has sent what it had and is ending */
 } morse_data_handler_priv_data;
 
 static int morse_data_handler_start(RIG *rig);
@@ -8644,6 +8645,21 @@ static int async_data_handler_stop(RIG *rig)
     RETURNFUNC(RIG_OK);
 }
 
+/*
+ * How long morse_data_handler_stop() waits for the handler to end on its own
+ * after its queue is empty: 10 s, or, if longer, as long as a rig waiting for
+ * room in its own Morse buffer may take at the handler's keyer speed (4 WPM
+ * if it has none), 1,267,200 / WPM ms, and a second more
+ */
+static int morse_data_handler_stop_wait_ms(const morse_data_handler_priv_data
+        *priv)
+{
+    int wpm = priv->keyspd > 0 ? priv->keyspd : 4;
+    int room_wait_ms = 2 * 24 * 22 * 1200 / wpm + 1000;
+
+    return room_wait_ms > 10000 ? room_wait_ms : 10000;
+}
+
 static int morse_data_handler_stop(RIG *rig)
 {
     struct rig_state *rs = STATE(rig);
@@ -8676,9 +8692,30 @@ static int morse_data_handler_stop(RIG *rig)
     {
         if (morse_data_handler_priv->thread_id != 0)
         {
-            // all cleanup is done in this function so we can kill thread
-            // Windows was taking 30 seconds to stop without this
-            pthread_cancel(morse_data_handler_priv->thread_id);
+            // The handler ends on its own once its queue is empty and the
+            // send it is in is done. It is cancelled only if it does not end
+            // in time, and a send cut short releases the API lock it holds.
+            int wait_ms = morse_data_handler_stop_wait_ms(morse_data_handler_priv);
+            struct timespec wait_start;
+
+            elapsed_ms(&wait_start, HAMLIB_ELAPSED_SET);
+
+            while (!__atomic_load_n(&morse_data_handler_priv->ended, __ATOMIC_SEQ_CST)
+                    && elapsed_ms(&wait_start, HAMLIB_ELAPSED_GET) < wait_ms)
+            {
+                hl_usleep(10 * 1000);
+            }
+
+            if (!__atomic_load_n(&morse_data_handler_priv->ended, __ATOMIC_SEQ_CST))
+            {
+                rig_debug(RIG_DEBUG_ERR,
+                          "%s: the Morse data handler did not end in %d ms, cancelling it\n",
+                          __func__, wait_ms);
+                // all cleanup is done in this function so we can kill thread
+                // Windows was taking 30 seconds to stop without this
+                pthread_cancel(morse_data_handler_priv->thread_id);
+            }
+
             int err = pthread_join(morse_data_handler_priv->thread_id, NULL);
 
             if (err)
@@ -8792,6 +8829,18 @@ again:
     return NULL;
 }
 
+/*
+ * Ends a send of the Morse data handler: releases the API lock and clears
+ * morse_busy, after the send and when the handler is cancelled during it
+ */
+static void morse_data_handler_end_send(void *arg)
+{
+    RIG *rig = (RIG *) arg;
+
+    rig_lock(rig, 0);
+    morse_busy_store(STATE(rig), false);
+}
+
 static void *morse_data_handler(void *arg)
 {
     struct morse_data_handler_args_s *args =
@@ -8889,6 +8938,7 @@ static void *morse_data_handler(void *arg)
 
                 morse_busy_store(rs, true);
                 rig_lock(rig, 1);        // Do the actual lockout
+                pthread_cleanup_push(morse_data_handler_end_send, rig);
 
                 do
                 {
@@ -8913,8 +8963,7 @@ static void *morse_data_handler(void *arg)
                 }
                 while (result != RIG_OK && rs->fifo_morse->flush == 0 && --nloops > 0);
 
-                rig_lock(rig, 0);
-                morse_busy_store(rs, false);
+                pthread_cleanup_pop(1);  // releases the lock and clears morse_busy
 
                 if (nloops == 0)
                 {
@@ -8931,6 +8980,8 @@ static void *morse_data_handler(void *arg)
     rs->fifo_morse = NULL;
     free(c);
 
+    __atomic_store_n(&((morse_data_handler_priv_data *)
+                       rs->morse_data_handler_priv_data)->ended, 1, __ATOMIC_SEQ_CST);
     pthread_exit(NULL);
     return NULL;             // May get a warning if pthread_exit() has [[noreturn]]
 }

@@ -86,6 +86,10 @@ int hl_usleep(rig_useconds_t usec)
         usleep(sleep_time * 1e6 - 400);
     }
 
+    // nanosleep(), used elsewhere, is a cancellation point; usleep() here is not,
+    // so a thread sleeping in a loop would never see pthread_cancel()
+    pthread_testcancel();
+
 #else
     {
         struct timespec tv2;
