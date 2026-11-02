@@ -117,16 +117,20 @@ int HAMLIB_API rig_set_ctcss_tone(RIG *rig, vfo_t vfo, tone_t tone)
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_TONE)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->set_ctcss_tone(rig, vfo, tone);
+        retcode = caps->set_ctcss_tone(rig, vfo, tone);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -135,12 +139,14 @@ int HAMLIB_API rig_set_ctcss_tone(RIG *rig, vfo_t vfo, tone_t tone)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->set_ctcss_tone(rig, vfo, tone);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -184,16 +190,20 @@ int HAMLIB_API rig_get_ctcss_tone(RIG *rig, vfo_t vfo, tone_t *tone)
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_TONE)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->get_ctcss_tone(rig, vfo, tone);
+        retcode = caps->get_ctcss_tone(rig, vfo, tone);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -202,12 +212,14 @@ int HAMLIB_API rig_get_ctcss_tone(RIG *rig, vfo_t vfo, tone_t *tone)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->get_ctcss_tone(rig, vfo, tone);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -247,16 +259,20 @@ int HAMLIB_API rig_set_dcs_code(RIG *rig, vfo_t vfo, tone_t code)
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_TONE)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->set_dcs_code(rig, vfo, code);
+        retcode = caps->set_dcs_code(rig, vfo, code);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -265,12 +281,14 @@ int HAMLIB_API rig_set_dcs_code(RIG *rig, vfo_t vfo, tone_t code)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->set_dcs_code(rig, vfo, code);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -309,16 +327,20 @@ int HAMLIB_API rig_get_dcs_code(RIG *rig, vfo_t vfo, tone_t *code)
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_TONE)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->get_dcs_code(rig, vfo, code);
+        retcode = caps->get_dcs_code(rig, vfo, code);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -327,12 +349,14 @@ int HAMLIB_API rig_get_dcs_code(RIG *rig, vfo_t vfo, tone_t *code)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->get_dcs_code(rig, vfo, code);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -379,16 +403,20 @@ int HAMLIB_API rig_set_ctcss_sql(RIG *rig, vfo_t vfo, tone_t tone)
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_TONE)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->set_ctcss_sql(rig, vfo, tone);
+        retcode = caps->set_ctcss_sql(rig, vfo, tone);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -397,12 +425,14 @@ int HAMLIB_API rig_set_ctcss_sql(RIG *rig, vfo_t vfo, tone_t tone)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->set_ctcss_sql(rig, vfo, tone);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -446,16 +476,20 @@ int HAMLIB_API rig_get_ctcss_sql(RIG *rig, vfo_t vfo, tone_t *tone)
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_TONE)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->get_ctcss_sql(rig, vfo, tone);
+        retcode = caps->get_ctcss_sql(rig, vfo, tone);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -464,12 +498,14 @@ int HAMLIB_API rig_get_ctcss_sql(RIG *rig, vfo_t vfo, tone_t *tone)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->get_ctcss_sql(rig, vfo, tone);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -508,16 +544,20 @@ int HAMLIB_API rig_set_dcs_sql(RIG *rig, vfo_t vfo, tone_t code)
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_TONE)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->set_dcs_sql(rig, vfo, code);
+        retcode = caps->set_dcs_sql(rig, vfo, code);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -526,12 +566,14 @@ int HAMLIB_API rig_set_dcs_sql(RIG *rig, vfo_t vfo, tone_t code)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->set_dcs_sql(rig, vfo, code);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -570,16 +612,20 @@ int HAMLIB_API rig_get_dcs_sql(RIG *rig, vfo_t vfo, tone_t *code)
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_TONE)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->get_dcs_sql(rig, vfo, code);
+        retcode = caps->get_dcs_sql(rig, vfo, code);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -588,12 +634,14 @@ int HAMLIB_API rig_get_dcs_sql(RIG *rig, vfo_t vfo, tone_t *code)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->get_dcs_sql(rig, vfo, code);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 

@@ -258,6 +258,8 @@ int HAMLIB_API rig_get_level(RIG *rig, vfo_t vfo, setting_t level, value_t *val)
  */
 int HAMLIB_API rig_set_parm(RIG *rig, setting_t parm, value_t val)
 {
+    int retcode;
+
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (CHECK_RIG_ARG(rig))
@@ -270,7 +272,10 @@ int HAMLIB_API rig_set_parm(RIG *rig, setting_t parm, value_t val)
         return -RIG_ENAVAIL;
     }
 
-    return rig->caps->set_parm(rig, parm, val);
+    rig_lock(rig, 1);
+    retcode = rig->caps->set_parm(rig, parm, val);
+    rig_lock(rig, 0);
+    return retcode;
 }
 
 
@@ -292,6 +297,8 @@ int HAMLIB_API rig_set_parm(RIG *rig, setting_t parm, value_t val)
  */
 int HAMLIB_API rig_get_parm(RIG *rig, setting_t parm, value_t *val)
 {
+    int retcode;
+
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (CHECK_RIG_ARG(rig) || !val)
@@ -304,7 +311,10 @@ int HAMLIB_API rig_get_parm(RIG *rig, setting_t parm, value_t *val)
         return -RIG_ENAVAIL;
     }
 
-    return rig->caps->get_parm(rig, parm, val);
+    rig_lock(rig, 1);
+    retcode = rig->caps->get_parm(rig, parm, val);
+    rig_lock(rig, 0);
+    return retcode;
 }
 
 
@@ -547,12 +557,15 @@ int HAMLIB_API rig_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
         }
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_FUNC)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->set_func(rig, vfo, func, status);
+        retcode = caps->set_func(rig, vfo, func, status);
+        rig_lock(rig, 0);
+        return retcode;
     }
     else
     {
@@ -563,6 +576,7 @@ int HAMLIB_API rig_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -571,12 +585,14 @@ int HAMLIB_API rig_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->set_func(rig, vfo, func, status);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -621,16 +637,20 @@ int HAMLIB_API rig_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_FUNC)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->get_func(rig, vfo, func, status);
+        retcode = caps->get_func(rig, vfo, func, status);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -639,12 +659,14 @@ int HAMLIB_API rig_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->get_func(rig, vfo, func, status);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -687,16 +709,20 @@ int HAMLIB_API rig_set_ext_level(RIG *rig,
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_LEVEL)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->set_ext_level(rig, vfo, token, val);
+        retcode = caps->set_ext_level(rig, vfo, token, val);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -705,12 +731,14 @@ int HAMLIB_API rig_set_ext_level(RIG *rig,
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->set_ext_level(rig, vfo, token, val);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -753,16 +781,20 @@ int HAMLIB_API rig_get_ext_level(RIG *rig,
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_LEVEL)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->get_ext_level(rig, vfo, token, val);
+        retcode = caps->get_ext_level(rig, vfo, token, val);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -771,12 +803,14 @@ int HAMLIB_API rig_get_ext_level(RIG *rig,
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->get_ext_level(rig, vfo, token, val);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -818,16 +852,20 @@ int HAMLIB_API rig_set_ext_func(RIG *rig,
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_FUNC)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->set_ext_func(rig, vfo, token, status);
+        retcode = caps->set_ext_func(rig, vfo, token, status);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -836,12 +874,14 @@ int HAMLIB_API rig_set_ext_func(RIG *rig,
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->set_ext_func(rig, vfo, token, status);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -884,16 +924,20 @@ int HAMLIB_API rig_get_ext_func(RIG *rig,
         return -RIG_ENAVAIL;
     }
 
+    rig_lock(rig, 1);
     if ((caps->targetable_vfo & RIG_TARGETABLE_FUNC)
             || vfo == RIG_VFO_CURR
             || vfo == rig_get_current_vfo_state(rig))
     {
 
-        return caps->get_ext_func(rig, vfo, token, status);
+        retcode = caps->get_ext_func(rig, vfo, token, status);
+        rig_lock(rig, 0);
+        return retcode;
     }
 
     if (!caps->set_vfo)
     {
+        rig_lock(rig, 0);
         return -RIG_ENTARGET;
     }
 
@@ -902,12 +946,14 @@ int HAMLIB_API rig_get_ext_func(RIG *rig,
 
     if (retcode != RIG_OK)
     {
+        rig_lock(rig, 0);
         return retcode;
     }
 
     retcode = caps->get_ext_func(rig, vfo, token, status);
     caps->set_vfo(rig, curr_vfo);
 
+    rig_lock(rig, 0);
     return retcode;
 }
 
@@ -928,6 +974,8 @@ int HAMLIB_API rig_get_ext_func(RIG *rig,
  */
 int HAMLIB_API rig_set_ext_parm(RIG *rig, hamlib_token_t token, value_t val)
 {
+    int retcode;
+
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (CHECK_RIG_ARG(rig))
@@ -940,7 +988,10 @@ int HAMLIB_API rig_set_ext_parm(RIG *rig, hamlib_token_t token, value_t val)
         return -RIG_ENAVAIL;
     }
 
-    return rig->caps->set_ext_parm(rig, token, val);
+    rig_lock(rig, 1);
+    retcode = rig->caps->set_ext_parm(rig, token, val);
+    rig_lock(rig, 0);
+    return retcode;
 }
 
 
@@ -960,6 +1011,8 @@ int HAMLIB_API rig_set_ext_parm(RIG *rig, hamlib_token_t token, value_t val)
  */
 int HAMLIB_API rig_get_ext_parm(RIG *rig, hamlib_token_t token, value_t *val)
 {
+    int retcode;
+
     rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
     if (CHECK_RIG_ARG(rig) || !val)
@@ -972,7 +1025,10 @@ int HAMLIB_API rig_get_ext_parm(RIG *rig, hamlib_token_t token, value_t *val)
         return -RIG_ENAVAIL;
     }
 
-    return rig->caps->get_ext_parm(rig, token, val);
+    rig_lock(rig, 1);
+    retcode = rig->caps->get_ext_parm(rig, token, val);
+    rig_lock(rig, 0);
+    return retcode;
 }
 
 
