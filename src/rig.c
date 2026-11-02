@@ -1254,8 +1254,9 @@ int HAMLIB_API rig_open(RIG *rig)
         rig_debug(RIG_DEBUG_VERBOSE, "%s(%d): %p rs->comm_state==1?=%d\n", __func__,
                   __LINE__, &rs->comm_state,
                   rs->comm_state);
-        port_close(rp, rp->type.rig);
-        rs->comm_state = 0;
+        // Closed whole, so that none of the open rig's threads, its async data handler above
+        // all, is left running with the port closed under it, beside those the next open starts
+        rig_close(rig);
         RETURNFUNC2(-RIG_EINVAL);
     }
 
