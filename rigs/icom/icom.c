@@ -745,7 +745,8 @@ static int icom_get_usb_echo_off(RIG *rig)
 
     if (ack_len == 1) // then we got an echo of the cmd
     {
-        unsigned char buf[16];
+        // read_icom_frame() reads a frame of up to MAXFRAMELEN bytes, whatever size it is given
+        unsigned char buf[MAXFRAMELEN];
         priv->serial_USB_echo_off = 0;
         // we should have a freq response so we'll read it and don't really care
         // flushing doesn't always work as it depends on timing
