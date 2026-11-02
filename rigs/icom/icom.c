@@ -1931,6 +1931,38 @@ int icom_set_xit_new(RIG *rig, vfo_t vfo, shortfreq_t ts)
     RETURNFUNC2(icom_set_it_new(rig, vfo, ts, 1));
 }
 
+/*
+ * Sends the filter width command (1A 03). A rig whose caps do not say it has
+ * the command is marked as lacking it when the rig rejects it. A NAK names no
+ * command, so the one taken may be an earlier command's that came late, and a
+ * single one must not stop the filter width being read or set for as long as
+ * the rig stays open: such a rig is asked once more before that.
+ *
+ * A rig whose caps say it has the command is never marked, and is not asked
+ * again: it rejects the command in some modes, and would be asked twice at
+ * every read in them. A rejection leaves the default width for that call only.
+ */
+static int icom_filter_width_transaction(RIG *rig, unsigned char fw_sub_cmd,
+        const unsigned char *payload, int payload_len,
+        unsigned char *data, int *data_len)
+{
+    const struct icom_priv_caps *priv_caps = rig->caps->priv;
+    const struct icom_priv_data *priv = STATE(rig)->priv;
+    int retval = icom_transaction(rig, C_CTL_MEM, fw_sub_cmd, payload,
+                                  payload_len, data, data_len);
+
+    if (retval == -RIG_ERJCTED && !priv_caps->x1ax03_supported
+            && priv->no_1a_03_cmd == ENUM_1A_03_UNK)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: 1A 03 rejected, asking once more\n",
+                  __func__);
+        retval = icom_transaction(rig, C_CTL_MEM, fw_sub_cmd, payload,
+                                  payload_len, data, data_len);
+    }
+
+    return retval;
+}
+
 /* icom_get_dsp_flt
     returns the dsp filter width in hz or 0 if the command is not implemented or error.
     This allows the default parameters to be assigned from the get_mode routine if the command is not implemented.
@@ -1954,6 +1986,7 @@ pbwidth_t icom_get_dsp_flt(RIG *rig, rmode_t mode)
     value_t rfwidth;
     unsigned char fw_sub_cmd = RIG_IS_IC7200 ? 0x02 : S_MEM_FILT_WDTH;
     struct icom_priv_data *priv = (struct icom_priv_data *) STATE(rig)->priv;
+    const struct icom_priv_caps *priv_caps = rig->caps->priv;
 
     rig_debug(RIG_DEBUG_VERBOSE, "%s called, mode=%s\n", __func__,
               rig_strrmode(mode));
@@ -1992,10 +2025,17 @@ pbwidth_t icom_get_dsp_flt(RIG *rig, rmode_t mode)
         return (0);
     }
 
-    retval = icom_transaction(rig, C_CTL_MEM, fw_sub_cmd, 0, 0,
-                              resbuf, &res_len);
+    retval = icom_filter_width_transaction(rig, fw_sub_cmd, NULL, 0,
+                                           resbuf, &res_len);
 
-    if (-RIG_ERJCTED == retval && !RIG_IS_IC7300 && !RIG_IS_IC7300MK2)
+    if (-RIG_ERJCTED == retval && priv_caps->x1ax03_supported)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: 1A 03 rejected, using the default width\n",
+                  __func__);
+        return (RIG_OK);        /* use default */
+    }
+
+    if (-RIG_ERJCTED == retval)
     {
         if (priv->no_1a_03_cmd == ENUM_1A_03_UNK)
         {
@@ -2057,6 +2097,7 @@ int icom_set_dsp_flt(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     value_t rfwidth;
     int ack_len = sizeof(ackbuf), flt_idx;
     struct icom_priv_data *priv = (struct icom_priv_data *) STATE(rig)->priv;
+    const struct icom_priv_caps *priv_caps = rig->caps->priv;
     unsigned char fw_sub_cmd = RIG_IS_IC7200 ? 0x02 : S_MEM_FILT_WDTH;
 
     ENTERFUNC;
@@ -2124,8 +2165,14 @@ int icom_set_dsp_flt(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     rig_debug(RIG_DEBUG_VERBOSE, "%s: flt_ext=%d, flt_idx=%d\n", __func__, flt_ext,
               flt_idx);
 
-    retval = icom_transaction(rig, C_CTL_MEM, fw_sub_cmd, &flt_ext, 1,
-                              ackbuf, &ack_len);
+    retval = icom_filter_width_transaction(rig, fw_sub_cmd, &flt_ext, 1,
+                                           ackbuf, &ack_len);
+
+    if (-RIG_ERJCTED == retval && priv_caps->x1ax03_supported)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: 1A 03 %02x rejected\n", __func__, flt_ext);
+        RETURNFUNC(RIG_OK);
+    }
 
     if (-RIG_ERJCTED == retval)
     {
