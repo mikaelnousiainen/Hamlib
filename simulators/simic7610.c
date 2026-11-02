@@ -190,17 +190,33 @@ void frameParse(int fd, unsigned char *frame, int len)
         case 0xc2:
             if (frame[6] == 0xfd)
             {
+                // A read answers with the value only, not with an acknowledgement as well
                 frame[6] = dualwatch;
                 frame[7] = 0xfd;
-                n = write(fd,frame,8);
+                n = write(fd, frame, 8);
+
+                if (n <= 0) { fprintf(stderr, "%s(%d) write error %s\n", __func__, __LINE__, strerror(errno)); }
+
+                return;
             }
-            else
+
+            dualwatch = frame[6];
+            break;
+
+        case 0xd2:
+            if (frame[6] == 0xfd)
             {
-                dualwatch = frame[6];
-                frame[4]=0xfb;
-                frame[5]=0xfd;
-                n = write(fd,frame,6);
+                // Which receiver is selected: 00 Main, 01 Sub
+                frame[6] = current_vfo == RIG_VFO_B || current_vfo == RIG_VFO_SUB ? 0x01 : 0x00;
+                frame[7] = 0xfd;
+                n = write(fd, frame, 8);
+
+                if (n <= 0) { fprintf(stderr, "%s(%d) write error %s\n", __func__, __LINE__, strerror(errno)); }
+
+                return;
             }
+
+            break;
         }
 
         printf("set_vfo to %s\n", rig_strvfo(current_vfo));
@@ -448,10 +464,12 @@ void frameParse(int fd, unsigned char *frame, int len)
 
         break;
 
-    case 0x18: // miscellaneous things
-        frame[5] = 1;
-        frame[6] = 0xfd;
-        n = write(fd, frame, 7);
+    case 0x18: // power: 18 00 switches to standby, 18 01 on; both acknowledged
+        powerstat = frame[5] == 0x01;
+        printf("Power %s\n", powerstat ? "on" : "standby");
+        frame[4] = 0xfb;
+        frame[5] = 0xfd;
+        n = write(fd, frame, 6);
 
         if (n <= 0) { fprintf(stderr, "%s(%d) write error %s\n", __func__, __LINE__, strerror(errno)); }
 
@@ -760,13 +778,17 @@ int main(int argc, char **argv)
             fd = openPort(argv[1]);
         }
 
-        if (powerstat)
+        if (powerstat || (len > 5 && buf[4] == 0x18))
         {
             frameParse(fd, buf, len);
         }
-        else
+        else if (len > 5)
         {
-            hl_usleep(100 * 1000);
+            // In standby an IC-7610 keeps its USB and CI-V alive and answers every other command NG
+            unsigned char ng[6] = { 0xfe, 0xfe, buf[3], buf[2], 0xfa, 0xfd };
+            printf("Standby: answering NG\n");
+
+            if (write(fd, ng, sizeof(ng)) <= 0) { fprintf(stderr, "%s(%d) write error %s\n", __func__, __LINE__, strerror(errno)); }
         }
 
         printf("#3 ========================================");
