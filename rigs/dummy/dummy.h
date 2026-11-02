@@ -47,6 +47,16 @@
 #include "dummy_stream.h"
 
 #define NB_CHAN 22      /* see caps->chan_list */
+#define NB_BANDS 13     /* the bands BAND_UP and BAND_DOWN step through */
+
+/* What a VFO was tuned to when BAND_UP or BAND_DOWN last left a band */
+struct dummy_band_stack
+{
+    int stored;         /* whether the band has been left before */
+    freq_t freq;
+    rmode_t mode;
+    pbwidth_t width;
+};
 
 struct dummy_priv_data
 {
@@ -70,6 +80,7 @@ struct dummy_priv_data
     channel_t vfo_subb;
     channel_t vfo_c;
     channel_t mem[NB_CHAN];
+    struct dummy_band_stack band_stack[NB_BANDS]; /* shared by the VFOs */
 
     struct ext_list *ext_funcs;
     struct ext_list *ext_parms;
