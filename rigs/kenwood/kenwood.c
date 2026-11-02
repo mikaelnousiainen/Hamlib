@@ -5593,6 +5593,32 @@ int kenwood_reset(RIG *rig, reset_t reset)
 }
 
 /*
+ * The longest a rig answering KY1 can take to make room for more text: the
+ * time it takes to key what one KY command carries, 24 characters, at its
+ * keyer speed, each as long as the longest Morse character with the space
+ * after it (22 dot lengths of 1200 / WPM ms), and as long again as a margin.
+ * The speed is the rig's KEYSPD, or the slowest its caps allow if it cannot be
+ * read, or 4 WPM, the slowest of the Kenwoods' keyers, where they give none.
+ */
+static int kenwood_morse_room_wait_ms(RIG *rig)
+{
+    value_t wpm;
+
+    if (rig_get_level(rig, RIG_VFO_CURR, RIG_LEVEL_KEYSPD, &wpm) != RIG_OK
+            || wpm.i <= 0)
+    {
+        wpm.i = rig->caps->level_gran[LVL_KEYSPD].min.i;
+    }
+
+    if (wpm.i <= 0)
+    {
+        wpm.i = 4;
+    }
+
+    return 2 * 24 * 22 * 1200 / wpm.i;
+}
+
+/*
  * kenwood_send_morse
  */
 int kenwood_send_morse(RIG *rig, vfo_t vfo, const char *msg)
@@ -5618,8 +5644,11 @@ int kenwood_send_morse(RIG *rig, vfo_t vfo, const char *msg)
 
         /*
          * Check with "KY" if char buffer is available.
-         * if not, sleep.
+         * if not, sleep, as long as the rig can take to make room.
          */
+        int room_wait_ms = -1;
+        struct timespec room_wait_start;
+
         for (;;)
         {
             retval = kenwood_transaction(rig, "KY;", m2, 4);
@@ -5638,8 +5667,24 @@ int kenwood_send_morse(RIG *rig, vfo_t vfo, const char *msg)
 
             if (!strncmp(m2, "KY2", 3)) { break; }
 
-            if (!strncmp(m2, "KY1", 3)) { hl_usleep(50 * 1000); }
-            else { RETURNFUNC(-RIG_EINVAL); }
+            if (strncmp(m2, "KY1", 3))
+            {
+                RETURNFUNC(-RIG_EINVAL);
+            }
+
+            if (room_wait_ms < 0)
+            {
+                room_wait_ms = kenwood_morse_room_wait_ms(rig);
+                elapsed_ms(&room_wait_start, HAMLIB_ELAPSED_SET);
+            }
+            else if (elapsed_ms(&room_wait_start, HAMLIB_ELAPSED_GET) > room_wait_ms)
+            {
+                rig_debug(RIG_DEBUG_ERR, "%s: the rig made no room for more text in %d ms\n",
+                          __func__, room_wait_ms);
+                RETURNFUNC(-RIG_ETIMEOUT);
+            }
+
+            hl_usleep(50 * 1000);
         }
 
         buff_len = msg_len > 24 ? 24 : msg_len;
