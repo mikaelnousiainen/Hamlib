@@ -314,6 +314,51 @@ static void expect_reply(int sock, const char *what, const char *expected)
 }
 
 
+/* Whether rigctld's log holds a line, how many times */
+static int count_in_log(const struct rigctld_proc *proc, const char *text)
+{
+    FILE *fp = fopen(proc->log_path, "r");
+    char line[1024];
+    int count = 0;
+
+    if (fp == NULL)
+    {
+        return 0;
+    }
+
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
+        if (strstr(line, text) != NULL)
+        {
+            count++;
+        }
+    }
+
+    fclose(fp);
+    return count;
+}
+
+
+static int wait_for_log(const struct rigctld_proc *proc, const char *text,
+                        int timeout_s)
+{
+    int waited;
+
+    for (waited = 0; waited < timeout_s * 10; waited++)
+    {
+        if (count_in_log(proc, text) > 0)
+        {
+            return 0;
+        }
+
+        usleep(100 * 1000);
+    }
+
+    TEST_MSG("rigctld never logged '%s'", text);
+    return -1;
+}
+
+
 /*
  * An emulated IC-7610 over TCP: answers the CI-V commands the backend sends while
  * opening the rig and reading its frequency, while it is answering. Stopped, it
@@ -644,10 +689,71 @@ void test_client_stays_connected_when_rig_does_not_answer(void)
 }
 
 
+/*
+ * A rig that answers only after rigctld's own opens have failed must be opened once:
+ * rigctld must take it as open from then on, never ask to open it again, which
+ * closes it, and run one async data handler for it, not one beside each reopen.
+ */
+void test_rig_answering_late_is_opened_once(void)
+{
+    struct fake_rig rig;
+    struct rigctld_proc proc;
+    char rig_path[32];
+    char reply[128];
+    const char *args[] =
+    {
+        "-m", "3078", "-r", rig_path, "-C", "async=1", "-C", "cache_timeout=0", "-vvvvv", NULL
+    };
+    struct timeval tv = { 60, 0 };
+    int sock, i;
+
+    TEST_ASSERT(fake_rig_start(&rig, 0) == 0);
+    snprintf(rig_path, sizeof(rig_path), "127.0.0.1:%d", rig.port);
+
+    if (start_rigctld(&proc, args) != 0
+            || wait_for_log(&proc, "listening on port", 60) != 0)
+    {
+        TEST_CHECK_(0, "could not start rigctld");
+        stop_rigctld(&proc);
+        fake_rig_stop(&rig);
+        return;
+    }
+
+    sock = open_client(&proc);
+    TEST_ASSERT(sock >= 0);
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    /* While the rig is silent the client's first command fails, and the client stays */
+    send_command(sock, "f\n");
+    read_reply(sock, reply, sizeof(reply));
+    TEST_CHECK_(strncmp(reply, "RPRT -", 6) == 0, "read with the rig silent: got '%s'",
+                reply);
+    TEST_CHECK(wait_for_log(&proc, "rig not open...trying to reopen", 30) == 0);
+
+    fake_rig_set_answering(&rig, 1);
+
+    for (i = 0; i < 4; i++)
+    {
+        send_command(sock, "f\n");
+        expect_reply(sock, "read with the rig answering", RIG_FREQ);
+    }
+
+    TEST_CHECK_(count_in_log(&proc, "rig_open returning2(-1)") == 0,
+                "rigctld asked to open the rig while it was open");
+    i = count_in_log(&proc, "Starting async data handler thread");
+    TEST_CHECK_(i == 1, "%d async data handlers started, expected 1", i);
+
+    close(sock);
+    stop_rigctld(&proc);
+    fake_rig_stop(&rig);
+}
+
+
 TEST_LIST =
 {
     { "chk_vfo_answers_each_clients_own_mode", test_chk_vfo_answers_each_clients_own_mode },
     { "client_stays_connected_when_rig_does_not_answer", test_client_stays_connected_when_rig_does_not_answer },
+    { "rig_answering_late_is_opened_once", test_rig_answering_late_is_opened_once },
     { NULL, NULL }
 };
 
