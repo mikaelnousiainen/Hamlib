@@ -20,6 +20,9 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <sys/time.h>
 
 #include "hamlib/amplifier.h"
 #include "hamlib/port.h"
@@ -38,10 +41,43 @@
 
 #define DUMMY_AMP_GET_FUNCS (AMP_FUNC_TUNER)
 #define DUMMY_AMP_SET_FUNCS (AMP_FUNC_TUNER)
-#define DUMMY_AMP_GET_LEVELS (AMP_LEVEL_SWR | AMP_LEVEL_SWR_TUNER | AMP_LEVEL_PWR | AMP_LEVEL_PWR_FWD | AMP_LEVEL_PWR_REFLECTED | AMP_LEVEL_PWR_PEAK | AMP_LEVEL_FAULT | AMP_LEVEL_WARNING | AMP_LEVEL_VD_METER | AMP_LEVEL_ID_METER)
+#define DUMMY_AMP_GET_LEVELS (AMP_LEVEL_SWR | AMP_LEVEL_SWR_TUNER | AMP_LEVEL_PWR | AMP_LEVEL_PWR_INPUT | AMP_LEVEL_PWR_FWD | AMP_LEVEL_PWR_REFLECTED | AMP_LEVEL_PWR_PEAK | AMP_LEVEL_FAULT | AMP_LEVEL_WARNING | AMP_LEVEL_VD_METER | AMP_LEVEL_ID_METER | AMP_LEVEL_TEMP_METER)
 #define DUMMY_AMP_SET_LEVELS (AMP_LEVEL_PWR)
 #define DUMMY_AMP_GET_PARMS (AMP_PARM_BACKLIGHT)
 #define DUMMY_AMP_SET_PARMS (AMP_PARM_BACKLIGHT)
+
+/*
+ * The dummy amplifier is a 1 kW solid-state amplifier on a 50 V supply. Off,
+ * its meters read zero; on or in standby it is idle; in operate it transmits,
+ * its forward power the rated power times its power level.
+ */
+#define DUMMY_AMP_RATED_W        1000.0f /* forward power at a power level of 1.0 */
+#define DUMMY_AMP_GAIN           40.0f   /* 16 dB: 25 W of drive for 1 kW */
+#define DUMMY_AMP_PEAK           1.04f   /* peak over forward power */
+#define DUMMY_AMP_SWR            1.25f   /* the antenna's */
+#define DUMMY_AMP_SWR_TUNED      1.06f   /* what the tuner, when on, presents to the amplifier */
+#define DUMMY_AMP_EFFICIENCY     0.63f   /* forward power over the supply's power */
+#define DUMMY_AMP_VD_REST        50.4f   /* the supply, nothing drawn */
+#define DUMMY_AMP_VD_SAG         0.05f   /* the supply's drop per ampere drawn */
+#define DUMMY_AMP_ID_IDLE        0.5f    /* the current drawn when switched on */
+#define DUMMY_AMP_TEMP_AMBIENT   25.0f
+#define DUMMY_AMP_TEMP_PER_W     0.0327f /* heatsink rise per watt dissipated: 45 degrees C at 1 kW */
+#define DUMMY_AMP_TEMP_TIME_S    120.0f  /* the heatsink's time constant */
+#define DUMMY_AMP_SAMPLE_MS      100     /* how long one sample of the meters stands */
+
+/* Every meter at one moment, read together so that one poll's readings agree */
+struct dummy_amp_meters
+{
+    int fwd;
+    int peak;
+    int reflected;
+    int input;
+    float swr;
+    float swr_tuner;
+    float vd;
+    float id;
+    float temp;
+};
 
 struct dummy_amp_priv_data
 {
@@ -61,6 +97,12 @@ struct dummy_amp_priv_data
     struct ext_list *ext_parms;
 
     char *magic_conf;
+    int static_data;
+
+    struct dummy_amp_meters meters;
+    struct timeval sampled;  /* when the meters were sampled; zero for none */
+    float heatsink;          /* the heatsink's temperature, whatever the power state */
+    struct timeval heated;   /* when the heatsink was last brought up to date */
 };
 
 static const struct confparams dummy_ext_levels[] =
@@ -109,8 +151,146 @@ static const struct confparams dummy_cfg_params[] =
         TOK_CFG_AMP_MAGICCONF, "mcfg", "Magic conf", "Magic parameter, as an example",
         "AMPLIFIER", RIG_CONF_STRING, { }
     },
+    {
+        TOK_CFG_AMP_STATIC_DATA, "static_data", "Static data", "Output only static data, no randomization of meter values",
+        "0", RIG_CONF_CHECKBUTTON, { }
+    },
     { RIG_CONF_END, NULL, }
 };
+
+/* Milliseconds from one time to a later one */
+static long dummy_amp_elapsed_ms(const struct timeval *from, const struct timeval *to)
+{
+    return (to->tv_sec - from->tv_sec) * 1000L + (to->tv_usec - from->tv_usec) / 1000L;
+}
+
+/* A random number from -1.0 to 1.0, in steps of a tenth, for the meters' noise */
+static float dummy_amp_noise(void)
+{
+    return (float)(rand() % 21 - 10) / 10.0f;
+}
+
+/* The supply's voltage and current for a forward power, none when idle, with
+ * the drop the current makes */
+static void dummy_amp_supply(float fwd, float noise_v, float *vd, float *id)
+{
+    float supplied = fwd / DUMMY_AMP_EFFICIENCY;
+
+    *vd = DUMMY_AMP_VD_REST - DUMMY_AMP_VD_SAG * (DUMMY_AMP_ID_IDLE + supplied / DUMMY_AMP_VD_REST)
+          + noise_v;
+    *id = DUMMY_AMP_ID_IDLE + supplied / *vd;
+}
+
+/* The temperature the heatsink settles at in the power state, at the power
+ * level: what transmitting dissipates warms it, and the fans keep it at the
+ * ambient temperature otherwise */
+static float dummy_amp_settled_temp(powerstat_t powerstat, float level)
+{
+    float fwd = DUMMY_AMP_RATED_W * level, vd, id;
+
+    if (powerstat != RIG_POWER_OPERATE)
+    {
+        return DUMMY_AMP_TEMP_AMBIENT;
+    }
+
+    dummy_amp_supply(fwd, 0, &vd, &id);
+    return DUMMY_AMP_TEMP_AMBIENT + DUMMY_AMP_TEMP_PER_W * (vd * id - fwd);
+}
+
+/* Brings the heatsink up to now, at what the power state it has been in
+ * dissipates: it warms while transmitting and cools while not */
+static void dummy_amp_heat(struct dummy_amp_priv_data *priv, const struct timeval *now)
+{
+    float settled = dummy_amp_settled_temp(priv->powerstat, priv->levels[AMP_LVL_PWR].f);
+    float elapsed_s = (float)dummy_amp_elapsed_ms(&priv->heated, now) / 1000.0f;
+
+    if (elapsed_s > 0)
+    {
+        priv->heatsink = settled + (priv->heatsink - settled) * expf(-elapsed_s / DUMMY_AMP_TEMP_TIME_S);
+        priv->heated = *now;
+    }
+}
+
+/* Samples every meter, once the last sample has stood its time, from the power
+ * state and the power level: off, all read zero; on or in standby, idle; in
+ * operate, transmitting, with a slow drift, as the dummy rig's meters drift,
+ * and noise in each sample, or fixed with static_data */
+static void dummy_amp_sample(struct dummy_amp_priv_data *priv)
+{
+    struct dummy_amp_meters *m = &priv->meters;
+    struct timeval now;
+    float level = priv->levels[AMP_LVL_PWR].f;
+    float fwd = 0;
+
+    gettimeofday(&now, NULL);
+
+    if ((priv->sampled.tv_sec != 0 || priv->sampled.tv_usec != 0)
+            && dummy_amp_elapsed_ms(&priv->sampled, &now) < DUMMY_AMP_SAMPLE_MS)
+    {
+        return;
+    }
+
+    priv->sampled = now;
+    dummy_amp_heat(priv, &now);
+    memset(m, 0, sizeof(*m));
+
+    if (priv->powerstat != RIG_POWER_ON && priv->powerstat != RIG_POWER_STANDBY
+            && priv->powerstat != RIG_POWER_OPERATE)
+    {
+        return;
+    }
+
+    m->swr = 1.0f;
+    m->swr_tuner = 1.0f;
+
+    if (priv->powerstat == RIG_POWER_OPERATE)
+    {
+        float ripple = 1.0f, peak = DUMMY_AMP_PEAK;
+        float swr = DUMMY_AMP_SWR, tuned = DUMMY_AMP_SWR_TUNED;
+        float gamma;
+
+        if (!priv->static_data)
+        {
+            /* Drifting over 16 s for the power and 20 s for the SWR */
+            ripple = 0.96f + 0.0025f * (float)(now.tv_sec % 16) + 0.01f * dummy_amp_noise();
+            peak = 1.03f + 0.015f * (dummy_amp_noise() + 1.0f);
+            swr += 0.04f * (fabsf((float)(now.tv_sec % 20) - 10.0f) - 5.0f) / 5.0f
+                   + 0.01f * dummy_amp_noise();
+            tuned += 0.01f * dummy_amp_noise();
+        }
+
+        fwd = DUMMY_AMP_RATED_W * level * ripple;
+        gamma = (swr - 1.0f) / (swr + 1.0f);
+
+        m->fwd = (int)lroundf(fwd);
+        m->peak = (int)lroundf(fwd * peak);
+        m->reflected = (int)lroundf(fwd * gamma * gamma);
+        m->input = (int)lroundf(fwd / DUMMY_AMP_GAIN);
+        m->swr = swr;
+        m->swr_tuner = (priv->funcs & AMP_FUNC_TUNER) ? tuned : swr;
+    }
+
+    dummy_amp_supply(fwd, priv->static_data ? 0 : 0.05f * dummy_amp_noise(), &m->vd, &m->id);
+
+    if (priv->powerstat != RIG_POWER_OPERATE && !priv->static_data)
+    {
+        m->id += 0.05f * dummy_amp_noise();
+    }
+
+    m->temp = priv->static_data ? dummy_amp_settled_temp(priv->powerstat, level) : priv->heatsink;
+}
+
+/* Lets the meters follow a change at once: a new sample at the next read, the
+ * heatsink brought up to the change first */
+static void dummy_amp_changed(struct dummy_amp_priv_data *priv)
+{
+    struct timeval now;
+
+    gettimeofday(&now, NULL);
+    dummy_amp_heat(priv, &now);
+    priv->sampled.tv_sec = 0;
+    priv->sampled.tv_usec = 0;
+}
 
 static int dummy_amp_init(AMP *amp)
 {
@@ -163,6 +343,9 @@ static int dummy_amp_init(AMP *amp)
     priv->freq = 0;
     priv->input = RIG_ANT_1;
     priv->antenna = RIG_ANT_1;
+    priv->levels[AMP_LVL_PWR].f = 1.0f;
+    priv->heatsink = DUMMY_AMP_TEMP_AMBIENT;
+    gettimeofday(&priv->heated, NULL);
 
     priv->magic_conf = strdup("AMPLIFIER");
 
@@ -221,6 +404,11 @@ static int dummy_set_conf(AMP *amp, hamlib_token_t token, const char *val)
 
         break;
 
+    case TOK_CFG_AMP_STATIC_DATA:
+        priv->static_data = atoi(val) ? 1 : 0;
+        dummy_amp_changed(priv);
+        break;
+
     default:
         return -RIG_EINVAL;
     }
@@ -239,6 +427,10 @@ static int dummy_get_conf2(AMP *amp, hamlib_token_t token, char *val, int val_le
     {
     case TOK_CFG_AMP_MAGICCONF:
         SNPRINTF(val, val_len, "%s", priv->magic_conf);
+        break;
+
+    case TOK_CFG_AMP_STATIC_DATA:
+        SNPRINTF(val, val_len, "%d", priv->static_data);
         break;
 
     default:
@@ -372,6 +564,11 @@ static int dummy_set_level(AMP *amp, setting_t level, value_t val)
         return -RIG_EINVAL;
     }
 
+    if (level == AMP_LEVEL_PWR)
+    {
+        dummy_amp_changed(priv);
+    }
+
     priv->levels[idx] = val;
 
     if (AMP_LEVEL_IS_FLOAT(level))
@@ -391,64 +588,67 @@ static int dummy_set_level(AMP *amp, setting_t level, value_t val)
 
 static int dummy_get_level(AMP *amp, setting_t level, value_t *val)
 {
-    const struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
-            AMPSTATE(amp)->priv;
-    static int flag = 1;
+    struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
+                                       AMPSTATE(amp)->priv;
+    const struct dummy_amp_meters *m = &priv->meters;
     int idx;
 
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
-    flag = !flag;
-
-    // values toggle between two expected min/~max values for dev purposes
-    switch (level)
-    {
-        case AMP_LEVEL_SWR:
-            rig_debug(RIG_DEBUG_VERBOSE, "%s AMP_LEVEL_SWR\n", __func__);
-            val->f = flag == 0 ? 1.0f : 99.0f;
-            return RIG_OK;
-
-        case AMP_LEVEL_PF:
-            rig_debug(RIG_DEBUG_VERBOSE, "%s AMP_LEVEL_PF\n", __func__);
-            val->f = flag == 0 ? 0 :  2701.2f;
-            return RIG_OK;
-
-        case AMP_LEVEL_NH:
-            rig_debug(RIG_DEBUG_VERBOSE, "%s AMP_LEVEL_NH\n", __func__);
-            val->i = flag == 0 ? 0 : 8370;
-            return RIG_OK;
-
-        case AMP_LEVEL_PWR_INPUT:
-            rig_debug(RIG_DEBUG_VERBOSE, "%s AMP_LEVEL_PWRINPUT\n", __func__);
-            val->i = flag == 0 ? 0 : 1499 ;
-            return RIG_OK;
-
-        case AMP_LEVEL_PWR_FWD:
-            rig_debug(RIG_DEBUG_VERBOSE, "%s AMP_LEVEL_PWRFWD\n", __func__);
-            val->i = flag == 0 ? 0 : 1499 ;
-            return RIG_OK;
-
-        case AMP_LEVEL_PWR_REFLECTED:
-            rig_debug(RIG_DEBUG_VERBOSE, "%s AMP_LEVEL_PWRREFLECTED\n", __func__);
-            val->i = flag == 0 ? 0 : 1499 ;
-            return RIG_OK;
-
-        case AMP_LEVEL_PWR_PEAK:
-            rig_debug(RIG_DEBUG_VERBOSE, "%s AMP_LEVEL_PWRPEAK\n", __func__);
-            val->i = flag == 0 ? 0 : 1500 ;
-            return RIG_OK;
-
-        case AMP_LEVEL_FAULT:
-            rig_debug(RIG_DEBUG_VERBOSE, "%s AMP_LEVEL_FAULT\n", __func__);
-            val->s = flag == 0 ? "No Fault" : "SWR too high"; // SWR too high for KPA1500
-            return RIG_OK;
-
-        default:
-            break;
-    }
+    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s\n", __func__,
+              amp_strlevel(level));
 
     if (!(amp->caps->has_get_level & level))
     {
         return -RIG_EINVAL;
+    }
+
+    dummy_amp_sample(priv);
+
+    switch (level)
+    {
+    case AMP_LEVEL_SWR:
+        val->f = m->swr;
+        return RIG_OK;
+
+    case AMP_LEVEL_SWR_TUNER:
+        val->f = m->swr_tuner;
+        return RIG_OK;
+
+    case AMP_LEVEL_PWR_INPUT:
+        val->i = m->input;
+        return RIG_OK;
+
+    case AMP_LEVEL_PWR_FWD:
+        val->i = m->fwd;
+        return RIG_OK;
+
+    case AMP_LEVEL_PWR_REFLECTED:
+        val->i = m->reflected;
+        return RIG_OK;
+
+    case AMP_LEVEL_PWR_PEAK:
+        val->i = m->peak;
+        return RIG_OK;
+
+    case AMP_LEVEL_VD_METER:
+        val->f = m->vd;
+        return RIG_OK;
+
+    case AMP_LEVEL_ID_METER:
+        val->f = m->id;
+        return RIG_OK;
+
+    case AMP_LEVEL_TEMP_METER:
+        val->f = m->temp;
+        return RIG_OK;
+
+    /* The dummy amplifier has no faults and no warnings */
+    case AMP_LEVEL_FAULT:
+    case AMP_LEVEL_WARNING:
+        val->s = "";
+        return RIG_OK;
+
+    default:
+        break;
     }
 
     idx = rig_setting2idx(level);
@@ -459,11 +659,6 @@ static int dummy_get_level(AMP *amp, setting_t level, value_t *val)
     }
 
     *val = priv->levels[idx];
-
-    rig_debug(RIG_DEBUG_VERBOSE, "%s called: %s\n", __func__,
-            amp_strlevel(level));
-
-    rig_debug(RIG_DEBUG_VERBOSE, "%s flag=%d\n", __func__, flag);
 
     return RIG_OK;
 }
@@ -836,8 +1031,15 @@ static int dummy_amp_get_status(AMP *amp, amp_status_t *status)
     struct dummy_amp_priv_data *priv = (struct dummy_amp_priv_data *)
             AMPSTATE(amp)->priv;
 
-    // TODO: simulate more status bits
-    priv->status ^= AMP_STATUS_PTT;
+    /* Transmitting in operate, as its meters say */
+    if (priv->powerstat == RIG_POWER_OPERATE)
+    {
+        priv->status |= AMP_STATUS_PTT;
+    }
+    else
+    {
+        priv->status &= ~AMP_STATUS_PTT;
+    }
 
     *status = priv->status;
 
@@ -879,6 +1081,7 @@ static int dummy_amp_set_powerstat(AMP *amp, powerstat_t status)
         break;
     }
 
+    dummy_amp_changed(priv);
     priv->powerstat = status;
 
     return RIG_OK;
@@ -913,6 +1116,8 @@ static int dummy_set_func(AMP *amp, setting_t func, int status)
         priv->funcs &= ~func;
     }
 
+    dummy_amp_changed(priv);
+
     return RIG_OK;
 }
 
@@ -945,7 +1150,7 @@ const struct amp_caps dummy_amp_caps =
     AMP_MODEL(AMP_MODEL_DUMMY),
     .model_name =     "Dummy",
     .mfg_name =       "Hamlib",
-    .version =        "20240317.0",
+    .version =        "20261024.0",
     .copyright =      "LGPL",
     .status =         RIG_STATUS_STABLE,
     .amp_type =       AMP_TYPE_OTHER,
@@ -961,7 +1166,10 @@ const struct amp_caps dummy_amp_caps =
     .has_set_parm = DUMMY_AMP_SET_PARMS,
 
     .level_gran = {
-        [AMP_LVL_PWR] = { .min = { .i = 1 }, .max = { .i = 1500 }, .step = { .i = 1 } }
+        [AMP_LVL_PWR] = { .min = { .f = 0 }, .max = { .f = 1.0f }, .step = { .f = 0.01f } },
+        /* Listed for the capabilities with no fixed values: messages, none while all is well */
+        [AMP_LVL_FAULT] = { .step = { .s = "" } },
+        [AMP_LVL_WARNING] = { .step = { .s = "" } },
     },
 
     .extlevels =    dummy_ext_levels,

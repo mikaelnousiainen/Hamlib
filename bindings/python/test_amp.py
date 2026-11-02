@@ -73,7 +73,7 @@ class TestClass:
         level = amp.get_level(Hamlib.AMP_LEVEL_FAULT)
         assert isinstance(level, str)
         level = amp.get_level(Hamlib.AMP_LEVEL_TEMP_METER)
-        assert level is None  # not supported by dummy amp
+        assert isinstance(level, float)
         value = Hamlib.value_t()
         value.i = 2
         assert amp.set_level(Hamlib.AMP_LEVEL_SWR, value) is None
