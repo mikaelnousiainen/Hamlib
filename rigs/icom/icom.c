@@ -395,6 +395,7 @@ struct icom_addr
 #define TOK_FILTER_CW TOKEN_BACKEND(7)
 #define TOK_FILTER_FM TOKEN_BACKEND(8)
 #define TOK_G90_AF_QUIRK TOKEN_BACKEND(9)
+#define TOK_VFO_PROBE TOKEN_BACKEND(10)
 
 const struct confparams icom_cfg_params[] =
 {
@@ -436,6 +437,12 @@ const struct confparams icom_cfg_params[] =
     {
         TOK_G90_AF_QUIRK, "g90_af_quirk", "G90 AF readback workaround",
         "Interpret affected G90 AF replies using decimal prefix and binary low nibble; enable only for a verified affected radio",
+        "0", RIG_CONF_CHECKBUTTON
+    },
+    {
+        TOK_VFO_PROBE, "vfo_probe", "Probe the selected VFO",
+        "Find whether VFO A or B is selected when the rig is opened or powered on, on rigs "
+        "that cannot report it, by selecting VFO A for a moment",
         "0", RIG_CONF_CHECKBUTTON
     },
     {RIG_CONF_END, NULL,}
@@ -1036,6 +1043,144 @@ static vfo_t icom_current_vfo(RIG *rig)
     return vfo_current;
 }
 
+/*
+ * Reads the frequency of the selected (vfo_number 0x00) or unselected (0x01) VFO from the rig with
+ * command 0x25, bypassing the cache and Hamlib's idea of the current VFO.
+ */
+static int icom_read_x25_freq(RIG *rig, int vfo_number, freq_t *freq)
+{
+    unsigned char ackbuf[MAXFRAMELEN];
+    int ack_len = sizeof(ackbuf);
+    int retval;
+
+    retval = icom_transaction(rig, C_SEND_SEL_FREQ, vfo_number, NULL, 0, ackbuf,
+                              &ack_len);
+
+    if (retval != RIG_OK)
+    {
+        return retval;
+    }
+
+    // Cn, Sc and 4 or 5 bytes of BCD frequency
+    if (ack_len < 6 || ackbuf[0] != C_SEND_SEL_FREQ)
+    {
+        rig_debug(RIG_DEBUG_ERR, "%s: unexpected reply, len=%d\n", __func__, ack_len);
+        return -RIG_EPROTO;
+    }
+
+    *freq = from_bcd(ackbuf + 2, (ack_len - 2) * 2);
+    return RIG_OK;
+}
+
+static int icom_select_vfo_a_b(RIG *rig, int subcmd)
+{
+    unsigned char ackbuf[MAXFRAMELEN];
+    int ack_len = sizeof(ackbuf);
+    int retval;
+
+    retval = icom_transaction(rig, C_SET_VFO, subcmd, NULL, 0, ackbuf, &ack_len);
+
+    if (retval != RIG_OK)
+    {
+        return retval;
+    }
+
+    return icom_check_ack(ack_len, ackbuf);
+}
+
+/*
+ * The vfo_probe option: finds whether VFO A or B is selected on a rig with only VFO A and B that
+ * cannot report it but answers command 0x25 with the selected and unselected VFO's frequency. It
+ * selects VFO A and sees whether the selected VFO's frequency changed; if it did, B was selected and
+ * is selected again. The rig is left alone while transmitting, in satellite mode, in memory mode as
+ * far as Hamlib knows (a rig put in memory mode at its front panel is switched to VFO mode), and when
+ * A and B are on the same frequency, which cannot tell them apart. Hamlib's current VFO is then
+ * unchanged.
+ */
+static int icom_probe_vfo(RIG *rig)
+{
+    struct rig_cache_routing_snapshot routing;
+    freq_t selected, unselected, selected_after;
+    ptt_t ptt;
+    vfo_t vfo;
+    int retval;
+
+    if (!VFO_HAS_A_B_ONLY || !(STATE(rig)->targetable_vfo & RIG_TARGETABLE_FREQ))
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: not a rig with only VFO A and B and command 0x25\n",
+                  __func__);
+        return RIG_OK;
+    }
+
+    rig_get_cache_routing_snapshot(rig, &routing);
+
+    if (routing.satmode || routing.current_vfo == RIG_VFO_MEM)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: skipped in satellite or memory mode\n", __func__);
+        return RIG_OK;
+    }
+
+    retval = icom_get_ptt(rig, RIG_VFO_CURR, &ptt);
+
+    if (retval != RIG_OK || ptt != RIG_PTT_OFF)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE, "%s: skipped, transmitting or PTT unknown\n", __func__);
+        return retval;
+    }
+
+    if ((retval = icom_read_x25_freq(rig, 0x00, &selected)) != RIG_OK
+            || (retval = icom_read_x25_freq(rig, 0x01, &unselected)) != RIG_OK)
+    {
+        return retval;
+    }
+
+    if (selected == unselected)
+    {
+        rig_debug(RIG_DEBUG_VERBOSE,
+                  "%s: VFO A and B are both on %.0f Hz and cannot be told apart\n", __func__,
+                  selected);
+        return RIG_OK;
+    }
+
+    if ((retval = icom_select_vfo_a_b(rig, S_VFOA)) != RIG_OK)
+    {
+        return retval;
+    }
+
+    if ((retval = icom_read_x25_freq(rig, 0x00, &selected_after)) != RIG_OK)
+    {
+        return retval;
+    }
+
+    if (selected_after == selected)
+    {
+        vfo = RIG_VFO_A;
+    }
+    else if (selected_after == unselected)
+    {
+        vfo = RIG_VFO_B;
+
+        if ((retval = icom_select_vfo_a_b(rig, S_VFOB)) != RIG_OK)
+        {
+            return retval;
+        }
+    }
+    else
+    {
+        rig_debug(RIG_DEBUG_WARN,
+                  "%s: the rig's frequencies changed during the probe, VFO A is now selected\n",
+                  __func__);
+        vfo = RIG_VFO_A;
+    }
+
+    rig_debug(RIG_DEBUG_VERBOSE, "%s: %s is selected\n", __func__, rig_strvfo(vfo));
+    // Frequencies cached for A and B may have been read through the wrong VFO
+    rig_set_cache_freq(rig, RIG_VFO_A, 0);
+    rig_set_cache_freq(rig, RIG_VFO_B, 0);
+    rig_set_current_vfo_state(rig, vfo);
+    return RIG_OK;
+}
+
 // Some rigs, such as IC-9700, cannot execute 0x25/0x26 commands in satmode
 static void icom_satmode_fix(RIG *rig, int satmode)
 {
@@ -1204,6 +1349,11 @@ retry_open:
         }
 
         //rs->current_vfo = icom_current_vfo(rig);
+
+        if (priv->vfo_probe)
+        {
+            icom_probe_vfo(rig);
+        }
     }
 
 #if 0 // do not do this here -- needs to be done when ranges are requested instead as this is very slow
@@ -5288,6 +5438,10 @@ int icom_set_conf(RIG *rig, hamlib_token_t token, const char *val)
         priv->g90_af_quirk = val[0] == '1';
         break;
 
+    case TOK_VFO_PROBE:
+        priv->vfo_probe = atoi(val) ? 1 : 0;
+        break;
+
     case TOK_FILTER_USBD:
         priv->filter_usbd = atoi(val);
 
@@ -5364,6 +5518,9 @@ static int icom_get_conf2(RIG *rig, hamlib_token_t token, char *val, int val_len
         }
 
         SNPRINTF(val, val_len, "%d", priv->g90_af_quirk);
+        break;
+
+    case TOK_VFO_PROBE: SNPRINTF(val, val_len, "%d", priv->vfo_probe);
         break;
 
     default: RETURNFUNC(-RIG_EINVAL);
@@ -8327,7 +8484,15 @@ int icom_set_powerstat(RIG *rig, powerstat_t status)
                     rig_get_func(rig, RIG_VFO_CURR, RIG_FUNC_SATMODE, &satmode);
                 }
 
-                rig_set_current_vfo_state(rig, icom_current_vfo(rig));
+                if (priv->vfo_probe)
+                {
+                    icom_probe_vfo(rig);
+                }
+                else
+                {
+                    rig_set_current_vfo_state(rig, icom_current_vfo(rig));
+                }
+
                 rp->retry = retry_save;
                 rp->timeout_retry = timeout_retry_save;
                 RETURNFUNC2(retval);
