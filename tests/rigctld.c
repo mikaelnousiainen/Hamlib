@@ -1364,6 +1364,9 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+// The number of i/o errors in a row after which rigctld closes and reopens the rig
+#define RIGCTLD_REOPEN_AFTER_IO_ERRORS 3
+
 static FILE *get_fsockout(struct handle_data *handle_data_arg)
 {
 #ifdef __MINGW32__
@@ -1469,6 +1472,8 @@ void *handle_socket(void *arg)
 
     elapsed_ms(&powerstat_check_time, HAMLIB_ELAPSED_SET);
 
+    int consecutive_io_errors = 0;
+
     do
     {
         rig_debug(RIG_DEBUG_TRACE, "%s: doing rigctl_parse vfo_mode=%d, secure=%d\n",
@@ -1563,13 +1568,24 @@ void *handle_socket(void *arg)
             }
         }
 
-        // if we get a hard error we try to reopen the rig again
-        // this should cover short dropouts that can occur
+        // A command that timed out is returned to the client, which stays connected: a rig that does
+        // not answer is not a broken connection. Only repeated i/o errors, a short dropout of the
+        // port, make rigctld close and reopen the rig.
+        if (retcode == -RIG_EIO)
+        {
+            consecutive_io_errors++;
+        }
+        else if (retcode <= 0)
+        {
+            consecutive_io_errors = 0;
+        }
+
         if ((!handle_data_arg->use_password || handle_data_arg->is_passwordOK)
-                && retcode < 0 && !RIG_IS_SOFT_ERRCODE(retcode))
+                && consecutive_io_errors >= RIGCTLD_REOPEN_AFTER_IO_ERRORS)
         {
             int retry = 3;
             int rig_opened;
+            consecutive_io_errors = 0;
             rig_debug(RIG_DEBUG_ERR, "%s: i/o error\n", __func__);
 
             do
@@ -1611,7 +1627,8 @@ void *handle_socket(void *arg)
                     && retcode != RIG_OK);
         }
     }
-    while (!ctrl_c && (retcode == RIG_OK || RIG_IS_SOFT_ERRCODE(retcode)));
+    // Only the client ends its session: a quit, the connection closed, or input that cannot be parsed
+    while (!ctrl_c && retcode <= 0);
 
     if ((retcode = getnameinfo((struct sockaddr const *)&handle_data_arg->cli_addr,
                                handle_data_arg->clilen,
