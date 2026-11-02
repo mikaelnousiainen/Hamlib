@@ -206,6 +206,23 @@ static int icom_recv_frame(RIG *rig, unsigned char *buf, size_t buflen)
 }
 
 /*
+ * Whether rp->timeout has passed since start_time. Every frame that is not the
+ * reply, such as the spectrum scope data a rig sends unasked, ends a read
+ * before the read times out, so a transaction that reads on past such frames
+ * needs this deadline of its own to time out at all.
+ */
+static int icom_reply_overdue(const hamlib_port_t *rp,
+                              const struct timeval *start_time)
+{
+    struct timeval current_time, elapsed_time;
+
+    gettimeofday(&current_time, NULL);
+    timersub(&current_time, start_time, &elapsed_time);
+
+    return elapsed_time.tv_sec * 1000 + elapsed_time.tv_usec / 1000 > rp->timeout;
+}
+
+/*
  * icom_one_transaction
  *
  * We assume that rig!=NULL, STATE(rig)!= NULL, payload!=NULL, data!=NULL, data_len!=NULL
@@ -225,7 +242,7 @@ static int icom_one_transaction(RIG *rig, unsigned char cmd, int subcmd,
     const struct icom_priv_caps *priv_caps;
     struct rig_state *rs = STATE(rig);
     hamlib_port_t *rp = RIGPORT(rig);
-    struct timeval start_time, current_time, elapsed_time;
+    struct timeval start_time;
     // this buf needs to be large enough for 0xfe strings for power up
     // at 115,200 this is now at least 150
     unsigned char buf[200];
@@ -270,6 +287,8 @@ collision_retry:
         RETURNFUNC(retval);
     }
 
+    gettimeofday(&start_time, NULL);
+
     if (!priv_caps->serial_full_duplex && !priv->serial_USB_echo_off)
     {
 
@@ -283,6 +302,12 @@ collision_retry:
          */
 
 again1:
+        if (icom_reply_overdue(rp, &start_time))
+        {
+            set_transaction_inactive(rig);
+            RETURNFUNC(-RIG_ETIMEOUT);
+        }
+
         retval = icom_recv_frame(rig, buf, sizeof(buf));
 
         if (retval == -RIG_ETIMEOUT || retval == 0)
@@ -397,8 +422,6 @@ again1:
         RETURNFUNC(RIG_OK);
     }
 
-    gettimeofday(&start_time, NULL);
-
 read_another_frame:
     /*
      * wait for ACK ...
@@ -407,6 +430,12 @@ read_another_frame:
      */
     priv->serial_USB_echo_off = 1;
 again2:
+    if (icom_reply_overdue(rp, &start_time))
+    {
+        set_transaction_inactive(rig);
+        RETURNFUNC(-RIG_ETIMEOUT);
+    }
+
     buf[0] = 0;
     frm_len = icom_recv_frame(rig, buf, sizeof(buf));
 
@@ -575,20 +604,7 @@ again2:
     // TODO: Does ctrlid (detected by icom_is_async_frame) vary (seeing some code above using 0x80 for non-full-duplex)?
     if (icom_is_async_frame(rig, frm_len, buf))
     {
-        int elapsedms;
         icom_process_async_frame(rig, frm_len, buf);
-
-        gettimeofday(&current_time, NULL);
-        timersub(&current_time, &start_time, &elapsed_time);
-
-        elapsedms = (int)(elapsed_time.tv_sec * 1000 + elapsed_time.tv_usec / 1000);
-
-        if (elapsedms > rp->timeout)
-        {
-            set_transaction_inactive(rig);
-            RETURNFUNC(-RIG_ETIMEOUT);
-        }
-
         goto read_another_frame;
     }
 
