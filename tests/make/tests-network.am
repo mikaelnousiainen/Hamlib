@@ -36,6 +36,9 @@ check_PROGRAMS += testrigctlprotocol
 TESTS += testrigctlprotocol
 testrigctlprotocol_LDADD = $(LDADD)
 
+check_PROGRAMS += testrigreopen
+TESTS += testrigreopen
+
 check_PROGRAMS += testsendraw
 TESTS += testsendraw
 testsendraw_CFLAGS = $(AM_CFLAGS)
