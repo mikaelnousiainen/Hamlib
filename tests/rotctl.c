@@ -98,6 +98,7 @@ static struct option long_options[] =
     {"show-conf",       0, 0, 'L'},
     {"dump-caps",       0, 0, 'u'},
     {"debug-time-stamps", 0, 0, 'Z'},
+    {"debug-level-prefix", 0, 0, 1001},
 #ifdef HAVE_READLINE_HISTORY
     {"read-history",    0, 0, 'i'},
     {"save-history",    0, 0, 'I'},
@@ -188,7 +189,7 @@ int main(int argc, char *argv[])
         case 's':
             if (sscanf(optarg, "%d%1s", &serial_rate, dummy) != 1)
             {
-                fprintf(stderr, "Invalid baud rate of %s\n", optarg);
+                rig_print_error("Invalid baud rate of %s\n", optarg);
                 exit(1);
             }
 
@@ -262,6 +263,10 @@ int main(int argc, char *argv[])
             rig_set_debug_time_stamp(1);
             break;
 
+        case 1001:
+            rig_set_debug_level_prefix(1);
+            break;
+
         default:
             /* unknown getopt option */
             short_usage(stderr);
@@ -286,11 +291,11 @@ int main(int argc, char *argv[])
 
     if (!my_rot)
     {
-        fprintf(stderr,
-                "Unknown rot num %d, or initialization error.\n",
-                my_model);
+        rig_print_error(
+            "Unknown rot num %d, or initialization error.\n",
+            my_model);
 
-        fprintf(stderr, "Please check with --list option.\n");
+        rig_print_error("Please check with --list option.\n");
         exit(2);
     }
 
@@ -316,7 +321,7 @@ int main(int argc, char *argv[])
 
         if (retcode != RIG_OK)
         {
-            fprintf(stderr, "Config parameter error: %s\n", rigerror(retcode));
+            rig_print_error("Config parameter error: %s\n", rigerror(retcode));
             exit(2);
         }
 
@@ -358,7 +363,7 @@ int main(int argc, char *argv[])
 
     if (retcode != RIG_OK)
     {
-        fprintf(stderr, "rot_open: error = %s \n", rigerror(retcode));
+        rig_print_error("rot_open: error = %s \n", rigerror(retcode));
         exit(2);
     }
 
@@ -507,6 +512,7 @@ static void usage(FILE *fout)
 #endif
         "  -v, --verbose                 set verbose mode, cumulative (-v to -vvvvv)\n"
         "  -Z, --debug-time-stamps       enable time stamps for debug messages\n"
+        "      --debug-level-prefix      start each debug message with its level, as <3>\n"
         "  -h, --help                    display this help and exit\n"
         "  -V, --version                 output version information and exit\n"
         "  -                             read commands from standard input\n"

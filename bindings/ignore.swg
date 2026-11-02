@@ -91,6 +91,7 @@
 // re-add some methods
 %rename("%s") rig_get_debug;
 %rename("%s") rig_set_debug;
+%rename("%s") rig_set_debug_level_prefix;
 %rename("%s") rig_set_debug_time_stamp;
 %rename("%s", regexmatch$name="^rig_str", %$isfunction) "";
 
